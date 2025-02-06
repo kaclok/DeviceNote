@@ -1,0 +1,69 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  boot:
+    admin:
+      client:
+        url: http://localhost:8100/sba
+  application:
+    name: client-train  # 填写当前被监控服务的名称，方便在监控界面区分不同服务
+
+  mvc: # 接口请求显示具体参数信息: https://mp.weixin.qq.com/s/GTE9U0qnF2Ezuq0HjINwHg
+    log-request-details: true
+
+  devtools:
+    add-properties: true
+
+  datasource:
+    dynamic:
+      primary: train #设置默认的数据源或者数据源组,默认值即为master
+      strict: false #严格匹配数据源,默认false. true未匹配到指定数据源时抛异常,false使用默认数据源
+      lazy: true
+      datasource:
+        train:
+          url: jdbc:mysql://host.docker.internal:3407/train?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
+          username: root
+          password: root
+          driver-class-name: com.mysql.cj.jdbc.Driver
+
+#  data:
+#    redis:  # Redis
+#      host: localhost
+#      port: 6379
+
+server:
+  port: 8091
+
+minio: # https://mp.weixin.qq.com/s/ptlGsr0OJZ1g4ehY-MUEdA
+  config:
+    url: http://host.docker.internal:9000 # ip地址 webUI地址：http://host.docker.internal:4833
+    accessKey: admin # 账号
+    secretKey: cxm208512 # 密码
+    secure: false # 如果是true，则用的是https而不是http,默认值是true
+    bucketName: "train"  # 桶的名字 相当于文件夹
+
+logging:
+  level:
+    # root: debug # 指定日志级别 把springboot的所有日志修改成为debug
+    web: debug
+    com.alibaba.druid.pool.DruidDataSource: trace
+    com.smlj.train: trace # 打印sql查询语句
+
+# 参考开源yudao项目
+# https://springdoc.org/#properties
+# https://github.com/swagger-api/swagger-ui
+# https://springdoc.cn/spring-rest-openapi-documentation/
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs # 如何访问api: http://localhost:8092/v3/api-docs
+    version: OPENAPI_3_1
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui
+  default-flat-param-object: true # 参见 https://doc.xiaominfo.com/docs/faq/v4/knife4j-parameterobject-flat-param 文档
+
+smlj-x:
+  clearWhenServerOn: false

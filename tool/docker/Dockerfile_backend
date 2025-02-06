@@ -1,0 +1,25 @@
+# 基础镜像
+# 先在docker pull openjdk:18.0.2拉取jdk资源jdk版本需要和开发的版本一致
+# 然后使用该dockerfiler构建镜像
+# 然后要么在docker desktop中的Images中选择运行，要么命令行运行，要么在idea的服务中运行
+FROM openjdk:18.0.2
+
+MAINTAINER 572005238@qq.com
+
+# 定义时区参数
+ENV TZ=Asia/Shanghai
+# 设置时区
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo '$TZ' > /etc/timezone
+
+# -p表示嵌套创建文件夹
+RUN mkdir -p /data/deploy/train
+# 复制主机jar包至镜像内，复制的目录需放置在 Dockerfile 文件同级目录下
+COPY out/com.smlj.train-0.0.1-*.jar /data/deploy/train/train.jar
+
+# 容器启动执行命令
+ENTRYPOINT ["java","-jar", "/data/deploy/train/train.jar" , "--spring.profiles.active=dev", "--server.port=8090", "-Dfile.encoding=UTF-8",  "-Dsun.stdout.encoding=UTF-8",  "-Dsun.stderr.encoding=UTF-8",  "-Dspring.output.ansi.enabled=always"]
+
+# 对外暴露的端口号,可以暴露多个端口
+EXPOSE  8090
+EXPOSE  8091
+EXPOSE  8092

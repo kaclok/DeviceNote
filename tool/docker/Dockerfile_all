@@ -1,0 +1,52 @@
+# 基础镜像
+# 先在docker pull openjdk:18.0.2拉取jdk资源jdk版本需要和开发的版本一致
+# 然后使用该dockerfiler构建镜像
+# 然后要么在docker desktop中的Images中选择运行，要么命令行运行，要么在idea的服务中运行
+FROM nginx:latest
+
+MAINTAINER 572005238@qq.com
+
+# 定义时区参数
+ENV TZ=Asia/Shanghai
+# 设置时区
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo '$TZ' > /etc/timezone
+
+# 安装jdk
+RUN mkdir -p /data/software/jdks
+# ADD 除了可以将本地文件和目录复制到镜像中，还可以自动解压缩归档文件（如 .tar.gz、.zip 等）
+ADD jdk/22_0_2/jdk-22_0_2_linux-x64_bin.tar.gz /data/software/jdks/
+RUN ln -s /data/software/jdks/jdk-22.0.2 /data/software/jdks/cur_jdk
+
+# 设置环境变量
+ENV JAVA_HOME /data/software/jdks/cur_jdk
+ENV JRE_HOME ${JAVA_HOME}/jre
+ENV CLASSPATH .:${JAVA_HOME}/lib:${JRE_HOME}/lib
+ENV PATH ${JAVA_HOME}/bin:$PATH
+
+# copy 后端
+RUN mkdir -p /data/deploy/train
+COPY out/com.smlj.train-0.0.1-*.jar /data/deploy/train/train.jar
+
+# copy 前端
+# conf.d是nginx的配置文件夹，基本自定义的nginx配置都在这儿
+RUN mkdir -p /data/deploy/train/dist
+COPY ./nginx_conf /etc/nginx/conf.d/
+COPY ./dist /data/deploy/train/dist/
+
+# copy bash脚本
+COPY startBackend.sh /data/deploy/train/
+COPY startFrontend.sh /data/deploy/train/
+COPY startAll.sh /data/deploy/train/
+
+# 对外暴露的端口号,可以暴露多个端口
+EXPOSE  8090
+EXPOSE  8091
+EXPOSE  8092
+
+EXPOSE  8082
+EXPOSE  80
+
+# CMD nginx -g daemon off; && sh /data/deploy/train/startBackend.sh
+
+# 因为CMD只能执行一个命令，所以需要借助bash达到执行多个命令的目的
+CMD sh /data/deploy/train/startFrontend.sh && sh /data/deploy/train/startBackend.sh

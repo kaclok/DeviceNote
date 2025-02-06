@@ -1,0 +1,27 @@
+# 基础镜像
+# 先在docker pull openjdk:18.0.2拉取jdk资源jdk版本需要和开发的版本一致
+# 然后使用该dockerfiler构建镜像
+# 然后要么在docker desktop中的Images中选择运行，要么命令行运行，要么在idea的服务中运行
+FROM nginx:latest
+
+MAINTAINER 572005238@qq.com
+
+# 定义时区参数
+ENV TZ=Asia/Shanghai
+# 设置时区
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo '$TZ' > /etc/timezone
+
+# -p表示嵌套创建文件夹
+RUN mkdir -p /data/deploy/train/dist
+# conf.d是nginx的配置文件夹，基本自定义的nginx配置都在这儿
+COPY ./nginx_conf /etc/nginx/conf.d/
+COPY ./dist /data/deploy/train/dist/
+
+# docker启动基于nginx镜像之后，build成功，但是nginx运行闪退, 通过https://stackoverflow.com/questions/24241292/dockerized-nginx-is-not-starting
+# https://blog.csdn.net/lsw4861/article/details/109470905
+# 以及观察docker官方的nginx:latest的实现(在docker的容器中选择nginx容器，view files)
+ENTRYPOINT ["nginx",  "-g", "daemon off;"]
+
+# 对外暴露的端口号,可以暴露多个端口
+EXPOSE  8082
+EXPOSE  80
