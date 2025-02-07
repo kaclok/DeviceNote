@@ -1,0 +1,30 @@
+package com.smlj.common.o.to;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+// https://github.com/kaclok/springboot-vue/blob/master/yudao-framework/yudao-common/src/main/java/cn/iocoder/yudao/framework/common/exception/enums/GlobalErrorCodeConstants.java#L17
+@Getter
+@AllArgsConstructor
+public enum ResultCode {
+    RC200(200, "成功"),
+
+    // 协议参数传输
+    RC400(400, "请求参数不正确"),
+
+    // ========== 服务端错误段 ==========
+    RC500(500, "系统异常"),
+    RC501(501, "功能未实现/未开启"),
+    RC502(502, "错误的配置项"),
+
+    // 文件
+    RC10104(10104, "文件超过限制大小(单个300MB,总共1000MB)"),
+
+    // 保持在最后
+    RC_1(-1, "未知错误");
+
+    // 自定义状态码
+    private final int code;
+    // 自定义描述
+    private final String message;
+}

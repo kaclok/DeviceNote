@@ -1,0 +1,21 @@
+smlj:
+  rebooter:
+    file: classpath:rebooter.bat
+  servlet:
+    showRequestDetail: true
+
+  sync: # 必须添加http://前缀，否则解析uri会出现异常
+    user: http://10.8.13.126:23277/cms/api/getUserInfo
+    org: http://10.8.13.126:23277/cms/api/getOrgInfo
+
+  file: # 文件上传目录
+    preview_url: files  # 文件的 HTTP 访问路径
+
+  captcha:
+    width: 130
+    height: 48
+    codeCount: 4
+    lineCount: 50
+    session:
+      key: CAPTCHA_SESSION_KEY
+      date: CAPTCHA_SESSION_DATE
