@@ -25,7 +25,7 @@ import java.lang.reflect.Method;
 // https://zhuanlan.zhihu.com/p/342744060 https://zhuanlan.zhihu.com/p/342746910 https://zhuanlan.zhihu.com/p/342755411 https://blog.csdn.net/m0_37834471/article/details/83144761
 // https://docs.springframework.org.cn/spring-framework/reference/web/webmvc/mvc-servlet/handlermapping-interceptor.html
 @Slf4j
-@RequiredArgsConstructor(onConstructor_ = @Autowired)
+@RequiredArgsConstructor
 @Component
 public class AccessInterceptor implements HandlerInterceptor {
     private final TUserService userService;
