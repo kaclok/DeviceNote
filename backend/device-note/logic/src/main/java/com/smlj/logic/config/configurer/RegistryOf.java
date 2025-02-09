@@ -5,6 +5,7 @@ import com.smlj.common.configurer.AnnoArgResolver;
 import com.smlj.common.o.converter.StringToKV;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
@@ -24,6 +25,7 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 @Configuration
+@ComponentScan(basePackages = "com.smlj.logic")
 public class RegistryOf implements WebMvcConfigurer {
     private final AccessInterceptor accessInterceptor;
 
@@ -37,16 +39,16 @@ public class RegistryOf implements WebMvcConfigurer {
         // registry.addInterceptor(new org.springframework.web.servlet.i18n.LocaleChangeInterceptor());
 
         /*var i = registry.addInterceptor(signInterceptor);
-        i.addPathPatterns("/train/**");*/
+        i.addPathPatterns("/邱元金/**");*/
 
         var i = registry.addInterceptor(accessInterceptor);
         // 对train开头的进行处理，不对swagger-ui等进行拦截
-        i.addPathPatterns("/train/**");
+        i.addPathPatterns("/root/**");
         // 不对以下接口进行拦截， 登录和注册
-        i.excludePathPatterns("/train/user/login"
-                ,"/train/user/tryLogin"
-                ,"/train/user/loginWithId"
-                , "/train/sync/*" // 同步接口忽略
+        i.excludePathPatterns("/root/user/login"
+                , "/root/user/tryLogin"
+                , "/root/user/loginWithId"
+                , "/root/sync/*" // 同步接口忽略
                 , "/swagger-ui/*"
         );
     }

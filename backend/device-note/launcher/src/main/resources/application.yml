@@ -29,7 +29,7 @@ server:
     connection-timeout: 12000
 
 pagehelper: # https://blog.csdn.net/Reggie97/article/details/142388065
-  helperDialect: mysql
+  helperDialect: postgresql
   reasonable: true  # 规整页码范围，应对负数或过大页码
   supportMethodsArguments: true
   params: count=countSql
@@ -166,8 +166,8 @@ management:
       enabled: true
 
 info:
-  packageName: @project.groupId@.@project.artifactId@-[@activated@-jdk@java.version@]-@project.version@
-  describe: 人员培训后台监控系统
+  packageName: @project.groupId@.@project.artifactId@-[@activated@-java@java.version@]-@project.version@
+  describe: 设备检修记录
   author: 崔斌斌 572005238@qq.com
 
 mybatis:

@@ -1,12 +1,17 @@
 package com.smlj.logic.controller;
 
-import com.smlj.logic.o.vo.table.service.TLoginService;
-import com.smlj.logic.o.vo.table.service.TUserService;
+import com.smlj.common.o.to.Result;
+import com.smlj.logic.o.vo.table.dao.TGYDao;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
 
 // https://blog.csdn.net/miles067/article/details/132567377
 // @RestController 是一个组合注解，它结合了 @Controller 和 @ResponseBody 注解的功能（就相当于把两个注解组合在一起）。在使用 @RestController 注解标记的类中，每个方法的返回值都会以 JSON 或 XML 的形式直接
@@ -21,9 +26,33 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/train/user")
-@Tag(name = "CLogin", description = "登录 相关操作")
-public class CLogin {
-    private final TLoginService loginService;
-    private final TUserService userService;
+@RequestMapping("/x")
+@Tag(name = "CDeviceNote", description = "检修记录")
+@ComponentScan(basePackages = {"com.smlj.common", "com.smlj.logic"})
+public class CDeviceNote {
+    private final TGYDao tgyDao;
+
+    @GetMapping(value = "/getGYListByZZ") // https://mp.weixin.qq.com/s/xCFx5b1fqODDUey6bWGX_A
+    public Result<?> getGYListByZZ(@RequestParam(value = "zzId") String zzId) {
+        ArrayList<String> conds = new ArrayList<>();
+        conds.add("zz = " + zzId);
+
+        var ls = tgyDao.doSelect("t_gy", "*", conds, null);
+        return Result.success(ls);
+    }
+
+    @GetMapping(value = "/getDeviceListByGYId") // https://mp.weixin.qq.com/s/xCFx5b1fqODDUey6bWGX_A
+    public Result<?> getDeviceListByGYId(@RequestParam(value = "gyId") String gyId) {
+        return null;
+    }
+
+    @GetMapping(value = "/getRecordListByDeviceId") // https://mp.weixin.qq.com/s/xCFx5b1fqODDUey6bWGX_A
+    public Result<?> getRecordListByDeviceId(@RequestParam(value = "deviceId") String deviceId) {
+        return null;
+    }
+
+    @GetMapping(value = "/report") // https://mp.weixin.qq.com/s/xCFx5b1fqODDUey6bWGX_A
+    public Result<?> report(@RequestParam String deviceId) {
+        return null;
+    }
 }
