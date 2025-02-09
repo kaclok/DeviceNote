@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.4.2</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+    <groupId>com.smlj</groupId>
+    <artifactId>single-device_note</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>single-device_note</name>
+    <description>single-device_note</description>
+    <url/>
+    <licenses>
+        <license/>
+    </licenses>
+    <developers>
+        <developer/>
+    </developers>
+    <scm>
+        <connection/>
+        <developerConnection/>
+        <tag/>
+        <url/>
+    </scm>
+
+    <properties>
+        <java.version>21</java.version>
+
+        <root.version>0.0.1</root.version>
+        <maven.build.timestamp.format>yyyy_MM_dd_HH_mm</maven.build.timestamp.format>
+
+        <!--
+           引入hutool, Hutool是一个Java工具包类库，对文件、流、加密解密、转码、正则、线程、XML等JDK方法进行封装，组成各种Util工具类
+           https://hutool.cn/
+           固定到5.8.16版本，因为之后的版本反序列化ArrayList<自定义类型>会存在异常：java.io.InvalidClassException: Unauthorized deserialization attempt;
+       -->
+        <hutool.version>5.8.16</hutool.version>
+
+        <minio.version>8.5.7</minio.version>
+        <dynamic-datasource.version>4.2.0</dynamic-datasource.version>
+        <springdoc.version>2.6.0</springdoc.version>
+        <google.guava.version>2.6.0</google.guava.version>
+        <github.pagehelper.version>1.4.7</github.pagehelper.version>
+
+        <easyexcel.version>4.0.3</easyexcel.version>
+        <commons-io.version>2.15.0</commons-io.version>
+
+        <spring-boot-admin.version>3.3.5</spring-boot-admin.version>
+        <mybatis.version>3.0.4</mybatis.version>
+
+        <druid.version>1.2.23</druid.version>
+
+        <mapstruct.version>1.6.2</mapstruct.version>
+        <lombok.version>1.18.36</lombok.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+
+        <redis.version>3.3.1</redis.version>
+        <cache.version>3.3.1</cache.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>${mybatis.version}</version>
+            <exclusions>
+                <!-- https://mp.weixin.qq.com/s/S2dFOXlLQpL8fitc4rrUVw -->
+                <!-- 排除默认的 HikariCP 数据源 -->
+                <exclusion>
+                    <groupId>com.zaxxer</groupId>
+                    <artifactId>HikariCP</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.pagehelper</groupId>
+            <artifactId>pagehelper-spring-boot-starter</artifactId>
+            <version>${github.pagehelper.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
+            <version>${dynamic-datasource.version}</version>
+        </dependency>
+        <!-- druid数据库连接池
+            https://www.iocoder.cn/Spring-Boot/datasource-pool/?yudao
+            https://github.com/alibaba/druid/tree/master/druid-spring-boot-3-starter
+	        https://github.com/alibaba/druid/blob/master/druid-spring-boot-3-starter/src/test/resources/application-multi-datasource.properties
+        -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-3-starter</artifactId>
+            <version>${druid.version}</version>
+        </dependency>
+
+        <!--引入swagger
+         https://springdoc.org/
+         https://springdoc.cn/spring-boot-swagger-jwt/  线上swagger-ui的authority按钮，提供输入统一token的入口
+         https://springdoc.cn/spring-rest-openapi-documentation/
+	     https://swagger.org.cn/docs/specification/authentication/bearer-authentication/
+         https://blog.csdn.net/weixin_37833693/article/details/137050893
+         https://blog.csdn.net/weixin_43529394/article/details/131067281
+         http://144.24.171.248:8081/swagger-ui/index.html
+         -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <!--
+            引入hutool, Hutool是一个Java工具包类库，对文件、流、加密解密、转码、正则、线程、XML等JDK方法进行封装，组成各种Util工具类
+            https://hutool.cn/
+            固定到5.8.16版本，因为之后的版本反序列化ArrayList<自定义类型>会存在异常：java.io.InvalidClassException: Unauthorized deserialization attempt;
+        -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>${hutool.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+            <version>1.9.22.1</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--打包成jar-->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+
+                <!--lombok只在编译用，打包排除-->
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!--打包添加时间戳-->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.4.0</version>
+                <executions>
+                    <execution>
+                        <id>timestamp-property</id>
+                        <goals>
+                            <goal>timestamp-property</goal>
+                        </goals>
+                        <configuration>
+                            <name>build.time</name>
+                            <pattern>yyyyMMdd-HHmm</pattern>
+                            <locale>zh_CN</locale>
+                            <timeZone>GMT+8</timeZone>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--编译阶段处理mapstruct-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <!-- 此处，lombok依赖一定要放在，Mapstruct-processor依赖之前。否则，生成了maptruct的实现类，但该类只创建了对象，没有进行赋值 -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <!-- 如果是0.1.0 有可能出现生成了MapStruct的实现类，但该类只创建了对象，没有进行赋值 -->
+                            <version>${lombok-mapstruct-binding.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+
+        <finalName>${project.groupId}.${project.artifactId}-[${activated}-java${java.version}]-${project.version}-${build.time}</finalName>
+    </build>
+
+    <!-- 使用 huawei / aliyun 的 Maven 源，提升下载速度 -->
+    <repositories>
+        <repository>
+            <id>huaweicloud</id>
+            <name>huawei</name>
+            <url>https://mirrors.huaweicloud.com/repository/maven/</url>
+        </repository>
+        <repository>
+            <id>aliyunmaven</id>
+            <name>aliyun</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </repository>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>spring-snapshots</id>
+            <name>Spring Snapshots</name>
+            <url>https://repo.spring.io/snapshot</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+    </repositories>
+
+    <!--
+    https://mp.weixin.qq.com/s/rqvAfgXykW7hNC8pLW7G_g
+    https://mp.weixin.qq.com/s/dvz_kC0Ix5BN8aNU5nxUgw
+    -->
+    <profiles>
+        <!--开发环境-->
+        <profile>
+            <id>dev</id>
+            <properties>
+                <activated>dev</activated>
+            </properties>
+            <!--<activation>
+                &lt;!&ndash; 默认环境 &ndash;&gt;
+                <activeByDefault>true</activeByDefault>
+            </activation>-->
+        </profile>
+        <!--测试环境-->
+        <profile>
+            <id>test</id>
+            <properties>
+                <activated>test</activated>
+            </properties>
+        </profile>
+        <!--生产环境-->
+        <profile>
+            <id>deploy</id>
+            <properties>
+                <activated>deploy</activated>
+            </properties>
+        </profile>
+    </profiles>
+
+</project>
