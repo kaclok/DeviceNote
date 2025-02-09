@@ -1,6 +1,11 @@
 package com.smlj.singledevice_note.logic.controller;
 
+import cn.hutool.core.util.StrUtil;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.smlj.singledevice_note.core.o.to.Result;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeviceDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeviceRecordDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TGYDao;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
+import java.util.Map;
 
 // https://blog.csdn.net/miles067/article/details/132567377
 // @RestController 是一个组合注解，它结合了 @Controller 和 @ResponseBody 注解的功能（就相当于把两个注解组合在一起）。在使用 @RestController 注解标记的类中，每个方法的返回值都会以 JSON 或 XML 的形式直接
@@ -29,27 +34,51 @@ import java.util.ArrayList;
 @Tag(name = "CDeviceNote", description = "检修记录")
 public class CDeviceNote {
     private final TGYDao tgyDao;
+    private final TDeviceDao tDeviceDao;
+    private final TDeviceRecordDao tDeviceRecordDao;
 
     @GetMapping(value = "/getGYListByZZ") // https://mp.weixin.qq.com/s/xCFx5b1fqODDUey6bWGX_A
-    public Result<?> getGYListByZZ(@RequestParam(value = "zzId") String zzId) {
+    public Result<?> getGYListByZZ(String zzId) {
         String conds = "zz = \'" + zzId + "\'";
         String orderBy = "id asc";
         var ls = tgyDao.doSelectSimple("t_gy", "*", conds, orderBy);
         return Result.success(ls);
     }
 
-    @GetMapping(value = "/getDeviceListByGYId") // https://mp.weixin.qq.com/s/xCFx5b1fqODDUey6bWGX_A
-    public Result<?> getDeviceListByGYId(@RequestParam(value = "gyId") String gyId) {
-        return null;
+    @GetMapping(value = "/getDeviceList")
+    public Result<?> getDeviceList(String gyId,
+                                   @RequestParam(name = "posIdx", required = false) String posIdx,
+                                   @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
+                                   @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+        String conds = "gy_id = \'" + gyId + "\'";
+        if (!StrUtil.isEmpty(posIdx)) {
+            conds += " and pos_Idx like \'" + posIdx + "\'";
+        }
+
+        String orderBy = "id asc";
+        PageHelper.startPage(pageNum, pageSize, true, true, true);
+        var ls = tDeviceDao.doSelectSimple("t_device", "*", conds, orderBy);
+        return Result.success(new PageInfo<>(ls));
     }
 
-    @GetMapping(value = "/getRecordListByDeviceId") // https://mp.weixin.qq.com/s/xCFx5b1fqODDUey6bWGX_A
-    public Result<?> getRecordListByDeviceId(@RequestParam(value = "deviceId") String deviceId) {
-        return null;
+    @GetMapping(value = "/getRecordList")
+    public Result<?> getRecordList(String deviceId,
+                                   @RequestParam(name = "person", required = false) String person,
+                                   @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
+                                   @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+        String conds = "device_id = \'" + deviceId + "\'";
+        if (!StrUtil.isEmpty(person)) {
+            conds += " and c_person like \'" + person + "\'";
+        }
+
+        String orderBy = "id asc";
+        PageHelper.startPage(pageNum, pageSize, true, true, true);
+        var ls = tDeviceRecordDao.doSelectSimple("t_device_record", "*", conds, orderBy);
+        return Result.success(new PageInfo<>(ls));
     }
 
-    @GetMapping(value = "/report") // https://mp.weixin.qq.com/s/xCFx5b1fqODDUey6bWGX_A
-    public Result<?> report(@RequestParam String deviceId) {
-        return null;
+    @GetMapping(value = "/report")
+    public Result<?> report(String deviceId, Map<String, String> infoList) {
+        return Result.success();
     }
 }

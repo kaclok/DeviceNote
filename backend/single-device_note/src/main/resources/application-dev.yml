@@ -35,7 +35,7 @@ spring:
 #      port: 6379
 
 server:
-  port: 8092
+  port: 7092
 
 minio: # https://mp.weixin.qq.com/s/ptlGsr0OJZ1g4ehY-MUEdA
   config:
@@ -43,7 +43,7 @@ minio: # https://mp.weixin.qq.com/s/ptlGsr0OJZ1g4ehY-MUEdA
     accessKey: admin # 账号
     secretKey: cxm208512 # 密码
     secure: false # 如果是true，则用的是https而不是http,默认值是true
-    bucketName: "train"  # 桶的名字 相当于文件夹
+    bucketName: "device-note"  # 桶的名字 相当于文件夹
 
 logging:
   level:

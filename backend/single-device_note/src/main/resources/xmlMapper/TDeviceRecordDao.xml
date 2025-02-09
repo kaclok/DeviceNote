@@ -2,13 +2,13 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!-- mapper namespace作用是：代码和xml进行关联 -->
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
-<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TGYDao">
-    <select id="doSelect" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TGY">
-        select ${select} from public.${tableName}
-        where 1 = 1
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TDeviceRecordDao">
+    <select id="doSelect" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeviceRecord">
+        select ${select} from ${tableName}
+        where 1 = 1 and
         <if test="conds != null and conds != ''">
             <foreach collection="conds" item="item" index="index" separator="">
-                and (#{item})
+                and (${item})
             </foreach>
         </if>
 
@@ -17,8 +17,8 @@
         </if>
     </select>
 
-    <select id="doSelectSimple" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TGY">
-        select ${select} from public.${tableName}
+    <select id="doSelectSimple" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeviceRecord">
+        select ${select} from ${tableName}
         where 1 = 1
         <if test="conds != null and conds != ''">
             and (${conds})
