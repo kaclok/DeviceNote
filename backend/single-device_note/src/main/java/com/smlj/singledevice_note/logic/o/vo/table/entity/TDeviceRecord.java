@@ -1,6 +1,10 @@
 package com.smlj.singledevice_note.logic.o.vo.table.entity;
 
+import cn.hutool.json.JSONUtil;
+import com.smlj.singledevice_note.core.o.dto.KV;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -11,6 +15,7 @@ import java.util.Date;
  * @author Cui
  * @since 2025-01-17 16:31:26
  */
+@NoArgsConstructor
 @Data
 public class TDeviceRecord implements Serializable {
     // @Serial
@@ -29,5 +34,22 @@ public class TDeviceRecord implements Serializable {
     private String c_fix_jl;
     private String c_fix_hs;
     private String c_comment;
+
+    public TDeviceRecord(String json) {
+        TDeviceRecord r = JSONUtil.toBean(json, TDeviceRecord.class);
+        id = r.id;
+        gy_id = r.gy_id;
+        device_id = r.device_id;
+        record_time = r.record_time;
+        c_person = r.c_person;
+        c_trouble_time = r.c_trouble_time;
+        c_trouble_xx = r.c_trouble_xx;
+        c_trouble_yy = r.c_trouble_yy;
+        c_fix_xm = r.c_fix_xm;
+        c_bjxh = r.c_bjxh;
+        c_fix_jl = r.c_fix_jl;
+        c_fix_hs = r.c_fix_hs;
+        c_comment = r.c_comment;
+    }
 }
 

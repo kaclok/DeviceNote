@@ -28,4 +28,31 @@
             order by ${orderBys}
         </if>
     </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into t_device_record (gy_id
+                                    , device_id
+                                    , record_time
+                                    , c_person
+                                    , c_trouble_time
+                                    , c_trouble_xx
+                                    , c_trouble_yy
+                                    , c_fix_xm
+                                    , c_bjxh
+                                    , c_fix_jl
+                                    , c_fix_hs
+                                    , c_comment)
+        values (#{item.gy_id},
+                #{item.device_id},
+                #{item.record_time},
+                #{item.c_person},
+                #{item.c_trouble_time},
+                #{item.c_trouble_xx},
+                #{item.c_trouble_yy},
+                #{item.c_fix_xm},
+                #{item.c_bjxh},
+                #{item.c_fix_jl},
+                #{item.c_fix_hs},
+                #{item.c_comment})
+    </insert>
 </mapper>

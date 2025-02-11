@@ -13,4 +13,6 @@ public interface TDeviceRecordDao {
     ArrayList<TDeviceRecord> doSelect(@Param("tableName") String tableName, @Param("select") String select, @Param("conds") ArrayList<String> conds, @Param("orderBys") String orderBys);
 
     ArrayList<TDeviceRecord> doSelectSimple(@Param("tableName") String tableName, @Param("select") String select, @Param("conds") String conds, @Param("orderBys") String orderBys);
+
+    void insert(@Param("item") TDeviceRecord item);
 }
