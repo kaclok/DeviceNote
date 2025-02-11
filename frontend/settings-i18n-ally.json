@@ -1,0 +1,29 @@
+{
+	"i18n-ally.namespace": false,
+	"i18n-ally.sourceLanguage": "en",
+	"i18n-ally.displayLanguage": "zh-CN",
+	"i18n-ally.localesPaths": [
+		"src/locales"
+	],
+	"i18n-ally.keystyle": "nested",
+	"i18n-ally.indent": 4,
+	"i18n-ally.review.user.email": "572005238@qq.com",
+	"i18n-ally.review.user.name": "崔斌斌",
+	"i18n-ally.tabStyle": "tab",
+	"i18n-ally.extract.keyMaxLength": 25,
+	"i18n-ally.enabledFrameworks": [
+		"vue"
+	],
+	"i18n-ally.enabledParsers": [
+		"js",
+		"ts",
+		"json",
+		"yaml",
+		"ini"
+	],
+	"i18n-ally.translate.engines": [
+		"google",
+		"deepl",
+		"baidu"
+	]
+}
