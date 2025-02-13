@@ -18,6 +18,7 @@ public class TDevice implements Serializable {
     private String id;
     private String gy_id;
     private String pos_idx;
+    private Integer idx;
     private String name;
     private String install_location;
 }
