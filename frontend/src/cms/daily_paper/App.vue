@@ -269,23 +269,8 @@ function onSaveClicked() {
         showDialogue.value = false
 
         if (r) {
-            /*ElMessage({
-                showClose: true,
-                message: '保存成功',
-                type: 'success',
-                center: true,
-                duration: 2000,
-            });*/
-
             _getDeviceRecordList(null, curDeviceRecordPageIndex.value);
         } else {
-            /*ElMessage({
-                showClose: true,
-                message: '保存失败',
-                type: 'success',
-                center: true,
-                duration: 2000,
-            });*/
         }
     });
 }

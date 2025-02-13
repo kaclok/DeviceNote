@@ -26,7 +26,7 @@ public class TDeviceRecord implements Serializable {
     private String device_id;
     private Date record_time;
     private String c_person;
-    private String c_trouble_time;
+    private Date c_trouble_time;
     private String c_trouble_xx;
     private String c_trouble_yy;
     private String c_fix_xm;

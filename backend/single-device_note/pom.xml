@@ -28,7 +28,7 @@
     </scm>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>18</java.version>
 
         <root.version>0.0.1</root.version>
         <maven.build.timestamp.format>yyyy_MM_dd_HH_mm</maven.build.timestamp.format>

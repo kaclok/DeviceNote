@@ -20,7 +20,7 @@ spring:
       lazy: true
       datasource:
         main:
-          url: jdbc:postgresql://10.8.54.127:5432/device-note
+          url: jdbc:postgresql://10.8.54.24:5432/device-note
           username: postgres
           password: root
           driver-class-name: org.postgresql.Driver
