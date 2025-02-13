@@ -301,6 +301,9 @@ function onSaveClicked() {
         </div>
 
         <div class="page-content">
+            <span v-if="curZZId === -1"
+                  style="font-size: 24px; width: 350px; position: absolute; left: 42%; top: 50%; overflow-x: hidden; text-align: center">请先点击选择标题栏的->装置</span>
+
             <!--左侧-->
             <div v-loading="loadingGYList" v-if="curZZId !== -1" style=" width: 180px;  height: 100%; padding-left: 0;
                 background-color: #1C4785;  overflow-y: auto;">
@@ -342,8 +345,8 @@ function onSaveClicked() {
             <div v-loading="loadingDeviceRecordList" v-if="curDeviceId !== -1"
                  style="padding-left: 0; width: calc((100% - 180px) / 2);">
                 <el-button-group style="width: 100%;">
-                    <el-button style="font-size: 15px; width: 100%; height: 40px" type="info"
-                               @click="onAddDeviceRecordClicked">+新增+
+                    <el-button style="font-size: 15px; width: 100%; height: 40px" type="warning"
+                               @click="onAddDeviceRecordClicked">新增检修记录
                     </el-button>
                 </el-button-group>
 
@@ -351,11 +354,15 @@ function onSaveClicked() {
                           style="margin-top: 10px" max-height="calc(100% - 80px)" height="calc(100% - 80px)">
                     <el-table-column sortable prop="id" label="id" width="70"/>
                     <el-table-column sortable prop="c_person" label="检修人" width="120"/>
-                    <el-table-column sortable prop="record_time" label="检修时间" width="200">
-                        <el-date-picker
-                            :disabled="true"
-                            type="datetime" class="item" v-model="deviceRecordInfo.record_time">
-                        </el-date-picker>
+                    <el-table-column sortable prop="record_time" label="故障时间" width="200">
+                        <template #default="scope1">
+                            <el-date-picker
+                                :disabled="true"
+                                type="datetime"
+                                class="item"
+                                v-model="scope1.row.c_trouble_time">
+                            </el-date-picker>
+                        </template>
                     </el-table-column>
                     <el-table-column prop="c_trouble_xx" label="故障现象"/>
                     <el-table-column fixed="left" label="操作" min-width="55">
