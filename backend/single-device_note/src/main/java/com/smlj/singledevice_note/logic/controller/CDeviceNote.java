@@ -68,7 +68,7 @@ public class CDeviceNote {
             conds += " and c_person like \'" + person + "\'";
         }
 
-        String orderBy = "id asc";
+        String orderBy = "record_time desc";
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = tDeviceRecordDao.doSelectSimple("t_device_record", "*", conds, orderBy);
         return Result.success(new PageInfo<>(ls));

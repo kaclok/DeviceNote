@@ -305,7 +305,7 @@ function onSaveClicked() {
                   style="font-size: 24px; width: 350px; position: absolute; left: 42%; top: 50%; overflow-x: hidden; text-align: center">请先点击选择标题栏的->装置</span>
 
             <!--左侧-->
-            <div v-loading="loadingGYList" v-if="curZZId !== -1" style=" width: 180px;  height: 100%; padding-left: 0;
+            <div v-loading="loadingGYList" v-if="curZZId !== -1" style=" width: 120px;  height: 100%; padding-left: 0;
                 background-color: #1C4785;  overflow-y: auto;">
 
                 <el-menu style="margin-left: -15px; height: 100%;"
@@ -319,10 +319,10 @@ function onSaveClicked() {
 
             <!--中侧-->
             <div v-loading="loadingDeviceList" v-if="curGYId !== -1"
-                 style="width: calc((100% - 180px) / 2); padding-left: 0;">
+                 style="width: calc((100% - 120px) / 2); padding-left: 0;">
                 <!--https://element-plus.org/zh-CN/component/table.html#%E7%AD%9B%E9%80%89-->
                 <el-table show-overflow-tooltip :data="deviceList" fit stripe border highlight-current-row @current-change="onDeviceClicked"
-                          max-height="calc(100% - 40px)" height="calc(100% - 40px)">
+                          max-height="calc(100% - 25px)" height="calc(100% - 25px)">
                     <el-table-column sortable prop="idx" label="序号" width="80"/>
                     <el-table-column sortable prop="id" label="id" width="80"/>
                     <el-table-column sortable prop="name" label="名称"/>
@@ -343,16 +343,17 @@ function onSaveClicked() {
 
             <!--右侧-->
             <div v-loading="loadingDeviceRecordList" v-if="curDeviceId !== -1"
-                 style="padding-left: 0; width: calc((100% - 180px) / 2);">
+                 style="padding-left: 0; width: calc((100% - 120px) / 2);">
                 <el-button-group style="width: 100%;">
-                    <el-button style="font-size: 15px; width: 100%; height: 40px" type="warning"
+                    <el-button style="font-size: 12px; width: 100%; height: 20px" type="warning"
                                @click="onAddDeviceRecordClicked">新增检修记录
                     </el-button>
                 </el-button-group>
 
-                <el-table v-if="deviceRecordTotal > 0" show-overflow-tooltip :data="deviceRecordList" fit stripe border highlight-current-row
-                          style="margin-top: 10px" max-height="calc(100% - 80px)" height="calc(100% - 80px)">
-                    <el-table-column sortable prop="id" label="id" width="70"/>
+                <el-table v-if="deviceRecordTotal > 0" show-overflow-tooltip :data="deviceRecordList" row-style="font-size: 4px"
+                          fit stripe border highlight-current-row
+                          max-height="calc(100% - 45px)" height="calc(100% - 45px)">
+                    <el-table-column prop="id" label="id" width="70"/>
                     <el-table-column sortable prop="c_person" label="检修人" width="120"/>
                     <el-table-column sortable prop="record_time" label="故障时间" width="200">
                         <template #default="scope1">
@@ -364,8 +365,8 @@ function onSaveClicked() {
                             </el-date-picker>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="c_trouble_xx" label="故障现象"/>
-                    <el-table-column fixed="left" label="操作" min-width="55">
+                    <el-table-column prop="c_trouble_xx" label="故障现象" width="200"/>
+                    <el-table-column fixed="left" label="" min-width="45">
                         <template #default="scope">
                             <el-button link type="primary" size="small" @click.prevent="onDeviceRecordClicked(scope.row)">查看
                             </el-button>
@@ -375,7 +376,6 @@ function onSaveClicked() {
 
                 <el-pagination v-if="deviceRecordTotal > 0"
                                size="small"
-                               :hide-on-single-page="true"
                                :page-size="DEVICE_RECORD_PAGE_SIZE"
                                layout="prev, pager, next"
                                :total="deviceRecordTotal"
@@ -439,7 +439,7 @@ function onSaveClicked() {
     </div>
 </template>
 
-<style lang='scss'>
+<style lang='scss' scoped>
 .page-container {
     width: 100%;
     height: 100%;
@@ -449,7 +449,7 @@ function onSaveClicked() {
 
     .page-title {
         width: 100%;
-        height: 60px;
+        height: 40px;
         display: flex;
         align-items: center;
         background-color: #1C4785;
@@ -458,15 +458,15 @@ function onSaveClicked() {
             position: relative;
             left: 20px;
 
-            width: 42px;
-            height: 42px;
+            width: 40px;
+            height: 40px;
             object-fit: contain;
         }
 
         .page-title-content {
             min-width: 250px;
             color: #ffffff;
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bolder;
             text-align: center;
         }
@@ -476,7 +476,6 @@ function onSaveClicked() {
             left: -60px;
 
             width: 850px;
-            height: 100%;
             padding-left: 56px;
         }
     }
@@ -493,23 +492,40 @@ function onSaveClicked() {
     border-bottom: solid 1px #1480ec;
 
     .el-menu-item {
-        font-size: 16px;
+        font-size: 12px;
         font-weight: bolder;
+        height: 40px;
         padding: 0 12px;
     }
 
     .el-submenu__title {
-        font-size: 16px;
+        font-size: 12px;
         font-weight: bolder;
         padding: 0 12px;
+        height: 40px;
     }
 
     .el-sub-menu__title,
     .el-tooltip__trigger,
     .el-tooltip__trigger {
-        font-size: 16px;
+        font-size: 12px;
         font-weight: bolder;
+        height: 40px;
     }
+}
+
+/* 使用::v-deep穿透scoped样式 */
+::v-deep .el-table .el-table__cell {
+    font-size: 10px; /* 设置你想要的文字大小 */
+}
+
+/*https://element-plus.org/zh-CN/component/menu.html*/
+.el-menu--horizontal {
+    --el-menu-horizontal-height: 40px;
+}
+
+.el-menu--vertical {
+    --el-menu-horizontal-height: 30px;
 }
 
 .el-pagination {
