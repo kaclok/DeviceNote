@@ -87,7 +87,13 @@ public class CDeviceNote {
         t.setGy_id(gyId);
         t.setDevice_id(deviceId);
         t.setRecord_time(new Date());
-        tDeviceRecordDao.insert(t);
+        if(tDeviceRecordDao.exist(t.getId()) > 0) {
+            tDeviceRecordDao.update(t);
+        }
+        else {
+            tDeviceRecordDao.insert(t);
+        }
+
         return Result.success();
     }
 }

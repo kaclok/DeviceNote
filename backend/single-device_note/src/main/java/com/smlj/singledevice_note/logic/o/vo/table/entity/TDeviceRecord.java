@@ -21,7 +21,7 @@ public class TDeviceRecord implements Serializable {
     // @Serial
     // private static final long serialVersionUID = 1;
 
-    private String id;
+    private Integer id;
     private String gy_id;
     private String device_id;
     private Date record_time;

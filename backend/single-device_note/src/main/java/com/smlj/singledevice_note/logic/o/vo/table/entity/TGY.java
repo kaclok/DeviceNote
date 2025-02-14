@@ -21,5 +21,6 @@ public class TGY implements Serializable {
     private Boolean d_j;
     private String name;
     private String zz;
+    private Boolean deleted;
 }
 

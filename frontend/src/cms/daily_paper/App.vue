@@ -338,12 +338,12 @@ function onSaveClicked() {
                  style="width: calc((100% - 120px) / 2); padding-left: 0;">
                 <!--https://element-plus.org/zh-CN/component/table.html#%E7%AD%9B%E9%80%89-->
                 <el-table show-overflow-tooltip :data="deviceList" fit stripe border highlight-current-row @current-change="onDeviceClicked"
-                          max-height="calc(100% - 25px)" height="calc(100% - 25px)">
+                          max-height="calc(100%)">
                     <el-table-column sortable prop="idx" label="序号" width="80"/>
                     <el-table-column sortable prop="id" label="id" width="80"/>
                     <el-table-column sortable prop="name" label="名称"/>
                     <el-table-column sortable prop="pos_idx" label="位号" width="190"/>
-                    <el-table-column sortable prop="install_location" label="安装位置" width="150"/>
+                    <el-table-column sortable prop="install_location" label="安装位置"/>
                 </el-table>
 
                 <el-pagination
@@ -362,16 +362,16 @@ function onSaveClicked() {
                  style="padding-left: 0; width: calc((100% - 120px) / 2);">
                 <el-button-group style="width: 100%;">
                     <el-button style="font-size: 12px; width: 100%; height: 20px" type="warning"
-                               @click="onAddDeviceRecordClicked">{{"为id为：" + curDeviceId + "的设备新增一条检修记录"}}
+                               @click="onAddDeviceRecordClicked">{{ "为id为：" + curDeviceId + "的设备新增一条检修记录" }}
                     </el-button>
                 </el-button-group>
 
                 <el-table v-if="deviceRecordTotal > 0" show-overflow-tooltip :data="deviceRecordList" row-style="font-size: 4px"
                           fit stripe border highlight-current-row
-                          max-height="calc(100% - 45px)" height="calc(100% - 45px)">
+                          max-height="calc(100% - 45px)">
                     <el-table-column prop="id" label="id" width="70"/>
-                    <el-table-column sortable prop="c_person" label="检修人" width="120"/>
-                    <el-table-column sortable prop="record_time" label="故障时间" width="200">
+                    <el-table-column sortable prop="c_person" label="检修人" width="150"/>
+                    <el-table-column sortable prop="record_time" label="检修时间" width="200">
                         <template #default="scope1">
                             <el-date-picker
                                 :disabled="true"
@@ -381,8 +381,8 @@ function onSaveClicked() {
                             </el-date-picker>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="c_trouble_xx" label="故障现象" width="200"/>
-                    <el-table-column fixed="left" label="" min-width="45">
+                    <el-table-column prop="c_trouble_xx" label="故障现象"/>
+                    <el-table-column fixed="left" label="" min-width="45" width="70">
                         <template #default="scope">
                             <el-button link type="primary" size="small" @click.prevent="onDeviceRecordClicked(scope.row)">查看
                             </el-button>
@@ -406,48 +406,48 @@ function onSaveClicked() {
                      :model="deviceRecordInfo"
                      style="margin-left: 0" label-width="110px" label-position="left">
                 <el-form-item label="检修人" prop="c_person">
-                    <el-input clearable :disabled="deviceRecordMode === 1" v-model="deviceRecordInfo.c_person" autocomplete="off"/>
+                    <el-input clearable v-model="deviceRecordInfo.c_person" autocomplete="off"/>
                 </el-form-item>
-                <el-form-item v-if="deviceRecordMode === 1" label="检修时间" prop="record_time">
+                <!--<el-form-item v-if="deviceRecordMode === 1" label="检修时间" prop="record_time">
                     <el-date-picker
-                        :disabled="deviceRecordMode === 1" clearable
+                        clearable
                         type="datetime" class="item" v-model="deviceRecordInfo.record_time">
                     </el-date-picker>
-                </el-form-item>
-                <el-form-item label="故障时间" prop="c_trouble_time">
+                </el-form-item>-->
+                <el-form-item label="检修时间" prop="c_trouble_time">
                     <el-date-picker clearable
-                                    :disabled="deviceRecordMode === 1"
+
                                     type="datetime" class="item" v-model="deviceRecordInfo.c_trouble_time">
                     </el-date-picker>
                 </el-form-item>
                 <el-form-item label="故障现象" prop="c_trouble_xx">
-                    <el-input clearable type="textarea" :disabled="deviceRecordMode === 1" v-model="deviceRecordInfo.c_trouble_xx"
+                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_trouble_xx"
                               autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="故障原因" prop="c_trouble_yy">
-                    <el-input clearable type="textarea" :disabled="deviceRecordMode === 1" v-model="deviceRecordInfo.c_trouble_yy"
+                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_trouble_yy"
                               autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="维修项目" prop="c_fix_xm">
-                    <el-input clearable type="textarea" :disabled="deviceRecordMode === 1" v-model="deviceRecordInfo.c_fix_xm" autocomplete="off"/>
+                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_fix_xm" autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="更换备件型号" prop="c_bjxh">
-                    <el-input clearable type="textarea" :disabled="deviceRecordMode === 1" v-model="deviceRecordInfo.c_bjxh" autocomplete="off"/>
+                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_bjxh" autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="维修结论" prop="c_fix_jl">
-                    <el-input clearable type="textarea" :disabled="deviceRecordMode === 1" v-model="deviceRecordInfo.c_fix_jl" autocomplete="off"/>
+                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_fix_jl" autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="维修耗时" prop="c_fix_hs">
-                    <el-input clearable type="textarea" :disabled="deviceRecordMode === 1" v-model="deviceRecordInfo.c_fix_hs" autocomplete="off"/>
+                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_fix_hs" autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="备注">
-                    <el-input clearable type="textarea" :disabled="deviceRecordMode === 1" v-model="deviceRecordInfo.c_comment" autocomplete="off"/>
+                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_comment" autocomplete="off"/>
                 </el-form-item>
             </el-form>
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button v-if="deviceRecordMode === 2" @click="onSaveClicked">保存
+                    <el-button @click="onSaveClicked">保存
                     </el-button>
                 </div>
             </template>
@@ -457,8 +457,8 @@ function onSaveClicked() {
 
 <style lang='scss' scoped>
 .page-container {
-    width: 100%;
-    height: 100%;
+    width: 1920px;
+    height: 1080px;
     background-color: #F5F5F5;
     display: flex;
     flex-direction: column;
@@ -544,7 +544,7 @@ function onSaveClicked() {
     --el-menu-horizontal-height: 30px;
 }
 
-::v-deep .el-table__body tr.current-row>td {
+::v-deep .el-table__body tr.current-row > td {
     background: #BDDBBB !important;
 }
 

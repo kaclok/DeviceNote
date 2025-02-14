@@ -3,6 +3,20 @@
 <!-- mapper namespace作用是：代码和xml进行关联 -->
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TDeviceRecordDao">
+    <update id="update">
+        UPDATE t_device_record
+        SET c_person = #{item.c_person},
+            c_trouble_time = #{item.c_trouble_time},
+            c_trouble_xx = #{item.c_trouble_xx},
+            c_trouble_yy = #{item.c_trouble_yy},
+            c_fix_xm = #{item.c_fix_xm},
+            c_bjxh = #{item.c_bjxh},
+            c_fix_jl = #{item.c_fix_jl},
+            c_fix_hs = #{item.c_fix_hs},
+            c_comment = #{item.c_comment}
+        WHERE id = ${item.id}
+    </update>
+
     <select id="doSelect" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeviceRecord">
         select ${select} from ${tableName}
         where 1 = 1 and
@@ -27,6 +41,10 @@
         <if test="orderBys != null and orderBys != ''">
             order by ${orderBys}
         </if>
+    </select>
+
+    <select id="exist" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM t_device_record WHERE id = ${id}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

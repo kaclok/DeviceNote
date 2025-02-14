@@ -49,7 +49,7 @@ logging:
     # root: debug # 指定日志级别 把springboot的所有日志修改成为debug
     web: debug
     com.alibaba.druid.pool.DruidDataSource: trace
-    com.smlj.train: trace # 打印sql查询语句
+    com.smlj: trace # 打印sql查询语句
 
 # 参考开源yudao项目
 # https://springdoc.org/#properties

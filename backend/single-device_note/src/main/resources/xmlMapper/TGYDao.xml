@@ -5,7 +5,7 @@
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TGYDao">
     <select id="doSelect" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TGY">
         select ${select} from public.${tableName}
-        where 1 = 1
+        where 1 = 1 and deleted = false
         <if test="conds != null and conds != ''">
             <foreach collection="conds" item="item" index="index" separator="">
                 and (#{item})
@@ -19,7 +19,7 @@
 
     <select id="doSelectSimple" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TGY">
         select ${select} from public.${tableName}
-        where 1 = 1
+        where 1 = 1 and deleted = false
         <if test="conds != null and conds != ''">
             and (${conds})
         </if>
