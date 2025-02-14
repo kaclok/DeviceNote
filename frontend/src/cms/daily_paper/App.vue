@@ -201,6 +201,8 @@ function _getDeviceList(posIdx, pageNum) {
     }, (r, data) => {
         loadingDeviceList.value = false;
         if (r) {
+            curDeviceId.value = -1
+
             deviceList.value = data.data.list
             deviceTotal = data.data.total
             deviceRecordTotal = 0
@@ -360,7 +362,7 @@ function onSaveClicked() {
                  style="padding-left: 0; width: calc((100% - 120px) / 2);">
                 <el-button-group style="width: 100%;">
                     <el-button style="font-size: 12px; width: 100%; height: 20px" type="warning"
-                               @click="onAddDeviceRecordClicked">新增检修记录
+                               @click="onAddDeviceRecordClicked">{{"为id为：" + curDeviceId + "的设备新增一条检修记录"}}
                     </el-button>
                 </el-button-group>
 
@@ -540,6 +542,10 @@ function onSaveClicked() {
 
 .el-menu--vertical {
     --el-menu-horizontal-height: 30px;
+}
+
+::v-deep .el-table__body tr.current-row>td {
+    background: #BDDBBB !important;
 }
 
 .el-pagination {
