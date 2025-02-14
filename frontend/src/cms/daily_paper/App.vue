@@ -27,7 +27,14 @@ let curDeviceId = ref(-1);
 let curDevicePageIndex = ref(1)
 let curDeviceRecordPageIndex = ref(1)
 
+const dj = ref(false)
+
 const gyList = ref([])
+const filteredGYList = computed(() => {
+    return gyList.value.filter((item) => {
+        return item.d_j === dj.value;
+    });
+})
 
 const deviceList = ref([])
 let deviceTotal = 0
@@ -196,6 +203,7 @@ function _getDeviceList(posIdx, pageNum) {
         if (r) {
             deviceList.value = data.data.list
             deviceTotal = data.data.total
+            deviceRecordTotal = 0
             deviceRecordList.value = []
         }
     });
@@ -305,14 +313,20 @@ function onSaveClicked() {
                   style="font-size: 24px; width: 350px; position: absolute; left: 42%; top: 50%; overflow-x: hidden; text-align: center">请先点击选择标题栏的->装置</span>
 
             <!--左侧-->
-            <div v-loading="loadingGYList" v-if="curZZId !== -1" style=" width: 120px;  height: 100%; padding-left: 0;
+            <div v-loading="loadingGYList" v-if="curZZId !== -1" style=" width: 120px; height: 100%; padding-left: 0;
                 background-color: #1C4785;  overflow-y: auto;">
 
-                <el-menu style="margin-left: -15px; height: 100%;"
+                <el-switch v-model="dj"
+                           size="large"
+                           inline-prompt
+                           active-text="动设备"
+                           inactive-text="静设备"
+                           style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949; margin: 0 auto"/>
+                <el-menu style="margin-left: -15px; height: calc(100% - 40px);"
                          mode="vertical" background-color="#1C4785" text-color="#DCDCDC" active-text-color="#ffffff"
                          @select="onGYMenuClicked">
-                    <el-menu-item v-for="(gy, idx) in gyList"
-                                  :index="gy.id">{{ !gy.d_j ? idx + 1 + ("*静*" + gy.name) : idx + 1 + ("*动*" + gy.name) }}
+                    <el-menu-item v-for="(gy, idx) in filteredGYList"
+                                  :index="gy.id">{{ idx + 1 + "、" + gy.name }}
                     </el-menu-item>
                 </el-menu>
             </div>
