@@ -87,7 +87,8 @@ public class CDeviceNote {
         t.setGy_id(gyId);
         t.setDevice_id(deviceId);
         t.setRecord_time(new Date());
-        if(tDeviceRecordDao.exist(t.getId()) > 0) {
+        var id = t.getId();
+        if(id != null && tDeviceRecordDao.exist(id) > 0) {
             tDeviceRecordDao.update(t);
         }
         else {
