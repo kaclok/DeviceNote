@@ -5,10 +5,10 @@
 <mapper namespace="com.smlj.o.vo.table.dao.TGYDao">
     <select id="doSelect" resultType="com.smlj.o.vo.table.entity.TGY">
         select ${select} from public.${tableName}
-        where 1 = 1 and deleted = false
+        where 1 = 1
         <if test="conds != null and conds != ''">
             <foreach collection="conds" item="item" index="index" separator="">
-                and (#{item})
+                and (${item})
             </foreach>
         </if>
 

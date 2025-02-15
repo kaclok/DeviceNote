@@ -8,7 +8,7 @@
         where 1 = 1 and deleted = false
         <if test="conds != null and conds != ''">
             <foreach collection="conds" item="item" index="index" separator="">
-                and (#{item})
+                and (${item})
             </foreach>
         </if>
 

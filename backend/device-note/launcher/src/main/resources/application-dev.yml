@@ -23,7 +23,7 @@ spring:
       datasource:
         main:
           # Docker从容器中项目如何访问到宿主机MYSQL https://blog.csdn.net/jcmj123456/article/details/131692252
-          url: jdbc:postgresql://host.docker.internal:5432/device-note
+          url: jdbc:postgresql://localhost:5432/device-note
           username: postgres
           password: root
           driver-class-name: org.postgresql.Driver

@@ -35,7 +35,7 @@ public class CDeviceNote {
     @GetMapping(value = "/getGYListByZZ")
     public Result<?> getGYListByZZ(@RequestParam(value = "zzId") String zzId) {
         ArrayList<String> conds = new ArrayList<>();
-        conds.add("zz = " + zzId);
+        conds.add("zz = \'" + zzId + "\'");
 
         var ls = tgyDao.doSelect("t_gy", "*", conds, null);
         return Result.success(ls);
