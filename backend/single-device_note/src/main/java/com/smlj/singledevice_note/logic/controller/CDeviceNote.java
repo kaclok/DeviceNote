@@ -5,6 +5,7 @@ import cn.hutool.http.server.HttpServerRequest;
 import cn.hutool.http.server.HttpServerResponse;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeviceDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeviceRecordDao;
@@ -58,7 +59,7 @@ public class CDeviceNote {
         String orderBy = "id asc";
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = tDeviceDao.doSelectSimple("t_device", "*", conds, orderBy);
-        return Result.success(new PageInfo<>(ls));
+        return Result.success(new PageSerializable<>(ls));
     }
 
     @GetMapping(value = "/getRecordList")
@@ -71,7 +72,7 @@ public class CDeviceNote {
         String orderBy = "record_time desc";
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = tDeviceRecordDao.doSelectSimple("t_device_record", "*", conds, orderBy);
-        return Result.success(new PageInfo<>(ls));
+        return Result.success(new PageSerializable<>(ls));
     }
 
     @GetMapping(value = "/getRecord")
