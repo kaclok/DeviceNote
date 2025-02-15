@@ -81,6 +81,17 @@ function _getToken(config) {
 // 参考：实现token无感刷新 https://github.com/yudaocode/yudao-ui-admin-vue3/blob/master/src/config/axios/service.ts#L117
 // https://www.axios-http.cn/docs/interceptors
 // 添加响应拦截器，其实是把异步成功回调、失败回调给统一封装
+// axiosInst.interceptors.response.use(onFulfilled, onRejected);通过它可以在请求得到响应后，对响应数据进行统一的处理
+// onFulfilled：一个可选的回调函数，当响应成功（状态码在 200 - 299 之间）时会被调用。它接收一个 response 对象作为参数，你可以在这个函数里对响应数据进行处理，最后返回处理后的 response 对象。
+// onRejected：一个可选的回调函数，当响应失败（状态码不在 200 - 299 之间或者发生网络错误等）时会被调用。它接收一个 error 对象作为参数，你可以在这个函数里对错误进行处理，最后可以选择返回一个被拒绝的 Promise 或者一个新的 response 对象
+
+// let r = await syncFunction(x, y).then((a) => {}).catch((b) => {})
+// syncFunction(x, y) 会返回一个 Promise 对象。
+// 接着调用 then 方法，它接收一个回调函数作为参数，该回调函数会在 Promise 状态变为 fulfilled（已成功）时执行。
+// 再调用 catch 方法，其回调函数会在 Promise 状态变为 rejected（已失败）时执行。
+// await 会等待 syncFunction(x, y).then(...).catch(...) 这个链式调用最终返回的 Promise 对象解决（fulfilled 或 rejected），然后将结果赋值给 r。
+// 此时await其实等待的是then或者catch内部包装之后新的Promise对象，而不是原来的Promise对象。
+// 建议要么用await配合try catch，要么就then catch不用await, 不要混用
 axiosInst.interceptors.response.use(success => {
     _setToken(success);
     // 如果是文件下载等情况，直接返回
