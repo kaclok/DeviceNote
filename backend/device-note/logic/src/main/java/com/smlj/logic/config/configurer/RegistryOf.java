@@ -25,7 +25,6 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 @Configuration
-@ComponentScan(basePackages = "com.smlj.logic")
 public class RegistryOf implements WebMvcConfigurer {
     private final AccessInterceptor accessInterceptor;
 

@@ -28,7 +28,6 @@ import java.util.ArrayList;
 @RequiredArgsConstructor
 @RequestMapping("/x")
 @Tag(name = "CDeviceNote", description = "检修记录")
-@ComponentScan(basePackages = {"com.smlj.common", "com.smlj.logic"})
 public class CDeviceNote {
     private final TGYDao tgyDao;
 
