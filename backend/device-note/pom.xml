@@ -235,3 +235,15 @@
         </profile>
     </profiles>
 </project>
+
+        <!--子模块可从父模块中继承的：-->
+
+        <!-- 可继承的POM元素（只列举常见的）：
+         groupId：项目组Id
+         version：项目版本
+         distributionManagement：项目的部署配置
+         properties：自定义的Maven属性
+         dependencies：项目的依赖配置
+         dependencyManagement：项目的依赖管理配置
+         repositories：项目的仓库配置
+         build：包括项目的源码目录配置、输出目录配置、插件配置、插件管理配置等-->
