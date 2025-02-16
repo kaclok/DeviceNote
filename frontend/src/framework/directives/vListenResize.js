@@ -1,3 +1,4 @@
+// 封装resize指令 https://www.bilibili.com/video/BV1fWrqYjEhm?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
 const map = new WeakMap();
 const ro = new ResizeObserver((entries) => {
     for (let entry of entries) {
