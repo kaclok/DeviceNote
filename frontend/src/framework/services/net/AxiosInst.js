@@ -108,8 +108,7 @@ axiosInst.interceptors.response.use(success => {
     // https://www.bilibili.com/video/BV1DKDMYBETU?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
     // 处理错误码情况
     nwCodeMap?.[code]?.(success);
-    // 也当做失败处理，让走catch分支
-    return Promise.reject(success);
+    return Promise.resolve(success);
 }, fail => {
     console.error(fail);
 
