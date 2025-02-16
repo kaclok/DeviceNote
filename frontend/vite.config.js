@@ -3,6 +3,7 @@ import {defineConfig, loadEnv} from 'vite'
 // https://www.cnblogs.com/heavenYJJ/p/18058142
 import vue from '@vitejs/plugin-vue'
 import {resolve} from 'path'
+import inspect from 'vite-plugin-inspect'
 
 // 按需自动导入Element-Plus https://element-plus.org/zh-CN/guide/quickstart.html
 import AutoImport from 'unplugin-auto-import/vite'
@@ -35,6 +36,7 @@ export default defineConfig((env) => {
         define: defines,
         plugins: [
             vue(),
+            inspect(), // https://www.bilibili.com/video/BV1MmNJe3EpJ/?spm_id_from=333.1007.tianma.1-1-1.click&vd_source=5c9f5bd891aee351c325bcf632b5550f
             AutoImport({
                 resolvers: [ElementPlusResolver()],
                 imports: [
