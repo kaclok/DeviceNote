@@ -1,10 +1,8 @@
 package com.smlj.singledevice_note.logic.o.vo.table.entity;
 
 import cn.hutool.json.JSONUtil;
-import com.smlj.singledevice_note.core.o.dto.KV;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -31,6 +29,7 @@ public class TDeviceRecord implements Serializable {
     private String c_trouble_yy;
     private String c_fix_xm;
     private String c_bjxh;
+    private String c_fix_data;
     private String c_fix_jl;
     private String c_fix_hs;
     private String c_comment;
@@ -47,6 +46,7 @@ public class TDeviceRecord implements Serializable {
         c_trouble_yy = r.c_trouble_yy;
         c_fix_xm = r.c_fix_xm;
         c_bjxh = r.c_bjxh;
+        c_fix_data = r.c_fix_data;
         c_fix_jl = r.c_fix_jl;
         c_fix_hs = r.c_fix_hs;
         c_comment = r.c_comment;

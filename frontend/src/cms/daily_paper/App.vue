@@ -55,6 +55,7 @@ const __info__ = {
         this.c_trouble_yy = null
         this.c_fix_xm = null
         this.c_bjxh = null
+        this.c_fix_data = null
         this.c_fix_jl = null
         this.c_fix_hs = null
         this.c_comment = null
@@ -96,6 +97,12 @@ const deviceRecordFormRule = ref({
         },
     ],
     c_bjxh: [
+        {
+            required: true,
+            trigger: 'blur'
+        },
+    ],
+    c_fix_data: [
         {
             required: true,
             trigger: 'blur'
@@ -400,7 +407,7 @@ function onSaveClicked() {
                 />
             </div>
         </div>
-        <el-dialog align-center v-model="showDialogue" title="检修记录" width="600" draggable modal center :close-on-click-modal="false">
+        <el-dialog align-center v-model="showDialogue" title="检修记录" width="450" draggable modal center :close-on-click-modal="false">
             <el-form :rules="deviceRecordFormRule"
                      ref="deviceRecordFormRef"
                      :model="deviceRecordInfo"
@@ -421,27 +428,30 @@ function onSaveClicked() {
                     </el-date-picker>
                 </el-form-item>
                 <el-form-item label="故障现象" prop="c_trouble_xx">
-                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_trouble_xx"
+                    <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_trouble_xx"
                               autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="故障原因" prop="c_trouble_yy">
-                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_trouble_yy"
+                    <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_trouble_yy"
                               autocomplete="off"/>
                 </el-form-item>
-                <el-form-item label="维修项目" prop="c_fix_xm">
-                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_fix_xm" autocomplete="off"/>
+                <el-form-item label="检修内容" prop="c_fix_xm">
+                    <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_fix_xm" autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="更换备件型号" prop="c_bjxh">
-                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_bjxh" autocomplete="off"/>
+                    <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_bjxh" autocomplete="off"/>
+                </el-form-item>
+                <el-form-item label="检测数据" prop="c_fix_data">
+                    <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_fix_data" autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="维修结论" prop="c_fix_jl">
-                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_fix_jl" autocomplete="off"/>
+                    <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_fix_jl" autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="维修耗时" prop="c_fix_hs">
-                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_fix_hs" autocomplete="off"/>
+                    <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_fix_hs" autocomplete="off"/>
                 </el-form-item>
                 <el-form-item label="备注">
-                    <el-input clearable type="textarea" v-model="deviceRecordInfo.c_comment" autocomplete="off"/>
+                    <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_comment" autocomplete="off"/>
                 </el-form-item>
             </el-form>
 
@@ -457,8 +467,8 @@ function onSaveClicked() {
 
 <style lang='scss' scoped>
 .page-container {
-    width: 1920px;
-    height: 1080px;
+    width: 1400px;
+    height: 840px;
     background-color: #F5F5F5;
     display: flex;
     flex-direction: column;
@@ -510,7 +520,7 @@ function onSaveClicked() {
     .el-menu-item {
         font-size: 12px;
         font-weight: bolder;
-        height: 40px;
+        height: 32px;
         padding: 0 12px;
     }
 

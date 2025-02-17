@@ -11,6 +11,7 @@
             c_trouble_yy = #{item.c_trouble_yy},
             c_fix_xm = #{item.c_fix_xm},
             c_bjxh = #{item.c_bjxh},
+            c_fix_data = #{item.c_fix_data},
             c_fix_jl = #{item.c_fix_jl},
             c_fix_hs = #{item.c_fix_hs},
             c_comment = #{item.c_comment}
@@ -57,6 +58,7 @@
                                     , c_trouble_yy
                                     , c_fix_xm
                                     , c_bjxh
+                                    , c_fix_data
                                     , c_fix_jl
                                     , c_fix_hs
                                     , c_comment)
@@ -69,6 +71,7 @@
                 #{item.c_trouble_yy},
                 #{item.c_fix_xm},
                 #{item.c_bjxh},
+                #{item.c_fix_data},
                 #{item.c_fix_jl},
                 #{item.c_fix_hs},
                 #{item.c_comment})
