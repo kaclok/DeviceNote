@@ -13,6 +13,9 @@ import {RegisterDirective} from "@/framework/directives/DirectiveList.js";
 import {Switch} from "@/framework/services/LocaleService.js";
 
 import "@/framework/services/net/Init.js";
+import {router} from "@/cms/daily_paper/router/Index.js";
+import {TokenService} from "@/framework/services/TokenService.js";
+import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
 
 // 创建实例
 const app = createApp(App)
@@ -38,7 +41,7 @@ async function setupAll(app) {
     // 自定义指令
     RegisterDirective(app);
     // 路由
-    // app.use(router);
+    app.use(router);
 
     // mount在最后
     app.mount('#app');

@@ -1,0 +1,132 @@
+package com.smlj.singledevice_note.logic.controller;
+
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageSerializable;
+import com.smlj.singledevice_note.core.o.to.Result;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCheckRecordDao;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCheckRecord;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.io.Serializable;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.TimeZone;
+
+@Slf4j
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/x")
+@Tag(name = "CCheckNote", description = "仪表检修记录")
+public class CCheckNote {
+    private final TCheckRecordDao tCheckRecordDao;
+
+    @GetMapping(value = "/getList")
+    public Result<?> getList(String bgId, Long mills, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+        calendar.setTime(new Date(mills));
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+
+        String format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(calendar.getTime());
+        String conds = "bj_id = '" + bgId + "' and '"
+                + format +
+                "' = (time::date)::timestamp";
+        String orderBy = "time desc";
+        PageHelper.startPage(pageNum, pageSize, true, true, true);
+        var ls = tCheckRecordDao.doSelectSimple("t_check_record", "*", conds, orderBy);
+        return Result.success(new PageSerializable<>(ls));
+    }
+
+    @GetMapping(value = "/add")
+    public Result<?> add(String bgId, String info) {
+        var t = new TCheckRecord(info);
+        t.setBj_id(bgId);
+        t.setTime(new Date());
+        var id = t.getId();
+        if (id != null && tCheckRecordDao.exist(id) > 0) {
+            tCheckRecordDao.update(t);
+        } else {
+            tCheckRecordDao.insert(t);
+        }
+
+        return Result.success();
+    }
+
+    @Data
+    public static class To_Excel<T> implements Serializable {
+        private ArrayList<String> colNames = new ArrayList<String>();
+        private ArrayList<ArrayList<String>> rows = new ArrayList<ArrayList<String>>();
+    }
+
+    @GetMapping(value = "/export")
+    public Result<?> export(Long beginDate, Long endDate) {
+        var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        Calendar begin = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+        begin.setTime(new Date(beginDate));
+        begin.set(Calendar.HOUR_OF_DAY, 0);
+        begin.set(Calendar.MINUTE, 0);
+        begin.set(Calendar.SECOND, 0);
+        begin.set(Calendar.MILLISECOND, 0);
+
+        String beginFormat = sdf.format(begin.getTime());
+
+        Calendar end = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+        end.setTime(new Date(endDate));
+        end.set(Calendar.HOUR_OF_DAY, 0);
+        end.set(Calendar.MINUTE, 0);
+        end.set(Calendar.SECOND, 0);
+        end.set(Calendar.MILLISECOND, 0);
+
+        String endFormat = sdf.format(end.getTime());
+
+        String conds = "'" + beginFormat + "' <= (time::date)::timestamp and (time::date)::timestamp <= '" + endFormat + "'";
+        String orderBy = "time desc";
+        var ls = tCheckRecordDao.doSelectSimple("t_check_record", "*", conds, orderBy);
+        To_Excel<TCheckRecord> rlt = new To_Excel<>();
+        rlt.getColNames().add("id");
+        rlt.getColNames().add("班级");
+        rlt.getColNames().add("时间");
+        rlt.getColNames().add("具体时间");
+        rlt.getColNames().add("位号/名字");
+        rlt.getColNames().add("故障描述");
+        rlt.getColNames().add("维修过程");
+        rlt.getColNames().add("维修结果");
+        rlt.getColNames().add("作业人员");
+        rlt.getColNames().add("技术小结");
+        rlt.getColNames().add("备注");
+
+        var sdfSimple = new SimpleDateFormat("yyyy-MM-dd");
+        for (var one : ls) {
+            ArrayList<String> arr = new ArrayList<>();
+            rlt.getRows().add(arr);
+
+            arr.add(one.getId().toString());
+            arr.add(one.getBj_id());
+
+            var t = sdfSimple.format(one.getTime());
+            arr.add(t);
+            t = sdf.format(one.getTime());
+            arr.add(t);
+            arr.add(one.getC_name());
+            arr.add(one.getC_desc());
+            arr.add(one.getC_progress());
+            arr.add(one.getC_result());
+            arr.add(one.getC_person());
+            arr.add(one.getC_summary());
+            arr.add(one.getC_comment());
+        }
+
+        return Result.success(rlt);
+    }
+}

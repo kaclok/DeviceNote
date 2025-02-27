@@ -1,4 +1,4 @@
-package com.smlj.common.exception;
+package com.smlj.singledevice_note.core.exception;
 
 public class RepeatSubmitException extends RuntimeException {
     private final String userId;

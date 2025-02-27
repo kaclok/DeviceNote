@@ -35,4 +35,11 @@ export class ApiX {
             signal: signal,
         })
     }
+
+    static login(paras, signal) {
+        return axiosR.post("x/login", null, {
+            params: paras,
+            signal: signal,
+        })
+    }
 }

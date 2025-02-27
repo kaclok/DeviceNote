@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TUserDao">
+    <select id="doSelect" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TUser">
+        select ${select} from public.${tableName}
+        where 1 = 1 and deleted = false
+        <if test="conds != null and conds != ''">
+            <foreach collection="conds" item="item" index="index" separator="">
+                and (${item})
+            </foreach>
+        </if>
+
+        <if test="orderBys != null and orderBys != ''">
+            order by ${orderBys}
+        </if>
+    </select>
+
+    <select id="doSelectSimple" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TUser">
+        select ${select} from public.${tableName}
+        where 1 = 1 and deleted = false
+        <if test="conds != null and conds != ''">
+            and (${conds})
+        </if>
+
+        <if test="orderBys != null and orderBys != ''">
+            order by ${orderBys}
+        </if>
+    </select>
+</mapper>

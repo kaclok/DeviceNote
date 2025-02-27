@@ -47,6 +47,15 @@ class SysX {
             onAfter?.(false, fail);
         });
     }
+
+    async login(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        ApiX.login(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, fail);
+        });
+    }
 }
 
 export {

@@ -1,22 +1,36 @@
 import {computed, ref} from "vue";
 
-import CpMain from '@/cms/daily_paper/App.vue'
+import CpRecord from '@/cms/daily_paper/views/Record.vue'
+import CpLogin from '@/cms/daily_paper/views/Login.vue'
 import CpNotFound from '@/framework/components/CpNotFound.vue'
 
-export const _mainRouter = {
-    path: '/',
-    name: 'mainRouter',
-    component: CpMain,
+const _loginRouter = {
+    path: '/login',
+    name: 'loginRouter',
+    component: CpLogin,
 }
 
-export const _404Router = {
+const _indexRouter = {
+    path: '/',
+    redirect: _loginRouter.path,
+}
+
+const _recordRouter = {
+    path: '/record',
+    name: 'recordRouter',
+    component: CpRecord,
+}
+
+const _404Router = {
     path: '/:pathMatch(.*)*',
     name: 'notFound',
     component: CpNotFound,
 }
 
 export const pathToRouter = {
-    [_mainRouter.path]: _mainRouter,
+    [_indexRouter.path]: _indexRouter,
+    [_loginRouter.path]: _loginRouter,
+    [_recordRouter.path]: _recordRouter,
     [_404Router.path]: _404Router,
 }
 
@@ -44,7 +58,9 @@ console.log("CurrentView:" + currentView.value)
 
 // 定义的所有router全部在此注册
 export const routers = [
-    _mainRouter,
+    _indexRouter,
+    _loginRouter,
+    _recordRouter,
     _404Router,
 ];
 

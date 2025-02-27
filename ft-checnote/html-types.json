@@ -1,0 +1,40 @@
+{
+	"$schema": "https://json.schemastore.org/web-types",
+	"framework": "vue",
+	"name": "name written in package.json",
+	"version": "version written in package.json",
+	"contributions": {
+		"html": {
+			"js-types-syntax": "typescript",
+			"attributes": [
+				{
+					"name": "v-listenResize"
+				},
+				{
+					"name": "v-cancelWhenUnmount"
+				},
+				{
+					"name": "v-cd"
+				},
+				{
+					"name": "v-hasPermission"
+				},
+				{
+					"name": "v-hasRole"
+				},
+				{
+					"name": "v-draggableFloat"
+				},
+				{
+					"name": "v-throttle"
+				},
+				{
+					"name": "v-debounce"
+				},
+				{
+					"name": "v-longPress"
+				}
+			]
+		}
+	}
+}

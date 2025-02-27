@@ -40,7 +40,7 @@ import org.springframework.context.annotation.Configuration;
         // 不添加这项：会导致每个请求后面没有小锁
         // 控制每个请求后面的小锁里面有几个填空
         security = {
-                @SecurityRequirement(name = JwtUtil.JWT_HEADER),
+                @SecurityRequirement(name = JwtUtil.AT_HEADER),
                 @SecurityRequirement(name = JwtUtil.AUTHORIZE)
         }
 )
@@ -52,7 +52,7 @@ import org.springframework.context.annotation.Configuration;
 // 没有这个配置SecurityScheme会导致swagger-ui页面没有authority按钮,不管是每个请求的小锁 还是 总的小锁
 @SecuritySchemes({
         // 每次添加一个SecurityScheme,就会在authority按钮里面添加一个选项，意味着可以同时填写多个token，多个cookie进去
-        @SecurityScheme(type = SecuritySchemeType.APIKEY, name = JwtUtil.JWT_HEADER, /*bearerFormat = "JWT", scheme = "bearer",*/ in = SecuritySchemeIn.HEADER)
+        @SecurityScheme(type = SecuritySchemeType.APIKEY, name = JwtUtil.AT_HEADER, /*bearerFormat = "JWT", scheme = "bearer",*/ in = SecuritySchemeIn.HEADER)
         , @SecurityScheme(type = SecuritySchemeType.HTTP, name = JwtUtil.AUTHORIZE, bearerFormat = "JWT", scheme = "bearer", in = SecuritySchemeIn.HEADER)
 })
 

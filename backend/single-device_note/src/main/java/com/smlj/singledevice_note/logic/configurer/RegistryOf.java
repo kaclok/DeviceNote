@@ -1,11 +1,14 @@
 package com.smlj.singledevice_note.logic.configurer;
 
 import com.smlj.singledevice_note.logic.o.vo.converter.StringToTDeviceRecord;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
+import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
@@ -18,8 +21,11 @@ import java.util.List;
 // https://docs.springframework.org.cn/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/arguments.html 每个控制器接口都自带很多默认参数
 @EnableWebMvc // https://docs.springframework.org.cn/spring-framework/reference/web/webmvc/mvc-config/enable.html
 @Slf4j
+@RequiredArgsConstructor
 @Configuration
 public class RegistryOf implements WebMvcConfigurer {
+    private final AccessInterceptor accessInterceptor;
+
     // 侧重于处理接口参数
     @Override
     public void addFormatters(FormatterRegistry registry) {
@@ -29,23 +35,33 @@ public class RegistryOf implements WebMvcConfigurer {
         registry.addConverter(new StringToTDeviceRecord());
     }
 
+    // 拦截器针对方法，HandlerMethodArgumentResolver针对参数
+    // https://docs.springframework.org.cn/spring-framework/reference/web/webmvc/mvc-servlet/handlermapping-interceptor.html
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) { // registry是注册器，用来管理拦截器
+        log.warn("========= addInterceptors ========= ");
+
+        // https://docs.springframework.org.cn/spring-framework/reference/web/webmvc/mvc-servlet/localeresolver.html
+        // registry.addInterceptor(new org.springframework.web.servlet.i18n.LocaleChangeInterceptor());
+
+        /*var i = registry.addInterceptor(signInterceptor);
+        i.addPathPatterns("/train/**");*/
+
+        /*var i = registry.addInterceptor(accessInterceptor);
+        // 对train开头的进行处理，不对swagger-ui等进行拦截
+        i.addPathPatterns("/x/**");
+        // 不对以下接口进行拦截， 登录和注册
+        i.excludePathPatterns(
+                "/x/login",
+                "/swagger-ui/*"
+        );*/
+    }
+
     // 用于处理接收消息 和 发送消息，比如将接收的消息转换为json, 侧重于处理消息
-    /*@Override
+    @Override
     public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
 
-    }*/
-
-    /* // todo 和CorsSetting是否冲突？
-    // https://mp.weixin.qq.com/s/_RTTH0NnRyIabtbX1bkz7g
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/train/**")
-                .allowedOrigins("*")
-                .allowedMethods("PUT", "DELETE", "GET")
-                .allowedHeaders("*")
-                .exposedHeaders("*")
-                .allowCredentials(true).maxAge(3600);
-    }*/
+    }
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {

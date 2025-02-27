@@ -8,7 +8,7 @@ import java.util.Date;
 import java.util.Map;
 
 public class JwtUtil {
-    public static final String JWT_HEADER = "Token";
+    public static final String AT_HEADER = "at";
     public static final String KEY = "smlj";
     public static final String AUTHORIZE = "Authorize";
     public static final byte[] KEY_BYTES = KEY.getBytes();
@@ -23,14 +23,14 @@ public class JwtUtil {
         var issuedAt = new Date();
         var expireAt = new Date(issuedAt.getTime() + expire);
         String token = JWT.create().addHeaders(null).addPayloads(claims).setKey(KEY_BYTES).setIssuedAt(issuedAt).setExpiresAt(expireAt).sign();
-        return Triple.of(issuedAt, issuedAt, token);
+        return Triple.of(issuedAt, expireAt, token);
     }
 
     public static JWT getJWTByToken(String token) {
         JWT jwt = null;
         try {
             jwt = cn.hutool.jwt.JWTUtil.parseToken(token);
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
         return jwt;
     }
