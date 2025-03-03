@@ -119,6 +119,10 @@ function onPageChanged(pageIndex) {
     }
 }
 
+/*import {__IS_MOBILE_ONLY__, __IS_TABLET_ONLY__} from "@/framework/services/GlobalService.js";
+console.log("__IS_MOBILE_ONLY__: " + __IS_MOBILE_ONLY__.value)
+console.log("__IS_TABLET_ONLY__: " + __IS_TABLET_ONLY__.value)*/
+
 function _getList(pageNum) {
     Singleton.getInstance(SysX).getList({
         bgId: curBJId.value,
@@ -251,7 +255,7 @@ function onSaveClicked() {
                             />
                         </template>
                     </el-table-column>
-                    <el-table-column sortable prop="c_name" label="名称" width="200"/>
+                    <el-table-column sortable prop="c_name" label="位号/名称" width="200"/>
                     <el-table-column sortable prop="c_person" label="作业人员" width="140"/>
                     <el-table-column prop="c_desc" label="故障描述" width="250"/>
                     <el-table-column prop="c_progress" label="维修过程"/>
@@ -405,7 +409,7 @@ function onSaveClicked() {
 }
 
 /* 使用::v-deep穿透scoped样式 */
-::v-deep .el-table .el-table__cell {
+.el-table .el-table__cell {
     font-size: 10px; /* 设置你想要的文字大小 */
 }
 
@@ -418,7 +422,7 @@ function onSaveClicked() {
     --el-menu-horizontal-height: 30px;
 }
 
-::v-deep .el-table__body tr.current-row > td {
+.el-table__body tr.current-row > td {
     background: #BDDBBB !important;
 }
 

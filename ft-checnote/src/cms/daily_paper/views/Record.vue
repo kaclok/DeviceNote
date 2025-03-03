@@ -315,7 +315,7 @@ function onSaveClicked() {
 }
 
 /* 使用::v-deep穿透scoped样式 */
-::v-deep .el-table .el-table__cell {
+.el-table .el-table__cell {
     font-size: 10px; /* 设置你想要的文字大小 */
 }
 
@@ -328,7 +328,7 @@ function onSaveClicked() {
     --el-menu-horizontal-height: 30px;
 }
 
-::v-deep .el-table__body tr.current-row > td {
+.el-table__body tr.current-row > td {
     background: #BDDBBB !important;
 }
 
