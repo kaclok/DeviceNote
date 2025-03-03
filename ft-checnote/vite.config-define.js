@@ -1,4 +1,5 @@
 // https://blog.csdn.net/weixin_45687201/article/details/139833908
+import {isMobile, isMobileOnly, isTablet} from 'vue-device-detect';
 
 export default {
     // 需要同步在define.d.ts中申明，否则不能被webstorm识别
@@ -8,5 +9,8 @@ export default {
     __AT_EXPIRE_CODE__: 10000,
     __RT_EXPIRE_CODE__: 10001,
     __HEART_BEAT_CODE__: 10003,
+    __IS_MOBILE_ONLY__: isMobileOnly,
+    __IS_TABLET_ONLY__: isTablet,
+    __IS_MOBILE_OR_TABLET__: isMobile,
     __CHUNK_SIZE__: 2 * 1024 * 1024 // 2M
 }
