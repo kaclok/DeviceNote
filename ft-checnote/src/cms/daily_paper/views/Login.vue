@@ -80,7 +80,7 @@ function loginAction() {
     </div>
 </template>
 
-<style lang="scss" scoped>
+<style scoped>
 .login-box {
     width: 100%;
     height: 100%;
