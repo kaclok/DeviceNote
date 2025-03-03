@@ -28,6 +28,7 @@ public class TCheckRecord implements Serializable {
     private String c_result;
     private String c_person;
     private String c_summary;
+    private Boolean c_finish;
     private String c_comment;
 
     public TCheckRecord(String json) {
@@ -42,6 +43,7 @@ public class TCheckRecord implements Serializable {
         c_result = r.c_result;
         c_person = r.c_person;
         c_summary = r.c_summary;
+        c_finish = r.c_finish;
         c_comment = r.c_comment;
     }
 }

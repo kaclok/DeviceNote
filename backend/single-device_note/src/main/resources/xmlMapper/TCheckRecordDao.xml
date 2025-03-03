@@ -5,14 +5,15 @@
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCheckRecordDao">
     <update id="update">
         UPDATE t_check_record
-        SET time = #{item.time},
+        SET
             c_name = #{item.c_name},
             c_desc = #{item.c_desc},
             c_progress = #{item.c_progress},
             c_result = #{item.c_result},
             c_person = #{item.c_person},
             c_summary = #{item.c_summary},
-            c_comment = #{item.c_comment}
+            c_comment = #{item.c_comment},
+            c_finish = #{item.c_finish}
         WHERE id = ${item.id}
     </update>
 
@@ -55,6 +56,7 @@
                                     , c_result
                                     , c_person
                                     , c_summary
+                                    , c_finish
                                     , c_comment)
         values (#{item.time},
                 #{item.bj_id},
@@ -64,6 +66,7 @@
                 #{item.c_result},
                 #{item.c_person},
                 #{item.c_summary},
+                #{item.c_finish},
                 #{item.c_comment})
     </insert>
 </mapper>

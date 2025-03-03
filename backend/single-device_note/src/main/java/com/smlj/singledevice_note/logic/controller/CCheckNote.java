@@ -52,11 +52,11 @@ public class CCheckNote {
     public Result<?> add(String bgId, String info) {
         var t = new TCheckRecord(info);
         t.setBj_id(bgId);
-        t.setTime(new Date());
         var id = t.getId();
         if (id != null && tCheckRecordDao.exist(id) > 0) {
             tCheckRecordDao.update(t);
         } else {
+            t.setTime(new Date());
             tCheckRecordDao.insert(t);
         }
 
@@ -104,7 +104,8 @@ public class CCheckNote {
         rlt.getColNames().add("维修结果");
         rlt.getColNames().add("作业人员");
         rlt.getColNames().add("技术小结");
-        rlt.getColNames().add("备注");
+        rlt.getColNames().add("是否完成");
+        rlt.getColNames().add("批注");
 
         var sdfSimple = new SimpleDateFormat("yyyy-MM-dd");
         for (var one : ls) {
@@ -124,6 +125,7 @@ public class CCheckNote {
             arr.add(one.getC_result());
             arr.add(one.getC_person());
             arr.add(one.getC_summary());
+            arr.add(one.getC_finish().toString());
             arr.add(one.getC_comment());
         }
 

@@ -36,6 +36,7 @@ const __info__ = {
         this.c_person = null
         this.c_summary = null
         this.c_comment = null
+        this.c_finish = 0
 
         return this
     }
@@ -154,6 +155,11 @@ function onDeviceClicked(row) {
 }
 
 function onSaveClicked() {
+    let v = deviceRecordInfo.value;
+    if (v.c_person === null || v.c_name === null) {
+        return;
+    }
+
     Singleton.getInstance(SysX).add({
         bgId: curBJId.value,
         info: JSON.stringify(deviceRecordInfo.value),
@@ -232,13 +238,26 @@ function onSaveClicked() {
 
                 <el-table show-overflow-tooltip :data="formList" fit stripe border highlight-current-row max-height="100%">
                     <el-table-column sortable fixed type="index" label="序号" width="75"/>
+                    <el-table-column prop="c_finish" label="完成情况" width="90">
+                        <template #default="scope1">
+                            <el-switch
+                                v-model="scope1.row.c_finish"
+                                disabled
+                                inline-prompt
+                                class="ml-2"
+                                style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
+                                active-text="已完成"
+                                inactive-text="未完成"
+                            />
+                        </template>
+                    </el-table-column>
                     <el-table-column sortable prop="c_name" label="名称" width="200"/>
                     <el-table-column sortable prop="c_person" label="作业人员" width="140"/>
                     <el-table-column prop="c_desc" label="故障描述" width="250"/>
                     <el-table-column prop="c_progress" label="维修过程"/>
                     <el-table-column sortable prop="c_result" label="维修结果" width="190"/>
                     <el-table-column prop="c_summary" label="技术小结" width="120"/>
-                    <el-table-column prop="c_comment" label="备注" width="120"/>
+                    <el-table-column prop="c_comment" label="班长批注"/>
 
                     <el-table-column fixed="left" label="" min-width="45" width="70">
                         <template #default="scope">
@@ -285,7 +304,17 @@ function onSaveClicked() {
                 <el-form-item label="技术小结" prop="c_summary">
                     <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_summary" autocomplete="off"/>
                 </el-form-item>
-                <el-form-item label="备注">
+                <el-form-item label="完成情况" prop="c_finish">
+                    <el-switch
+                        v-model="deviceRecordInfo.c_finish"
+                        inline-prompt
+                        class="ml-2"
+                        style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
+                        active-text="已完成"
+                        inactive-text="未完成"
+                    />
+                </el-form-item>
+                <el-form-item label="班长批注">
                     <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_comment" autocomplete="off"/>
                 </el-form-item>
             </el-form>
