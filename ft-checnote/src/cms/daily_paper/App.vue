@@ -200,25 +200,29 @@ function onArrowChanged(newIndex, oldIndex) {
                     <el-menu-item index="2">仪表二班</el-menu-item>
                 </el-menu>
             </div>
+
+            <div style="position: absolute; right: 25px">
+                <img class="avatar-img" src="@/assets/avatar.png" alt=""/>
+            </div>
         </div>
 
         <div>
             <div style="width: 230px">
-<!--                <el-carousel height="40px" @change="onArrowChanged" indicator-position="none" arrow="always">
-                    <el-carousel-item>-->
-                        <el-date-picker style="width: 130px; height: 35px; padding-top: 10px; padding-left: 2px"
-                                        @change="onDateChanged"
-                                        :clearable="false"
-                                        v-model="curDate"
-                                        type="date"
-                                        :editable="false"
-                                        placeholder="选择日期"
-                                        format="YYYY/MM/DD"
-                                        value-format="x"
-                                        size="small"
-                        />
-<!--                    </el-carousel-item>
-                </el-carousel>-->
+                <!--                <el-carousel height="40px" @change="onArrowChanged" indicator-position="none" arrow="always">
+                                    <el-carousel-item>-->
+                <el-date-picker style="width: 130px; height: 35px; padding-top: 10px; padding-left: 2px"
+                                @change="onDateChanged"
+                                :clearable="false"
+                                v-model="curDate"
+                                type="date"
+                                :editable="false"
+                                placeholder="选择日期"
+                                format="YYYY/MM/DD"
+                                value-format="x"
+                                size="small"
+                />
+                <!--                    </el-carousel-item>
+                                </el-carousel>-->
             </div>
 
             <div>
@@ -392,6 +396,45 @@ function onArrowChanged(newIndex, oldIndex) {
         display: flex;
         overflow: hidden;
     }
+}
+
+.avatar-img {
+    --img-size: 30px;
+    --color_border: #c02942;
+    --color_inner: #ecd078;
+    --border-size: 3px;
+    --scale-rate: 1;
+    --max-scale-rate: 1.35;
+    --bg-option: content-box no-repeat center / calc(100% / var(--scale-rate));
+    --outline-offset: calc((1 / var(--scale-rate) - 1) * var(--img-size) / 2 - var(--border-size));
+
+    transform: scale(var(--scale-rate));
+    width: var(--img-size);
+    height: var(--img-size);
+    cursor: pointer;
+    transition: 0.5s;
+
+    background: radial-gradient(
+        circle closest-side,
+        var(--color_inner) calc(99% - var(--border-size)),
+        var(--color_border) calc(100% - var(--border-size)) 99%,
+        transparent
+    ) var(--bg-option);
+
+    outline: var(--border-size) solid var(--color_border);
+    border-radius: 0 0 999px 999px;
+    outline-offset: var(--outline-offset);
+    padding-top: calc(var(--img-size) / 5);
+    mask: linear-gradient(#000, #000) no-repeat 50% calc(10px - var(--outline-offset)) / calc(100% / var(--scale-rate) - 3 * var(--border-size)) 50%,
+    radial-gradient(
+        circle closest-side,
+        #000 99%,
+        transparent
+    ) var(--bg-option);
+}
+
+.avatar-img:hover {
+    --scale-rate: var(--max-scale-rate);
 }
 
 .el-menu {
