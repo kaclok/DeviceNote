@@ -180,6 +180,10 @@ function onSaveClicked() {
     });
 }
 
+function onArrowChanged(newIndex, oldIndex) {
+    console.log('curArrowIndex', newIndex)
+}
+
 </script>
 
 <template>
@@ -199,40 +203,48 @@ function onSaveClicked() {
         </div>
 
         <div>
-            <el-date-picker style="width: 120px; height: 40px; padding-top: 10px"
-                            @change="onDateChanged"
-                            :clearable="false"
-                            v-model="curDate"
-                            type="date"
-                            :editable="false"
-                            placeholder="选择日期"
-                            format="YYYY/MM/DD"
-                            value-format="x"
-                            size="small"
-            />
+            <div style="width: 230px">
+<!--                <el-carousel height="40px" @change="onArrowChanged" indicator-position="none" arrow="always">
+                    <el-carousel-item>-->
+                        <el-date-picker style="width: 130px; height: 35px; padding-top: 10px; padding-left: 2px"
+                                        @change="onDateChanged"
+                                        :clearable="false"
+                                        v-model="curDate"
+                                        type="date"
+                                        :editable="false"
+                                        placeholder="选择日期"
+                                        format="YYYY/MM/DD"
+                                        value-format="x"
+                                        size="small"
+                        />
+<!--                    </el-carousel-item>
+                </el-carousel>-->
+            </div>
 
-            <el-date-picker style="position: absolute; right: 60px; top: 50px"
-                            @change="onDateRangeChanged"
-                            :clearable="false"
-                            v-model="dateRange"
-                            type="daterange"
-                            range-separator="至"
-                            start-placeholder="导出开始日期"
-                            end-placeholder="导出结束日期"
-                            format="YYYY/MM/DD"
-                            :editable="false"
-                            value-format="x"
-                            size="small"
-            />
+            <div>
+                <el-date-picker style="position: absolute; right: 60px; top: 60px"
+                                @change="onDateRangeChanged"
+                                :clearable="false"
+                                v-model="dateRange"
+                                type="daterange"
+                                range-separator="至"
+                                start-placeholder="导出开始日期"
+                                end-placeholder="导出结束日期"
+                                format="YYYY/MM/DD"
+                                :editable="false"
+                                value-format="x"
+                                size="small"
+                />
 
-            <el-button @click="onExportAll" circle :dark="true" type="warning" style="position: absolute; right: 20px; top: 45px">导出
-            </el-button>
+                <el-button @click="onExportAll" circle :dark="true" type="warning" style="position: absolute; right: 20px; top: 55px">导出
+                </el-button>
+            </div>
         </div>
 
         <div class="page-content">
             <!--中侧-->
             <div v-loading="loadingList"
-                 style="width: 100%; padding-left: 0; padding-top: 10px">
+                 style="width: 100%; padding-left: 0; padding-top: 5px">
                 <!--https://element-plus.org/zh-CN/component/table.html#%E7%AD%9B%E9%80%89-->
                 <el-button-group style="width: 100%;">
                     <el-button style="font-size: 12px; width: 100%; height: 30px" type="warning"
@@ -428,6 +440,22 @@ function onSaveClicked() {
 
 .el-pagination {
     justify-content: center;
+}
+
+.el-carousel__item h3 {
+    color: #475669;
+    opacity: 0.75;
+    line-height: 150px;
+    margin: 0;
+    text-align: center;
+}
+
+.el-carousel__item:nth-child(2n) {
+    background-color: #99a9bf;
+}
+
+.el-carousel__item:nth-child(2n + 1) {
+    background-color: #d3dce6;
 }
 
 </style>
