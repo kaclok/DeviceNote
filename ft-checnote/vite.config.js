@@ -33,6 +33,8 @@ export default defineConfig((env) => {
     return {
         envDir: "./.env",
         define: defines,
+        // 开发环境下开放源代码，方便浏览器F12调试
+        sourcemap: env.mode !== 'production',
         plugins: [
             vue(),
             AutoImport({
