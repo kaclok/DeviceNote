@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>hover圆角矩形</title>
+    <style>
+        img {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(var(--scale-rate));
+
+            --img-size: 280px;
+            --color_border: #c02942;
+            --color_inner: #ecd078;
+            --border-size: 7px;
+            --scale-rate: 1;
+            --max-scale-rate: 1.35;
+
+            width: var(--img-size);
+            height: var(--img-size);
+            cursor: pointer;
+            transition: 0.3s;
+
+            outline: var(--border-size) solid var(--color_border);
+            outline-offset: calc((1 / var(--scale-rate) - 1) * var(--img-size) / 2 - var(--border-size));
+
+            background: linear-gradient(
+                to bottom,
+                var(--color_inner) calc(99% - var(--border-size)),
+                var(--color_border) calc(100% - var(--border-size)) 99%
+            ) content-box no-repeat center / calc(100% / var(--scale-rate));
+            border-radius: 50%; /* 初始为圆形 */
+        }
+
+        img:hover {
+            background: linear-gradient(
+                to bottom,
+                var(--color_inner) calc(99% - var(--border-size)),
+                var(--color_border) calc(100% - var(--border-size)) 99%
+            ) content-box no-repeat center / calc(100% / var(--scale-rate));
+            border-radius: 60px; /* 变为圆角矩形 */
+        }
+    </style>
+</head>
+<body>
+    <img src="avatar.png" alt="Avatar"/>
+</body>
+</html>
