@@ -31,6 +31,7 @@ export default defineConfig((env) => {
     let developmentCfg = loadEnv("development", './.env');
     let productionCfg = loadEnv("production", './.env');
     return {
+        base: curCfg.VITE_BASE, // https://juejin.cn/post/7264783369878388796
         envDir: "./.env",
         define: defines,
         // 开发环境下开放源代码，方便浏览器F12调试
@@ -85,19 +86,19 @@ export default defineConfig((env) => {
                 // 猜测是服务器上的rewrite不生效
                 // 原因可能是： 1、服务器没有nodejs环境  2、服务器是linux,而开发环境是win  3、nginx管理web会有自己的cors策略
                 '/api': {
-                    target: curCfg['VITE_BASE_API'],// 这是你要跨域请求的地址前缀
+                    target: curCfg.VITE_BASE_API,// 这是你要跨域请求的地址前缀
                     changeOrigin: true,// 开启跨域
                     // 去除前缀api
                     rewrite: (path) => path.replace(/^\/api/, '')
                 },
                 '/development': {
-                    target: developmentCfg['VITE_BASE_API'],
+                    target: developmentCfg.VITE_BASE_API,
                     changeOrigin: true,// 开启跨域
                     // 去除前缀api
                     rewrite: (path) => path.replace(/^\/development/, '')
                 },
                 '/production': {
-                    target: productionCfg['VITE_BASE_API'],
+                    target: productionCfg.VITE_BASE_API,
                     changeOrigin: true,// 开启跨域
                     // 去除前缀api
                     rewrite: (path) => path.replace(/^\/production/, '')

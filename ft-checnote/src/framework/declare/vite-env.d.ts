@@ -7,6 +7,7 @@ interface ImportMetaEnv {
     readonly VITE_APP_TITLE: string
     readonly VITE_OUT_DIR: string
     readonly VITE_LOCALE: string
+    readonly VITE_BASE: string
 
     readonly VITE_MINIO_URL: string
     readonly VITE_ACCESS_KEY: string
