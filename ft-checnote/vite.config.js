@@ -65,7 +65,7 @@ export default defineConfig((env) => {
             hmr: true, // 开启热更新
             // 在运行的时候控制台上暴露本机ip地址 https://blog.csdn.net/zqd_java/article/details/129141035
             host: "0.0.0.0",
-            port: 4177, //vite项目启动时自定义端口
+            port: 5179, //vite项目启动时自定义端口
             strictPort: false,
 
             // origin: config['VITE_BASE_API'],
