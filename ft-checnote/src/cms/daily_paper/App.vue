@@ -26,6 +26,10 @@ import logo_claude from '@/assets/image/logo/claude.png';
 import logo_grok from '@/assets/image/logo/grok.jpg';
 
 import {ref} from 'vue';
+import { useTitle } from '@vueuse/core'
+
+const title = useTitle()
+title.value = 'Ai'
 
 // You can add reactive state and methods here if needed
 const gridItems = ref([
