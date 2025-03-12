@@ -24,9 +24,11 @@ import logo_chatgpt from '@/assets/image/logo/chatgpt.png';
 import logo_gemini from '@/assets/image/logo/gemini.svg';
 import logo_claude from '@/assets/image/logo/claude.png';
 import logo_grok from '@/assets/image/logo/grok.jpg';
+import logo_db from '@/assets/image/logo/db.png';
+import logo_txyb from '@/assets/image/logo/txyb.jpg';
 
 import {ref} from 'vue';
-import { useTitle } from '@vueuse/core'
+import {useTitle} from '@vueuse/core'
 
 const title = useTitle()
 title.value = 'Ai'
@@ -39,14 +41,24 @@ const gridItems = ref([
         image: logo_jt
     },
     {
+        name: "Deepseek",
+        url: "https://chat.deepseek.com",
+        image: logo_deepseek
+    },
+    {
+        name: "豆包",
+        url: "https://www.doubao.com/chat/",
+        image: logo_db
+    },
+    {
         name: "Kimi",
         url: "https://kimi.moonshot.cn",
         image: logo_kimi
     },
     {
-        name: "Deepseek",
-        url: "https://chat.deepseek.com",
-        image: logo_deepseek
+        name: "腾讯元宝",
+        url: "https://yuanbao.tencent.com/chat",
+        image: logo_txyb
     },
     {
         name: "通义千问",
