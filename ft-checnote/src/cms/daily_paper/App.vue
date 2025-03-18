@@ -406,36 +406,30 @@ function onArrowChanged(newIndex, oldIndex) {
     --border-size: 3px;
     --scale-rate: 1;
     --max-scale-rate: 1.35;
-    --bg-option: content-box no-repeat center / calc(100% / var(--scale-rate));
-    --outline-offset: calc((1 / var(--scale-rate) - 1) * var(--img-size) / 2 - var(--border-size));
 
-    transform: scale(var(--scale-rate));
     width: var(--img-size);
     height: var(--img-size);
     cursor: pointer;
-    transition: 0.5s;
-
-    background: radial-gradient(
-        circle closest-side,
-        var(--color_inner) calc(99% - var(--border-size)),
-        var(--color_border) calc(100% - var(--border-size)) 99%,
-        transparent
-    ) var(--bg-option);
+    transition: 0.3s;
 
     outline: var(--border-size) solid var(--color_border);
-    border-radius: 0 0 999px 999px;
-    outline-offset: var(--outline-offset);
-    padding-top: calc(var(--img-size) / 5);
-    mask: linear-gradient(#000, #000) no-repeat 50% calc(10px - var(--outline-offset)) / calc(100% / var(--scale-rate) - 3 * var(--border-size)) 50%,
-    radial-gradient(
-        circle closest-side,
-        #000 99%,
-        transparent
-    ) var(--bg-option);
+    outline-offset: calc((1 / var(--scale-rate) - 1) * var(--img-size) / 2 - var(--border-size));
+
+    background: linear-gradient(
+        to bottom,
+        var(--color_inner) calc(99% - var(--border-size)),
+        var(--color_border) calc(100% - var(--border-size)) 99%
+    ) content-box no-repeat center / calc(100% / var(--scale-rate));
+    border-radius: 50%; /* 初始为圆形 */
 }
 
-.avatar-img:hover {
-    --scale-rate: var(--max-scale-rate);
+.avatar-img :hover {
+    background: linear-gradient(
+        to bottom,
+        var(--color_inner) calc(99% - var(--border-size)),
+        var(--color_border) calc(100% - var(--border-size)) 99%
+    ) content-box no-repeat center / calc(100% / var(--scale-rate));
+    border-radius: 60px; /* 变为圆角矩形 */
 }
 
 .el-menu {
