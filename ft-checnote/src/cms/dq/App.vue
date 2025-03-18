@@ -17,7 +17,7 @@ let loadingList = ref(false);
 let loadingAdd = ref(false);
 let loadingExport = ref(false)
 
-let curBJId = ref("1");
+let curBJId = ref("3");
 let curDate = ref(Date.now());
 let dateRange = ref('');
 
@@ -191,14 +191,14 @@ function onArrowChanged(newIndex, oldIndex) {
     <div class="page-container">
         <div class="page-title">
             <img src="@/assets/st_logo.png" class="page-logo-content" alt="">
-            <span class="page-title-content">{{ "仪表检修记录" }}</span>
+            <span class="page-title-content">{{ "电气检修记录" }}</span>
 
             <div class="page-menu-content">
                 <el-menu mode="horizontal" background-color="#1C4785" text-color="#DCDCDC" active-text-color="#ffffff"
                          :default-active="curBJId"
                          @select="onMenuClicked">
-                    <el-menu-item index="1">仪表一班</el-menu-item>
-                    <el-menu-item index="2">仪表二班</el-menu-item>
+                    <el-menu-item index="3">电气一班</el-menu-item>
+                    <el-menu-item index="4">电气二班</el-menu-item>
                 </el-menu>
             </div>
 

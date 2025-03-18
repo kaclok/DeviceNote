@@ -1,7 +1,6 @@
 package com.smlj.singledevice_note.logic.o.vo.table.dao;
 
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCheckRecord;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TDeviceRecord;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
@@ -15,9 +14,9 @@ public interface TCheckRecordDao {
 
     ArrayList<TCheckRecord> doSelectSimple(@Param("tableName") String tableName, @Param("select") String select, @Param("conds") String conds, @Param("orderBys") String orderBys);
 
-    void insert(@Param("item") TCheckRecord item);
+    void insert(@Param("tableName") String tableName, @Param("item") TCheckRecord item);
 
-    void update(@Param("item") TCheckRecord item);
+    void update(@Param("tableName") String tableName, @Param("item") TCheckRecord item);
 
-    Integer exist(@Param("id") Integer id);
+    Integer exist(@Param("tableName") String tableName, @Param("id") Integer id);
 }

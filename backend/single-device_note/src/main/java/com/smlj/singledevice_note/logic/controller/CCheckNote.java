@@ -3,6 +3,7 @@ package com.smlj.singledevice_note.logic.controller;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.to.Result;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCheckBJDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCheckRecordDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCheckRecord;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +29,7 @@ import java.util.TimeZone;
 @Tag(name = "CCheckNote", description = "仪表检修记录")
 public class CCheckNote {
     private final TCheckRecordDao tCheckRecordDao;
+    private final TCheckBJDao tCheckBJDao;
 
     @GetMapping(value = "/getList")
     public Result<?> getList(String bgId, Long mills, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
@@ -43,8 +45,12 @@ public class CCheckNote {
                 + format +
                 "' = (time::date)::timestamp";
         String orderBy = "time desc";
+
+        var bj = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null).get(0);
+        var tableName = bj.getTableName();
+
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = tCheckRecordDao.doSelectSimple("t_check_record", "*", conds, orderBy);
+        var ls = tCheckRecordDao.doSelectSimple(tableName, "*", conds, orderBy);
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -52,12 +58,16 @@ public class CCheckNote {
     public Result<?> add(String bgId, String info) {
         var t = new TCheckRecord(info);
         t.setBj_id(bgId);
+
+        var bj = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null).get(0);
+        var tableName = bj.getTableName();
+
         var id = t.getId();
-        if (id != null && tCheckRecordDao.exist(id) > 0) {
-            tCheckRecordDao.update(t);
+        if (id != null && tCheckRecordDao.exist(tableName, id) > 0) {
+            tCheckRecordDao.update(tableName, t);
         } else {
             t.setTime(new Date());
-            tCheckRecordDao.insert(t);
+            tCheckRecordDao.insert(tableName, t);
         }
 
         return Result.success();
@@ -70,7 +80,10 @@ public class CCheckNote {
     }
 
     @GetMapping(value = "/export")
-    public Result<?> export(Long beginDate, Long endDate) {
+    public Result<?> export(String bgId, Long beginDate, Long endDate) {
+        var bj = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null).get(0);
+        var tableName = bj.getTableName();
+
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         Calendar begin = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
         begin.setTime(new Date(beginDate));
@@ -92,7 +105,7 @@ public class CCheckNote {
 
         String conds = "'" + beginFormat + "' <= (time::date)::timestamp and (time::date)::timestamp <= '" + endFormat + "'";
         String orderBy = "time desc";
-        var ls = tCheckRecordDao.doSelectSimple("t_check_record", "*", conds, orderBy);
+        var ls = tCheckRecordDao.doSelectSimple(tableName, "*", conds, orderBy);
         To_Excel<TCheckRecord> rlt = new To_Excel<>();
         rlt.getColNames().add("id");
         rlt.getColNames().add("班级");

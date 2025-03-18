@@ -4,7 +4,7 @@
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCheckRecordDao">
     <update id="update">
-        UPDATE t_check_record
+        UPDATE ${tableName}
         SET
             c_name = #{item.c_name},
             c_desc = #{item.c_desc},
@@ -44,11 +44,11 @@
     </select>
 
     <select id="exist" resultType="java.lang.Integer">
-        SELECT COUNT(*) FROM t_check_record WHERE id = ${id}
+        SELECT COUNT(*) FROM ${tableName} WHERE id = ${id}
     </select>
 
-    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into t_check_record (time
+    <insert id="insert" useGeneratedKeys="true" keyProperty="item.id">
+        insert into ${tableName} (time
                                     , bj_id
                                     , c_name
                                     , c_desc

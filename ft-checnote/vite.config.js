@@ -62,10 +62,15 @@ export default defineConfig((env) => {
 
         // https://vitejs.cn/vite3-cn/config/server-options.html#server-host
         server: {
+            // 显式指定目录默认文件
+            fs: {
+                strict: false,
+                allow: ['..'],
+            },
             hmr: true, // 开启热更新
             // 在运行的时候控制台上暴露本机ip地址 https://blog.csdn.net/zqd_java/article/details/129141035
             host: "0.0.0.0",
-            port: 5179, //vite项目启动时自定义端口
+            port: 4177, //vite项目启动时自定义端口
             strictPort: false,
 
             // origin: config['VITE_BASE_API'],
@@ -126,8 +131,8 @@ export default defineConfig((env) => {
                 input: { // https://cn.vitejs.dev/guide/build#multi-page-app
                     // https://www.bilibili.com/video/BV1Ru4y1Q7SQ/?vd_source=5c9f5bd891aee351c325bcf632b5550f
                     index: resolve(__dirname, './index.html'),
-                    main: resolve(__dirname, './index.html'),
-                    second: resolve(__dirname, './pages/login.html'),
+                    dq: resolve(__dirname, './pages/dq/index.html'),
+                    yb: resolve(__dirname, './pages/yb/index.html'),
                 },
                 output: {
                     manualChunks(id) {

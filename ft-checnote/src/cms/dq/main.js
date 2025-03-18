@@ -6,6 +6,7 @@ import App from './App.vue'
 import ElementPlus from 'element-plus'
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import 'dayjs/locale/zh-cn';
+import VConsole from 'vconsole';
 
 // import {router} from '@/cms/daily_paper/router/Index.js'
 // import直接引用一个文件时，会执行一遍这个文件，而不获取任何文件对象, 比如：import './lib/init.js';
@@ -19,6 +20,12 @@ import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
 
 // 创建实例
 const app = createApp(App)
+
+if (__DEV__) {
+    // 开发环境引入手机浏览器的开发者工具
+    const vc = new VConsole();
+}
+
 // 局处理组件渲染和事件处理过程中的错误
 app.config.errorHandler = (error, instance, info) => {
     console.error(error, instance, info);
@@ -41,7 +48,7 @@ async function setupAll(app) {
     // 自定义指令
     RegisterDirective(app);
     // 路由
-   /* app.use(router);*/
+    /*app.use(router);*/
 
     // mount在最后
     app.mount('#app');
