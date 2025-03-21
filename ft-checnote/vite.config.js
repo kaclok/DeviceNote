@@ -133,6 +133,7 @@ export default defineConfig((env) => {
                     index: resolve(__dirname, './index.html'),
                     dq: resolve(__dirname, './pages/dq/index.html'),
                     yb: resolve(__dirname, './pages/yb/index.html'),
+                    sb: resolve(__dirname, './pages/sb/index.html'),
                 },
                 output: {
                     manualChunks(id) {
