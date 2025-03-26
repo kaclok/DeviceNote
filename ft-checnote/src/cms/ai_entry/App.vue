@@ -24,6 +24,7 @@ import logo_chatgpt from '@/assets/image/logo/chatgpt.png';
 import logo_gemini from '@/assets/image/logo/gemini.svg';
 import logo_claude from '@/assets/image/logo/claude.png';
 import logo_grok from '@/assets/image/logo/grok.jpg';
+import logo_lx from '@/assets/image/logo/wps-lx.jpg';
 
 import {ref} from 'vue';
 import {useTitle} from '@vueuse/core'
@@ -47,6 +48,11 @@ const gridItems = ref([
         name: "Deepseek",
         url: "https://chat.deepseek.com",
         image: logo_deepseek
+    },
+    {
+        name: "Wps",
+        url: "https://lingxi.wps.cn/",
+        image: logo_lx
     },
     {
         name: "通义千问",
