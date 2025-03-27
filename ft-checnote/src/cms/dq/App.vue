@@ -170,8 +170,10 @@ function onDeviceClicked(row) {
 
 function onDeleteClicked(row) {
     if (row) {
+        console.log(curBJId.value + "   " + row.id)
+        
         Singleton.getInstance(SysX).del({
-            bgId: row.bg_id,
+            bgId: curBJId.value,
             id: row.id,
         }, AC_del.signal, () => {
             loadingDel.value = true;
