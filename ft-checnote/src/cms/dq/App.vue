@@ -11,10 +11,12 @@ const PAGE_SIZE = 13
 
 let AC_getList = new AbortController();
 let AC_add = new AbortController();
+let AC_del = new AbortController();
 let AC_export = new AbortController();
 
 let loadingList = ref(false);
 let loadingAdd = ref(false);
+let loadingDel = ref(false);
 let loadingExport = ref(false)
 
 let curBJId = ref("3");
@@ -23,7 +25,13 @@ let dateRange = ref('');
 
 let curPageIndex = ref(1)
 
-const formList = ref([])
+const formList = ref([
+    /*{
+        id: 1,
+        c_name: "测试",
+        c_person: "崔斌斌",
+    }*/
+])
 let formTotal = 0
 
 let formRef = ref(null)
@@ -52,6 +60,7 @@ let showDialogue = ref(false)
 onUnmounted(() => {
     AC_getList.abort();
     AC_add.abort();
+    AC_del.abort();
     AC_export.abort();
 });
 
@@ -156,6 +165,24 @@ function onDeviceClicked(row) {
         recordMode.value = 1
         showDialogue.value = true
         deviceRecordInfo.value = JSON.parse(JSON.stringify(row));
+    }
+}
+
+function onDeleteClicked(row) {
+    if (row) {
+        Singleton.getInstance(SysX).del({
+            bgId: row.bg_id,
+            id: row.id,
+        }, AC_del.signal, () => {
+            loadingDel.value = true;
+        }, (r, data) => {
+            loadingDel.value = false;
+
+            if (r) {
+                _getList(curPageIndex.value);
+            } else {
+            }
+        });
     }
 }
 
@@ -280,10 +307,14 @@ function onArrowChanged(newIndex, oldIndex) {
                     <el-table-column prop="c_summary" label="技术小结" width="120"/>
                     <el-table-column prop="c_comment" label="班长批注"/>
 
-                    <el-table-column fixed="left" label="" min-width="45" width="70">
+                    <el-table-column fixed="left" label="" min-width="90" width="95">
                         <template #default="scope">
-                            <el-button link type="primary" size="small" @click.prevent="onDeviceClicked(scope.row)">查看
-                            </el-button>
+                            <el-button-group style="width: 100%;">
+                                <el-button link type="primary" size="small" @click.prevent="onDeviceClicked(scope.row)">查看
+                                </el-button>
+                                <el-button link type="primary" size="small" @click.prevent="onDeleteClicked(scope.row)">删除
+                                </el-button>
+                            </el-button-group>
                         </template>
                     </el-table-column>
                 </el-table>

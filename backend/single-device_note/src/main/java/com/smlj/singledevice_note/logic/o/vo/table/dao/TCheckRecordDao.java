@@ -19,4 +19,6 @@ public interface TCheckRecordDao {
     void update(@Param("tableName") String tableName, @Param("item") TCheckRecord item);
 
     Integer exist(@Param("tableName") String tableName, @Param("id") Integer id);
+
+    void delete(@Param("tableName") String tableName, @Param("id") Integer id);
 }

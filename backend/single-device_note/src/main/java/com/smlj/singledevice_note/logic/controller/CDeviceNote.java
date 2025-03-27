@@ -14,6 +14,7 @@ import com.smlj.singledevice_note.logic.o.vo.table.entity.TDeviceRecord;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -41,6 +42,7 @@ public class CDeviceNote {
     private final TDeviceDao tDeviceDao;
     private final TDeviceRecordDao tDeviceRecordDao;
 
+    @Transactional
     @GetMapping(value = "/getGYListByZZ") // https://mp.weixin.qq.com/s/xCFx5b1fqODDUey6bWGX_A
     public Result<?> getGYListByZZ(String zzId) {
         String conds = "zz = \'" + zzId + "\'";
@@ -49,6 +51,7 @@ public class CDeviceNote {
         return Result.success(ls);
     }
 
+    @Transactional
     @GetMapping(value = "/getDeviceList")
     public Result<?> getDeviceList(String gyId, @RequestParam(name = "posIdx", required = false) String posIdx, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         String conds = "gy_id = \'" + gyId + "\'";
@@ -62,6 +65,7 @@ public class CDeviceNote {
         return Result.success(new PageSerializable<>(ls));
     }
 
+    @Transactional
     @GetMapping(value = "/getRecordList")
     public Result<?> getRecordList(String deviceId, @RequestParam(name = "person", required = false) String person, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         String conds = "device_id = \'" + deviceId + "\'";
@@ -75,6 +79,7 @@ public class CDeviceNote {
         return Result.success(new PageSerializable<>(ls));
     }
 
+    @Transactional
     @GetMapping(value = "/getRecord")
     public Result<?> getRecord(Integer recordId) {
         String conds = "id = \'" + recordId + "\'";
@@ -82,6 +87,7 @@ public class CDeviceNote {
         return Result.success(ls);
     }
 
+    @Transactional
     @GetMapping(value = "/report")
     public Result<?> report(String gyId, String deviceId, String info) {
         var t = new TDeviceRecord(info);

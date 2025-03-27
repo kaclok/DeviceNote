@@ -21,6 +21,15 @@ class SysX {
         });
     }
 
+    async del(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        ApiX.del(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, fail);
+        });
+    }
+
     async export(paras, signal, onBefore, onAfter) {
         onBefore?.();
         ApiX.export(paras, signal).then(succ => {

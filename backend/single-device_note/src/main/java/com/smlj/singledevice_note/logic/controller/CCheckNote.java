@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,6 +32,7 @@ public class CCheckNote {
     private final TCheckRecordDao tCheckRecordDao;
     private final TCheckBJDao tCheckBJDao;
 
+    @Transactional
     @GetMapping(value = "/getList")
     public Result<?> getList(String bgId, Long mills, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
@@ -54,6 +56,7 @@ public class CCheckNote {
         return Result.success(new PageSerializable<>(ls));
     }
 
+    @Transactional
     @GetMapping(value = "/add")
     public Result<?> add(String bgId, String info) {
         var t = new TCheckRecord(info);
@@ -73,12 +76,23 @@ public class CCheckNote {
         return Result.success();
     }
 
+    @Transactional
+    @GetMapping(value = "/del")
+    public Result<?> del(String bgId, Integer id) {
+        var bj = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null).get(0);
+        var tableName = bj.getTableName();
+
+        tCheckRecordDao.delete(tableName, id);
+        return Result.success();
+    }
+
     @Data
     public static class To_Excel<T> implements Serializable {
         private ArrayList<String> colNames = new ArrayList<String>();
         private ArrayList<ArrayList<String>> rows = new ArrayList<ArrayList<String>>();
     }
 
+    @Transactional
     @GetMapping(value = "/export")
     public Result<?> export(String bgId, Long beginDate, Long endDate) {
         var bj = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null).get(0);

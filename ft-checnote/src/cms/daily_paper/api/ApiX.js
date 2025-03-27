@@ -15,6 +15,13 @@ export class ApiX {
         })
     }
 
+    static del(paras, signal) {
+        return axiosR.get("x/del", {
+            params: paras,
+            signal: signal,
+        })
+    }
+
     static export(paras, signal) {
         return axiosR.get("x/export", {
             params: paras,
