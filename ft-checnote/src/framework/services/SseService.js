@@ -19,6 +19,10 @@ export class SseService {
             this.msgQueue.push(event.data);
         };
 
+        this.eventSource.onopen = (event) => {
+            console.error('SSE 连接成功:');
+        };
+
         this.eventSource.onerror = (error) => {
             console.error('SSE 连接错误:', error);
             this.close();
