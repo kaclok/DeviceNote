@@ -135,6 +135,7 @@ export default defineConfig((env) => {
                     yb: resolve(__dirname, './pages/yb/index.html'),
                     sb: resolve(__dirname, './pages/sb/index.html'),
                     ai_entry: resolve(__dirname, './pages/ai_entry/index.html'),
+                    safe_product: resolve(__dirname, './pages/safe_product/index.html'),
                 },
                 output: {
                     manualChunks(id) {

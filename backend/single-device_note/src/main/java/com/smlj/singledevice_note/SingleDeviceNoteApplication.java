@@ -6,7 +6,9 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.retry.annotation.EnableRetry;
 
+@EnableRetry
 @EnableCaching
 @EnableAsync
 @EnableWebMvc
