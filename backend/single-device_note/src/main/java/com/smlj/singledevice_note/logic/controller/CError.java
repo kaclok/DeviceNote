@@ -62,17 +62,17 @@ public class CError implements ErrorController {
     */
 
     // 处理404 或者 代码异常 的展示
-    @RequestMapping("/error")
+    /*@RequestMapping("/error")
     public String error(HttpServletRequest request, HttpServletResponse response, Model model) {
         log.info("statusCode:{}", response.getStatus());
-        /*if (response.getStatus() == 404) {
+        *//*if (response.getStatus() == 404) {
             return "views/404";
-        } else*/ {
+        } else*//* {
             Exception exception = (Exception) request.getAttribute("jakarta.servlet.error.exception");
             model.addAttribute("exceptionMessage", exception == null ? "" : exception.toString());
             return "views/error";
         }
-    }
+    }*/
 
     // SpringMVC参数不正确
     @ExceptionHandler(value = MissingServletRequestParameterException.class)

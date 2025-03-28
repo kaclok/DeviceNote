@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="debug-vite" type="NodeJSConfigurationType" path-to-js-file="node_modules/vite/bin/vite.js" working-dir="$PROJECT_DIR$">
     <EXTENSION ID="com.intellij.lang.javascript.buildTools.npm.rc.StartBrowserRunConfigurationExtension">
-      <browser name="37cae5b9-e8b2-4949-9172-aafa37fbc09c" start="true" with-js-debugger="true" url="http://localhost:4177" />
+      <browser name="37cae5b9-e8b2-4949-9172-aafa37fbc09c" start="true" with-js-debugger="true" url="http://localhost:4177/pages/safe_product/index.html" />
     </EXTENSION>
     <method v="2" />
   </configuration>

@@ -1,5 +1,6 @@
 import {createApp} from 'vue'
 import App from './App.vue'
+// import {proxySingleton} from "@/framework/services/ProxySingleton.js";
 
 // https://blog.csdn.net/weixin_41765715/article/details/132346684
 // 将data-picker的第一列换成周一
@@ -17,6 +18,7 @@ import "@/framework/services/net/Init.js";
 import {router} from "@/cms/daily_paper/router/Index.js";
 import {TokenService} from "@/framework/services/TokenService.js";
 import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
+import {SseService} from "@/framework/services/SseService.js";
 
 // 创建实例
 const app = createApp(App)
@@ -50,7 +52,6 @@ async function setupAll(app) {
     // 路由
     /*app.use(router);*/
 
-    // mount在最后
     app.mount('#app');
 }
 
