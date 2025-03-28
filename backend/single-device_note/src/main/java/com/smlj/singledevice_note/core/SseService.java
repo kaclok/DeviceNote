@@ -15,7 +15,9 @@ public class SseService {
     public SseEmitter connect() {
         SseEmitter emitter = new SseEmitter(timeout); // 超时时间60秒
         emitters.add(emitter);
-        emitter.onCompletion(() -> emitters.remove(emitter));
+        emitter.onCompletion(() -> {
+            emitters.remove(emitter);
+        });
         return emitter;
     }
 
