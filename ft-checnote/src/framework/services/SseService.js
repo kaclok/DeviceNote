@@ -14,17 +14,16 @@ export class SseService {
         this.eventSource = new EventSource(this.url);
 
         this.eventSource.onmessage = (event) => {
-            console.log(event.data);
-
-            this.msgQueue.push(event.data);
+            let json = JSON.parse(event.data);
+            this.msgQueue.push(json);
         };
 
         this.eventSource.onopen = (event) => {
-            console.error('SSE 连接成功:');
+            console.log('SSE 连接成功:');
         };
 
         this.eventSource.onerror = (error) => {
-            console.error('SSE 连接错误:', error);
+            console.log('SSE 连接错误:', error);
             this.close();
         };
     }
