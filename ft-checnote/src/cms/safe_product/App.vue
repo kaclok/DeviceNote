@@ -9,7 +9,6 @@ import {axiosInst as axiosR} from "@/framework/services/net/AxiosInst.js"
 useSse("/api/sse/connect");
 
 function onClicked() {
-    console.log("<UNK>");
     axiosR.get("sse/testPublish", {
         params: {
             message: "哈哈哈"

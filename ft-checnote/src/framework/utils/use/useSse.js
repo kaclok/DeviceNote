@@ -5,12 +5,12 @@ function useSse(url) {
     const sseInstance = new SseService(url);
 
     onMounted(() => {
-        console.error("onMounted");
+        /*console.error("onMounted");*/
         sseInstance.connect();
     })
 
     onUnmounted(() => {
-        console.error("onUnmounted");
+        /*console.error("onUnmounted");*/
         sseInstance.close();
     })
 
