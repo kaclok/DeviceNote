@@ -1,5 +1,5 @@
 import {useCache, ECacheType} from '@/framework/utils/use/useCache.ts'
-import {post} from './net/Request.js'
+import {post} from './net/InnerRequest.js'
 
 const {wsCache} = useCache()
 

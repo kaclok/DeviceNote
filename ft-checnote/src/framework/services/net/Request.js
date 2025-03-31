@@ -1,59 +1,42 @@
-import { axiosInst } from './AxiosInst.js'
+import {axiosInst as axiosR} from "@/framework/services/net/AxiosInst.js"
+import {ApiX} from "@/cms/daily_paper/api/ApiX.js";
 
-import { config } from './Config.js'
-
-const { default_headers } = config
-
-function _request(option) {
-    const { url, method, params, data, headersType, responseType, ...config } = option
-    return axiosInst({
-        url: url,
-        method,
-        params,
-        data,
-        ...config,
-        responseType: responseType,
-        headers: {
-            'Content-Type': headersType || default_headers,
-        },
+async function innerDoGet(url, paras, signal) {
+    return axiosR.get(url, {
+        params: paras,
+        signal: signal,
     })
 }
 
-async function get(option) {
-    const res = await _request({ method: 'GET', ...option })
-    return res.data
+async function innerDoPost(url, paras, signal) {
+    return axiosR.post(url, null, {
+        params: paras,
+        signal: signal,
+    })
 }
 
-async function post(option) {
-    const res = await _request({ method: 'POST', ...option })
-    return res.data
-}
-
-async function postOriginal(option) {
-    const res = await _request({ method: 'POST', ...option })
-    return res
-}
-
-async function _delete(option) {
-    const res = await _request({ method: 'DELETE', ...option })
-    return res.data
-}
-
-async function put(option) {
-    const res = await _request({ method: 'PUT', ...option })
-    return res.data
-}
-
-async function download(option) {
-    return _request({
-        method: 'POST',
-        responseType: 'blob',
-        ...option,
+async function doGet(paras, signal, onBefore, onAfter) {
+    onBefore?.();
+    innerDoGet(paras, signal).then(succ => {
+        onAfter?.(true, succ.data);
+    }).catch(fail => {
+        onAfter?.(false, fail);
     });
 }
 
-async function upload(option) {
-    return _request({method: 'POST', ...option});
+async function doPost(paras, signal, onBefore, onAfter) {
+    onBefore?.();
+    innerDoPost(paras, signal).then(succ => {
+        onAfter?.(true, succ.data);
+    }).catch(fail => {
+        onAfter?.(false, fail);
+    });
 }
 
-export { get, post, postOriginal, _delete, put, download, upload }
+export {
+    innerDoGet,
+    innerDoPost,
+
+    doGet,
+    doPost,
+}

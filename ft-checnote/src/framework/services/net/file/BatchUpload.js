@@ -1,4 +1,4 @@
-import {upload as baseUpload, post} from "@/framework/services/net/Request.js"
+import {upload as baseUpload, post} from "@/framework/services/net/InnerRequest.js"
 import SparkMD5 from "spark-md5"
 import axios from "axios";
 
