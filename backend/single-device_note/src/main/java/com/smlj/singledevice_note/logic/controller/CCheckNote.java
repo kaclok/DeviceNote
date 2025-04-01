@@ -48,7 +48,12 @@ public class CCheckNote {
                 "' = (time::date)::timestamp";
         String orderBy = "time desc";
 
-        var bj = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null).get(0);
+        var bjs = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null);
+        if (bjs == null || bjs.isEmpty()) {
+            return Result.fail("bgId：" + bgId + "不存在");
+        }
+
+        var bj = bjs.get(0);
         var tableName = bj.getTableName();
 
         PageHelper.startPage(pageNum, pageSize, true, true, true);
@@ -59,11 +64,16 @@ public class CCheckNote {
     @Transactional
     @GetMapping(value = "/add")
     public Result<?> add(String bgId, String info) {
+        var bjs = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null);
+        if (bjs == null || bjs.isEmpty()) {
+            return Result.fail("bgId：" + bgId + "不存在");
+        }
+
+        var bj = bjs.get(0);
+        var tableName = bj.getTableName();
+
         var t = new TCheckRecord(info);
         t.setBj_id(bgId);
-
-        var bj = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null).get(0);
-        var tableName = bj.getTableName();
 
         var id = t.getId();
         if (id != null && tCheckRecordDao.exist(tableName, id) > 0) {
@@ -79,7 +89,11 @@ public class CCheckNote {
     @Transactional
     @GetMapping(value = "/del")
     public Result<?> del(String bgId, Integer id) {
-        var bj = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null).get(0);
+        var bjs = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null);
+        if (bjs == null || bjs.isEmpty()) {
+            return Result.fail("bgId：" + bgId + "不存在");
+        }
+        var bj = bjs.get(0);
         var tableName = bj.getTableName();
 
         tCheckRecordDao.delete(tableName, id);
@@ -95,7 +109,12 @@ public class CCheckNote {
     @Transactional
     @GetMapping(value = "/export")
     public Result<?> export(String bgId, Long beginDate, Long endDate) {
-        var bj = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null).get(0);
+        var bjs = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null);
+        if (bjs == null || bjs.isEmpty()) {
+            return Result.fail("bgId：" + bgId + "不存在");
+        }
+
+        var bj = bjs.get(0);
         var tableName = bj.getTableName();
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
