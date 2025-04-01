@@ -38,7 +38,7 @@ export default defineConfig((env) => {
         sourcemap: env.mode !== 'production',
         plugins: [
             vue(),
-            AutoImport({
+            AutoImport({ // 6.97 eBt:/ N@w.fO 03/28 模块自动导入 # JavaScript # 前端开发工程师 # 编程 # 程序员 # web前端  https://v.douyin.com/JLQAt0JZDk4/ 复制此链接，打开Dou音搜索，直接观看视频！
                 resolvers: [ElementPlusResolver()],
                 imports: [
                     vueAutoImport,
@@ -49,6 +49,8 @@ export default defineConfig((env) => {
                         // '@/framework/services/LocaleService': ['GetByKey', 'Switch'],
                     }
                 ],
+                dirs: [], // 自定义代码导入
+                dts: "@/auto-import/auto-import.d.ts",
             }),
             Components({
                 resolvers: [ElementPlusResolver()],
