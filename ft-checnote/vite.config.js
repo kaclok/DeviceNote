@@ -50,7 +50,7 @@ export default defineConfig((env) => {
                     }
                 ],
                 dirs: [], // 自定义代码导入
-                dts: "@/auto-import/auto-import.d.ts",
+                dts: "./src/auto-import/auto-import.d.ts",
             }),
             Components({
                 resolvers: [ElementPlusResolver()],
@@ -138,6 +138,7 @@ export default defineConfig((env) => {
                     sb: resolve(__dirname, './pages/sb/index.html'),
                     ai_entry: resolve(__dirname, './pages/ai_entry/index.html'),
                     safe_product: resolve(__dirname, './pages/safe_product/index.html'),
+                    wz_remain: resolve(__dirname, './pages/wz/index.html'),
                 },
                 output: {
                     manualChunks(id) {

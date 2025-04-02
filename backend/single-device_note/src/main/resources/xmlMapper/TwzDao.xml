@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TwzDao">
+    <insert id="InsertBatch">
+        insert into ${tableName} (
+        c_name ,
+        c_number ,
+        c_unit ,
+        c_model ,
+        c_declarer ,
+        c_ht ) values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (
+            #{item.c_name} ,
+            #{item.c_number} ,
+            #{item.c_unit} ,
+            #{item.c_model} ,
+            #{item.c_declarer} ,
+            #{item.c_ht}
+            )
+        </foreach>
+    </insert>
+
+    <select id="doSelect" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.Twz">
+        select ${select} from ${tableName}
+        <where>
+            <if test="conds != null and conds != ''">
+                <foreach collection="conds" item="item" index="index" separator="">
+                    and (${item})
+                </foreach>
+            </if>
+        </where>
+
+        <if test="orderBys != null and orderBys != ''">
+            order by ${orderBys}
+        </if>
+    </select>
+
+    <select id="doSelectSimple" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.Twz">
+        select ${select} from ${tableName}
+        <where>
+            <if test="conds != null and conds != ''">
+                and (${conds})
+            </if>
+        </where>
+
+        <if test="orderBys != null and orderBys != ''">
+            order by ${orderBys}
+        </if>
+    </select>
+
+    <update id="Clear">
+        truncate ${tableName}
+    </update>
+</mapper>
