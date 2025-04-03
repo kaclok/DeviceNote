@@ -1,8 +1,22 @@
 <template>
     <div class="container">
+        <h2> AI: </h2>
         <div class="grid-container">
             <div
-                v-for="item in gridItems"
+                v-for="item in aiGridItems"
+                :key="item.name"
+                class="grid-item"
+                @click="item.url ? onClickedImg(item.url) : undefined"
+            >
+                <img :src="item.image" :alt="item.name" class="icon">
+                <div class="label">{{ item.name }}</div>
+            </div>
+        </div>
+
+        <h2 style="position: relative; top: 10px"> App: </h2>
+        <div class="grid-container">
+            <div
+                v-for="item in appGridItems"
                 :key="item.name"
                 class="grid-item"
                 @click="item.url ? onClickedImg(item.url) : undefined"
@@ -28,14 +42,16 @@ import logo_lx from '@/assets/image/logo/wps-lx.jpg';
 import logo_db from '@/assets/image/logo/db.png';
 import logo_txyb from '@/assets/image/logo/txyb.jpg';
 
+import logo_book from '@/assets/image/answer_marking.png';
+
 import {ref} from 'vue';
 import {useTitle} from '@vueuse/core'
 
 const title = useTitle()
-title.value = 'Ai'
+title.value = '入口'
 
 // You can add reactive state and methods here if needed
-const gridItems = ref([
+const aiGridItems = ref([
     {
         name: "金泰Ai助手",
         url: "http://10.8.13.54:8080",
@@ -98,6 +114,54 @@ const gridItems = ref([
     }
 ]);
 
+const appGridItems = ref([
+    /*{
+        name: "生产记事",
+        url: "http://10.8.54.26/chr/index/index",
+        image: logo_book
+    },
+    {
+        name: "转化器系统",
+        url: "http://10.8.54.26/cms/index/index",
+        image: logo_book
+    },*/
+    {
+        name: "员工培训平台",
+        url: "http://117.36.227.42:8082/",
+        image: logo_book
+    },
+    {
+        name: "日报",
+        url: "http://10.8.54.110:8790/auth/authorize?response_type=code&scope=openid&client_id=dailypaper&redirect_uri=http://10.8.54.127:5175",
+        image: logo_book
+    },
+    {
+        name: "作业票统计",
+        url: "http://10.8.54.161:8085/#/jobTicket",
+        image: logo_book
+    },
+    {
+        name: "设备检修记录(手机用)",
+        url: "http://117.36.227.42:4175/", // http://10.8.54.24:4177/pages/sb/index.html",
+        image: logo_book
+    },
+    {
+        name: "仪表检修记录",
+        url: "http://10.8.54.24:4177/pages/yb/index.html",
+        image: logo_book
+    },
+    {
+        name: "电气检修记录",
+        url: "http://10.8.54.24:4177/pages/dq/index.html",
+        image: logo_book
+    },
+    {
+        name: "物资库存记录",
+        url: "http://10.8.54.24:4177/pages/wz/index.html",
+        image: logo_book
+    },
+])
+
 // Example of a method to handle clicks on grid items
 function onClickedImg(url) {
     if (url) {
@@ -110,7 +174,7 @@ function onClickedImg(url) {
 .container {
     /*background: url("@/assets/image/infinity-6223003.jpg") no-repeat center;*/
 
-    max-width: 800px;
+    max-width: 1000px;
     margin: 0 auto;
     padding: 20px;
     background-color: white;
@@ -120,7 +184,7 @@ function onClickedImg(url) {
 
 .grid-container {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 10px;
 }
 
