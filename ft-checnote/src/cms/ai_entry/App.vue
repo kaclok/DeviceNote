@@ -22,7 +22,7 @@
                 @click="item.url ? onClickedImg(item.url) : undefined"
             >
                 <img :src="item.image" :alt="item.name" class="icon">
-                <div class="label">{{ item.name }}</div>
+                <div style="white-space: pre-line; text-align: center" class="label">{{ item.name }}</div>
             </div>
         </div>
     </div>
@@ -141,7 +141,7 @@ const appGridItems = ref([
         image: logo_book
     },
     {
-        name: "设备检修记录(手机用)",
+        name: "设备检修记录\n(手机用)",
         url: "http://117.36.227.42:4175/", // http://10.8.54.24:4177/pages/sb/index.html",
         image: logo_book
     },
