@@ -71,28 +71,7 @@ public class Cwz {
 
     private String parse(MultipartFile file, List<Twz> cs) {
         try {
-            EasyExcel.read(file.getInputStream(), Twz.class, new wzReader(cs) {
-                @Override
-                public void invoke(Twz cr, AnalysisContext analysisContext) {
-                    cs.add(cr);
-                }
-
-                @Override
-                public void doAfterAllAnalysed(AnalysisContext context) {
-                    super.doAfterAllAnalysed(context);
-                }
-
-                @Override
-                public void onException(Exception exception, AnalysisContext context) throws Exception {
-                    log.error("解析失败:{}", exception.getMessage());
-                    // https://easyexcel.opensource.alibaba.com/docs/current/quickstart/read
-                    if (exception instanceof ExcelDataConvertException edce) {
-                        throw edce;
-                    }
-
-                    throw new Exception(exception.getMessage());
-                } // 读取所有sheet： https://easyexcel.opensource.alibaba.com/qa/read
-            }).ignoreEmptyRow(true).autoTrim(true).headRowNumber(1).doReadAll();
+            EasyExcel.read(file.getInputStream(), Twz.class, new wzReader(cs)).ignoreEmptyRow(true).autoTrim(true).headRowNumber(1).doReadAll();
         } catch (ExcelDataConvertException edce) {
             return String.format("第%s行，第%s列解析异常", edce.getRowIndex() + 1, edce.getColumnIndex() + 1);
         } catch (IOException e) {
@@ -106,6 +85,7 @@ public class Cwz {
     @PostMapping(value = "/cover")
     public Result<?> cover(MultipartFile[] files) {
         twzDao.Clear("t_wz");
+        int batchSize = 500; // 每批次插入量
 
         for (MultipartFile file : files) {
             List<Twz> cs = new ArrayList<>();
@@ -114,7 +94,14 @@ public class Cwz {
                 return Result.fail(r);
             }
 
-            twzDao.InsertBatch("t_wz", cs);
+            // 分批次插入db
+            for (int start = 0; start < cs.size(); start += batchSize) {
+                int end = start + batchSize;
+                end = Math.min(end, cs.size());
+                var subList = cs.subList(start, end);
+
+                twzDao.InsertBatch("t_wz", subList);
+            }
         }
 
         return Result.success();

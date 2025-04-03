@@ -26,7 +26,10 @@ public class wzReader extends AnalysisEventListener<Twz> {
      */
     @Override
     public void invoke(Twz data, AnalysisContext context) {
-        arr.add(data);
+        if (data.getC_name() != null && data.getC_number() != null) {
+            arr.add(data);
+        }
+
         // 达到BATCH_COUNT了，需要去存储一次数据库，防止数据几万条数据在内存，容易OOM
         /*if (cachedDataList.size() >= BATCH_COUNT) {
             saveData();

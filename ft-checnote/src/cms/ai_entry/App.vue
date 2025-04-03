@@ -174,7 +174,7 @@ function onClickedImg(url) {
 .container {
     /*background: url("@/assets/image/infinity-6223003.jpg") no-repeat center;*/
 
-    max-width: 1000px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
     background-color: white;
@@ -184,7 +184,7 @@ function onClickedImg(url) {
 
 .grid-container {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 10px;
 }
 
