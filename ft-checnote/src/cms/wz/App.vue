@@ -47,6 +47,10 @@ onMounted(() => {
 });
 
 
+function indexMethod(index) {
+    return (curPageIndex.value - 1) * PAGE_SIZE + index + 1;
+}
+
 function onPageChanged(pageIndex) {
     if (pageIndex !== curPageIndex.value) {
         curPageIndex.value = pageIndex
@@ -120,8 +124,7 @@ function _reqCover(fs) {
             } else {
                 prompt = "更新失败"
             }
-        }
-        else {
+        } else {
             _reqList()
         }
 
@@ -193,7 +196,7 @@ function _reqCover(fs) {
 
                 <div style="position: relative; top: 3px">
                     <el-table show-overflow-tooltip :data="formList" fit stripe border highlight-current-row max-height="100%">
-                        <el-table-column sortable fixed type="index" label="序号" width="75"/>
+                        <el-table-column type="index" :index="indexMethod" label="序号" width="65"></el-table-column>
                         <el-table-column sortable prop="c_name" label="名称" width="300"/>
                         <el-table-column prop="c_number" label="数量" width="150"/>
                         <el-table-column prop="c_unit" label="单位" width="100"/>
