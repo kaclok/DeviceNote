@@ -1,12 +1,11 @@
-import { axiosInst } from './AxiosInst.js'
+import {axiosInst as axiosR} from './AxiosInst.js'
+import {config} from './Config.js'
 
-import { config } from './Config.js'
-
-const { default_headers } = config
+const {default_headers} = config
 
 function _request(option) {
-    const { url, method, params, data, headersType, responseType, ...config } = option
-    return axiosInst({
+    const {url, method, params, data, headersType, responseType, ...config} = option
+    return axiosR({
         url: url,
         method,
         params,
@@ -20,27 +19,27 @@ function _request(option) {
 }
 
 async function get(option) {
-    const res = await _request({ method: 'GET', ...option })
+    const res = await _request({method: 'GET', ...option})
     return res.data
 }
 
 async function post(option) {
-    const res = await _request({ method: 'POST', ...option })
+    const res = await _request({method: 'POST', ...option})
     return res.data
 }
 
 async function postOriginal(option) {
-    const res = await _request({ method: 'POST', ...option })
+    const res = await _request({method: 'POST', ...option})
     return res
 }
 
 async function _delete(option) {
-    const res = await _request({ method: 'DELETE', ...option })
+    const res = await _request({method: 'DELETE', ...option})
     return res.data
 }
 
 async function put(option) {
-    const res = await _request({ method: 'PUT', ...option })
+    const res = await _request({method: 'PUT', ...option})
     return res.data
 }
 
@@ -56,4 +55,4 @@ async function upload(option) {
     return _request({method: 'POST', ...option});
 }
 
-export { get, post, postOriginal, _delete, put, download, upload }
+export {get, post, postOriginal, _delete, put, download, upload}

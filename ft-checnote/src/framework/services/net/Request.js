@@ -1,14 +1,13 @@
 import {axiosInst as axiosR} from "@/framework/services/net/AxiosInst.js"
-import {ApiX} from "@/cms/daily_paper/api/ApiX.js";
 
-async function innerDoGet(url, paras, signal) {
+async function innerGet(url, paras, signal) {
     return axiosR.get(url, {
         params: paras,
         signal: signal,
     })
 }
 
-async function innerDoPost(url, paras, signal, onUploading, onDownloading) {
+async function innerPost(url, paras, signal, onUploading, onDownloading) {
     return axiosR.post(url, paras, {
         headers: {
             // https://www.axios-http.cn/docs/multipart#-%E8%87%AA%E5%8A%A8%E5%BA%8F%E5%88%97%E5%8C%96
@@ -22,7 +21,7 @@ async function innerDoPost(url, paras, signal, onUploading, onDownloading) {
 
 async function doGet(url, paras, signal, onBefore, onAfter) {
     onBefore?.();
-    innerDoGet(url, paras, signal).then(succ => {
+    innerGet(url, paras, signal).then(succ => {
         onAfter?.(true, succ.data);
     }).catch(fail => {
         onAfter?.(false, fail);
@@ -31,7 +30,7 @@ async function doGet(url, paras, signal, onBefore, onAfter) {
 
 async function doPost(url, paras, signal, onBefore, onAfter, onUploading, onDownloading) {
     onBefore?.();
-    innerDoPost(url, paras, signal, onUploading, onDownloading).then(succ => {
+    innerPost(url, paras, signal, onUploading, onDownloading).then(succ => {
         onAfter?.(true, succ.data);
     }).catch(fail => {
         onAfter?.(false, fail);
@@ -39,8 +38,8 @@ async function doPost(url, paras, signal, onBefore, onAfter, onUploading, onDown
 }
 
 export {
-    innerDoGet,
-    innerDoPost,
+    innerGet,
+    innerPost,
 
     doGet,
     doPost,
