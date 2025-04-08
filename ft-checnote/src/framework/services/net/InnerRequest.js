@@ -28,9 +28,8 @@ async function post(option) {
     return res.data
 }
 
-async function postOriginal(option) {
-    const res = await _request({method: 'POST', ...option})
-    return res
+async function reqOriginal(method, option) {
+    return _request({method, ...option});
 }
 
 async function _delete(option) {
