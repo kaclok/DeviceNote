@@ -9,13 +9,13 @@ import zhCn from "element-plus/es/locale/lang/zh-cn";
 import 'dayjs/locale/zh-cn';
 import VConsole from 'vconsole';
 
-// import {router} from '@/cms/daily_paper/router/Index.js'
+// import {router} from '@/cms/yb/router/Index.js'
 // import直接引用一个文件时，会执行一遍这个文件，而不获取任何文件对象, 比如：import './lib/init.js';
 import {RegisterDirective} from "@/framework/directives/DirectiveList.js";
 import {Switch} from "@/framework/services/LocaleService.js";
 
 import "@/framework/services/net/Init.js";
-import {router} from "@/cms/daily_paper/router/Index.js";
+import {router} from "@/cms/yb/router/Index.js";
 import {TokenService} from "@/framework/services/TokenService.js";
 import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
 import {SseService} from "@/framework/services/SseService.js";

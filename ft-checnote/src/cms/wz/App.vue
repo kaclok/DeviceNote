@@ -33,8 +33,9 @@ const filterHt = ref(null)
 
 let params = new URLSearchParams(window.location.search);
 let managerCode = params.get('is-manager');
-
-console.log(typeof (managerCode) + "  |" + (managerCode === null))
+let groupCode = params.get('group');
+groupCode = groupCode === null ? "1" : groupCode.toString();
+let curGroupIndex = ref(groupCode);
 
 // 清理定时器，事件监听器，异步函数
 onUnmounted(() => {
@@ -43,7 +44,7 @@ onUnmounted(() => {
 });
 
 onMounted(() => {
-    _reqList();
+    onMenuClicked(curGroupIndex.value);
 });
 
 
@@ -85,8 +86,18 @@ function onCoverClicked() {
     fileList.value.click();
 }
 
+function onMenuClicked(menuIndex) {
+    curGroupIndex.value = menuIndex
+
+    formTotal = 0
+    curPageIndex.value = 1
+
+    _reqList();
+}
+
 function _reqList() {
     doGet("x/wz/getList", {
+        group: curGroupIndex.value,
         filterByName: filterName.value,
         filterByModel: filterModel.value,
         filterByDeclarer: filterDeclarer.value,
@@ -108,6 +119,7 @@ function _reqList() {
 
 function _reqCover(fs) {
     const formData = new FormData()
+    formData.append("group", curGroupIndex.value)
     for (let f of fs) {
         formData.append('files', f)
     }
@@ -139,6 +151,16 @@ function _reqCover(fs) {
         <div class="page-title">
             <img src="@/assets/st_logo.png" class="page-logo-content" alt="">
             <span class="page-title-content">{{ "物资库存记录" }}</span>
+
+            <div class="page-menu-content">
+                <el-menu mode="horizontal" background-color="#1C4785" text-color="#DCDCDC" active-text-color="#ffffff"
+                         :default-active="curGroupIndex"
+                         @select="onMenuClicked">
+                    <el-menu-item index="1">神木氯碱</el-menu-item>
+                    <el-menu-item index="2">神木电石</el-menu-item>
+                    <el-menu-item index="3">米脂氯碱</el-menu-item>
+                </el-menu>
+            </div>
 
             <div v-loading="loadingCover" style="position: absolute; right: 25px" v-if="managerCode !== null">
                 <form>

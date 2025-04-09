@@ -1,6 +1,6 @@
 <script setup>
 
-import {SysX} from "@/cms/daily_paper/system/SysX.js";
+import {SysX} from "@/cms/yb/system/SysX.js";
 import {Singleton} from "@/framework/services/Singleton.js";
 import {ref, onUnmounted, onMounted} from "vue";
 

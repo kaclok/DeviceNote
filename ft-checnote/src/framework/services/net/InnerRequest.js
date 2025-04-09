@@ -54,4 +54,4 @@ async function upload(option) {
     return _request({method: 'POST', ...option});
 }
 
-export {get, post, postOriginal, _delete, put, download, upload}
+export {get, post, reqOriginal, _delete, put, download, upload}

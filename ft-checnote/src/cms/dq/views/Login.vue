@@ -1,5 +1,5 @@
 <script setup>
-import {SysX} from "@/cms/daily_paper/system/SysX.js"
+import {SysX} from "@/cms/yb/system/SysX.js"
 import {TokenService} from '@/framework/services/TokenService.js'
 import {Singleton} from "@/framework/services/Singleton.js";
 import {LocalStorageService} from '@/framework/services/LocalStorageService.js'

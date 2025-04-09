@@ -1,7 +1,7 @@
 import {computed, ref} from "vue";
 
-import CpRecord from '@/cms/daily_paper/views/Record.vue'
-import CpLogin from '@/cms/daily_paper/views/Login.vue'
+import CpRecord from '@/cms/yb/views/Record.vue'
+import CpLogin from '@/cms/yb/views/Login.vue'
 import CpNotFound from '@/framework/components/CpNotFound.vue'
 
 const _loginRouter = {

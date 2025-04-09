@@ -2,7 +2,6 @@ package com.smlj.singledevice_note.logic.controller;
 
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.excel.EasyExcel;
-import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.exception.ExcelDataConvertException;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
@@ -30,7 +29,8 @@ public class Cwz {
 
     @Transactional
     @GetMapping(value = "/getList")
-    public Result<?> getList(@RequestParam(name = "filterByName", required = false) String filterByName,
+    public Result<?> getList(@RequestParam(name = "group", required = false, defaultValue = "1") int group,
+                             @RequestParam(name = "filterByName", required = false) String filterByName,
                              @RequestParam(name = "filterByModel", required = false) String filterByModel,
                              @RequestParam(name = "filterByDeclarer", required = false) String filterByDeclarer,
                              @RequestParam(name = "filterByHt", required = false) String filterByHt,
@@ -63,9 +63,9 @@ public class Cwz {
             }
         }
 
-        log.error("conds: {}", conds);
+        String tbName = _getTbName(group);
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = twzDao.doSelectSimple("t_wz", "*", conds, null);
+        var ls = twzDao.doSelectSimple(tbName, "*", conds, null);
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -83,8 +83,11 @@ public class Cwz {
 
     @Transactional
     @PostMapping(value = "/cover")
-    public Result<?> cover(MultipartFile[] files) {
-        twzDao.Clear("t_wz");
+    public Result<?> cover(
+            @RequestParam(name = "group", required = false, defaultValue = "1") int group,
+            MultipartFile[] files) {
+        String tbName = _getTbName(group);
+        twzDao.Clear(tbName);
         int batchSize = 500; // 每批次插入量
 
         for (MultipartFile file : files) {
@@ -100,10 +103,22 @@ public class Cwz {
                 end = Math.min(end, cs.size());
                 var subList = cs.subList(start, end);
 
-                twzDao.InsertBatch("t_wz", subList);
+                twzDao.InsertBatch(tbName, subList);
             }
         }
 
         return Result.success();
+    }
+
+    private String _getTbName(int group) {
+        String tbName = "t_wz_smlj";
+        if (group == 2) {
+            tbName = "t_wz_smds";
+        } else if (group == 3) {
+            tbName = "t_wz_mzlj";
+        } else if (group == 4) {
+            tbName = "t_wz_smjn";
+        }
+        return tbName;
     }
 }

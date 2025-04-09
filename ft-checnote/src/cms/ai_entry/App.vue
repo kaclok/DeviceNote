@@ -47,6 +47,10 @@ import logo_book from '@/assets/image/answer_marking.png';
 import {ref} from 'vue';
 import {useTitle} from '@vueuse/core'
 
+let params = new URLSearchParams(window.location.search);
+let group = params.get('group');
+group = group === null ? "1" : group.toString();
+
 const title = useTitle()
 title.value = '入口'
 
@@ -127,7 +131,7 @@ const appGridItems = ref([
     },*/
     {
         name: "员工培训平台",
-        url: "http://117.36.227.42:8082/",
+        url: "http://117.36.227.42:8082?group=" + group,
         image: logo_book
     },
     {
@@ -142,22 +146,22 @@ const appGridItems = ref([
     },
     {
         name: "设备检修记录\n(手机用)",
-        url: "http://117.36.227.42:4175/", // http://10.8.54.24:4177/pages/sb/index.html",
+        url: "http://117.36.227.42:4175?group=" + group, // http://10.8.54.24:4177/pages/sb/index.html",
         image: logo_book
     },
     {
         name: "仪表检修记录",
-        url: "http://10.8.54.24:4177/pages/yb/index.html",
+        url: "http://117.36.227.42:4177/pages/yb/index.html?group=" + group,
         image: logo_book
     },
     {
         name: "电气检修记录",
-        url: "http://10.8.54.24:4177/pages/dq/index.html",
+        url: "http://117.36.227.42:4177/pages/dq/index.html?group=" + group,
         image: logo_book
     },
     {
         name: "物资库存记录",
-        url: "http://10.8.54.24:4177/pages/wz/index.html",
+        url: "http://117.36.227.42:4177/pages/wz/index.html?group=" + group,
         image: logo_book
     },
 ])
@@ -174,7 +178,7 @@ function onClickedImg(url) {
 .container {
     /*background: url("@/assets/image/infinity-6223003.jpg") no-repeat center;*/
 
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
     background-color: white;
@@ -184,7 +188,7 @@ function onClickedImg(url) {
 
 .grid-container {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(8, 1fr);
     gap: 10px;
 }
 

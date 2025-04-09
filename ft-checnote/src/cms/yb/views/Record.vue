@@ -1,25 +1,18 @@
 <script setup>
 
-import {SysX} from "@/cms/daily_paper/system/SysX.js";
+import {SysX} from "@/cms/yb/system/SysX.js";
 import {Singleton} from "@/framework/services/Singleton.js";
 import {ref, onUnmounted, onMounted} from "vue";
-import {ElMessage} from "element-plus";
-import {ExcelService} from "@/framework/services/ExcelService.js";
-import {DateTimeUtil} from "@/framework/utils/DateTimeUtil.js";
 
 const PAGE_SIZE = 13
 
 let AC_getList = new AbortController();
 let AC_add = new AbortController();
-let AC_export = new AbortController();
 
 let loadingList = ref(false);
 let loadingAdd = ref(false);
-let loadingExport = ref(false)
-
 let curBJId = ref("1");
 let curDate = ref(Date.now());
-let dateRange = ref('');
 
 let curPageIndex = ref(1)
 
@@ -36,7 +29,6 @@ const __info__ = {
         this.c_person = null
         this.c_summary = null
         this.c_comment = null
-        this.c_finish = 0
 
         return this
     }
@@ -52,7 +44,6 @@ let showDialogue = ref(false)
 onUnmounted(() => {
     AC_getList.abort();
     AC_add.abort();
-    AC_export.abort();
 });
 
 onMounted(() => {
@@ -63,41 +54,6 @@ function onDateChanged(date) {
     curDate.value = date;
 
     onMenuClicked(curBJId.value);
-}
-
-let beginTimestamp = null;
-let endTimestamp = null;
-
-function onDateRangeChanged(range) {
-    beginTimestamp = Math.round(range[0]);
-    endTimestamp = Math.round(range[1]);
-}
-
-function onExportAll() {
-    if (beginTimestamp == null || endTimestamp == null) {
-        // window.alert('请选择导出时间区间');
-        ElMessage({
-            showClose: true,
-            message: '请选择导出时间区间',
-            type: 'warning',
-            center: true,
-            duration: 2000,
-        });
-
-        return
-    }
-
-    Singleton.getInstance(SysX).export({
-        bgId: curBJId.value,
-        beginDate: beginTimestamp,
-        endDate: endTimestamp
-    }, AC_export.signal, () => {
-        loadingExport.value = true;
-    }, (r, data) => {
-        loadingExport.value = false;
-
-        ExcelService.ExportAOAToExcel1(data.data.rows, data.data.colNames, 'export_all', false);
-    });
 }
 
 function onMenuClicked(menuIndex) {
@@ -119,10 +75,6 @@ function onPageChanged(pageIndex) {
         _getList(pageIndex);
     }
 }
-
-/*import {__IS_MOBILE_ONLY__, __IS_TABLET_ONLY__} from "@/framework/services/GlobalService.js";
-console.log("__IS_MOBILE_ONLY__: " + __IS_MOBILE_ONLY__.value)
-console.log("__IS_TABLET_ONLY__: " + __IS_TABLET_ONLY__.value)*/
 
 function _getList(pageNum) {
     Singleton.getInstance(SysX).getList({
@@ -160,11 +112,6 @@ function onDeviceClicked(row) {
 }
 
 function onSaveClicked() {
-    let v = deviceRecordInfo.value;
-    if (v.c_person === null || v.c_name === null) {
-        return;
-    }
-
     Singleton.getInstance(SysX).add({
         bgId: curBJId.value,
         info: JSON.stringify(deviceRecordInfo.value),
@@ -179,10 +126,6 @@ function onSaveClicked() {
         } else {
         }
     });
-}
-
-function onArrowChanged(newIndex, oldIndex) {
-    console.log('curArrowIndex', newIndex)
 }
 
 </script>
@@ -201,55 +144,24 @@ function onArrowChanged(newIndex, oldIndex) {
                     <el-menu-item index="2">仪表二班</el-menu-item>
                 </el-menu>
             </div>
-
-            <div style="position: absolute; right: 25px">
-                <img class="avatar-img" src="@/assets/avatar.png" alt=""/>
-            </div>
         </div>
 
-        <div>
-            <div style="width: 230px">
-                <!--                <el-carousel height="40px" @change="onArrowChanged" indicator-position="none" arrow="always">
-                                    <el-carousel-item>-->
-                <el-date-picker style="width: 130px; height: 35px; padding-top: 10px; padding-left: 2px"
-                                @change="onDateChanged"
-                                :clearable="false"
-                                v-model="curDate"
-                                type="date"
-                                :editable="false"
-                                placeholder="选择日期"
-                                format="YYYY/MM/DD"
-                                value-format="x"
-                                size="small"
-                />
-                <!--                    </el-carousel-item>
-                                </el-carousel>-->
-            </div>
-
-            <div>
-                <el-date-picker style="position: absolute; right: 60px; top: 60px"
-                                @change="onDateRangeChanged"
-                                :clearable="false"
-                                v-model="dateRange"
-                                type="daterange"
-                                range-separator="至"
-                                start-placeholder="导出开始日期"
-                                end-placeholder="导出结束日期"
-                                format="YYYY/MM/DD"
-                                :editable="false"
-                                value-format="x"
-                                size="small"
-                />
-
-                <el-button @click="onExportAll" circle :dark="true" type="warning" style="position: absolute; right: 20px; top: 55px">导出
-                </el-button>
-            </div>
-        </div>
+        <el-date-picker style="width: 120px; height: 40px; padding-top: 10px"
+                        @change="onDateChanged"
+                        :clearable="false"
+                        v-model="curDate"
+                        type="date"
+                        :editable="false"
+                        placeholder="选择日期"
+                        format="YYYY/MM/DD"
+                        value-format="x"
+                        size="small"
+        />
 
         <div class="page-content">
             <!--中侧-->
             <div v-loading="loadingList"
-                 style="width: 100%; padding-left: 0; padding-top: 5px">
+                 style="width: 100%; padding-left: 0; padding-top: 10px">
                 <!--https://element-plus.org/zh-CN/component/table.html#%E7%AD%9B%E9%80%89-->
                 <el-button-group style="width: 100%;">
                     <el-button style="font-size: 12px; width: 100%; height: 30px" type="warning"
@@ -259,26 +171,13 @@ function onArrowChanged(newIndex, oldIndex) {
 
                 <el-table show-overflow-tooltip :data="formList" fit stripe border highlight-current-row max-height="100%">
                     <el-table-column sortable fixed type="index" label="序号" width="75"/>
-                    <el-table-column prop="c_finish" label="完成情况" width="90">
-                        <template #default="scope1">
-                            <el-switch
-                                v-model="scope1.row.c_finish"
-                                disabled
-                                inline-prompt
-                                class="ml-2"
-                                style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
-                                active-text="已完成"
-                                inactive-text="未完成"
-                            />
-                        </template>
-                    </el-table-column>
-                    <el-table-column sortable prop="c_name" label="位号/名称" width="200"/>
-                    <el-table-column sortable prop="c_person" label="作业人员" width="140"/>
+                    <el-table-column sortable prop="c_name" label="名称" width="150"/>
+                    <el-table-column sortable prop="c_person" label="作业人员" width="120"/>
                     <el-table-column prop="c_desc" label="故障描述" width="250"/>
                     <el-table-column prop="c_progress" label="维修过程"/>
                     <el-table-column sortable prop="c_result" label="维修结果" width="190"/>
                     <el-table-column prop="c_summary" label="技术小结" width="120"/>
-                    <el-table-column prop="c_comment" label="班长批注"/>
+                    <el-table-column prop="c_comment" label="备注" width="120"/>
 
                     <el-table-column fixed="left" label="" min-width="45" width="70">
                         <template #default="scope">
@@ -325,17 +224,7 @@ function onArrowChanged(newIndex, oldIndex) {
                 <el-form-item label="技术小结" prop="c_summary">
                     <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_summary" autocomplete="off"/>
                 </el-form-item>
-                <el-form-item label="完成情况" prop="c_finish">
-                    <el-switch
-                        v-model="deviceRecordInfo.c_finish"
-                        inline-prompt
-                        class="ml-2"
-                        style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
-                        active-text="已完成"
-                        inactive-text="未完成"
-                    />
-                </el-form-item>
-                <el-form-item label="班长批注">
+                <el-form-item label="备注">
                     <el-input clearable type="textarea" autosize v-model="deviceRecordInfo.c_comment" autocomplete="off"/>
                 </el-form-item>
             </el-form>
@@ -399,39 +288,6 @@ function onArrowChanged(newIndex, oldIndex) {
     }
 }
 
-.avatar-img {
-    --img-size: 30px;
-    --color_border: #c02942;
-    --color_inner: #ecd078;
-    --border-size: 3px;
-    --scale-rate: 1;
-    --max-scale-rate: 1.35;
-
-    width: var(--img-size);
-    height: var(--img-size);
-    cursor: pointer;
-    transition: 0.3s;
-
-    outline: var(--border-size) solid var(--color_border);
-    outline-offset: calc((1 / var(--scale-rate) - 1) * var(--img-size) / 2 - var(--border-size));
-
-    background: linear-gradient(
-        to bottom,
-        var(--color_inner) calc(99% - var(--border-size)),
-        var(--color_border) calc(100% - var(--border-size)) 99%
-    ) content-box no-repeat center / calc(100% / var(--scale-rate));
-    border-radius: 50%; /* 初始为圆形 */
-}
-
-.avatar-img :hover {
-    background: linear-gradient(
-        to bottom,
-        var(--color_inner) calc(99% - var(--border-size)),
-        var(--color_border) calc(100% - var(--border-size)) 99%
-    ) content-box no-repeat center / calc(100% / var(--scale-rate));
-    border-radius: 60px; /* 变为圆角矩形 */
-}
-
 .el-menu {
     border-bottom: solid 1px #1480ec;
 
@@ -478,22 +334,6 @@ function onArrowChanged(newIndex, oldIndex) {
 
 .el-pagination {
     justify-content: center;
-}
-
-.el-carousel__item h3 {
-    color: #475669;
-    opacity: 0.75;
-    line-height: 150px;
-    margin: 0;
-    text-align: center;
-}
-
-.el-carousel__item:nth-child(2n) {
-    background-color: #99a9bf;
-}
-
-.el-carousel__item:nth-child(2n + 1) {
-    background-color: #d3dce6;
 }
 
 </style>
