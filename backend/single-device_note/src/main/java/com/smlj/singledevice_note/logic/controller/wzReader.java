@@ -50,6 +50,8 @@ public class wzReader extends AnalysisEventListener<Twz> {
         log.error("解析失败:{}", exception.getMessage());
         // https://easyexcel.opensource.alibaba.com/docs/current/quickstart/read
         if (exception instanceof ExcelDataConvertException edce) {
+            var msg = String.format("第%s行，第%s列解析异常", edce.getRowIndex() + 1, edce.getColumnIndex() + 1);
+            log.error("详细:{}", msg);
             throw edce;
         }
 
