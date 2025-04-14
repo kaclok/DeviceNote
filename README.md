@@ -1,8 +1,8 @@
 # DeviceNote
 
-## 设备检修记录
+##### 设备检修记录
     
-## 证书：
+## 证书
 <a href="https://github.com/kaclok/DeviceNote/blob/main/LICENSE">MIT License</a></p>
 
 ## Tools
