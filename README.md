@@ -17,4 +17,4 @@
 [Github](https://github.com/search) - Github search
 
 ## 鸣谢
-![](imgs/JetBrains.png)  ![](imgs/black-white-github.jpg)  ![](imgs/BeyondCompare.png)  ![](imgs/tortoise-git.png) 
+![](imgs/JetBrains.png)  ![](imgs/black-white-github.png)  ![](imgs/BeyondCompare.png)  ![](imgs/tortoise-git.png) 
