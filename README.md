@@ -10,4 +10,4 @@
 
 [Github](https://github.com/search) - Github search
 
-![](Imgs/JetBrains.png)  ![](Imgs/github-mark.png) 
+![](imgs/JetBrains.png)  ![](imgs/github-mark.png) 
