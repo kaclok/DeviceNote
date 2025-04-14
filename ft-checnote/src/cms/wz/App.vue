@@ -132,7 +132,7 @@ function _reqCover(fs) {
         let prompt = "更新成功"
         if (!r) {
             if (data.message) {
-                prompt = data.message
+                prompt = "更新失败:" + data.message
             } else {
                 prompt = "更新失败"
             }
