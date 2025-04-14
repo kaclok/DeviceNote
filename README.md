@@ -1,9 +1,6 @@
 # DeviceNote
 
-功能：
-1. 多页面应用
-2. 前后端分离
-    
+## 设备检修记录
     
 ## 证书：
 <a href="https://github.com/kaclok/DeviceNote/blob/main/LICENSE">MIT License</a></p>
