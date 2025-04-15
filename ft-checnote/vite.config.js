@@ -138,7 +138,8 @@ export default defineConfig((env) => {
                     sb: resolve(__dirname, './pages/sb/index.html'),
                     ai_entry: resolve(__dirname, './pages/ai_entry/index.html'),
                     safe_product: resolve(__dirname, './pages/safe_product/index.html'),
-                    wz_remain: resolve(__dirname, './pages/wz/index.html'),
+                    wz: resolve(__dirname, './pages/wz/index.html'),
+                    watchdog: resolve(__dirname, './pages/smds/watchdog/index.html'),
                 },
                 output: {
                     manualChunks(id) {
