@@ -14,9 +14,11 @@ import {RegisterDirective} from "@/framework/directives/DirectiveList.js";
 import {Switch} from "@/framework/services/LocaleService.js";
 
 import "@/framework/services/net/Init.js";
-import {router} from "@/cms/yb/router/Index.js";
 import {TokenService} from "@/framework/services/TokenService.js";
 import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
+
+import router from './router/router.js'
+import pinia from './pinia.js'
 
 // 创建实例
 const app = createApp(App)
@@ -39,17 +41,18 @@ async function setupAll(app) {
     // navigator.language
     await Switch(app, import.meta.env.VITE_LOCALE);
 
+    // 自定义指令
+    RegisterDirective(app);
+
     // https://blog.csdn.net/weixin_41765715/article/details/132346684
     // 将data-picker的第一列换成周一
     app.use(ElementPlus, {
         locale: zhCn,
     })
 
-    // 自定义指令
-    RegisterDirective(app);
-    // 路由
-    /*app.use(router);*/
-
+    app.use(router);
+    app.use(pinia);
+    
     // mount在最后
     app.mount('#app');
 }
