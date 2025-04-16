@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jthx.x.cms.watchdog.dao.mapper.SMDSBranchInfoMapper">
+
+    <resultMap id="getAllIndicatorInfoResultMap" type="com.jthx.x.cms.watchdog.pojo.IndicatorInfo">
+        <id column="indicator_id" property="indicatorId"></id>
+    </resultMap>
+
+    <select id="getAllIndicatorInfo" resultMap="getAllIndicatorInfoResultMap">
+        select
+            i.normal_min normal_min,
+            i.normal_max normal_max,
+            i.indicator_id indicator_id,
+            i.indicator_name indicator_name,
+            i.branch_id branch_id,
+            i.device_id device_id,
+            i.exception_count exception_count,
+            i.trend_threshold trend_threshold,
+            i.namespace,
+            i.tag
+        from
+            smds_snapshot_branch b
+        left join
+            smds_snapshot_device d
+        on
+            b.branch_id = d.branch_id
+        left join
+            smds_snapshot_indicator i
+        on
+            d.branch_id = i.branch_id
+        where
+            i.indicator_id > 0
+    </select>
+
+    <insert id="insertSnapshotInfo" parameterType="com.jthx.x.cms.watchdog.pojo.Snapshot">
+        insert into smds_snapshot_data (value, rate, indicator_id, indicator_name, device_id, branch_id, date)
+        values(#{value}, #{rate}, #{indicatorId}, #{indicatorName}, #{deviceId}, #{branchId}, #{date})
+
+    </insert>
+
+    <insert id="insertExceptionInfo" parameterType="com.jthx.x.cms.watchdog.pojo.ExceptionInfo">
+        insert into smds_exception (id, value, indicator_id,indicator_name, device_id, branch_id, date)
+        values(#{id}, #{value}, #{indicatorId}, #{indicatorName}, #{deviceId}, #{branchId}, #{date})
+    </insert>
+    
+</mapper>
