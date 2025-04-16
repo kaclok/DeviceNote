@@ -2,17 +2,17 @@
     <div class="content_container">
 
         <el-row style="height: 48%;">
-            <el-col v-for="item, index in allElem1" :key="index" :span="8">
+            <el-col v-for="(item, index) in allElem1" :key="index" :span="8">
                 <div class="content_container">
-                    <span class="el-row-status">{{item.label}}</span>
+                    <span class="el-row-status">{{ item.label }}</span>
                     <ContentItem></ContentItem>
                 </div>
             </el-col>
         </el-row>
         <el-row style="height: 48%;">
-            <el-col v-for="item, index in allElem2" :key="index" :span="8">
+            <el-col v-for="(item, index) in allElem2" :key="index" :span="8">
                 <div class="content_container">
-                    <span class="el-row-status">{{item.label}}</span>
+                    <span class="el-row-status">{{ item.label }}</span>
                     <ContentItem></ContentItem>
                 </div>
             </el-col>
@@ -23,18 +23,18 @@
 
 <script setup>
 
-import { reactive } from 'vue'
+import {reactive} from 'vue'
 import ContentItem from './content_item.vue'
 
 const allElem1 = reactive([
-      { label: '电石一分厂' },
-      { label: '电石二分厂' },
-      { label: '电石三分厂' }
-    ]);
+    {label: '电石一分厂'},
+    {label: '电石二分厂'},
+    {label: '电石三分厂'}
+]);
 const allElem2 = reactive([
-    { label: '白灰分厂' },
-    { label: '兰炭分厂' },
-    { label: '热电分厂' }
+    {label: '白灰分厂'},
+    {label: '兰炭分厂'},
+    {label: '热电分厂'}
 ]);
 
 </script>
@@ -67,10 +67,9 @@ const allElem2 = reactive([
 }
 
 
-
 .content_container {
-  padding: 0px;
-  width: 100%;
-  height: 100%;
+    padding: 0px;
+    width: 100%;
+    height: 100%;
 }
 </style>
