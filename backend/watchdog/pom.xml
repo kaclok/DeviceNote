@@ -156,6 +156,7 @@
             <version>3.4.4</version>
             <exclusions>
                 <exclusion>
+                    <!--https://developer.aliyun.com/article/1430614-->
                     <artifactId>spring-boot-starter-web</artifactId>
                     <groupId>org.springframework.boot</groupId>
                 </exclusion>
@@ -255,7 +256,7 @@
                 </executions>
             </plugin>
         </plugins>
-        <finalName>${project.groupId}.${project.artifactId}-[${activated}-jdk${java.version}]-${project.version}-${build.time}</finalName>
+        <finalName>${project.groupId}.${project.artifactId}-[${activated}-jdk${java.version}]-${project.version}</finalName>
     </build>
 
     <!-- 使用 huawei / aliyun 的 Maven 源，提升下载速度 -->

@@ -16,17 +16,11 @@ spring:
     log-request-details: true # 接口请求显示具体参数信息: https://mp.weixin.qq.com/s/GTE9U0qnF2Ezuq0HjINwHg
 
   datasource:
-    dynamic:
-      primary: watchdog #设置默认的数据源或者数据源组,默认值即为master
-      strict: false #严格匹配数据源,默认false. true未匹配到指定数据源时抛异常,false使用默认数据源
-      lazy: true
-      datasource:
-        watchdog:
-          # Docker从容器中项目如何访问到宿主机MYSQL https://blog.csdn.net/jcmj123456/article/details/131692252
-          url: jdbc:mysql://10.8.54.244:3306/smds-snapshot?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
-          username: smds-dyzx
-          password: smds@2024
-          driver-class-name: com.mysql.cj.jdbc.Driver
+    # Docker从容器中项目如何访问到宿主机MYSQL https://blog.csdn.net/jcmj123456/article/details/131692252
+    url: jdbc:mysql://10.8.54.244:3306/smds-snapshot?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
+    username: smds-dyzx
+    password: smds@2024
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
 #  data:
 #    redis:  # Redis

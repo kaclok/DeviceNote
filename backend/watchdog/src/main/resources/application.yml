@@ -37,7 +37,7 @@ pagehelper: # https://blog.csdn.net/Reggie97/article/details/142388065
 
 spring:
   application:
-    name: train[@activated@]:${server.port}
+    name: watchdog[@activated@]:${server.port}
 
   main:
     banner-mode: off # 关闭Banner

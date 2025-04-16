@@ -7,6 +7,7 @@ const socketInfo = branchInfo(pinia)
 export function connectWebSocket() {
     // 建立WebSocket连接
     ws = new WebSocket("ws://10.8.54.244:8080/smds-pre-warning-server-1.0-SNAPSHOT/api/webSocket/hahah");
+    ws = new WebSocket("ws://localhost:8091/api/webSocket/029567");
     // ws = new WebSocket("ws://10.10.22.158:8080/api/webSocket/hahah");
     // 当WebSocket连接成功时
     ws.onopen = () => {
@@ -16,9 +17,11 @@ export function connectWebSocket() {
 
     // 当收到来自服务端的消息时
     ws.onmessage = (event) => {
-      socketInfo.insertSocketInfo(event.data)
+        socketInfo.insertSocketInfo(event.data)
         console.log("收到来自服务端的消息:", event.data);
-        console.log("------" + socketInfo.socketInfo[0].message + socketInfo.socketInfo[1].message + "-----------")
+        if (socketInfo.socketInfo.length > 0) {
+            console.log("------" + socketInfo.socketInfo[0].message)
+        }
     };
 
     // 当WebSocket连接关闭时
