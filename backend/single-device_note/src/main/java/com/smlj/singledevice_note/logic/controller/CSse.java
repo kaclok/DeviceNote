@@ -1,6 +1,6 @@
 package com.smlj.singledevice_note.logic.controller;
 
-import com.smlj.singledevice_note.core.SseService;
+import com.smlj.singledevice_note.core.net.SseService;
 import com.smlj.singledevice_note.core.o.to.Result;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

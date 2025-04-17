@@ -1,4 +1,4 @@
-package com.smlj.singledevice_note.core;
+package com.smlj.singledevice_note.core.net;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
