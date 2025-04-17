@@ -6,6 +6,11 @@ export class WsService {
     }
 
     connect() {
+        if (!window.WebSocket) {
+            console.log('当前不支持websocket');
+            return;
+        }
+
         if (this.ws !== null && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
             return;
         }
