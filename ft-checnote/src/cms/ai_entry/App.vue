@@ -46,6 +46,49 @@ import logo_book from '@/assets/image/answer_marking.png';
 
 import {computed, ref} from 'vue';
 import {useTitle} from '@vueuse/core'
+/*
+import axios from "axios";
+import {SessionStorageService} from "@/framework/services/SessionStorageService.js";
+
+let account = SessionStorageService.getStore("Account");
+console.log("account: " + account);
+if (account === null) {
+    // window.location.href
+    let params = new URLSearchParams(window.location.search);
+    let authCode = params.get('code');
+
+    onGotAuthCode(authCode, onGotToken);
+}
+
+function onGotAuthCode(authCode, onSuccess) {
+    axios.post("http://10.8.54.110:8790/auth/token", {}, {
+        params: {
+            code: authCode,
+            grant_type: "authorization_code",
+            client_id: "aiEntry",
+            redirect_uri: "http://10.8.54.127:5175"
+        }
+    }).then((response) => {
+        console.table(response.data);
+        if (response.data.status === 0) {
+            onSuccess(response);
+        }
+    })
+}
+
+function onGotToken(r) {
+    let headers = {
+        'Content-Type': 'application/json',
+        "Authorization": `${r.data.token_type} ${r.data.access_token}`
+    }
+
+    axios.post("http://10.8.54.110:8790/auth/userinfo/v2", {}, {headers: headers}).then((response) => {
+        account = response.data.data.account;
+
+        sessionStorage.setItem("Account", account);
+        console.log("onGotToken: " + account);
+    })
+}*/
 
 let params = new URLSearchParams(window.location.search);
 let group = params.get('group');
@@ -137,7 +180,7 @@ const aiGridItems = ref([
         image: logo_grok,
         enabled: true,
     }
-]);
+])
 
 const appGridItems = ref([
     /*{
@@ -196,7 +239,7 @@ const appGridItems = ref([
     },
     {
         name: "异常工况预警",
-        url: "http://localhost:4177/pages/smds/watchdog/index.html?group=" + group,
+        url: "http://117.36.227.42:4177/pages/smds/watchdog/index.html?group=" + group,
         image: logo_book,
         enabled: true,
     },
