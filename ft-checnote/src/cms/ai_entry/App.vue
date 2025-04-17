@@ -3,7 +3,7 @@
         <h2> AI: </h2>
         <div class="grid-container">
             <div
-                v-for="item in aiGridItems"
+                v-for="item in filterItems(aiGridItems)"
                 :key="item.name"
                 class="grid-item"
                 @click="item.url ? onClickedImg(item.url) : undefined"
@@ -16,7 +16,7 @@
         <h2 style="position: relative; top: 10px"> App: </h2>
         <div class="grid-container">
             <div
-                v-for="item in appGridItems"
+                v-for="item in filterItems(appGridItems)"
                 :key="item.name"
                 class="grid-item"
                 @click="item.url ? onClickedImg(item.url) : undefined"
@@ -44,7 +44,7 @@ import logo_txyb from '@/assets/image/logo/txyb.jpg';
 
 import logo_book from '@/assets/image/answer_marking.png';
 
-import {ref} from 'vue';
+import {computed, ref} from 'vue';
 import {useTitle} from '@vueuse/core'
 
 let params = new URLSearchParams(window.location.search);
@@ -54,67 +54,88 @@ group = group === null ? "1" : group.toString();
 const title = useTitle()
 title.value = '入口'
 
+const filterItems = computed(() => {
+    return (items) => {
+        // 使用 param 进行计算
+        return items.filter((item) => {
+            return item.enabled;
+        });
+    };
+});
+
 // You can add reactive state and methods here if needed
 const aiGridItems = ref([
     {
         name: "金泰Ai助手",
         url: "http://10.8.13.54:8080",
-        image: logo_jt
+        image: logo_jt,
+        enabled: true,
     },
     {
         name: "豆包",
         url: "https://www.doubao.com/chat/",
-        image: logo_db
+        image: logo_db,
+        enabled: true,
     },
     {
         name: "Deepseek",
         url: "https://chat.deepseek.com",
-        image: logo_deepseek
+        image: logo_deepseek,
+        enabled: true,
     },
     {
         name: "Kimi",
         url: "https://kimi.moonshot.cn",
-        image: logo_kimi
+        image: logo_kimi,
+        enabled: true,
     },
     {
         name: "Wps",
         url: "https://lingxi.wps.cn/",
-        image: logo_lx
+        image: logo_lx,
+        enabled: true,
     },
     {
         name: "腾讯元宝",
         url: "https://yuanbao.tencent.com/chat",
-        image: logo_txyb
+        image: logo_txyb,
+        enabled: true,
     },
     {
         name: "通义千问",
         url: "https://tongyi.aliyun.com",
-        image: logo_tyqw
+        image: logo_tyqw,
+        enabled: true,
     },
     {
         name: "文心一言",
         url: "https://yiyan.baidu.com",
-        image: logo_wxyy
+        image: logo_wxyy,
+        enabled: true,
     },
     {
         name: "chatgpt",
         url: "https://chatgpt.com",
-        image: logo_chatgpt
+        image: logo_chatgpt,
+        enabled: true,
     },
     {
         name: "gemini",
         url: "https://gemini.google.com/app?hl=zh-cn",
-        image: logo_gemini
+        image: logo_gemini,
+        enabled: true,
     },
     {
         name: "claude",
         url: "https://claude.ai/new",
-        image: logo_claude
+        image: logo_claude,
+        enabled: true,
     },
     {
         name: "grok",
         url: "https://grok.com",
-        image: logo_grok
+        image: logo_grok,
+        enabled: true,
     }
 ]);
 
@@ -122,47 +143,62 @@ const appGridItems = ref([
     /*{
         name: "生产记事",
         url: "http://10.8.54.26/chr/index/index",
-        image: logo_book
+        image: logo_book,
+        enabled: false,
     },
     {
         name: "转化器系统",
         url: "http://10.8.54.26/cms/index/index",
-        image: logo_book
+        image: logo_book,
+        enabled: false,
     },*/
     {
         name: "员工培训平台",
         url: "http://117.36.227.42:8082?group=" + group,
-        image: logo_book
+        image: logo_book,
+        enabled: true,
     },
     {
         name: "日报",
         url: "http://10.8.54.110:8790/auth/authorize?response_type=code&scope=openid&client_id=dailypaper&redirect_uri=http://10.8.54.127:5175",
-        image: logo_book
+        image: logo_book,
+        enabled: true,
     },
     {
         name: "作业票统计",
         url: "http://10.8.54.161:8085/#/jobTicket",
-        image: logo_book
+        image: logo_book,
+        enabled: true,
     },
     {
         name: "设备检修记录\n(手机用)",
         url: "http://117.36.227.42:4175?group=" + group, // http://10.8.54.24:4177/pages/sb/index.html",
-        image: logo_book
+        image: logo_book,
+        enabled: true,
     },
     {
         name: "仪表检修记录",
         url: "http://117.36.227.42:4177/pages/yb/index.html?group=" + group,
-        image: logo_book
+        image: logo_book,
+        enabled: true,
     },
     {
         name: "电气检修记录",
         url: "http://117.36.227.42:4177/pages/dq/index.html?group=" + group,
-        image: logo_book
+        image: logo_book,
+        enabled: true,
     },
     {
         name: "物资库存记录",
         url: "http://117.36.227.42:4177/pages/wz/index.html?group=" + group,
-        image: logo_book
+        image: logo_book,
+        enabled: true,
+    },
+    {
+        name: "异常工况预警",
+        url: "http://localhost:4177/pages/smds/watchdog/index.html?group=" + group,
+        image: logo_book,
+        enabled: true,
     },
 ])
 
