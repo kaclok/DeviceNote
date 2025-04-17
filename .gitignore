@@ -29,3 +29,5 @@ replay_pid*
 /ft-checnote/src/framework/services/net/SSO和RefreshToken.mp4
 /ft-checnote/src/framework/services/net/Token无感刷新.mp4
 /ft-checnote/dist-0.0.1-cors
+/backend/single-device-note/.logs
+/backend/watchdog/.logs

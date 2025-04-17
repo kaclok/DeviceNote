@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.smlj</groupId>
-    <artifactId>single-device_note</artifactId>
+    <artifactId>single-device-note</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>single-device_note</name>
-    <description>single-device_note</description>
+    <name>single-device-note</name>
+    <description>后端</description>
     <url/>
     <licenses>
         <license/>
