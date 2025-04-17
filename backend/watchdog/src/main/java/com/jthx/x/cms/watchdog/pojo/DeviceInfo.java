@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 @Data
 @Component
 public class DeviceInfo {
-
     // 设备id
     private int deviceId;
     // 设备名称

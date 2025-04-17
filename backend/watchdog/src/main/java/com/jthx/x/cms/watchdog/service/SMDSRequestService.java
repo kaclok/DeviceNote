@@ -5,13 +5,12 @@ import com.jthx.x.cms.watchdog.pojo.IndicatorInfo;
 import com.jthx.x.cms.watchdog.pojo.request.IndicatorRequestInfo;
 import com.jthx.x.cms.watchdog.pojo.request.IndicatorRequestItem;
 import com.jthx.x.cms.watchdog.pojo.response.IndicatorResponseInfo;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Component
+@Service
 public class SMDSRequestService {
     private static SMDSRestTemplate restTemplate;
 

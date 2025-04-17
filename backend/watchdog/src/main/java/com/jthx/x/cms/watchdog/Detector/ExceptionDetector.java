@@ -7,24 +7,23 @@ import com.jthx.x.cms.watchdog.pojo.response.IndicatorResponseInfo;
 import com.jthx.x.cms.watchdog.service.SMDSRequestService;
 import com.jthx.x.cms.watchdog.service.WebSocketPushService;
 import com.jthx.x.cms.watchdog.util.SMDSSafeAPI;
-import org.apache.ibatis.io.Resources;
-import org.apache.ibatis.session.SqlSession;
-import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@RequiredArgsConstructor
 @Component
 public class ExceptionDetector {
-
     @Autowired
     private WebSocketPushService webSocketPushService;
+    @Autowired
     private SMDSRequestService requestService;
 
     // 用来记录每个指标当前的运行状态
@@ -33,10 +32,10 @@ public class ExceptionDetector {
     private Map<String, Double> lastNormalValue = new HashMap<>();
     // 记录当前指标持续发生异常的次数
     private Map<String, Integer> exceptionCount = new HashMap<>();
-//    private Map<String, Boolean> indicatorOpen = new HashMap<>();
+    //    private Map<String, Boolean> indicatorOpen = new HashMap<>();
     // 记录需要异常工况检测的指标
     private List<IndicatorInfo> indicatorInfoList = new ArrayList<>();
-    private SqlSession sqlSession;
+
     // 异常列表
     private List<IndicatorInfo> exceptionList = new ArrayList<>();
     // 每个指标对应的数据处理类
@@ -58,27 +57,23 @@ public class ExceptionDetector {
             dataHandler.setBranchId(indicatorInfo.getBranchId());
             dataHandler.setDeviceId(indicatorInfo.getDeviceId());
             dataHandler.setBranchInfoMapper(branchInfoMapper);
-            dataHandler.setSqlSession(sqlSession);
+
             String key = this.indicatorKeyWithIndicatorInfo(indicatorInfo);
 
             dataHandlerMap.put(key, dataHandler);
         }
     }
 
-    private Boolean prepareForMybatis() {
+    private boolean prepareForMybatis() {
         if (!indicatorInfoList.isEmpty()) {
             return true;
         }
-        Boolean flag = false;
-        try {
-            sqlSession = new SqlSessionFactoryBuilder().build(Resources.getResourceAsStream("mybatis-config.xml")).openSession();
-            branchInfoMapper = sqlSession.getMapper(SMDSBranchInfoMapper.class);
-            indicatorInfoList = branchInfoMapper.getAllIndicatorInfo();
-            flag = true;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+
+        indicatorInfoList = branchInfoMapper.getAllIndicatorInfo();
+        if (!indicatorInfoList.isEmpty()) {
+            return true;
         }
-        return flag;
+        return false;
     }
 
     public void startMonitoring() {
@@ -204,6 +199,7 @@ public class ExceptionDetector {
 
     /**
      * 上报异常信息
+     *
      * @param indicatorInfo
      */
     private void insertExceptionInfo(IndicatorInfo indicatorInfo) {

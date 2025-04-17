@@ -5,12 +5,10 @@ import com.jthx.x.cms.watchdog.pojo.Snapshot;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.ibatis.session.SqlSession;
 import org.springframework.stereotype.Component;
 
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -22,7 +20,7 @@ import java.util.Queue;
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-public class   DataHandler {
+public class DataHandler {
 
     // 滑动窗口大小，注意在运行过程中不要修改窗口大小
     private int windowSize;
@@ -42,12 +40,11 @@ public class   DataHandler {
     private int branchId;
     private String indicatorName;
     private SMDSBranchInfoMapper branchInfoMapper;
-    private SqlSession sqlSession;
     private DecimalFormat df = new DecimalFormat("0.0000");
-
 
     /**
      * 使用滑动窗口，判断指标当前增长率是否超过了阈值
+     *
      * @param currentValue
      * @return false表示发生了异常，true表示当前指标正常
      */
@@ -71,7 +68,7 @@ public class   DataHandler {
 
             double averageChange = sumOfChangeRates / window.size();
 
-            num ++;
+            num++;
             System.out.println("--第" + num + "次");
             System.out.println("窗口值为" + window);
             System.out.println("---窗口当前平均增长率-" + averageChange);
@@ -83,10 +80,9 @@ public class   DataHandler {
                 snapshot.setIndicatorName(indicatorName);
                 snapshot.setRate(Double.valueOf(df.format(averageChange)));
                 snapshot.setValue(currentValue);
-                LocalDateTime dateTime = LocalDateTime.now();
-                snapshot.setDate(dateTime);
-                int t = branchInfoMapper.insertSnapshotInfo(snapshot);
-                sqlSession.commit();
+                snapshot.setDate(LocalDateTime.now());
+
+                branchInfoMapper.insertSnapshotInfo(snapshot);
             }
 
             if (Math.abs(averageChange) > threshold) {

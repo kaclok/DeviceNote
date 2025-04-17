@@ -7,7 +7,7 @@ const socketInfo = branchInfo(pinia)
 export function connectWebSocket() {
     // 建立WebSocket连接
     ws = new WebSocket("ws://10.8.54.244:8080/smds-pre-warning-server-1.0-SNAPSHOT/api/webSocket/hahah");
-    ws = new WebSocket("ws://localhost:8091/api/webSocket/029567");
+    // ws = new WebSocket("ws://localhost:8091/api/webSocket/029567");
     // ws = new WebSocket("ws://10.10.22.158:8080/api/webSocket/hahah");
     // 当WebSocket连接成功时
     ws.onopen = () => {

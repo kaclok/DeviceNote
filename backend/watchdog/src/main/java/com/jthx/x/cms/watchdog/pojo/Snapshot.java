@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 @Data
 @Component
 public class Snapshot {
-
     // 实时
     private double value;
     // 时间

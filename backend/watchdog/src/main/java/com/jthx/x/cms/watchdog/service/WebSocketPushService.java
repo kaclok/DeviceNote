@@ -7,17 +7,18 @@ import jakarta.websocket.OnOpen;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
 import java.util.Set;
 
 @ServerEndpoint(value = "/api/webSocket/{user_id}")
-@Component
+@Service
+@RequiredArgsConstructor
 public class WebSocketPushService {
-
     private static Logger logger = LoggerFactory.getLogger(WebSocketPushService.class);
 
     private static Set<Session> sessions = new HashSet<>();
@@ -25,6 +26,8 @@ public class WebSocketPushService {
     private String userId;
 
     private static Boolean detecting = false;
+
+    private ExceptionDetector detector;
 
     @OnOpen
     public void onOpen(Session session, @PathParam("user_id") String userId) {
@@ -70,7 +73,6 @@ public class WebSocketPushService {
     }
 
     private void startDetectException() {
-        ExceptionDetector detector = new ExceptionDetector();
         detector.startMonitoring();
     }
 

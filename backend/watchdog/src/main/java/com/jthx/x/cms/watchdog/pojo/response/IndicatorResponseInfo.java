@@ -5,11 +5,9 @@ import com.jthx.x.cms.watchdog.util.SMDSSafeAPI;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -25,7 +23,6 @@ public class IndicatorResponseInfo {
     private Long timestamp;
     private HashMap<String, Double> snapshotMap = new HashMap<String, Double>();
 
-
     public void tryFillSnapshotMap() {
         if (!SMDSSafeAPI.isListNotEmpty(data)) {
             return;
@@ -39,7 +36,7 @@ public class IndicatorResponseInfo {
             snapshotMap.put(n, av);
         }
     }
-    
+
     public double snapshotWithTag(String tag) {
         if (!snapshotMap.containsKey(tag)) {
             return 0.f;

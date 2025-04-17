@@ -4,7 +4,6 @@ import com.jthx.x.cms.watchdog.pojo.request.IndicatorRequestInfo;
 import com.jthx.x.cms.watchdog.pojo.request.TokenRequestInfo;
 import com.jthx.x.cms.watchdog.pojo.response.IndicatorResponseInfo;
 import com.jthx.x.cms.watchdog.pojo.response.TokenResponseInfo;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -19,7 +18,6 @@ import java.util.Date;
 
 @Service
 public class SMDSRestTemplate {
-
     private final RestTemplate restTemplate = new RestTemplate();
     private final String requestIndicatorUrl = "http://10.8.54.110:8721/macs/v2/realtime/read/findPoints";
     private String token;
@@ -44,6 +42,7 @@ public class SMDSRestTemplate {
 
     /**
      * 通过网络接口批量获取实时数据
+     *
      * @param requestInfo
      * @return
      */
@@ -61,7 +60,7 @@ public class SMDSRestTemplate {
             response = getRetryTemplate().execute(context -> {
                 return restTemplate.exchange(requestIndicatorUrl, HttpMethod.POST, entity, IndicatorResponseInfo.class);
             });
-        } catch(Exception e) {
+        } catch (Exception e) {
             System.out.println(new Date());
             throw new RuntimeException(e);
         }
@@ -71,6 +70,7 @@ public class SMDSRestTemplate {
 
     /**
      * 通过网络接口获取token
+     *
      * @return
      */
     public String getToken() {
@@ -80,7 +80,7 @@ public class SMDSRestTemplate {
         TokenResponseInfo responseInfo = null;
         try {
             responseInfo = getRetryTemplate().execute(context -> {
-               return restTemplate.postForObject(requestTokenUrl, getTokenRequestInfo(), TokenResponseInfo.class);
+                return restTemplate.postForObject(requestTokenUrl, getTokenRequestInfo(), TokenResponseInfo.class);
             });
         } catch (Exception e) {
             System.out.println(new Date());
@@ -93,6 +93,7 @@ public class SMDSRestTemplate {
 
     /**
      * 获取token的请求体
+     *
      * @return
      */
     private TokenRequestInfo getTokenRequestInfo() {

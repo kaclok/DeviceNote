@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 @Data
 @Component
 public class BranchInfo {
-
     // 分厂名称
     private String branchName;
     // 分厂id
