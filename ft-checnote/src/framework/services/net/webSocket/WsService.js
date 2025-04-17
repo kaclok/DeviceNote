@@ -11,7 +11,7 @@ export class WsService {
             return;
         }
 
-        if (this.ws !== null && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+        if (this.ws !== null && (this.ws.readyState <= WebSocket.OPEN)) {
             return;
         }
 
