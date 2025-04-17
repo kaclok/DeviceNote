@@ -1,5 +1,5 @@
 import {onMounted, onUnmounted} from "vue"
-import {SseService} from "@/framework/services/SseService.js";
+import {SseService} from "@/framework/services/net/sse/SseService.js";
 
 function useSse(url) {
     const sseInstance = new SseService(url);

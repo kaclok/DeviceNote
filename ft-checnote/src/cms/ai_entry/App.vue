@@ -46,6 +46,7 @@ import logo_book from '@/assets/image/answer_marking.png';
 
 import {computed, ref} from 'vue';
 import {useTitle} from '@vueuse/core'
+import {WsService} from "@/framework/services/net/webSocket/WsService.js";
 /*
 import axios from "axios";
 import {SessionStorageService} from "@/framework/services/SessionStorageService.js";
@@ -250,7 +251,11 @@ function onClickedImg(url) {
     if (url) {
         window.open(url, '_blank');
     }
-};
+}
+
+/*const ws = new WsService("ws://localhost:7092/ws")
+ws.connect()*/
+
 </script>
 
 <style scoped>

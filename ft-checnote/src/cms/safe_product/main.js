@@ -18,7 +18,8 @@ import "@/framework/services/net/Init.js";
 import {router} from "@/cms/yb/router/Index.js";
 import {TokenService} from "@/framework/services/TokenService.js";
 import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
-import {SseService} from "@/framework/services/SseService.js";
+import {SseService} from "@/framework/services/net/sse/SseService.js";
+import {WsService} from "@/framework/services/net/webSocket/WsService.js";
 
 // 创建实例
 const app = createApp(App)
