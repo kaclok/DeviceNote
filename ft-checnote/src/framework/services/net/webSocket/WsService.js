@@ -31,8 +31,7 @@ export class WsService {
         this.ws.onmessage = (msgEvent) => {
             console.log("ws 收到服务器消息: " + msgEvent.data);
 
-            /*let json = JSON.parse(msgEvent.data);
-            this.msgQueue.push(json);*/
+            this.msgQueue.push(msgEvent.data);
         };
 
         this.ws.onerror = (event) => {
@@ -45,12 +44,20 @@ export class WsService {
         if (this.ws !== null) {
             this.ws.close();
             this.ws = null;
+
+            this.msgQueue = []
         }
     }
 
     send(msg) {
-        if (this.ws !== null && this.ws.readyState === WebSocket.OPEN) {
+        if (this.isConnected()) {
             this.ws.send(msg);
+        } else {
+            console.error('ws 状态错误');
         }
+    }
+
+    isConnected() {
+        return this.ws && this.ws.readyState === WebSocket.OPEN;
     }
 }
