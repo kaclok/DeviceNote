@@ -13,7 +13,7 @@ public class WsHandler extends TextWebSocketHandler {
     // 客户端连接建立时调用，可发送欢迎消息
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        WsSessionManager.add(session.getId(), session);
+        WsService.add(session.getId(), session);
 
         var str = "新连接建立: " + session.getId();
         log.info(str);
@@ -34,13 +34,13 @@ public class WsHandler extends TextWebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         log.error("异常处理");
-        WsSessionManager.removeAndClose(session.getId());
+        WsService.removeAndClose(session.getId());
     }
 
     // 连接关闭时执行清理操作
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         log.info("关闭ws连接");
-        WsSessionManager.removeAndClose(session.getId());
+        WsService.removeAndClose(session.getId());
     }
 }
