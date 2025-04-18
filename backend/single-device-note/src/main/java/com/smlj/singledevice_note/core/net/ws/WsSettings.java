@@ -13,6 +13,7 @@ public class WsSettings implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(new WsHandler(), "/ws")
+                .addInterceptors(new WsInterceptor())
                 .setAllowedOrigins("*"); // 允许所有来源，生产环境需指定域名
     }
 }

@@ -254,11 +254,11 @@ function onClickedImg(url) {
     }
 }
 
-/*let ws = new WsService("ws://localhost:7092/ws")
-ws.connect()
-
-ws = new Ws("ws://localhost:7092/ws")
+/*let ws1 = new WsService("ws://localhost:7092/ws")
 ws.connect()*/
+
+/*let ws2 = new Ws("ws://localhost:7092/ws?account=029567")
+ws2.connect()*/
 
 </script>
 
