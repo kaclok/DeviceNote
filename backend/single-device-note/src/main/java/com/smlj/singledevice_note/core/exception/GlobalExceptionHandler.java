@@ -26,6 +26,8 @@ public class GlobalExceptionHandler {
 
     // https://mp.weixin.qq.com/s/vVBmqCbhmLXYjW1w8gsk3Q
     // {@code @RequestBody} 参数校验不通过时抛出的异常处理
+    // https://mp.weixin.qq.com/s/slsETQsBjMJ4qKRCKYeGGg
+    // https://blog.csdn.net/qq_42402854/article/details/137344029
     @ExceptionHandler({MethodArgumentNotValidException.class})
     public Result<?> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
         BindingResult bindingResult = ex.getBindingResult();

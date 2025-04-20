@@ -64,6 +64,15 @@
         <aspectj.version>1.9.22.1</aspectj.version>
         <spring-retry.version>2.0.11</spring-retry.version>
         <websocket.version>3.4.4</websocket.version>
+
+        <!--
+            https://blog.csdn.net/qq_42402854/article/details/137344029
+            @Valid 和 @Validated 两者都可以与 BindingResult bindingResult配对出现，并且形参顺序是固定的（一前一后），controller对 BindingResult处理返回校验提示。
+            @Valid 和 @Validated 两者也可以单独使用，单独使用当校验不通过时会抛出 BindException异常。这时需要再写一个全局校验异常捕获处理类，然后返回校验提示。
+            Validated是对 @Valid的封装
+            @RequestBody @Validated AaSaveRequest saveRequest, BindingResult bindingResult做参数校验
+        -->
+        <validation.version>3.4.4</validation.version>
     </properties>
 
     <dependencies>
@@ -206,6 +215,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
             <version>${websocket.version}</version>
+        </dependency>
+
+        <!--https://blog.csdn.net/qq_42402854/article/details/137344029-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+            <version>${validation.version}</version>
         </dependency>
     </dependencies>
 
