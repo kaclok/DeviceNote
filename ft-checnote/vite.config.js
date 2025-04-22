@@ -2,6 +2,7 @@ import {fileURLToPath, URL} from 'node:url'
 import {defineConfig, loadEnv} from 'vite'
 // https://www.cnblogs.com/heavenYJJ/p/18058142
 import vue from '@vitejs/plugin-vue'
+import vueDevTools from 'vite-plugin-vue-devtools'
 import {resolve} from 'path'
 
 // 按需自动导入Element-Plus https://element-plus.org/zh-CN/guide/quickstart.html
@@ -38,6 +39,9 @@ export default defineConfig((env) => {
         sourcemap: env.mode !== 'production',
         plugins: [
             vue(),
+            vueDevTools({
+                launchEditor: 'webstorm',
+            }),
             AutoImport({ // 6.97 eBt:/ N@w.fO 03/28 模块自动导入 # JavaScript # 前端开发工程师 # 编程 # 程序员 # web前端  https://v.douyin.com/JLQAt0JZDk4/ 复制此链接，打开Dou音搜索，直接观看视频！
                 resolvers: [ElementPlusResolver()],
                 imports: [
