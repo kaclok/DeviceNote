@@ -185,7 +185,7 @@ const aiGridItems = ref([
 ])
 
 const appGridItems = ref([
-    /*{
+    {
         name: "生产记事",
         url: "http://10.8.54.26/chr/index/index",
         image: logo_book,
@@ -196,7 +196,7 @@ const appGridItems = ref([
         url: "http://10.8.54.26/cms/index/index",
         image: logo_book,
         enabled: false,
-    },*/
+    },
     {
         name: "员工培训平台",
         url: "http://117.36.227.42:8082?group=" + group,
