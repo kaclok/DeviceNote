@@ -170,6 +170,21 @@ info:
   describe: x
   author: 崔斌斌 572005238@qq.com
 
+mybatis-plus: # https://baomidou.com/reference/
+  global-config: # 全局配置
+    banner: false # 控制是否在控制台打印 MyBatis-Plus 的 LOGO
+    db-config: # 数据库配置
+      id-type: auto
+
+  configuration:
+    map-underscore-to-camel-case: false # 开启自动驼峰命名规则（camel case）映射，即从经典数据库列名 A_COLUMN（下划线命名） 到经典 Java 属性名 aColumn（驼峰命名） 的类似映射。
+  check-config-location: false # 指定启动时是否检查 MyBatis XML 文件的存在，默认不检查。
+  config-location: classpath:mybatis-config.xml
+  # resources目录下xml的mapper路径
+  mapper-locations:
+    - classpath:xmlMapper/*.xml
+    - classpath:xmlMapper/common/*.xml
+
 mybatis:
   # resources目录下xml的mapper路径
   mapper-locations:

@@ -64,6 +64,9 @@
         <aspectj.version>1.9.22.1</aspectj.version>
         <spring-retry.version>2.0.11</spring-retry.version>
         <websocket.version>3.4.4</websocket.version>
+        <mp.version>3.5.11</mp.version>
+        <velocity.version>2.4.1</velocity.version>
+
 
         <!--
             https://blog.csdn.net/qq_42402854/article/details/137344029
@@ -76,6 +79,24 @@
     </properties>
 
     <dependencies>
+        <!-- 引入mp和mp的代码生成器，代码生成器依赖于模版引擎velocity-engine-core
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-generator</artifactId>
+            <version>${mp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>${mp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.velocity</groupId>
+            <artifactId>velocity-engine-core</artifactId>
+            <version>${velocity.version}</version>
+        </dependency>
+        -->
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

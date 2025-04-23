@@ -45,10 +45,21 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
         <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>3.0.4</version>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-generator</artifactId>
+            <version>3.5.11</version>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>3.5.11</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.velocity</groupId>
+            <artifactId>velocity-engine-core</artifactId>
+            <version>2.4.1</version>
         </dependency>
 
         <dependency>
@@ -97,11 +108,13 @@
             <artifactId>hutool-all</artifactId>
             <version>5.8.16</version>
         </dependency>
+
+        <!-- 引入mp，mp自带分页，所以不需要pageHelper
         <dependency>
             <groupId>com.github.pagehelper</groupId>
             <artifactId>pagehelper-spring-boot-starter</artifactId>
             <version>1.4.7</version>
-            <!--添加以下排除方法-->
+            &lt;!&ndash;添加以下排除方法&ndash;&gt;
             <exclusions>
                 <exclusion>
                     <groupId>org.mybatis.spring.boot</groupId>
@@ -109,6 +122,8 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        -->
+
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>easyexcel</artifactId>
@@ -137,13 +152,6 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.6.0</version>
-            <!--添加以下排除方法-->
-            <exclusions>
-                <exclusion>
-                    <groupId>jakarta.validation</groupId>
-                    <artifactId>jakarta.validation-api</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>jakarta.annotation</groupId>
