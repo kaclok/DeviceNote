@@ -6,6 +6,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.4.2</version>
+        <!--<version>${springboot.version}</version>-->
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.smlj</groupId>
@@ -39,6 +40,7 @@
            固定到5.8.16版本，因为之后的版本反序列化ArrayList<自定义类型>会存在异常：java.io.InvalidClassException: Unauthorized deserialization attempt;
        -->
         <hutool.version>5.8.16</hutool.version>
+        <springboot.version>3.4.2</springboot.version>
 
         <minio.version>8.5.17</minio.version>
         <dynamic-datasource.version>4.3.1</dynamic-datasource.version>
@@ -61,11 +63,12 @@
         <redis.version>3.3.1</redis.version>
         <cache.version>3.3.1</cache.version>
         <rocketmq.version>5.0.7</rocketmq.version>
-        <aspectj.version>1.9.22.1</aspectj.version>
+        <aspectj.version>1.9.24</aspectj.version>
         <spring-retry.version>2.0.11</spring-retry.version>
         <websocket.version>3.4.4</websocket.version>
         <mp.version>3.5.11</mp.version>
         <velocity.version>2.4.1</velocity.version>
+        <aop.version>3.4.4</aop.version>
 
 
         <!--
@@ -221,6 +224,12 @@
             <artifactId>aspectjweaver</artifactId>
             <version>${aspectj.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-aspects</artifactId>
+            <version>7.0.0-M4</version>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.rocketmq</groupId>
             <artifactId>rocketmq-client-java</artifactId>
