@@ -12,11 +12,7 @@ import java.util.List;
 
 @Service
 public class SMDSRequestService {
-    private static SMDSRestTemplate restTemplate;
-
-    {
-        restTemplate = new SMDSRestTemplate();
-    }
+    private static SMDSRestTemplate restTemplate = new SMDSRestTemplate();
 
     /**
      * 通过这个接口获取实时数据，这个接口里包含访问网络获取实时数据的所有业务信息，包括请求体的构建，最终调用SMDSRestTemplate进行最终的接口信息访问

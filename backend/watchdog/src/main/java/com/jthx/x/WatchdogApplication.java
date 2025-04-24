@@ -1,5 +1,6 @@
 package com.jthx.x;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
@@ -12,6 +13,7 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 @EnableWebMvc
 // 有了 多数据源 和动态台数据源 需要屏蔽默认的数据源配置形式
 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class/*, SecurityAutoConfiguration.class*/})
+@MapperScan({"com.jthx.x.cms.watchdog.dao.mapper", "com.jthx.x.cms.watchdog.Detector"})
 public class WatchdogApplication {
     public static void main(String[] args) {
         SpringApplication.run(WatchdogApplication.class, args);

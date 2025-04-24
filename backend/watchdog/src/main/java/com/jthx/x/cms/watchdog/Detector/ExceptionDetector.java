@@ -7,10 +7,10 @@ import com.jthx.x.cms.watchdog.pojo.response.IndicatorResponseInfo;
 import com.jthx.x.cms.watchdog.service.SMDSRequestService;
 import com.jthx.x.cms.watchdog.service.WebSocketPushService;
 import com.jthx.x.cms.watchdog.util.SMDSSafeAPI;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -18,13 +18,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@RequiredArgsConstructor
 @Component
+@Service
+@Slf4j
 public class ExceptionDetector {
     @Autowired
-    private WebSocketPushService webSocketPushService;
-    @Autowired
     private SMDSRequestService requestService;
+    @Autowired
+    private SMDSBranchInfoMapper branchInfoMapper;
+
+    // 指标实时数据列表
+    private IndicatorResponseInfo indicatorSnapshotInfo;
+
+    private Thread thread = null;
 
     // 用来记录每个指标当前的运行状态
     private Map<String, DetectorExceptionStatus> deviceStatus = new HashMap<>();
@@ -40,14 +46,9 @@ public class ExceptionDetector {
     private List<IndicatorInfo> exceptionList = new ArrayList<>();
     // 每个指标对应的数据处理类
     private Map<String, DataHandler> dataHandlerMap = new HashMap<>();
-    private SMDSBranchInfoMapper branchInfoMapper;
-    // 指标实时数据列表
-    private IndicatorResponseInfo indicatorSnapshotInfo;
 
     private void prepareForDetect() {
         this.prepareForMybatis();
-        requestService = new SMDSRequestService();
-
         for (IndicatorInfo indicatorInfo : indicatorInfoList) {
             DataHandler dataHandler = new DataHandler();
             dataHandler.setWindowSize(10);
@@ -76,9 +77,20 @@ public class ExceptionDetector {
         return false;
     }
 
+    public void stopMonitoring() {
+        log.info("stopMonitoring");
+
+        if (thread != null) {
+            thread.interrupt();
+        }
+    }
+
     public void startMonitoring() {
+        log.info("startMonitoring");
+
         // 模拟监测过程
-        new Thread(() -> {
+        stopMonitoring();
+        thread = new Thread(() -> {
             // 查询数据库，查询需要进行监测的指标信息
             this.prepareForDetect();
             int num = 0;
@@ -100,7 +112,8 @@ public class ExceptionDetector {
                     break;
                 }
             }
-        }).start();
+        });
+        thread.start();
     }
 
     private void detectorException() {
@@ -193,7 +206,7 @@ public class ExceptionDetector {
     private void handleException() {
         for (IndicatorInfo exception : exceptionList) {
             insertExceptionInfo(exception);
-            webSocketPushService.sendExceptionMessage(exception.getIndicatorName() + "异常，请及时排查");
+            WebSocketPushService.sendExceptionMessage(exception.getIndicatorName() + "异常，请及时排查");
         }
     }
 

@@ -10,7 +10,7 @@ public class SMDSSafeAPI {
 
     // 判断数组是否非空
     public static <T> boolean isListNotEmpty(List<T> array) {
-        return array != null && array.size() > 0;
+        return array != null && !array.isEmpty();
     }
 
     // 判断 Map 是否非空
