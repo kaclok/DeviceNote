@@ -71,10 +71,9 @@ public class ExceptionDetector {
         }
 
         indicatorInfoList = branchInfoMapper.getAllIndicatorInfo();
-        if (!indicatorInfoList.isEmpty()) {
-            return true;
-        }
-        return false;
+
+        System.out.println("indicatorInfoList获取成功");
+        return !indicatorInfoList.isEmpty();
     }
 
     public void stopMonitoring() {
