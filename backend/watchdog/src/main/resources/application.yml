@@ -186,14 +186,15 @@ mybatis-plus: # https://baomidou.com/reference/
     - classpath:xmlMapper/common/*.xml
 
 mybatis:
+  configuration: # 在 MyBatis 配置中 同时指定了 configuration 和 configLocation，而这两个属性是互斥的，不能同时使用
+    mapUnderscoreToCamelCase: true  # 驼峰命名风格，部分版本也支持
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   # resources目录下xml的mapper路径
   mapper-locations:
     - classpath:xmlMapper/*.xml
     - classpath:xmlMapper/common/*.xml
   # 配置 MyBatis 配置文件路径
-  config-location: classpath:mybatis-config.xml
-  # configuration: # 配合Mybatis-config的setting生效
-  # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  # config-location: classpath:mybatis-config.xml # 在 MyBatis 配置中 同时指定了 configuration 和 configLocation，而这两个属性是互斥的，不能同时使用
 
   # entity实体类的路径，用于xml文件中的别名，一般是resultType
   # type-aliases-package: com.smlj.train.table*.entity

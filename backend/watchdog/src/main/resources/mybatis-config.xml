@@ -6,12 +6,12 @@
         设置mybatis
         https://mybatis.net.cn/configuration.html#settings
     -->
-    <settings>
+    <!--<settings>
         <setting name="mapUnderscoreToCamelCase" value="true"/>
         <setting name="autoMappingBehavior" value="FULL"/>
         <setting name="logImpl" value="STDOUT_LOGGING"/>
 
-        <!--
+        &lt;!&ndash;
             使全局的映射器启用或禁用缓存
             <setting name="cacheEnabled" value="true"/>
              允许JDBC 支持自动生成主键
@@ -23,8 +23,8 @@
             <setting name="logImpl" value="STDOUT_LOGGING"/>
              使用驼峰命名法转换字段
              <setting name="mapUnderscoreToCamelCase" value="true"/>
-         -->
-    </settings>
+         &ndash;&gt;
+    </settings>-->
 
     <typeAliases>
         <!-- https://mybatis.net.cn/configuration.html#properties
