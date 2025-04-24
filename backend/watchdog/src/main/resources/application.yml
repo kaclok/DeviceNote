@@ -188,6 +188,7 @@ mybatis-plus: # https://baomidou.com/reference/
 mybatis:
   configuration: # 在 MyBatis 配置中 同时指定了 configuration 和 configLocation，而这两个属性是互斥的，不能同时使用
     mapUnderscoreToCamelCase: true  # 驼峰命名风格，部分版本也支持
+    cache-enabled: true
     # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   # resources目录下xml的mapper路径
   mapper-locations:

@@ -18,6 +18,8 @@ import java.util.Set;
 public class WebSocketPushService {
     private static Set<Session> sessions = new HashSet<>();
 
+    private static boolean isDetecting = false;
+
     @Autowired
     private ExceptionDetector detector; // 由Spring注入
 
@@ -28,10 +30,13 @@ public class WebSocketPushService {
         }
 
         System.out.println("websocket连接已建立");
-        if (sessions.isEmpty()) {
-            if (detector != null) {
-                detector.startMonitoring();
-            }
+        /*if (sessions.isEmpty()) {
+            detector.startMonitoring();
+        }*/
+
+        if(!isDetecting) {
+            detector.startMonitoring();
+            isDetecting = true;
         }
         sessions.add(session);
     }
@@ -40,11 +45,9 @@ public class WebSocketPushService {
     public void onClose(Session session) {
         sessions.remove(session);
 
-        if (sessions.isEmpty()) {
-            if (detector != null) {
-                detector.stopMonitoring();
-            }
-        }
+        /*if (sessions.isEmpty()) {
+            detector.stopMonitoring();
+        }*/
 
         System.out.println("websocket连接以关闭");
     }

@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -84,6 +85,7 @@ public class ExceptionDetector {
         }
     }
 
+    @Transactional
     public void startMonitoring() {
         log.info("startMonitoring");
 
@@ -97,7 +99,7 @@ public class ExceptionDetector {
             while (true) {
                 try {
                     System.out.println("这是第" + ++num + "轮检测");
-                    Thread.currentThread().sleep(5000);
+                    Thread.currentThread().sleep(20000);
                     System.out.println("距离上次检测过了" + (System.currentTimeMillis() - lastTime) + "秒");
                     lastTime = System.currentTimeMillis();
                     this.indicatorSnapshotInfo = requestService.requestSnapshotInfo(indicatorInfoList);
@@ -115,6 +117,7 @@ public class ExceptionDetector {
         thread.start();
     }
 
+    @Transactional
     private void detectorException() {
         if (!SMDSSafeAPI.isListNotEmpty(indicatorInfoList)) {
             return;
