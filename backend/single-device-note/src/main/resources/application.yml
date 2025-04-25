@@ -136,6 +136,14 @@ logging:
           client:
             RestTemplate: OFF # 关闭SpringbootAdmin的client的日志
           HttpLogging : OFF # 关闭SpringbootAdmin的client的日志
+      mybatis:
+        DEBUG
+      apache:
+        ibatis:
+          DEBUG
+      postgresql:
+        jdbc: TRACE
+
   logback:
     rolling policy:
       max-file-size: 5MB # 日志文件最大大小（单位：字节），达到该大小后会进行切分等处理
