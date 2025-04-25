@@ -136,13 +136,9 @@ logging:
           client:
             RestTemplate: OFF # 关闭SpringbootAdmin的client的日志
           HttpLogging : OFF # 关闭SpringbootAdmin的client的日志
-      mybatis:
-        DEBUG
       apache:
         ibatis:
           DEBUG
-      postgresql:
-        jdbc: TRACE
 
   logback:
     rolling policy:
