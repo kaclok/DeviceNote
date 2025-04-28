@@ -21,9 +21,9 @@ import java.util.Queue;
 @NoArgsConstructor
 @Data
 public class DataHandler {
-
     // 滑动窗口大小，注意在运行过程中不要修改窗口大小
     private int windowSize;
+
     // 趋势阈值
     private double threshold;
     // 用于存储滑动窗口中的数据
@@ -34,6 +34,7 @@ public class DataHandler {
     private double preValue = Double.NaN;
     private double snapshotValue = Double.NaN;
     private int num = 0;
+
     private Date date;
     private int indicatorId;
     private int deviceId;

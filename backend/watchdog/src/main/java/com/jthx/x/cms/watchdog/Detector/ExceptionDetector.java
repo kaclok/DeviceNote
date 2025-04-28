@@ -29,7 +29,7 @@ public class ExceptionDetector {
     private SMDSBranchInfoMapper branchInfoMapper;
 
     // 指标实时数据列表
-    private IndicatorResponseInfo indicatorSnapshotInfo;
+    private IndicatorResponseInfo indicatorResponseInfo;
 
     private Thread thread = null;
 
@@ -41,7 +41,7 @@ public class ExceptionDetector {
     private Map<String, Integer> exceptionCount = new HashMap<>();
     //    private Map<String, Boolean> indicatorOpen = new HashMap<>();
     // 记录需要异常工况检测的指标
-    private List<IndicatorInfo> indicatorInfoList = new ArrayList<>();
+    private List<IndicatorInfo> indicatorJoinInfoList = new ArrayList<>();
 
     // 异常列表
     private List<IndicatorInfo> exceptionList = new ArrayList<>();
@@ -50,7 +50,7 @@ public class ExceptionDetector {
 
     private void prepareForDetect() {
         this.prepareForMybatis();
-        for (IndicatorInfo indicatorInfo : indicatorInfoList) {
+        for (IndicatorInfo indicatorInfo : indicatorJoinInfoList) {
             DataHandler dataHandler = new DataHandler();
             dataHandler.setWindowSize(10);
             dataHandler.setThreshold(indicatorInfo.getTrendThreshold());
@@ -61,20 +61,19 @@ public class ExceptionDetector {
             dataHandler.setBranchInfoMapper(branchInfoMapper);
 
             String key = this.indicatorKeyWithIndicatorInfo(indicatorInfo);
-
             dataHandlerMap.put(key, dataHandler);
         }
     }
 
     private boolean prepareForMybatis() {
-        if (!indicatorInfoList.isEmpty()) {
+        if (!indicatorJoinInfoList.isEmpty()) {
             return true;
         }
 
-        indicatorInfoList = branchInfoMapper.getAllIndicatorInfo();
+        indicatorJoinInfoList = branchInfoMapper.getAllIndicatorInfo();
 
         System.out.println("indicatorInfoList获取成功");
-        return !indicatorInfoList.isEmpty();
+        return !indicatorJoinInfoList.isEmpty();
     }
 
     public void stopMonitoring() {
@@ -98,12 +97,12 @@ public class ExceptionDetector {
             Long lastTime = System.currentTimeMillis();
             while (true) {
                 try {
-                    System.out.println("这是第" + ++num + "轮检测");
+                    System.out.println("-------------这是第" + ++num + "轮检测-------------");
                     Thread.currentThread().sleep(20000);
                     System.out.println("距离上次检测过了" + (System.currentTimeMillis() - lastTime) + "秒");
                     lastTime = System.currentTimeMillis();
-                    this.indicatorSnapshotInfo = requestService.requestSnapshotInfo(indicatorInfoList);
-                    System.out.println("要进行检测的数据有以下" + this.indicatorSnapshotInfo.getSnapshotMap());
+                    this.indicatorResponseInfo = requestService.requestSnapshotInfo(indicatorJoinInfoList);
+                    System.out.println("要进行检测的数据有以下" + this.indicatorResponseInfo.getSnapshotMap());
 
                     exceptionList.clear();
                     this.detectorException();
@@ -118,45 +117,45 @@ public class ExceptionDetector {
     }
 
     @Transactional
-    private void detectorException() {
-        if (!SMDSSafeAPI.isListNotEmpty(indicatorInfoList)) {
+    protected void detectorException() {
+        if (!SMDSSafeAPI.isListNotEmpty(indicatorJoinInfoList)) {
             return;
         }
         if (!SMDSSafeAPI.isMapNotEmpty(dataHandlerMap)) {
             return;
         }
 
-        for (IndicatorInfo indicatorInfo : indicatorInfoList) {
+        for (IndicatorInfo indicatorInfo : indicatorJoinInfoList) {
             String key = indicatorKeyWithIndicatorInfo(indicatorInfo);
             DataHandler dataHandler = dataHandlerMap.get(key);
             // 获取对应指标的实时值
-            dataHandler.setSnapshotValue(this.indicatorSnapshotWithTag(indicatorInfo.getTag()));
-            double snapshot = dataHandler.getSnapshotValue();
+            var av = this.getVByTag(indicatorInfo.getTag());
+            dataHandler.setSnapshotValue(av);
 
             System.out.println("-------------------------------------------");
             System.out.println("指标名称" + indicatorInfo.getIndicatorName());
 
             // 检测是否超过峰值
-            DetectorExceptionStatus status = detectError(snapshot, indicatorInfo);
+            DetectorExceptionStatus status = detectError(av, indicatorInfo);
             if (status == DetectorExceptionStatus.DetectorOverError) {
                 changeDetectorStatus(key, status);
                 exceptionList.add(indicatorInfo);
-                System.out.println("超出报警阈值" + indicatorInfo.getTrendThreshold() + " 当前实时值为 " + snapshot);
+                System.out.println("超出报警阈值" + indicatorInfo.getTrendThreshold() + " 当前实时值为 " + av);
                 continue;
             }
 
             DetectorExceptionStatus lastStatus = deviceStatus.get(key);
             Double lastNormal = lastNormalValue.get(key);
-            Boolean isException = dataHandler.detectIndicator(snapshot);
+            Boolean isException = dataHandler.detectIndicator(av);
             System.out.println(indicatorInfo);
-            if (!isException.booleanValue()) {
+            if (!isException) {
                 addExceptionCount(key);
-            } else if (lastStatus != DetectorExceptionStatus.DetectorNormal && lastNormal != null && !Double.isNaN(lastNormal) && (snapshot - lastNormal) / snapshot < indicatorInfo.getTrendThreshold()) { // 如果这次判断中指标是正常的，那么把当前指标和上一次正常的指标做一次变化率计算，如果变化率符合正常，那么就表明当前指标是恢复正常的了
+            } else if (lastStatus != DetectorExceptionStatus.DetectorNormal && lastNormal != null && !Double.isNaN(lastNormal) && (av - lastNormal) / av < indicatorInfo.getTrendThreshold()) { // 如果这次判断中指标是正常的，那么把当前指标和上一次正常的指标做一次变化率计算，如果变化率符合正常，那么就表明当前指标是恢复正常的了
                 changeDetectorStatus(key, DetectorExceptionStatus.DetectorNormal);
                 exceptionCount.put(key, 0);
             }
-            if (isException.booleanValue()) {
-                lastNormalValue.put(key, snapshot);
+            if (isException) {
+                lastNormalValue.put(key, av);
                 exceptionCount.put(key, 0);
                 deviceStatus.put(key, DetectorExceptionStatus.DetectorNormal);
             }
@@ -170,16 +169,16 @@ public class ExceptionDetector {
         }
     }
 
-    private double indicatorSnapshotWithTag(String tag) {
+    private double getVByTag(String tag) {
         if (!SMDSSafeAPI.isStringNotEmpty(tag)) {
             return 0.f;
         }
-        return indicatorSnapshotInfo.snapshotWithTag(tag);
+        return indicatorResponseInfo.getVByTag(tag);
     }
 
-    private DetectorExceptionStatus detectError(double snapshot, IndicatorInfo indicatorInfo) {
+    private DetectorExceptionStatus detectError(double av, IndicatorInfo indicatorInfo) {
         DetectorExceptionStatus status = DetectorExceptionStatus.DetectorNormal;
-        if (snapshot >= indicatorInfo.getNormalMax()) {
+        if (av > indicatorInfo.getNormalMax() || av < indicatorInfo.getNormalMin()) {
             status = DetectorExceptionStatus.DetectorOverError;
         }
         return status;

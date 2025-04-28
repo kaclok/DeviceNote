@@ -10,9 +10,9 @@ import lombok.NoArgsConstructor;
 @Data
 public class IndicatorResponseData {
     @JsonProperty("n")
-    private String n;
+    private String n; // tag
     @JsonProperty("ns")
-    private String ns;
+    private String ns; // namespace
     @JsonProperty("t")
     private Long t;
     @JsonProperty("v")

@@ -33,7 +33,6 @@
     <insert id="insertSnapshotInfo" parameterType="com.jthx.x.cms.watchdog.pojo.Snapshot">
         insert into smds_snapshot_data (value, rate, indicator_id, indicator_name, device_id, branch_id, date)
         values(#{value}, #{rate}, #{indicatorId}, #{indicatorName}, #{deviceId}, #{branchId}, #{date})
-
     </insert>
 
     <insert id="insertExceptionInfo" parameterType="com.jthx.x.cms.watchdog.pojo.ExceptionInfo">

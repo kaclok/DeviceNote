@@ -10,7 +10,7 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-public class TokenResponseInfo {
+public class R {
     @JsonProperty("data")
     private Map<String, String> data;
     @JsonProperty("message")

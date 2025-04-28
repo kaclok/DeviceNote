@@ -21,6 +21,7 @@ public class IndicatorResponseInfo {
     private Integer status;
     @JsonProperty("timestamp")
     private Long timestamp;
+
     private HashMap<String, Double> snapshotMap = new HashMap<String, Double>();
 
     public void tryFillSnapshotMap() {
@@ -37,7 +38,7 @@ public class IndicatorResponseInfo {
         }
     }
 
-    public double snapshotWithTag(String tag) {
+    public double getVByTag(String tag) {
         if (!snapshotMap.containsKey(tag)) {
             return 0.f;
         }

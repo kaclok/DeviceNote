@@ -3,7 +3,7 @@ package com.jthx.x.cms.watchdog.network;
 import com.jthx.x.cms.watchdog.pojo.request.IndicatorRequestInfo;
 import com.jthx.x.cms.watchdog.pojo.request.TokenRequestInfo;
 import com.jthx.x.cms.watchdog.pojo.response.IndicatorResponseInfo;
-import com.jthx.x.cms.watchdog.pojo.response.TokenResponseInfo;
+import com.jthx.x.cms.watchdog.pojo.response.R;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -19,14 +19,14 @@ import java.util.Date;
 @Service
 public class SMDSRestTemplate {
     private final RestTemplate restTemplate = new RestTemplate();
+    private RetryTemplate retryTemplate;
+
     private final String requestIndicatorUrl = "http://10.8.54.110:8721/macs/v2/realtime/read/findPoints";
     private String token;
     private final String requestTokenUrl = "http://10.8.54.110:8721/macs/v1/account/login";
 
     private static final int max_retries = 10;
     private static final long retry_delay = 10000;
-    RetryTemplate retryTemplate;
-
 
     public RetryTemplate getRetryTemplate() {
         if (retryTemplate == null) {
@@ -77,10 +77,10 @@ public class SMDSRestTemplate {
         if (token != null) {
             return token;
         }
-        TokenResponseInfo responseInfo = null;
+        R responseInfo = null;
         try {
             responseInfo = getRetryTemplate().execute(context -> {
-                return restTemplate.postForObject(requestTokenUrl, getTokenRequestInfo(), TokenResponseInfo.class);
+                return restTemplate.postForObject(requestTokenUrl, getTokenRequestInfo(), R.class);
             });
         } catch (Exception e) {
             System.out.println(new Date());
