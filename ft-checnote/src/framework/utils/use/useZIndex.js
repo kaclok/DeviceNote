@@ -2,7 +2,7 @@ function useZIndex(base = __Z_BASE__) {
     const currentZIndex = ref(base)
 
     const next = () => {
-        currentZIndex.value += 1
+        currentZIndex.value += __Z_STEP__
         return currentZIndex.value
     }
 
