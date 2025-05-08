@@ -1,7 +1,7 @@
 import axios from "axios"
 import {config} from './Config.js'
 
-import {useCache, ECacheType} from '@/framework/utils/use/useCache.ts'
+import {useCache, ECacheType} from '@/framework/composable/use/useCache.ts'
 import {TokenService} from "@/framework/services/TokenService.js";
 
 const {wsCache} = useCache()

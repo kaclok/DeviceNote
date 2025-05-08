@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import {useSse} from '@/framework/utils/use/useSse.js';
+import {useSse} from '@/framework/composable/use/useSse.js';
 import {axiosInst as axiosR} from "@/framework/services/net/AxiosInst.js"
 
 useSse("/api/sse/connect");

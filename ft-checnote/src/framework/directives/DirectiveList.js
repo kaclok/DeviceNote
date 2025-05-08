@@ -9,6 +9,7 @@ import vThrottle from "@/framework/directives/vThrottle.js";
 import vDebounce from "@/framework/directives/vDebounce.js";
 import VLongPress from "@/framework/directives/vLongPress.js";
 import vHasLogin from "@/framework/directives/vHasLogin.js";
+import vZIndex from "@/framework/directives/vZIndex.js";
 
 const list = [
     {
@@ -50,6 +51,10 @@ const list = [
     {
         name: "hasLogin",
         directive: vHasLogin.directive,
+    },
+    {
+        name: "zIndex",
+        directive: vZIndex.directive,
     },
 ]
 

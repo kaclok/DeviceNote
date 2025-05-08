@@ -50,6 +50,24 @@ async function setupAll(app) {
     // 路由
     /*app.use(router);*/
 
+    /* 跨组件协调层级
+    // 根组件
+    import { provide, ref } from 'vue'
+    const zIndex = ref(1000)
+    provide('zIndex', {
+        next: () => zIndex.value++
+    })
+
+    // 子组件
+    import { inject } from 'vue'
+    const { next } = inject('zIndex')
+
+    const zIndex = ref(__Z_BASE__)
+    provide('zIndex', {
+        next: () => zIndex.value++
+    })
+    */
+
     // mount在最后
     app.mount('#app');
 }

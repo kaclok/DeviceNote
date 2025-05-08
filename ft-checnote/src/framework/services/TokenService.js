@@ -1,4 +1,4 @@
-import {useCache, ECacheType} from '@/framework/utils/use/useCache.ts'
+import {useCache, ECacheType} from '@/framework/composable/use/useCache.ts'
 import {post} from './net/InnerRequest.js'
 
 const {wsCache} = useCache()
