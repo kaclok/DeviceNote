@@ -186,6 +186,12 @@ const aiGridItems = ref([
 
 const appGridItems = ref([
     {
+        name: "工业互联网",
+        url: "http://10.8.54.110:10111/home",
+        image: logo_book,
+        enabled: true,
+    },
+    {
         name: "生产记事",
         url: "http://10.8.54.26/chr/index/index",
         image: logo_book,
@@ -207,7 +213,7 @@ const appGridItems = ref([
         name: "日报",
         url: "http://10.8.54.110:8790/auth/authorize?response_type=code&scope=openid&client_id=dailypaper&redirect_uri=http://10.8.54.127:5175",
         image: logo_book,
-        enabled: true,
+        enabled: false,
     },
     {
         name: "作业票统计",
@@ -219,7 +225,7 @@ const appGridItems = ref([
         name: "设备检修记录\n(手机用)",
         url: "http://117.36.227.42:4175?group=" + group, // http://10.8.54.24:4177/pages/sb/index.html",
         image: logo_book,
-        enabled: true,
+        enabled: false,
     },
     {
         name: "仪表检修记录",
