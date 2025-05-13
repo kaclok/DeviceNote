@@ -10,7 +10,7 @@ class TokenService {
 
     static async getRemoteAT() {
         await post({
-            url: '/refreshATByRT', headers: {
+            url: '/refreshAT', headers: {
                 rt: TokenService.getRT(),
             },
 
@@ -54,7 +54,7 @@ class TokenService {
         return wsCache.set(ECacheType.ACCESS_TOKEN_EXPIRE_AT, atAt)
     }
 
-    static setLRT(rt) {
+    static setRT(rt) {
         return wsCache.set(ECacheType.REFRESH_TOKEN, rt)
     }
 

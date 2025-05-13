@@ -12,7 +12,10 @@ const NwCodeMap = {
             let originalRequest = resp.config
             TokenService.getRemoteAT().then(res => {
                 originalRequest.headers.at = TokenService.getAT()
-                axiosInst(originalRequest)
+                axiosInst.request(originalRequest)
+            }).catch(err => {
+                // 获取at失败
+                // 跳转到登录页
             })
         }
     },

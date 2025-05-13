@@ -54,7 +54,7 @@ function _setToken(resp) {
 
     const rt = resp.headers.rt
     if (rt) {  // 尝试保存rt
-        TokenService.setLRT(rt)
+        TokenService.setRT(rt)
         TokenService.setRTIssueAt(resp.headers.rtIssueAt)
         TokenService.setRTExpireAt(resp.headers.rtExpireAt)
 
