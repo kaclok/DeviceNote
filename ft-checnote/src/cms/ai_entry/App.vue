@@ -210,6 +210,12 @@ const appGridItems = ref([
         enabled: true,
     },
     {
+        name: "岗位价值系统",
+        url: "http://10.8.54.161:8086/#/login",
+        image: logo_book,
+        enabled: true,
+    },
+    {
         name: "日报",
         url: "http://10.8.54.110:8790/auth/authorize?response_type=code&scope=openid&client_id=dailypaper&redirect_uri=http://10.8.54.127:5175",
         image: logo_book,

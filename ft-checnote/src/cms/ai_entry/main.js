@@ -8,13 +8,11 @@ import zhCn from "element-plus/es/locale/lang/zh-cn";
 import 'dayjs/locale/zh-cn';
 import VConsole from 'vconsole';
 
-// import {router} from '@/cms/yb/router/Index.js'
 // import直接引用一个文件时，会执行一遍这个文件，而不获取任何文件对象, 比如：import './lib/init.js';
 import {RegisterDirective} from "@/framework/directives/DirectiveList.js";
 import {Switch} from "@/framework/services/LocaleService.js";
 
 import "@/framework/services/net/Init.js";
-import {router} from "@/cms/yb/router/Index.js";
 import {TokenService} from "@/framework/services/TokenService.js";
 import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
 
@@ -45,10 +43,16 @@ async function setupAll(app) {
         locale: zhCn,
     })
 
+    /*// https://mp.weixin.qq.com/s/Bzy9iv4-CEpslwaLxggNzg活动解锁
+    import SlideVerify from 'vue-monoplasty-slide-verify';
+    app.use(SlideVerify)*/
+
     // 自定义指令
     RegisterDirective(app);
+
     // 路由
-    /*app.use(router);*/
+    // import {router} from '@/cms/yb/router/Index.js'
+    // app.use(router);
 
     // mount在最后
     app.mount('#app');
