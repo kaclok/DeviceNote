@@ -2,7 +2,9 @@
     <el-container class="layout-container-demo" style="height: 100%">
         <el-aside width="80px;">
             <el-scrollbar>
-                <el-menu :default-active="refMenu" unique-opened>
+                <el-menu :default-active="curzzId"
+                         unique-opened
+                         @select="onZZClicked">
                     <el-menu-item index="1">公辅装置</el-menu-item>
                     <el-menu-item index="2">热动力站装置</el-menu-item>
                     <el-menu-item index="3">烧碱装置</el-menu-item>
@@ -21,9 +23,10 @@
             <div>
                 <div class="flex flex-wrap gap-4 items-center">
                     <el-select
-                        v-model="refSelect"
+                        v-model="curLevelId"
                         placeholder="请选择:"
                         style="width: 240px"
+                        @change="onLevelClicked"
                     >
                         <el-option
                             v-for="item in options"
@@ -40,10 +43,10 @@
                             <el-table-column prop="name" label="设备名称" width="200"/>
                             <el-table-column prop="weihao" label="设备位号" width="200"/>
                             <el-table-column prop="size" label="设备型号" width="200"/>
-                            <el-table-column prop="prevFixATime" label="上次轴伸端时间" width="180"/>
-                            <el-table-column prop="nextFixATime" label="下次轴伸端时间" width="180"/>
-                            <el-table-column prop="prevFixBTime" label="上次非轴伸端时间" width="180"/>
-                            <el-table-column prop="nextFixBTime" label="下次轴伸端时间" width="180"/>
+                            <el-table-column prop="prev_fix_a_time" label="上次轴伸端时间" width="180"/>
+                            <el-table-column prop="a_duration" label="下次轴伸端时间" width="180"/>
+                            <el-table-column prop="prev_fix_b_time" label="上次非轴伸端时间" width="180"/>
+                            <el-table-column prop="b_duration" label="下次轴伸端时间" width="180"/>
                         </el-table>
                     </el-scrollbar>
                 </el-main>
@@ -53,13 +56,23 @@
 
 </template>
 
-<script lang="ts" setup>
-import {ref, watch} from 'vue'
+<script lang="js" setup>
+import {ref, onUnmounted, onMounted} from "vue";
+import {doGet, doPost} from "@/framework/services/net/Request.js"
 import {Menu as IconMenu, Message, Setting} from '@element-plus/icons-vue'
 
-// 默认选择高压电机
-const refSelect = ref("1")      // 下拉框默认选中高压电机
-const refMenu = ref("1")       // 菜单默认选中第一项
+const PAGE_SIZE = 19
+
+const curzzId = ref("1")       // 菜单默认选中第一项
+const curLevelId = ref("1")      // 下拉框默认选中高压电机
+
+let AC_getList = new AbortController();
+let loadingList = ref(false);
+let curPageIndex = ref(1)
+
+const tableData = ref([])
+// 所选装置的特定电机的列表个数
+let tableTotal = 0
 
 const options = [
     {
@@ -75,25 +88,37 @@ const options = [
         label: '免维护电机',
     },
 ]
-const item = {
-    name: '2016-05-02',
-    size: 'Tom',
-    weihao: 'Dom',
-    prevFixATime: '2025-04-25',
-    nextFixATime: '2025-06-25',
-    prevFixBTime: '2025-04-25',
-    nextFixBTime: '2025-06-25',
+
+onMounted(() => {
+    _reqList();
+});
+
+function onZZClicked(zzId) {
+    curzzId.value = zzId
+
+    // 重置本地数据
+    curPageIndex.value = 1
+    tableTotal = 0
+
+    // 请求服务器最新的列表数据
+    _reqList();
 }
 
-const tableData = ref([])
+function onLevelClicked(levelId) {
+    curLevelId.value = levelId
+
+    // 重置本地数据
+    curPageIndex.value = 1
+    tableTotal = 0
+
+    // 请求服务器最新的列表数据
+    _reqList();
+}
 
 function _reqList() {
-    doGet("x/wz/getList", {
-        group: curGroupIndex.value,
-        filterByName: filterName.value,
-        filterByModel: filterModel.value,
-        filterByDeclarer: filterDeclarer.value,
-        filterByHt: filterHt.value,
+    doGet("x/sbrhjy/getList", {
+        zzId: curzzId.value,
+        levelId: curLevelId.value,
         pageNum: curPageIndex.value,
         pageSize: PAGE_SIZE
     }, AC_getList.signal, () => {
@@ -102,16 +127,14 @@ function _reqList() {
         loadingList.value = false;
 
         if (r) {
-            formList.value = data.data.list
-            formTotal = data.data.total
+            tableData.value = data.data.list
+            tableTotal = data.data.total
         } else {
+
         }
     })
 }
 
-watch([()=> refSelect.value, ()=> refMenu.value] => {
-
-})
 </script>
 
 <style scoped>
