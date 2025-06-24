@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Date;
+
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -22,16 +24,26 @@ public class Csbrhjy {
 
     @Transactional
     @GetMapping(value = "/getList")
-    public Result<?> getList(
-                             @RequestParam(name = "zzId", required = false) String zzId,
-                             @RequestParam(name = "levelId", required = false) String levelId,
-                             @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-                             @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> getList(@RequestParam(name = "zzId", required = false) String zzId, @RequestParam(name = "levelId", required = false) String levelId, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
 
         String conds = "zz_id = '" + zzId + "' and level_id = '" + levelId + "'";
         String tbName = "t_device";
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = dao.doSelectSimple(tbName, "*", conds, null);
+        var ls = dao.doSelectSimple(tbName, "*", conds, "id");
         return Result.success(new PageSerializable<>(ls));
+    }
+
+    @Transactional
+    @GetMapping(value = "/save")
+    public Result<?> save(@RequestParam(name = "device_id") int device_id, @RequestParam(name = "c_a_person", required = false) String c_a_person, @RequestParam(name = "c_b_person", required = false) String c_b_person, @RequestParam(name = "type") int type) {
+        String tbName = "t_device";
+        java.sql.Date now = new java.sql.Date(System.currentTimeMillis());
+        var result = 0; // 更新行数
+        if (type == 1) {
+            result = dao.updateTime(tbName, device_id, now, null);
+        } else if (type == 2) {
+            result = dao.updateTime(tbName, device_id, null, now);
+        }
+        return Result.success(result);
     }
 }

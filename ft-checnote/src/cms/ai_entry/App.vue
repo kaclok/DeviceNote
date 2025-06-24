@@ -231,7 +231,7 @@ const appGridItems = ref([
         name: "设备检修记录\n(手机用)",
         url: "http://117.36.227.42:4175?group=" + group, // http://10.8.54.24:4177/pages/sb/index.html",
         image: logo_book,
-        enabled: false,
+        enabled: true,
     },
     {
         name: "仪表检修记录",
@@ -254,6 +254,18 @@ const appGridItems = ref([
     {
         name: "异常工况预警",
         url: "http://117.36.227.42:4177/pages/smds/watchdog/index.html?group=" + group,
+        image: logo_book,
+        enabled: false,
+    },
+    {
+        name: "设备润滑加油",
+        url: "http://117.36.227.42:4177/pages/smlj/sbrhjy/index.html?group=" + group,
+        image: logo_book,
+        enabled: true,
+    },
+    {
+        name: "采购供应管理",
+        url: "http://117.36.227.42:4177/pages/smlj/cggy/index.html?group=" + group,
         image: logo_book,
         enabled: true,
     },

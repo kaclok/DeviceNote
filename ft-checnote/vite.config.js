@@ -144,6 +144,8 @@ export default defineConfig((env) => {
                     safe_product: resolve(__dirname, './pages/safe_product/index.html'),
                     wz: resolve(__dirname, './pages/wz/index.html'),
                     watchdog: resolve(__dirname, './pages/smds/watchdog/index.html'),
+                    sbrhjy: resolve(__dirname, './pages/smlj/sbrhjy/index.html'),
+                    cggy: resolve(__dirname, './pages/smlj/cggy/index.html'),
                 },
                 output: {
                     manualChunks(id) {

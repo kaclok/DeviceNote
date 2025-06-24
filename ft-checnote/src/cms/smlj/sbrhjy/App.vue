@@ -38,17 +38,92 @@
                 </div>
 
                 <el-main>
-                    <el-scrollbar>
-                        <el-table :data="tableData">
-                            <el-table-column prop="name" label="设备名称" width="200"/>
-                            <el-table-column prop="weihao" label="设备位号" width="200"/>
-                            <el-table-column prop="size" label="设备型号" width="200"/>
-                            <el-table-column prop="prev_fix_a_time" label="上次轴伸端时间" width="180"/>
-                            <el-table-column prop="a_duration" label="下次轴伸端时间" width="180"/>
-                            <el-table-column prop="prev_fix_b_time" label="上次非轴伸端时间" width="180"/>
-                            <el-table-column prop="b_duration" label="下次轴伸端时间" width="180"/>
-                        </el-table>
-                    </el-scrollbar>
+                    <el-table :data="tableData" show-overflow-tooltip fit stripe border highlight-current-row>
+                        <el-table-column fixed type="index" :index="indexMethod" label="序号" width="65"/>
+                        <el-table-column fixed="left" label="" min-width="90" width="65">
+                            <template #default="scope">
+                                <el-button-group style="width: 100%;">
+                                    <el-button link type="primary" size="small" @click.prevent="onJYClicked(scope.row)">润滑
+                                    </el-button>
+                                </el-button-group>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="name" label="设备名称" width="200"/>
+                        <el-table-column prop="weihao" label="设备位号" width="200"/>
+                        <el-table-column prop="size" label="设备型号" width="200"/>
+                        <el-table-column prop="prev_fix_a_time" label="上次轴伸端时间" width="180">
+                            <template #default="scope1">
+                                <el-date-picker
+                                    format="YYYY-MM-DD"
+                                    :disabled="true"
+                                    type="datetime"
+                                    class="item"
+                                    v-model="scope1.row.prev_fix_a_time">
+                                </el-date-picker>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="a_duration" label="下次轴伸端时间" width="180">
+                            <template #default="scope2">
+                                <el-date-picker
+                                    format="YYYY-MM-DD"
+                                    :disabled="true"
+                                    type="datetime"
+                                    class="item"
+                                    :value="calcNextTime(scope2.row.prev_fix_a_time, scope2.row.a_duration)">
+                                </el-date-picker>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="prev_fix_b_time" label="上次非轴伸端时间" width="180">
+                            <template #default="scope3">
+                                <el-date-picker
+                                    format="YYYY-MM-DD"
+                                    :disabled="true"
+                                    type="datetime"
+                                    class="item"
+                                    v-model="scope3.row.prev_fix_b_time">
+                                </el-date-picker>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="b_duration" label="下次轴伸端时间" width="180">
+                            <template #default="scope4">
+                                <el-date-picker
+                                    format="YYYY-MM-DD"
+                                    :disabled="true"
+                                    type="datetime"
+                                    class="item"
+                                    :value="calcNextTime(scope4.row.prev_fix_b_time, scope4.row.b_duration)">
+                                </el-date-picker>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+
+                    <el-pagination
+                        v-if="tableTotal > PAGE_SIZE"
+                        size="small"
+                        :page-size="PAGE_SIZE"
+                        layout="prev, pager, next"
+                        :total="tableTotal"
+                        @current-change="onCurPageChanged"
+                        :current-page="curPageIndex"
+                    />
+
+                    <el-dialog align-center v-model="showDialogue" title="" width="250" draggable modal center :close-on-click-modal="false">
+                        <!--                        <el-input
+                                                    style="width: 450px"
+                                                    placeholder="请输入轴伸端加油者"
+                                                    clearable type="textarea" autosize v-model="deviceRecordInfo.c_a_person"
+                                                    autocomplete="off"/>-->
+                        <el-button @click="onASaveClicked">给轴伸端加油</el-button>
+
+                        <div style="margin-top: 30px">
+                            <!--                            <el-input
+                                                            style="width: 450px"
+                                                            placeholder="请输入非轴伸端加油者"
+                                                            clearable type="textarea" autosize v-model="deviceRecordInfo.c_a_person"
+                                                            autocomplete="off"/>-->
+                            <el-button @click="onBSaveClicked">给非轴伸端加油</el-button>
+                        </div>
+                    </el-dialog>
                 </el-main>
             </div>
         </el-container>
@@ -59,15 +134,30 @@
 <script lang="js" setup>
 import {ref, onUnmounted, onMounted} from "vue";
 import {doGet, doPost} from "@/framework/services/net/Request.js"
-import {Menu as IconMenu, Message, Setting} from '@element-plus/icons-vue'
 
-const PAGE_SIZE = 19
+const PAGE_SIZE = 16
+
+const __info__ = {
+    reset() {
+        this.c_a_person = null
+        this.c_b_person = null
+        return this
+    }
+}
+
+let deviceRecordInfo = ref(__info__)
 
 const curzzId = ref("1")       // 菜单默认选中第一项
 const curLevelId = ref("1")      // 下拉框默认选中高压电机
 
 let AC_getList = new AbortController();
+let AC_save = new AbortController();
+let AC_update = new AbortController();
+
 let loadingList = ref(false);
+let loadingSave = ref(false);
+let loadingUpdate = ref(false);
+
 let curPageIndex = ref(1)
 
 const tableData = ref([])
@@ -88,10 +178,74 @@ const options = [
         label: '免维护电机',
     },
 ]
+let showDialogue = ref(false)
+
+function calcNextTime(begin, duration) {
+    return (begin + duration);
+}
 
 onMounted(() => {
     _reqList();
 });
+
+onUnmounted(() => {
+    AC_getList.abort();
+    AC_save.abort();
+    AC_update.abort();
+})
+
+function indexMethod(index) {
+    return (curPageIndex.value - 1) * PAGE_SIZE + index + 1;
+}
+
+function onJYClicked(row) {
+    if (row) {
+        console.table(row);
+
+        showDialogue.value = true
+        deviceRecordInfo.value = JSON.parse(JSON.stringify(row));
+    }
+}
+
+
+function onASaveClicked() {
+    let c = deviceRecordInfo.value;
+    /*if (v.c_a_person === null) {
+        return;
+    }*/
+
+    _save(c.id, 1, c.c_a_person, c.c_b_person);
+}
+
+function onBSaveClicked() {
+    let c = deviceRecordInfo.value;
+    /*if (v.c_b_person === null) {
+        return;
+    }*/
+
+    _save(c.id, 2, c.c_a_person, c.c_b_person);
+}
+
+function _save(device_id, type, a_person, b_person) {
+    console.error(device_id + "|" + type);
+
+    doGet("x/sbrhjy/save", {
+        device_id: device_id,
+        c_a_person: a_person,
+        c_b_person: b_person,
+        type: type,
+    }, AC_save.signal, () => {
+        loadingSave.value = true;
+    }, (r, data) => {
+        loadingSave.value = false;
+
+        if (r) {
+            _reqList();
+        } else {
+
+        }
+    })
+}
 
 function onZZClicked(zzId) {
     curzzId.value = zzId
@@ -113,6 +267,14 @@ function onLevelClicked(levelId) {
 
     // 请求服务器最新的列表数据
     _reqList();
+}
+
+function onCurPageChanged(targetIndex) {
+    if (targetIndex !== curPageIndex.value) {
+        curPageIndex.value = targetIndex
+
+        _reqList();
+    }
 }
 
 function _reqList() {

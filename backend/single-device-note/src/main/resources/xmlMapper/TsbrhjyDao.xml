@@ -34,4 +34,17 @@
     <update id="Clear">
         truncate ${tableName}
     </update>
+
+    <update id="updateTime">
+        update sbrhjy.${tableName}
+        <set>
+            <if test="a_time != null">
+                prev_fix_a_time = #{a_time},
+            </if>
+            <if test="b_time != null">
+                prev_fix_b_time = #{b_time},
+            </if>
+        </set>
+        WHERE id = ${id}
+    </update>
 </mapper>
