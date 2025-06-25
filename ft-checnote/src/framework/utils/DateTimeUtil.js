@@ -1,9 +1,13 @@
 export class DateTimeUtil {
-    // 获取当前时间戳
-    static nowTimestamp() {
+    static nowMSTimestamp() {
         let dt = new Date();
         dt.setMilliseconds(0);
-        return dt.getTime() / 1000;
+        return dt.getTime();
+    }
+
+    // 获取当前时间戳
+    static nowTimestamp() {
+        return DateTimeUtil.nowMSTimestamp() / 1000;
     }
 
     // 获取当前日期

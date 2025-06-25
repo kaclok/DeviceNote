@@ -54,7 +54,7 @@
                         <el-table-column prop="prev_fix_a_time" label="上次轴伸端时间" width="180">
                             <template #default="scope1">
                                 <el-date-picker
-                                    format="YYYY-MM-DD"
+                                    format="YYYY-MM-DD HH"
                                     :disabled="true"
                                     type="datetime"
                                     class="item"
@@ -64,19 +64,23 @@
                         </el-table-column>
                         <el-table-column prop="a_duration" label="下次轴伸端时间" width="180">
                             <template #default="scope2">
-                                <el-date-picker
-                                    format="YYYY-MM-DD"
-                                    :disabled="true"
-                                    type="datetime"
-                                    class="item"
-                                    :value="calcNextTime(scope2.row.prev_fix_a_time, scope2.row.a_duration)">
-                                </el-date-picker>
+                                <el-badge is-dot :offset="[-220, 5]"
+                                          :type="getExpiredStyle(scope2.row.prev_fix_a_time, scope2.row.a_duration)"
+                                >
+                                    <el-date-picker
+                                        format="YYYY-MM-DD HH"
+                                        :disabled="true"
+                                        type="datetime"
+                                        class="item"
+                                        :model-value="calcNextTime(scope2.row.prev_fix_a_time, scope2.row.a_duration)">
+                                    </el-date-picker>
+                                </el-badge>
                             </template>
                         </el-table-column>
                         <el-table-column prop="prev_fix_b_time" label="上次非轴伸端时间" width="180">
                             <template #default="scope3">
                                 <el-date-picker
-                                    format="YYYY-MM-DD"
+                                    format="YYYY-MM-DD HH"
                                     :disabled="true"
                                     type="datetime"
                                     class="item"
@@ -86,13 +90,17 @@
                         </el-table-column>
                         <el-table-column prop="b_duration" label="下次轴伸端时间" width="180">
                             <template #default="scope4">
-                                <el-date-picker
-                                    format="YYYY-MM-DD"
-                                    :disabled="true"
-                                    type="datetime"
-                                    class="item"
-                                    :value="calcNextTime(scope4.row.prev_fix_b_time, scope4.row.b_duration)">
-                                </el-date-picker>
+                                <el-badge is-dot :offset="[-220, 5]"
+                                          :type="getExpiredStyle(scope4.row.prev_fix_b_time, scope4.row.b_duration)"
+                                >
+                                    <el-date-picker
+                                        format="YYYY-MM-DD HH"
+                                        :disabled="true"
+                                        type="datetime"
+                                        class="item"
+                                        :model-value="calcNextTime(scope4.row.prev_fix_b_time, scope4.row.b_duration)">
+                                    </el-date-picker>
+                                </el-badge>
                             </template>
                         </el-table-column>
                     </el-table>
@@ -134,6 +142,8 @@
 <script lang="js" setup>
 import {ref, onUnmounted, onMounted} from "vue";
 import {doGet, doPost} from "@/framework/services/net/Request.js"
+import {DateTimeUtil} from "@/framework/utils/DateTimeUtil.js";
+import {EnumUtil} from "@/framework/utils/EnumUtil.js";
 
 const PAGE_SIZE = 16
 
@@ -144,6 +154,12 @@ const __info__ = {
         return this
     }
 }
+
+const EExpireType = EnumUtil.asEnum({
+    Normal: 0,
+    WillExpired: 1,
+    Expired: 2,
+})
 
 let deviceRecordInfo = ref(__info__)
 
@@ -156,7 +172,6 @@ let AC_update = new AbortController();
 
 let loadingList = ref(false);
 let loadingSave = ref(false);
-let loadingUpdate = ref(false);
 
 let curPageIndex = ref(1)
 
@@ -181,7 +196,7 @@ const options = [
 let showDialogue = ref(false)
 
 function calcNextTime(begin, duration) {
-    return (begin + duration);
+    return (begin + duration * 3600000);
 }
 
 onMounted(() => {
@@ -200,13 +215,33 @@ function indexMethod(index) {
 
 function onJYClicked(row) {
     if (row) {
-        console.table(row);
-
         showDialogue.value = true
         deviceRecordInfo.value = JSON.parse(JSON.stringify(row));
     }
 }
 
+function getExpiredType(begin, duration) {
+    let next = begin + duration * 3600000
+    let now = DateTimeUtil.nowMSTimestamp()
+    /*console.error(next + "|" + now)*/
+
+    if (next < now) { // 过期
+        return EExpireType.Expired
+    } else if (next - now < 5 * 24 * 3600000) { // x天之内
+        return EExpireType.WillExpired
+    }
+    return EExpireType.Normal
+}
+
+function getExpiredStyle(begin, duration) {
+    let type = getExpiredType(begin, duration);
+    if (type === EExpireType.WillExpired) {
+        return "warning"
+    } else if (type === EExpireType.Expired) {
+        return "danger"
+    }
+    return "primary"
+}
 
 function onASaveClicked() {
     let c = deviceRecordInfo.value;
@@ -227,8 +262,6 @@ function onBSaveClicked() {
 }
 
 function _save(device_id, type, a_person, b_person) {
-    console.error(device_id + "|" + type);
-
     doGet("x/sbrhjy/save", {
         device_id: device_id,
         c_a_person: a_person,
