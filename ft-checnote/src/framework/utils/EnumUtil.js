@@ -5,5 +5,5 @@ export class EnumUtil {
 }
 
 export function asEnum(table) {
-    return DateTimeUtil.asEnum(table);
+    return EnumUtil.asEnum(table);
 }

@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Slf4j
 @RestController
@@ -37,7 +37,7 @@ public class Csbrhjy {
     @GetMapping(value = "/save")
     public Result<?> save(@RequestParam(name = "device_id") int device_id, @RequestParam(name = "c_a_person", required = false) String c_a_person, @RequestParam(name = "c_b_person", required = false) String c_b_person, @RequestParam(name = "type") int type) {
         String tbName = "t_device";
-        java.sql.Date now = new java.sql.Date(System.currentTimeMillis());
+        LocalDateTime now = LocalDateTime.now();
         var result = 0; // 更新行数
         if (type == 1) {
             result = dao.updateTime(tbName, device_id, now, null);
