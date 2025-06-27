@@ -20,7 +20,7 @@
         </el-aside>
 
         <el-container>
-            <div>
+            <div style="margin-top: 20px;">
                 <div class="flex flex-wrap gap-4 items-center">
                     <el-select
                         v-model="curLevelId"
@@ -37,13 +37,36 @@
                     </el-select>
                 </div>
 
+                <div style="margin-top: 10px;">
+                    <el-input
+                        v-model="filterName"
+                        style="width: 300px"
+                        placeholder="设备名称(可不填)"
+                        clearable
+                    />
+
+                    <el-input
+                        v-model="filterWeihao"
+                        style="position: relative; left: 2px; width: 300px"
+                        placeholder="设备位号(可不填)"
+                        clearable
+                    />
+                    <el-button v-cd="1.3" type="primary" style="position: relative; left: 8px;"
+                               @click="onClearClicked">清除
+                    </el-button>
+                    <el-button v-cd="1.3" type="primary" style="position: relative; left: 0;"
+                               @click="onSearchClicked">搜索
+                    </el-button>
+                </div>
+
                 <el-main>
                     <el-table :data="tableData" show-overflow-tooltip fit stripe border highlight-current-row>
                         <el-table-column fixed type="index" :index="indexMethod" label="序号" width="65"/>
                         <el-table-column fixed="left" label="" min-width="90" width="65">
                             <template #default="scope">
                                 <el-button-group style="width: 100%;">
-                                    <el-button link type="primary" size="small" @click.prevent="onJYClicked(scope.row)">润滑
+                                    <el-button link type="primary" size="small" @click.prevent="onJYClicked(scope.row)">
+                                        润滑
                                     </el-button>
                                 </el-button-group>
                             </template>
@@ -62,9 +85,9 @@
                                 </el-date-picker>
                             </template>
                         </el-table-column>
-                        <el-table-column prop="a_duration" label="下次轴伸端时间" width="180">
+                        <el-table-column prop="a_duration" label="下次轴伸端时间" width="180" sortable>
                             <template #default="scope2">
-                                <el-badge is-dot :offset="[-220, 5]"
+                                <el-badge is-dot :offset="[-220, 5]" :hidden="getExpiredStyle(scope2.row.prev_fix_a_time, scope2.row.a_duration) === 'primary'"
                                           :type="getExpiredStyle(scope2.row.prev_fix_a_time, scope2.row.a_duration)"
                                 >
                                     <el-date-picker
@@ -88,9 +111,9 @@
                                 </el-date-picker>
                             </template>
                         </el-table-column>
-                        <el-table-column prop="b_duration" label="下次轴伸端时间" width="180">
+                        <el-table-column prop="b_duration" label="下次轴伸端时间" width="180" sortable>
                             <template #default="scope4">
-                                <el-badge is-dot :offset="[-220, 5]"
+                                <el-badge is-dot :offset="[-220, 5]" :hidden="getExpiredStyle(scope4.row.prev_fix_b_time, scope4.row.b_duration) === 'primary'"
                                           :type="getExpiredStyle(scope4.row.prev_fix_b_time, scope4.row.b_duration)"
                                 >
                                     <el-date-picker
@@ -115,7 +138,8 @@
                         :current-page="curPageIndex"
                     />
 
-                    <el-dialog align-center v-model="showDialogue" title="" width="250" draggable modal center :close-on-click-modal="false">
+                    <el-dialog align-center v-model="showDialogue" title="" width="250" draggable modal center
+                               :close-on-click-modal="false">
                         <!--                        <el-input
                                                     style="width: 450px"
                                                     placeholder="请输入轴伸端加油者"
@@ -141,7 +165,7 @@
 
 <script lang="js" setup>
 import {ref, onUnmounted, onMounted} from "vue";
-import {doGet, doPost} from "@/framework/services/net/Request.js"
+import {doGet} from "@/framework/services/net/Request.js"
 import {DateTimeUtil} from "@/framework/utils/DateTimeUtil.js";
 import {EnumUtil} from "@/framework/utils/EnumUtil.js";
 
@@ -165,6 +189,9 @@ let deviceRecordInfo = ref(__info__)
 
 const curzzId = ref("1")       // 菜单默认选中第一项
 const curLevelId = ref("1")      // 下拉框默认选中高压电机
+
+const filterName = ref(null)
+const filterWeihao = ref(null)
 
 let AC_getList = new AbortController();
 let AC_save = new AbortController();
@@ -211,6 +238,19 @@ onUnmounted(() => {
 
 function indexMethod(index) {
     return (curPageIndex.value - 1) * PAGE_SIZE + index + 1;
+}
+
+function onClearClicked() {
+    filterName.value = null
+    filterWeihao.value = null
+
+    // 请求服务器最新的列表数据
+    _reqList();
+}
+
+function onSearchClicked() {
+    // 请求服务器最新的列表数据
+    _reqList();
 }
 
 function onJYClicked(row) {
@@ -314,6 +354,8 @@ function _reqList() {
     doGet("x/sbrhjy/getList", {
         zzId: curzzId.value,
         levelId: curLevelId.value,
+        filterByName: filterName.value,
+        filterByWeihao: filterWeihao.value,
         pageNum: curPageIndex.value,
         pageSize: PAGE_SIZE
     }, AC_getList.signal, () => {
@@ -338,6 +380,7 @@ function _reqList() {
     background-color: var(--el-color-primary-light-7);
     color: var(--el-text-color-primary);
 }
+
 
 .layout-container-demo .el-aside {
     color: var(--el-text-color-primary);
