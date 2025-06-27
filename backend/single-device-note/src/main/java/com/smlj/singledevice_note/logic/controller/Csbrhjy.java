@@ -24,9 +24,20 @@ public class Csbrhjy {
 
     @Transactional
     @GetMapping(value = "/getList")
-    public Result<?> getList(@RequestParam(name = "zzId", required = false) String zzId, @RequestParam(name = "levelId", required = false) String levelId, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> getList(@RequestParam(name = "zzId", required = false) String zzId,
+                             @RequestParam(name = "levelId", required = false) String levelId,
+                             @RequestParam(name = "filterByName", required = false) String filterByName,
+                             @RequestParam(name = "filterByWeihao", required = false) String filterByWeihao,
+                             @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
+                             @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
 
         String conds = "zz_id = '" + zzId + "' and level_id = '" + levelId + "'";
+        if (!StrUtil.isEmpty(filterByName)) {
+            conds += "and name like '%" + filterByName + "%' ";
+        }
+        if (!StrUtil.isEmpty(filterByWeihao)) {
+            conds += "and weihao like '%" + filterByWeihao + "%' ";
+        }
         String tbName = "t_device";
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = dao.doSelectSimple(tbName, "*", conds, "id");
