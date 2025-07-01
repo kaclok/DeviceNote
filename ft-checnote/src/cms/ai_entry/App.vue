@@ -192,6 +192,12 @@ const appGridItems = ref([
         enabled: true,
     },
     {
+        name: "OA",
+        url: "http://portal.sxigc.com/",
+        image: logo_book,
+        enabled: true,
+    },
+    {
         name: "生产记事",
         url: "http://10.8.54.26/chr/index/index",
         image: logo_book,
