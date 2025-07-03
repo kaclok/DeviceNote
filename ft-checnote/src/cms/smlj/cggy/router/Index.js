@@ -1,10 +1,13 @@
-import {createRouter, createWebHistory} from 'vue-router'
+import {createRouter, createWebHashHistory, createWebHistory} from 'vue-router'
 import {routers, PREFIX} from './Router.js'
 import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
 
+let base = import.meta.env.VITE_BASE;
+/*base = "/pages/smlj/cggy/index.html";*/
+
 // 创建路由实例
 const router = createRouter({
-    history: createWebHistory(), // 设置正确的基础路径
+    history: createWebHistory(base), // 设置正确的基础路径
     strict: true,
     routes: routers,
     scrollBehavior(to, from, savedPosition) {

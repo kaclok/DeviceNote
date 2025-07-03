@@ -1,8 +1,8 @@
-import CpHome from '@/cms/smlj/cggy/views/home.vue'
-import CpLogin from '@/cms/smlj/cggy/views/login.vue'
+import CpHome from '../views/home.vue'
+import CpLogin from '../views/login.vue'
 import CpNotFound from '@/framework/components/CpNotFound.vue'
 
-export const PREFIX = '/pages/smlj/cggy'
+export let PREFIX = '/pages/smlj/cggy'
 
 const _homeRouter = {
     path: PREFIX + '/home',

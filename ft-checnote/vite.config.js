@@ -15,6 +15,12 @@ import mpa from './vite.config-mpa.js'
 import vueAutoImport from './src/framework/auto-import/vue-auto-import.js'
 import {resolve} from "path";
 
+// 通过入口文件路径推断 base
+function getBase(entryPath) {
+    const match = entryPath.match(/pages(\/.+?)\/index.html$/)?.[1] || '/'
+    return match.endsWith('/') ? match : `${match}/`
+}
+
 // https://vitejs.cn/vite3-cn/config/#conditional-config
 // https://cn.vitejs.dev/config/#define
 export default defineConfig((env) => {
