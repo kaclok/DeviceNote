@@ -152,7 +152,7 @@ function _reqCover(fs) {
             <img src="@/assets/st_logo.png" class="page-logo-content" alt="">
             <span class="page-title-content">{{ "物资库存记录" }}</span>
 
-            <div class="page-menu-content">
+            <div class="left-menu">
                 <el-menu mode="horizontal" background-color="#1C4785" text-color="#DCDCDC" active-text-color="#ffffff"
                          :default-active="curGroupIndex"
                          @select="onMenuClicked">
@@ -274,7 +274,7 @@ function _reqCover(fs) {
             text-align: center;
         }
 
-        .page-menu-content {
+        .left-menu {
             position: relative;
             left: -60px;
 

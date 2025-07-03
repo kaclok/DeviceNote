@@ -247,7 +247,7 @@ function onSaveClicked() {
             <img src="@/assets/st_logo.png" class="page-logo-content" alt="">
             <span class="page-title-content">{{ "设备检修记录" }}</span>
 
-            <div class="page-menu-content">
+            <div class="left-menu">
                 <el-menu mode="horizontal" background-color="#1C4785" text-color="#DCDCDC" active-text-color="#ffffff"
                          @select="onMenuClicked">
                     <el-menu-item index="1">公辅装置</el-menu-item>
@@ -442,7 +442,7 @@ function onSaveClicked() {
             text-align: center;
         }
 
-        .page-menu-content {
+        .left-menu {
             position: relative;
             left: -60px;
 
