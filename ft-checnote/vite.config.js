@@ -3,7 +3,6 @@ import {defineConfig, loadEnv} from 'vite'
 // https://www.cnblogs.com/heavenYJJ/p/18058142
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
-import {resolve} from 'path'
 
 // 按需自动导入Element-Plus https://element-plus.org/zh-CN/guide/quickstart.html
 import AutoImport from 'unplugin-auto-import/vite'
@@ -12,7 +11,9 @@ import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
 
 // vite.config.js中不能用@表示src目录，因为@表达src就是在此配置的resolve.alias
 import defines from './vite.config-define.js'
+import mpa from './vite.config-mpa.js'
 import vueAutoImport from './src/framework/auto-import/vue-auto-import.js'
+import {resolve} from "path";
 
 // https://vitejs.cn/vite3-cn/config/#conditional-config
 // https://cn.vitejs.dev/config/#define
@@ -113,7 +114,7 @@ export default defineConfig((env) => {
                     changeOrigin: true,// 开启跨域
                     // 去除前缀api
                     rewrite: (path) => path.replace(/^\/production/, '')
-                }
+                },
             },
         },
         preview: {
@@ -134,19 +135,7 @@ export default defineConfig((env) => {
             outDir: (curCfg.VITE_OUT_DIR || 'dist') + '-0.0.1-cors',
             chunkSizeWarningLimit: 500,
             rollupOptions: {
-                input: { // https://cn.vitejs.dev/guide/build#multi-page-app
-                    // https://www.bilibili.com/video/BV1Ru4y1Q7SQ/?vd_source=5c9f5bd891aee351c325bcf632b5550f
-                    index: resolve(__dirname, './index.html'),
-                    dq: resolve(__dirname, './pages/dq/index.html'),
-                    yb: resolve(__dirname, './pages/yb/index.html'),
-                    sb: resolve(__dirname, './pages/sb/index.html'),
-                    ai_entry: resolve(__dirname, './pages/ai_entry/index.html'),
-                    safe_product: resolve(__dirname, './pages/safe_product/index.html'),
-                    wz: resolve(__dirname, './pages/wz/index.html'),
-                    watchdog: resolve(__dirname, './pages/smds/watchdog/index.html'),
-                    sbrhjy: resolve(__dirname, './pages/smlj/sbrhjy/index.html'),
-                    cggy: resolve(__dirname, './pages/smlj/cggy/index.html'),
-                },
+                input: mpa,
                 output: {
                     manualChunks(id) {
                         // 第三方库打包结果不和 自己写的代码 混淆在一个包中
