@@ -21,6 +21,8 @@ function getBase(entryPath) {
     return match.endsWith('/') ? match : `${match}/`
 }
 
+const isDocker = process.env.DOCKER === 'true'
+
 // https://vitejs.cn/vite3-cn/config/#conditional-config
 // https://cn.vitejs.dev/config/#define
 export default defineConfig((env) => {

@@ -2,32 +2,32 @@ import CpHome from '../views/home.vue'
 import CpLogin from '../views/login.vue'
 import CpNotFound from '@/framework/components/CpNotFound.vue'
 
-export let PREFIX = '/pages/smlj/cggy'
+export const PREFIX = '/pages/smlj/cggy/index.html'
 
 const _homeRouter = {
-    path: PREFIX + '/home',
+    path: '/home',
     name: 'home',
     component: CpHome,
 }
 
 const _indexFullRouter = {
-    path: PREFIX + "/index.html",
+    path: "/index.html",
     redirect: _homeRouter.path,
 }
 
 const _indexRouter = {
-    path: PREFIX + "/",
+    path: "/",
     redirect: _homeRouter.path,
 }
 
 const _loginRouter = {
-    path: PREFIX + '/login',
+    path: '/login',
     name: 'login',
     component: CpLogin,
 }
 
 const _404Router = {
-    path: PREFIX + '/:pathMatch(.*)*',
+    path: '/:pathMatch(.*)*',
     name: 'notFound',
     component: CpNotFound,
 }
