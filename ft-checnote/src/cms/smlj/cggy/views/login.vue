@@ -37,7 +37,7 @@ function loginAction() {
             LocalStorageService.setStore("account", data.data.account.account)
             LocalStorageService.setStore("accountAuth", data.data.account.auth)
 
-            router.push({name: 'homeRouter'})
+            router.push({name: 'home'})
         }
         else {
             console.log("<UNK>");

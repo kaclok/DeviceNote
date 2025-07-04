@@ -27,20 +27,20 @@ const router = createRouter({
             timestamp: new Date().getTime()
         })
     })
-}
+}*/
 
 router.beforeEach((to, current, next) => {
     let isLoggedIn = LocalStorageService.getStore("account") !== null
     if (to.name === 'login' && isLoggedIn) {
         // 如果用户已登录且尝试访问登录页，重定向到记录页
         next({name: 'home'});
-    } else if (to.name === 'home' && !isLoggedIn) {
+    } /*else if (to.name === 'home' && !isLoggedIn) {
         // 如果用户未登录且尝试访问记录页，重定向到登录页
         next({name: 'login'});
-    } else {
+    }*/ else {
         next();
     }
-});*/
+});
 
 export {
     router,

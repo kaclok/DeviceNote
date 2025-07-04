@@ -1,6 +1,10 @@
-import CpHome from '../views/home.vue'
-import CpLogin from '../views/login.vue'
 import CpNotFound from '@/framework/components/CpNotFound.vue'
+
+import CpLogin from '../views/login.vue'
+import CpHome from '../views/home.vue'
+import cp_home_bill from '../views/home_bill.vue'
+import cp_home_cgy from '../views/home_cgy.vue'
+import cp_home_jhy from '../views/home_jhy.vue'
 
 export const PREFIX = '/pages/smlj/cggy/index.html'
 
@@ -8,6 +12,12 @@ const _homeRouter = {
     path: '/home',
     name: 'home',
     component: CpHome,
+    children: [
+        { path: '', redirect: '/home/bill', },
+        { path: 'jhy', name: 'home_jhy', component: cp_home_jhy },
+        { path: 'cgy', name: 'home_cgy', component: cp_home_cgy },
+        { path: 'bill', name: 'home_bill', component: cp_home_bill },
+    ],
 }
 
 const _indexFullRouter = {

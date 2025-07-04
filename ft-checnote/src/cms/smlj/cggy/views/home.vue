@@ -6,78 +6,43 @@
 
             <div class="left-menu">
                 <el-menu mode="horizontal" background-color="#1C4785" text-color="#DCDCDC" active-text-color="#ffffff"
-                         :default-active="curMenuIndex"
-                         @select="onMenuClicked">
-                    <el-menu-item index="1">采购员</el-menu-item>
-                    <el-menu-item index="2">计划员</el-menu-item>
+                         router
+                         :default-active='getDefaultActive()'>
+                    <el-menu-item index="/home/bill">结算单</el-menu-item>
+                    <el-menu-item index="/home/cgy">采购员</el-menu-item>
+                    <el-menu-item index="/home/jhy">计划员</el-menu-item>
                 </el-menu>
             </div>
 
             <div class="right-menu">
-                <div v-loading="loadingMsg" style="position: absolute; right: 25px">
-                </div>
             </div>
         </div>
 
         <div class="page-content">
-            <div v-loading="loadingList"
-                 style="width: 100%; padding-left: 0; padding-top: 5px">
-            </div>
+            <router-view/>
         </div>
     </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="js">
 import {ref, onUnmounted, onMounted} from "vue";
-import {doGet, doPost} from "@/framework/services/net/Request.js"
 
-const PAGE_SIZE = 19
-const AC_getList = new AbortController();
 const AC_getMsg = new AbortController();
-
-const loadingList = ref(false);
 const loadingMsg = ref(false);
-
-const curPageIndex = ref(1)
-
-const curMenuIndex = ref("1")
-
-let formTotal = 0
 
 // 清理定时器，事件监听器，异步函数
 onUnmounted(() => {
-    AC_getList.abort();
     AC_getMsg.abort();
 });
 
 onMounted(() => {
-    onMenuClicked(curMenuIndex.value);
+
 });
 
-function indexMethod(index) {
-    return (curPageIndex.value - 1) * PAGE_SIZE + index + 1;
+function getDefaultActive() {
+    return '/home/bill'
 }
 
-function onPageChanged(pageIndex) {
-    if (pageIndex !== curPageIndex.value) {
-        curPageIndex.value = pageIndex
-
-        _reqList()
-    }
-}
-
-function onMenuClicked(menuIndex) {
-    curMenuIndex.value = menuIndex
-
-    formTotal = 0
-    curPageIndex.value = 1
-
-    _reqList();
-}
-
-function _reqList() {
-
-}
 </script>
 
 <style scoped>
