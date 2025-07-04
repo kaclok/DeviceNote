@@ -3,6 +3,7 @@ import {defineConfig, loadEnv} from 'vite'
 // https://www.cnblogs.com/heavenYJJ/p/18058142
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import mpaPlugin from 'vite-plugin-mpa-plus'
 
 // 按需自动导入Element-Plus https://element-plus.org/zh-CN/guide/quickstart.html
 import AutoImport from 'unplugin-auto-import/vite'
@@ -11,9 +12,8 @@ import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
 
 // vite.config.js中不能用@表示src目录，因为@表达src就是在此配置的resolve.alias
 import defines from './vite.config-define.js'
-import mpa from './vite.config-mpa.js'
+import {mpaInput, mpaRewrites, mpaPages} from './vite.config-mpa.js'
 import vueAutoImport from './src/framework/auto-import/vue-auto-import.js'
-import {resolve} from "path";
 
 // 通过入口文件路径推断 base
 function getBase(entryPath) {
@@ -68,6 +68,13 @@ export default defineConfig((env) => {
             Components({
                 resolvers: [ElementPlusResolver()],
             }),
+            // https://blog.csdn.net/usernotdefined/article/details/129897995?utm_source=miniapp_weixin
+            /*mpaPlugin({
+                mpaPages,
+                historyApiFallback: {
+                    mpaRewrites
+                }
+            }),*/
         ],
 
         // npm run dev的输出是：Local:   http://localhost:5175/， 如果是多页面情形，则需要修改，即修改base即可
@@ -143,7 +150,7 @@ export default defineConfig((env) => {
             outDir: (curCfg.VITE_OUT_DIR || 'dist') + '-0.0.1-cors',
             chunkSizeWarningLimit: 500,
             rollupOptions: {
-                input: mpa,
+                input: mpaInput,
                 output: {
                     manualChunks(id) {
                         // 第三方库打包结果不和 自己写的代码 混淆在一个包中
