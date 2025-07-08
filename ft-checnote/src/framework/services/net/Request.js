@@ -14,6 +14,7 @@ async function innerPost(url, paras, signal, onUploading, onDownloading) {
             // 从 v0.27.0 版本开始，当请求头中的 Content-Type 是 multipart/form-data 时，Axios 支持自动地将普通对象序列化成一个 FormData 对象
             'Content-Type': 'multipart/form-data charset=utf-8',
         },
+        signal: signal,
         onUploadProgress: onUploading,
         onDownloadProgress: onDownloading,
     })
