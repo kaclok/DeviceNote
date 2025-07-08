@@ -134,7 +134,7 @@ async function handleSubmit() {
     formData.append('file_wlcc', file1.value);
     formData.append('file_library', file2.value);
 
-    await doPost("x/cggy/submitExcel", formData, AC_upload, () => {
+    await doPost("x/cggy/submitExcel", formData, AC_upload.signal, () => {
         loadingUpload.value = true;
     }, (r, data) => {
         loadingUpload.value = false;
