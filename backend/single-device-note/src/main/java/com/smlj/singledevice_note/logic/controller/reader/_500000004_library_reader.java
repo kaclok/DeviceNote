@@ -3,6 +3,7 @@ package com.smlj.singledevice_note.logic.controller.reader;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
 import com.alibaba.excel.exception.ExcelDataConvertException;
+import com.smlj.singledevice_note.logic.controller.CCGGY;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_library_500000004;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,7 +21,19 @@ public class _500000004_library_reader extends AnalysisEventListener<Tcggy_libra
 
     @Override
     public void invoke(Tcggy_library_500000004 data, AnalysisContext context) {
-        arr.add(data);
+        if (data != null) {
+            // 过滤非电石资源
+            if (!data.getGoods_name().equals(CCGGY.GOODS.get(500000004))) {
+                return;
+            }
+
+            var c = data.getC_commecnt();
+            if (c != null && c.contains("神木电石")) {
+                data.set_ds(true);
+            }
+
+            arr.add(data);
+        }
     }
 
     /**

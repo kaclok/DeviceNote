@@ -1,8 +1,6 @@
 export class DateTimeUtil {
     static nowMSTimestamp() {
-        let dt = new Date();
-        dt.setMilliseconds(0);
-        return dt.getTime();
+        return Date.now();
     }
 
     // 获取当前时间戳

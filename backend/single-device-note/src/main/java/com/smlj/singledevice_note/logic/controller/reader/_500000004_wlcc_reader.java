@@ -3,6 +3,7 @@ package com.smlj.singledevice_note.logic.controller.reader;
 import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
 import com.alibaba.excel.exception.ExcelDataConvertException;
+import com.smlj.singledevice_note.logic.controller.CCGGY;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_wlcc_500000004;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,7 +21,29 @@ public class _500000004_wlcc_reader extends AnalysisEventListener<Tcggy_wlcc_500
 
     @Override
     public void invoke(Tcggy_wlcc_500000004 data, AnalysisContext context) {
-        arr.add(data);
+        if (data != null) {
+            // 过滤非电石资源
+            if (!data.getGoods_name().equals(CCGGY.GOODS.get(500000004))) {
+                return;
+            }
+
+            arr.add(data);
+
+            boolean handled = true;
+            if (data.getGross_time() == null) {
+                // 没有过毛时间
+                handled = false;
+                data.set_handled(handled);
+                return;
+            }
+
+            if (data.getDiff_weight() < 2) {
+                // 净重小于2t
+                handled = false;
+                data.set_handled(handled);
+                return;
+            }
+        }
     }
 
     /**

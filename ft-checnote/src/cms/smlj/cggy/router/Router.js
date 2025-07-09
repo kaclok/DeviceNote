@@ -1,81 +1,53 @@
 import CpNotFound from '@/framework/components/CpNotFound.vue'
 
-import CpLogin from '../views/login.vue'
-import CpHome from '../views/home.vue'
-import cp_home_bill from '../views/home_bill.vue'
-import cp_home_cgy from '../views/home_cgy.vue'
-import cp_home_jhy from '../views/home_jhy.vue'
-
 export const PREFIX = '/pages/smlj/cggy/index.html'
 
 const _homeRouter = {
-    path: '/home',
-    name: 'home',
-    component: CpHome,
-    children: [
-        { path: '', redirect: '/home/bill', },
-        { path: 'jhy', name: 'home_jhy', component: cp_home_jhy },
-        { path: 'cgy', name: 'home_cgy', component: cp_home_cgy },
-        { path: 'bill', name: 'home_bill', component: cp_home_bill },
-    ],
-}
+    path: '/home', name: 'home', component: () => import('../views/home.vue'),
+    children: [{path: '', name: 'home_default', redirect: '/home/bill',},
+        {path: 'jhy', name: 'home_jhy', component: () => import('../views/home_jhy.vue'),},
+        {path: 'cgy', name: 'home_cgy', component: () => import('../views/home_cgy.vue'),},
+        {
+            path: 'bill', name: 'home_bill', component: () => import('../views/home_bill.vue'),
+            children: [{path: '', name: 'home_bill_default', redirect: '/home/bill/input'},
+                {path: 'input', name: 'home_bill_input', component: () => import('../views/home_bill_input.vue'),},
 
-const _indexFullRouter = {
-    path: "/index.html",
-    redirect: _homeRouter.path,
+                // https://router.vuejs.org/zh/guide/essentials/passing-props.html
+                // props: true 将 params 自动转为 props
+                // (\\d+)限制必须为数字
+                {path: 'table/:goodsId(\\d+)/:timestamp(\\d+)', name: 'home_bill_table', component: () => import('../views/home_bill_table.vue'), props: true},]
+        },],
 }
 
 const _indexRouter = {
-    path: "/",
-    redirect: _homeRouter.path,
+    path: "/", redirect: _homeRouter.path,
 }
 
 const _loginRouter = {
-    path: '/login',
-    name: 'login',
-    component: CpLogin,
+    path: '/login', name: 'login', component: () => import('../views/login.vue'),
 }
 
 const _404Router = {
-    path: '/:pathMatch(.*)*',
-    name: 'notFound',
-    component: CpNotFound,
+    path: '/:pathMatch(.*)*', name: 'notFound', component: CpNotFound,
 }
 
 export const pathToRouter = {
-    [_indexFullRouter.path]: _indexFullRouter,
     [_indexRouter.path]: _indexRouter,
     [_loginRouter.path]: _loginRouter,
     [_homeRouter.path]: _homeRouter,
     [_404Router.path]: _404Router,
 }
 
-/*const currentPath = ref(window.location.hash)
+const currentPath = ref(window.location.hash)
 window.addEventListener('hashchange', () => {
     console.error("hashchange")
     currentPath.value = window.location.hash;
 })
 
-const currentRouter = computed(() => {
-    let key = currentPath.value.slice(1) || '/';
-    return pathToRouter[key] || _404Router;
-})
-
-const currentView = computed(() => {
-    if (currentRouter) {
-        // computed返回值其实也是一个ref,computed监听的也是一个ref或者reactive
-        return currentRouter.value.component;
-    }
-    return CpNotFound;
-})
-
-console.error("currentPath:" + currentPath.value)
-console.error("CurrentRouter:" + currentRouter.value.name)
-console.table(currentView.value)*/
+console.log("currentRoutePath:" + currentPath.value)
 
 // 定义的所有router全部在此注册
 export const routers = [
-    _indexFullRouter,
     _indexRouter,
     _loginRouter,
     _homeRouter,

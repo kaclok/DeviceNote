@@ -1,10 +1,11 @@
 package com.smlj.singledevice_note.logic.o.vo.table.entity;
 
-import com.alibaba.excel.annotation.ExcelProperty;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
+import java.sql.Date;
 
 @Component
 @Data
@@ -12,17 +13,22 @@ public class Tcggy_js_500000004 implements Serializable {
     // @Serial
     // private static final long serialVersionUID = 1;
 
-    @ExcelProperty("物资名称")
-    private String c_name;
-    @ExcelProperty("数量")
-    private Integer c_number;
-    @ExcelProperty("单位")
-    private String c_unit;
-    @ExcelProperty("规格型号")
-    private String c_model;
-    @ExcelProperty("申报单位")
-    private String c_declarer;
-    @ExcelProperty("采购合同编号")
-    private String c_ht;
+    private String wlcc_id;
+    private String library_id;
+
+    private Date date;
+    private String goods_supplier;
+    private String car_no;
+    private float ash_weight;
+    private float weight;
+    private float final_weight;
+
+    private int fq;
+
+    private float base_price;
+    private float price;
+    private float total_price;
+
+    private boolean is_js; // 是否已经被结算过
 }
 
