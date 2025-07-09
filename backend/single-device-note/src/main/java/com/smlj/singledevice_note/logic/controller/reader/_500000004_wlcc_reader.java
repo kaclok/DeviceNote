@@ -29,18 +29,18 @@ public class _500000004_wlcc_reader extends AnalysisEventListener<Tcggy_wlcc_500
 
             arr.add(data);
 
-            boolean handled = true;
+            boolean filtered = false;
             if (data.getGross_time() == null) {
                 // 没有过毛时间
-                handled = false;
-                data.set_handled(handled);
+                filtered = true;
+                data.set_filtered(filtered);
                 return;
             }
 
             if (data.getDiff_weight() < 2) {
                 // 净重小于2t
-                handled = false;
-                data.set_handled(handled);
+                filtered = true;
+                data.set_filtered(filtered);
                 return;
             }
         }

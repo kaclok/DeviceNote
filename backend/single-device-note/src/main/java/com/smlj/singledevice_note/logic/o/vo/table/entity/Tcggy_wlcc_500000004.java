@@ -6,6 +6,7 @@ import lombok.Data;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Component
@@ -23,7 +24,7 @@ public class Tcggy_wlcc_500000004 implements Serializable {
 
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("完成时间")
-    private Date finish_time;
+    private LocalDateTime finish_time;
 
     @ExcelProperty("状态")
     private String status;
@@ -45,19 +46,19 @@ public class Tcggy_wlcc_500000004 implements Serializable {
 
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("派车时间")
-    private Date send_time;
+    private LocalDateTime send_time;
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("签到时间")
-    private Date sign_time;
+    private LocalDateTime sign_time;
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("入场时间")
-    private Date enter_time;
+    private LocalDateTime enter_time;
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("过毛时间")
-    private Date gross_time;
+    private LocalDateTime gross_time;
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("过皮时间")
-    private Date tare_time;
+    private LocalDateTime tare_time;
 
     @ExcelProperty("司机")
     private String driver_name;
@@ -65,6 +66,6 @@ public class Tcggy_wlcc_500000004 implements Serializable {
     private String driver_phone;
 
     // 是否处理过，一般都是因为行数据不对导致程序没有处理，直接过滤掉了
-    private boolean is_handled = true;
+    private boolean is_filtered = false;
 }
 

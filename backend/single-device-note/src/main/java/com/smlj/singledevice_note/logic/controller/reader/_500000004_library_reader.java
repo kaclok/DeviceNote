@@ -23,7 +23,7 @@ public class _500000004_library_reader extends AnalysisEventListener<Tcggy_libra
     public void invoke(Tcggy_library_500000004 data, AnalysisContext context) {
         if (data != null) {
             // 过滤非电石资源
-            if (!data.getGoods_name().equals(CCGGY.GOODS.get(500000004))) {
+            if (!(data.getGoods_name().equals(CCGGY.GOODS.get(500000004)))) {
                 return;
             }
 

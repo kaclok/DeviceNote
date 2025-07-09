@@ -40,8 +40,9 @@ export const pathToRouter = {
 
 const currentPath = ref(window.location.hash)
 window.addEventListener('hashchange', () => {
-    console.error("hashchange")
     currentPath.value = window.location.hash;
+
+    console.log("hashchange currentRoutePath:" + currentPath.value)
 })
 
 console.log("currentRoutePath:" + currentPath.value)

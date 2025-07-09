@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.Tcggy_js_500000004_Dao">
+    <insert id="InsertBatch">
+        insert into ${tableName} (
+        wlcc_id ,
+        library_id ,
+        date ,
+        goods_supplier ,
+        car_no ,
+        ash_weight,
+        weight ,
+        final_weight,
+        fq,
+        base_price,
+        price,
+        total_price,
+        is_filtered,
+        is_js,
+        xy_dt,
+        c_comment,
+        goods_level,
+        modify_time,
+        ) values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (
+            #{item.wlcc_id} ,
+            #{item.library_id} ,
+            #{item.date} ,
+            #{item.goods_supplier} ,
+            #{item.car_no} ,
+            ${item.ash_weight},
+            ${item.weight} ,
+            ${item.final_weight} ,
+            ${item.fq} ,
+            ${item.base_price},
+            ${item.price},
+            ${item.total_price},
+            ${item.is_filtered},
+            ${item.is_js},
+            #{item.xy_dt},
+            #{item.c_comment},
+            #{item.goods_level},
+            #{item.modify_time},
+            )
+        </foreach>
+    </insert>
+
+    <select id="doSelect" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_js_500000004">
+        select ${select} from ${tableName}
+        <where>
+            <if test="conds != null and conds != ''">
+                <foreach collection="conds" item="item" index="index" separator="">
+                    and (${item})
+                </foreach>
+            </if>
+        </where>
+
+        <if test="orderBys != null and orderBys != ''">
+            order by ${orderBys}
+        </if>
+    </select>
+
+    <select id="doSelectSimple" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_js_500000004">
+        select ${select} from ${tableName}
+        <where>
+            <if test="conds != null and conds != ''">
+                and (${conds})
+            </if>
+        </where>
+
+        <if test="orderBys != null and orderBys != ''">
+            order by ${orderBys}
+        </if>
+    </select>
+
+    <update id="Clear">
+        truncate ${tableName}
+    </update>
+</mapper>

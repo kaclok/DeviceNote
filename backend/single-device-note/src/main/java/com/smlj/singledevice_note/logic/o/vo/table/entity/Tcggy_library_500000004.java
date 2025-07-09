@@ -6,6 +6,7 @@ import lombok.Data;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Component
@@ -20,15 +21,15 @@ public class Tcggy_library_500000004 implements Serializable {
     private String goods_name;
     @ExcelProperty(index = 2)
     private String goods_level;
-    @ExcelProperty(index = 3)
-    private String cy_position;
+    /* @ExcelProperty(index = 3)
+    private String cy_position; */
 
     @DateTimeFormat("yyyy-MM-dd HH:mm")
     @ExcelProperty(index = 4)
-    private Date xy_dt;
-    @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime xy_dt;
+    /* @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty(index = 5)
-    private Date fx_dt;
+    private Date fx_dt; */
 
     @ExcelProperty(index = 6)
     private int fq;
