@@ -23,6 +23,7 @@
         c_comment,
         goods_level,
         modify_time,
+        is_matched,
         ) values
         <foreach collection="list" item="item" index="index" separator=",">
             (
@@ -44,6 +45,7 @@
             #{item.c_comment},
             #{item.goods_level},
             #{item.modify_time},
+            ${item.is_matched},
             )
         </foreach>
     </insert>

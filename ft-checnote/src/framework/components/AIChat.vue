@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed } from 'vue'
+import {nextTick, onMounted, ref} from 'vue'
 import axios from 'axios'
 
 const messages = ref([])

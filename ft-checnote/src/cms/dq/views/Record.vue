@@ -2,7 +2,7 @@
 
 import {SysX} from "@/cms/yb/system/SysX.js";
 import {Singleton} from "@/framework/services/Singleton.js";
-import {ref, onUnmounted, onMounted} from "vue";
+import {onMounted, onUnmounted, ref} from "vue";
 
 const PAGE_SIZE = 13
 

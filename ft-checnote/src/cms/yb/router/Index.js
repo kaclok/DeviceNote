@@ -1,6 +1,5 @@
 import {createRouter, createWebHistory} from 'vue-router'
 import {routers} from './Router.js'
-import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
 
 // 创建路由实例
 const router = createRouter({

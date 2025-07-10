@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="js">
-import {ref, onUnmounted, onMounted} from "vue";
+import {onMounted, onUnmounted, ref} from "vue";
 
 const AC_getMsg = new AbortController();
 const loadingMsg = ref(false);

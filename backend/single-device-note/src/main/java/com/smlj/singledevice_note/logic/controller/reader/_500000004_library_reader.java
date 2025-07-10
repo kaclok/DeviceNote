@@ -27,11 +27,6 @@ public class _500000004_library_reader extends AnalysisEventListener<Tcggy_libra
                 return;
             }
 
-            var c = data.getC_commecnt();
-            if (c != null && c.contains("神木电石")) {
-                data.set_ds(true);
-            }
-
             arr.add(data);
         }
     }

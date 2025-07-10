@@ -1,6 +1,5 @@
 package com.smlj.singledevice_note.logic.o.vo.table.entity;
 
-import com.alibaba.excel.annotation.ExcelProperty;
 import lombok.Data;
 import org.springframework.stereotype.Component;
 

@@ -82,5 +82,24 @@ export class ExcelService {
         xlsx.writeFile(wb, filename + '.xlsx');
     }
 
-    // ooa即：object of array对象数组
+    static ExportJsonToExcel(jsonArrayWithoutTitle, arrayTitle, filename, startLine = 1, callback = null, autoWidth = false) {
+        // 1. 创建工作簿
+        const wb = xlsx.utils.book_new();
+
+        // 2. 将数组转换为工作表
+        const ws = xlsx.utils.json_to_sheet(jsonArrayWithoutTitle);
+
+        for (let i = 0; i < arrayTitle.length; i++) {
+            const column = String.fromCharCode(65 + i) + '' + startLine;
+            ws[column].v = arrayTitle[i];
+        }
+
+        callback?.(wb, ws);
+
+        // 3. 将工作表添加到工作簿
+        xlsx.utils.book_append_sheet(wb, ws, filename);
+
+        // 4. 生成 Excel 文件并下载
+        xlsx.writeFile(wb, filename + '.xlsx');
+    }
 }

@@ -57,9 +57,9 @@
 
 <script setup>
 import {onMounted, onUnmounted, ref} from 'vue';
-import {ElMessage, ElLoading} from 'element-plus';
-import {doGet, doPost} from "@/framework/services/net/Request.js"
+import {doPost} from "@/framework/services/net/Request.js"
 import {DateTimeUtil} from "@/framework/utils/DateTimeUtil.js";
+import {ExcelService} from "@/framework/services/ExcelService.js";
 
 const AC_upload = new AbortController();
 let loadingUpload = ref(false);
@@ -156,12 +156,67 @@ async function handleSubmit() {
                 prompt = "更新失败"
             }
 
-            ElMessage.error(`${prompt}`);
+            // window.alert(`${prompt}`);
         } else {
-            router.push({name: "home_bill_table", params: {goodsId: curLevelId.value, timestamp: now}});
+            // router.push({name: "home_bill_table", params: {goodsId: curLevelId.value, timestamp: now}});
+            const colNames = [
+                '日期',
+                '供货单位',
+                '批号',
+                '车号',
+                '结算数量(吨)',
+                '扣灰量(吨)',
+                '净重(吨)',
+                '发气量(升/千克)',
+                '基准单价(元/吨)',
+                '考核单价(元/吨)',
+                '结算总价',
+                '化验室-流水号',
+                '化验室-下样时间',
+                '化验室-备注',
+                '化验室-样品等级',
+                '附加-更新时间',
+                '附加-是否物流仓储数据行合理',
+                '附加-是否有匹配的化验室数据行',
+                '附加-是否结算过',
+            ];
+
+            let objArr = data.data
+            for (let i = 0; i < objArr.length; i++) {
+                let one = objArr[i];
+                if (one.date !== null) {
+                    objArr[i].date = new Date(one.date);
+                }
+                if (one.xy_dt !== null) {
+                    objArr[i].xy_dt = new Date(one.xy_dt);
+                }
+                if (one.modify_dt !== null) {
+                    objArr[i].modify_dt = new Date(one.modify_dt);
+                }
+                one.is_filtered = !one.is_filtered;
+            }
+
+            const startRow = 1
+            ExcelService.ExportJsonToExcel(objArr, colNames, 'export_js', startRow, (wb, ws) => {
+                for (let j = 0; j < objArr.length; j++) {
+                    let row = j + startRow + 1
+                    ws[`E${row}`] = {
+                        t: 'n',
+                        f: `=G${row}-F${row}`
+                    }
+
+                    ws[`J${row}`] = {
+                        t: 'n',
+                        f: `=IFS(H${row}<240,I${row}-20-80-480-24*(240-H${row}),H${row}<270,I${row}-20-80-16*(270-H${row}),H${row}<280,I${row}-20-8*(280-H${row}),H${row}<285,I${row}-4*(285-H${row}),H${row}<=295,I${row},H${row}<=300,I${row}+8*(H${row}-295),H${row}<=310,I${row}+40+16*(H${row}-300),H${row}<=320,I${row}+40+160+24*(H${row}-310),320<H${row},I${row}+40+160+240+32*(H${row}-320))`
+                    }
+
+                    ws[`K${row}`] = {t: 'n', f: `=E${row}*J${row}`}
+                }
+            }, false);
         }
     })
 }
+
 </script>
 
 <style scoped>

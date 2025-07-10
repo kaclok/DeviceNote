@@ -1,6 +1,5 @@
-import {upload as baseUpload, post} from "@/framework/services/net/InnerRequest.js"
+import {post, upload as baseUpload} from "@/framework/services/net/InnerRequest.js"
 import SparkMD5 from "spark-md5"
-import axios from "axios";
 
 // 实现大文件上传
 // https://mp.weixin.qq.com/s/PvIbABjfd7VlnEglxpU2AQ

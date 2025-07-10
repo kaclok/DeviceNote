@@ -1,5 +1,5 @@
-import {createRouter, createWebHashHistory, createWebHistory} from 'vue-router'
-import {routers, PREFIX} from './Router.js'
+import {createRouter, createWebHashHistory} from 'vue-router'
+import {PREFIX, routers} from './Router.js'
 import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
 
 let base = import.meta.env.VITE_BASE;

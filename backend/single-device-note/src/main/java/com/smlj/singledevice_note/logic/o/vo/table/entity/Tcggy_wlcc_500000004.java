@@ -6,7 +6,6 @@ import lombok.Data;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
 import java.util.Date;
 
 @Component
@@ -24,7 +23,7 @@ public class Tcggy_wlcc_500000004 implements Serializable {
 
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("完成时间")
-    private LocalDateTime finish_time;
+    private Date finish_time;
 
     @ExcelProperty("状态")
     private String status;
@@ -46,19 +45,19 @@ public class Tcggy_wlcc_500000004 implements Serializable {
 
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("派车时间")
-    private LocalDateTime send_time;
+    private Date send_time;
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("签到时间")
-    private LocalDateTime sign_time;
+    private Date sign_time;
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("入场时间")
-    private LocalDateTime enter_time;
+    private Date enter_time;
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("过毛时间")
-    private LocalDateTime gross_time;
+    private Date gross_time;
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     @ExcelProperty("过皮时间")
-    private LocalDateTime tare_time;
+    private Date tare_time;
 
     @ExcelProperty("司机")
     private String driver_name;
@@ -66,6 +65,13 @@ public class Tcggy_wlcc_500000004 implements Serializable {
     private String driver_phone;
 
     // 是否处理过，一般都是因为行数据不对导致程序没有处理，直接过滤掉了
-    private boolean is_filtered = false;
+    public boolean is_filtered() {
+        return gross_time == null || diff_weight < 2;
+    }
+
+    // 是否是：神木电石公司
+    public boolean from_ds() {
+        return goods_supplier != null && goods_supplier.contains("神木市电石集团能源发展");
+    }
 }
 

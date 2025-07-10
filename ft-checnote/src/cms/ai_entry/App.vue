@@ -46,8 +46,6 @@ import logo_book from '@/assets/image/answer_marking.png';
 
 import {computed, ref} from 'vue';
 import {useTitle} from '@vueuse/core'
-import {WsService} from "@/framework/services/net/webSocket/WsService.js";
-import {Ws} from "@/framework/services/net/webSocket/Ws.js";
 /*
 import axios from "axios";
 import {SessionStorageService} from "@/framework/services/SessionStorageService.js";

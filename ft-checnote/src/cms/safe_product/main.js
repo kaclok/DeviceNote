@@ -1,7 +1,6 @@
 import {createApp} from 'vue'
 import App from './App.vue'
 // import {proxySingleton} from "@/framework/services/ProxySingleton.js";
-
 // https://blog.csdn.net/weixin_41765715/article/details/132346684
 // 将data-picker的第一列换成周一
 import ElementPlus from 'element-plus'
@@ -15,11 +14,6 @@ import {RegisterDirective} from "@/framework/directives/DirectiveList.js";
 import {Switch} from "@/framework/services/LocaleService.js";
 
 import "@/framework/services/net/Init.js";
-import {router} from "@/cms/yb/router/Index.js";
-import {TokenService} from "@/framework/services/TokenService.js";
-import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
-import {SseService} from "@/framework/services/net/sse/SseService.js";
-import {WsService} from "@/framework/services/net/webSocket/WsService.js";
 
 // 创建实例
 const app = createApp(App)

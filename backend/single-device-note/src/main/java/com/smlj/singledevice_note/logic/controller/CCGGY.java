@@ -4,6 +4,7 @@ import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.exception.ExcelDataConvertException;
 import com.alibaba.excel.read.listener.ReadListener;
 import com.smlj.singledevice_note.core.o.to.Result;
+import com.smlj.singledevice_note.core.utils.DateTimeUtil;
 import com.smlj.singledevice_note.logic.controller.reader._500000004_library_reader;
 import com.smlj.singledevice_note.logic.controller.reader._500000004_wlcc_reader;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.Tcggy_js_500000004_Dao;
@@ -21,13 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @RestController
@@ -51,11 +46,9 @@ public class CCGGY {
                                  MultipartFile file_library) {
 
         // 将js表的modify时间修改为localDateTime
-        LocalDateTime localDateTime = LocalDateTime.ofInstant(
-                Instant.ofEpochMilli(timestamp),
-                // ZoneId.systemDefault() // 使用系统默认时区
-                ZoneId.of("Asia/Shanghai") // 指定时区
-        );
+        Calendar calendar = Calendar.getInstance();
+        // calendar.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai")); // 北京时区
+        calendar.setTimeInMillis(timestamp); // 设置时间戳
 
         List<?> fr = null;
 
@@ -74,7 +67,7 @@ public class CCGGY {
             }
 
             sort_500000004(wlcc, library);
-            fr = combine_500000004(wlcc, library, localDateTime);
+            fr = combine_500000004(wlcc, library, calendar);
         } else if (goods_id == 500000005) {
 
         } else if (goods_id == 200000775) {
@@ -96,51 +89,89 @@ public class CCGGY {
         return null;
     }
 
-    private List<Tcggy_js_500000004> combine_500000004(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library, LocalDateTime localDateTime) {
+    private List<Tcggy_js_500000004> combine_500000004(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library, Calendar calendar) {
         List<Tcggy_js_500000004> ls = new ArrayList<>();
         for (var w : wlcc) {
             var js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
+            js.setModify_dt(calendar.getTime());
+
             ls.add(js);
 
             if (!w.is_filtered()) {
-                js.setDate(w.getTare_time().toLocalDate());
-                var ll = search(w.getCar_no(), w.getGross_time(), library);
+                js.setDate(w.getTare_time());
+
+                boolean from_ds = w.from_ds();
+                var ll = search(w, library, from_ds);
                 if (ll != null) {
                     js.setLibrary_id(ll.getId());
                     js.setFq(ll.getFq());
                     js.setXy_dt(ll.getXy_dt());
                     js.setC_comment(ll.getC_commecnt());
                     js.setGoods_level(ll.getGoods_level());
-                    js.setModify_time(localDateTime);
+
+                    js.set_matched(true);
+                    js.set_js(true);
+                } else {
+                    js.set_matched(false);
+                    js.set_js(false);
                 }
             } else {
                 // 被过滤的item也需要设置为：结算状态
+                js.set_matched(false);
                 js.set_js(true);
             }
         }
 
-        js_500000004_dao.InsertBatch("t_500000004_js", ls);
+        // js_500000004_dao.InsertBatch("t_500000004_js", ls);
         return ls;
     }
 
-    private Tcggy_library_500000004 search(String carNo, LocalDateTime grossTime, List<Tcggy_library_500000004> library) {
-        for (var one : library) {
-            if (!one.is_handled() && one.getC_commecnt().equals(carNo) && grossTime.isBefore(one.getXy_dt())) {
-                one.set_handled(true);
-                return one;
+    private Tcggy_library_500000004 search(Tcggy_wlcc_500000004 w, List<Tcggy_library_500000004> library, boolean from_ds) {
+        for (var ll : library) {
+            if (ll.is_filtered()) {
+                continue;
+            }
+
+            if (!from_ds) {
+                if (!ll.from_ds() && !ll.is_matched() && ll.getC_commecnt().equals(w.getCar_no()) && w.getGross_time().before(ll.getXy_dt())) {
+                    ll.set_matched(true);
+                    return ll;
+                }
+            } else {
+                if (ll.from_ds() && !ll.is_matched()) {
+                    var dt = getDate(ll);
+                    boolean beforeEqual = !(w.getGross_time().after(dt));
+                    if (beforeEqual) {
+                        return ll;
+                    } else {
+                        ll.set_matched(true);
+                    }
+                }
             }
         }
         return null;
     }
 
+    private Date getDate(Tcggy_library_500000004 ll) {
+        var xy_dt = ll.getXy_dt();
+        var dt12 = DateTimeUtil.convertTo(xy_dt, 12, 0, 0, 0);
+        var dt24 = DateTimeUtil.convertTo(xy_dt, 23, 59, 59, 0);
+
+        if (xy_dt.before(dt12)) {
+            return dt12;
+        } else {
+            return dt24;
+        }
+    }
+
     private void sort_500000004(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library) {
-        library.sort(Comparator.comparing(Tcggy_library_500000004::is_ds)  // 首先按照is_ds升序排序, 神木电石的排序在最后
-                .thenComparing( // 然后按照下样时间升序排序
-                        obj -> !obj.is_ds() ? obj.getXy_dt() : null,
+        library.sort(Comparator.comparing(Tcggy_library_500000004::is_filtered)
+                .thenComparing(Tcggy_library_500000004::from_ds)
+                .thenComparing(Tcggy_library_500000004::getXy_dt));
+
+        wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered)
+                .thenComparing(Tcggy_wlcc_500000004::from_ds)
+                .thenComparing(obj -> obj.is_filtered() ? null : obj.getGross_time(),
                         Comparator.nullsLast(Comparator.naturalOrder())));
-        wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered) // 首先按照is_filtered升序排序
-                .thenComparing( // 然后在is_filtered为false的情况下按照gross_time升序排序
-                        obj -> obj.is_filtered() ? null : obj.getGross_time(),
-                        Comparator.nullsLast(Comparator.naturalOrder()))); // 升序排序
     }
 }

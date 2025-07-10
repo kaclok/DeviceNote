@@ -1,7 +1,6 @@
 package com.smlj.singledevice_note.logic.o.vo.table.dao;
 
 import com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_js_500000004;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.Twz;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;

@@ -2,7 +2,7 @@
 
 import {SysX} from "@/cms/sb/system/SysX.js";
 import {Singleton} from "@/framework/services/Singleton.js";
-import {ref, computed} from "vue";
+import {computed, ref} from "vue";
 
 const DEVICE_PAGE_SIZE = 18
 const DEVICE_RECORD_PAGE_SIZE = 13
