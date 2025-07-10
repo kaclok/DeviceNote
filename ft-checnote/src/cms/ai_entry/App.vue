@@ -269,7 +269,7 @@ const appGridItems = ref([
     },
     {
         name: "采购供应管理",
-        url: "http://117.36.227.42:4177/pages/smlj/cggy/index.html?group=" + group,
+        url: "http://10.8.54.24:4177/pages/smlj/cggy/index.html?group=" + group,
         image: logo_book,
         enabled: true,
     },
