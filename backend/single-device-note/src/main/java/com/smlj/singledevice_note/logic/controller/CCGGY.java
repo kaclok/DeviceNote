@@ -99,6 +99,7 @@ public class CCGGY {
 
             if (!w.is_filtered()) {
                 js.setDate(w.getTare_time());
+                js.setGross_dt(w.getGross_time());
 
                 boolean from_ds = w.from_ds();
                 var ll = search(w, library, from_ds);

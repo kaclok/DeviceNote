@@ -138,6 +138,7 @@ function _req_500000004() {
                 '基准单价(元/吨)',
                 '考核单价(元/吨)',
                 '结算总价',
+                '毛重时间',
                 '化验室-流水号',
                 '化验室-下样时间',
                 '化验室-备注',
@@ -160,11 +161,14 @@ function _req_500000004() {
                 if (one.modify_dt !== null) {
                     objArr[i].modify_dt = new Date(one.modify_dt);
                 }
+                if (one.gross_dt !== null) {
+                    objArr[i].gross_dt = new Date(one.gross_dt);
+                }
                 one.is_filtered = !one.is_filtered;
             }
 
             const startRow = 1
-            ExcelService.ExportJsonToExcel(objArr, colNames, 'export_js', startRow, (wb, ws) => {
+            ExcelService.ExportJsonToExcel(objArr, colNames, 'export_ds_js', startRow, (wb, ws) => {
                 for (let j = 0; j < objArr.length; j++) {
                     let row = j + startRow + 1
                     ws[`E${row}`] = {

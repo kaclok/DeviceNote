@@ -28,6 +28,7 @@ public class Tcggy_js_500000004 implements Serializable {
     private float price;
     private float total_price;
 
+    private Date gross_dt;
     private String library_id;
     private Date xy_dt;
     private String c_comment;
