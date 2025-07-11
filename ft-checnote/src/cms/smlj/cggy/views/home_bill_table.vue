@@ -44,6 +44,7 @@
 
 <script setup>
 import {onMounted, onUnmounted, ref} from "vue";
+import {DateTimeUtil} from "@/framework/utils/DateTimeUtil.js";
 
 const AC_upload = new AbortController();
 let loadingUpload = ref(false);
@@ -68,22 +69,10 @@ const options = [
     },
 ]
 
-function _req_500000004() {
-    console.log("_req_500000004")
-}
-
-function _req_500000005() {
-    console.log("_req_500000005")
-}
-
-function _req_200000775() {
-    console.log("_req_200000775")
-}
-
 const callback = {
-    [500000004]: _req_500000004,
-    [500000005]: _req_500000005,
-    [200000775]: _req_200000775,
+    [500000004]: {workflowId: 2593, menuidforportal: 'custom_1694429295929_10', tabTitle: '6YeR5rOw5YyW5a2m5rWB56iL5Y%20R6LW3'},
+    [500000005]: {workflowId: 2593, menuidforportal: 'custom_1694429295929_10', tabTitle: '6YeR5rOw5YyW5a2m5rWB56iL5Y%20R6LW3'},
+    [200000775]: {workflowId: 2593, menuidforportal: 'custom_1694429295929_10', tabTitle: '6YeR5rOw5YyW5a2m5rWB56iL5Y%20R6LW3'}
 }
 
 onMounted(() => {
@@ -119,7 +108,13 @@ function canShow() {
 
 // 提交上传
 function handleSubmit() {
-    callback[curLevelId.value]()
+    let workflowId = callback[curLevelId.value].workflowId
+    let menuidforportal = callback[curLevelId.value].menuidforportal
+    let tabTitle = callback[curLevelId.value].tabTitle
+    const mills = DateTimeUtil.nowMSTimestamp()
+    const url = 'http://oa.sxigc.com/spa/workflow/static4form/index.html?_rdm=' + mills + '#/main/workflow/req?iscreate=1&workflowid=' + workflowId + '&isagent=0&beagenter=0&f_weaver_belongto_userid=&f_weaver_belongto_usertype=0&menuidforportal=' + menuidforportal + '&tabTitle=' + tabTitle + '&preloadkey=' + mills + '&timestamp=' + mills/* + '&_key=22itfp'*/;
+
+    window.open(url, '_blank');
 }
 </script>
 
