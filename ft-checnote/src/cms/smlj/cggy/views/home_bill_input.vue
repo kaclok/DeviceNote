@@ -70,18 +70,18 @@ const file2 = ref(null);
 const fileList1 = ref([]);
 const fileList2 = ref([]);
 
-const curLevelId = ref("500000004")
+const curLevelId = ref(500000004)
 const options = [
     {
-        value: "500000004",
+        value: 500000004,
         label: '电石',
     },
     {
-        value: '500000005',
+        value: 500000005,
         label: '煤',
     },
     {
-        value: '200000775',
+        value: 200000775,
         label: '焦沫（精品）',
     },
 ]
@@ -96,45 +96,12 @@ onUnmounted(() => {
     AC_upload.abort();
 })
 
-function onLevelClicked(levelId) {
-    if (levelId !== curLevelId.value) {
-        curLevelId.value = levelId
-
-        handleRemove1()
-        handleRemove2()
-    }
-}
-
-// 文件选择回调
-function handleFileChange1(uploadFile) {
-    file1.value = uploadFile.raw;
-}
-
-function handleFileChange2(uploadFile) {
-    file2.value = uploadFile.raw;
-}
-
-// 新增：文件移除处理
-function handleRemove1() {
-    fileList1.value = [];
-    file1.value = null
-}
-
-function handleRemove2() {
-    fileList2.value = [];
-    file2.value = null
-}
-
-function canShow() {
-    return (file1.value !== null) && (file2.value !== null);
-}
-
-// 提交上传
-async function handleSubmit() {
-    if (!canShow()) {
-        ElMessage.error('请选择两个文件！');
-        return;
-    }
+function _req_500000004() {
+    if (curLevelId.value)
+        if (!canShow()) {
+            ElMessage.error('请选择两个文件！');
+            return;
+        }
 
     const formData = new FormData()
     formData.append("goods_id", curLevelId.value)
@@ -143,7 +110,7 @@ async function handleSubmit() {
     let now = DateTimeUtil.nowMSTimestamp();
     formData.append('timestamp', now);
 
-    await doPost("x/cggy/submitExcel", formData, AC_upload.signal, () => {
+    doPost("x/cggy/submitExcel", formData, AC_upload.signal, () => {
         loadingUpload.value = true;
     }, (r, data) => {
         loadingUpload.value = false;
@@ -215,6 +182,58 @@ async function handleSubmit() {
             }, false);
         }
     })
+}
+
+function _req_500000005() {
+    console.log("_req_500000005")
+}
+
+function _req_200000775() {
+    console.log("_req_200000775")
+}
+
+const callback = {
+    [500000004]: _req_500000004,
+    [500000005]: _req_500000005,
+    [200000775]: _req_200000775,
+}
+
+// 组件的callback触发时机 晚于 ref变量的更新
+// 所以逻辑为:if(curLevelId.value !== levelId) 这种逻辑肯定是false
+function onLevelClicked(levelId) {
+    curLevelId.value = levelId
+
+    handleRemove1()
+    handleRemove2()
+}
+
+// 文件选择回调
+function handleFileChange1(uploadFile) {
+    file1.value = uploadFile.raw;
+}
+
+function handleFileChange2(uploadFile) {
+    file2.value = uploadFile.raw;
+}
+
+// 新增：文件移除处理
+function handleRemove1() {
+    fileList1.value = [];
+    file1.value = null
+}
+
+function handleRemove2() {
+    fileList2.value = [];
+    file2.value = null
+}
+
+function canShow() {
+    return (file1.value !== null) && (file2.value !== null);
+}
+
+// 提交上传
+function handleSubmit() {
+    callback[curLevelId.value]()
 }
 
 </script>

@@ -15,7 +15,9 @@ const _homeRouter = {
                 // https://router.vuejs.org/zh/guide/essentials/passing-props.html
                 // props: true 将 params 自动转为 props
                 // (\\d+)限制必须为数字
-                {path: 'table/:goodsId(\\d+)/:timestamp(\\d+)', name: 'home_bill_table', component: () => import('../views/home_bill_table.vue'), props: true},]
+                // 传递参数：router.push({name: "home_bill_table", params: {goodsId: curLevelId.value, timestamp: now}});
+                // {path: 'table/:goodsId(\\d+)/:timestamp(\\d+)', name: 'home_bill_table', component: () => import('../views/home_bill_table.vue'), props: true},]
+                {path: 'table', name: 'home_bill_table', component: () => import('../views/home_bill_table.vue'), props: false},]
         },],
 }
 

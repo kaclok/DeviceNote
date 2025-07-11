@@ -8,7 +8,11 @@
                 <el-menu mode="horizontal" background-color="#1C4785" text-color="#DCDCDC" active-text-color="#ffffff"
                          router
                          :default-active='getDefaultActive()'>
-                    <el-menu-item index="/home/bill">结算单</el-menu-item>
+                    <el-sub-menu index="/home/bill">
+                        <template #title>结算单</template>
+                        <el-menu-item index="/home/bill/input">生成</el-menu-item>
+                        <el-menu-item index="/home/bill/table">记录</el-menu-item>
+                    </el-sub-menu>
                     <el-menu-item index="/home/cgy">采购员</el-menu-item>
                     <el-menu-item index="/home/jhy">计划员</el-menu-item>
                 </el-menu>
@@ -40,7 +44,7 @@ onMounted(() => {
 });
 
 function getDefaultActive() {
-    return '/home/bill'
+    return '/home/bill/input';
 }
 
 </script>
