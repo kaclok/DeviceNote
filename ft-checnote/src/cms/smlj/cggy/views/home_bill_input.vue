@@ -1,7 +1,7 @@
 <template>
     <div class="file-upload-container">
         <!-- 表单（移除原生提交，改用自定义事件） -->
-        <el-form enctype="multipart/form-data">
+        <el-form v-loading="loadingUpload" enctype="multipart/form-data">
             <el-select
                 v-model="curLevelId"
                 placeholder="请选择物资类别:"
@@ -181,6 +181,14 @@ function _req_500000004() {
                     });
                 }
                 one.is_filtered = !one.is_filtered;
+
+                // 小数点保持两位
+                one.ash_weight = one.ash_weight.toFixed(2)
+                one.weight = one.weight.toFixed(2)
+                one.final_weight = one.final_weight.toFixed(2)
+                one.base_price = one.base_price.toFixed(2)
+                one.price = one.price.toFixed(2)
+                one.total_price = one.total_price.toFixed(2)
             }
 
             const startRow = 1
