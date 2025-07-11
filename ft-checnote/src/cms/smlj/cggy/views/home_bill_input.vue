@@ -154,15 +154,31 @@ function _req_500000004() {
                 let one = objArr[i];
                 if (one.date !== null) {
                     objArr[i].date = new Date(one.date);
+                    objArr[i].date = objArr[i].date.toLocaleString('zh-CN', {
+                        timeZone: 'Asia/Shanghai', // 上海时区 = 北京时区
+                        hour12: false // 24小时制
+                    });
                 }
                 if (one.xy_dt !== null) {
                     objArr[i].xy_dt = new Date(one.xy_dt);
+                    objArr[i].xy_dt = objArr[i].xy_dt.toLocaleString('zh-CN', {
+                        timeZone: 'Asia/Shanghai', // 上海时区 = 北京时区
+                        hour12: false // 24小时制
+                    });
                 }
                 if (one.modify_dt !== null) {
                     objArr[i].modify_dt = new Date(one.modify_dt);
+                    objArr[i].modify_dt = objArr[i].modify_dt.toLocaleString('zh-CN', {
+                        timeZone: 'Asia/Shanghai', // 上海时区 = 北京时区
+                        hour12: false // 24小时制
+                    });
                 }
                 if (one.gross_dt !== null) {
                     objArr[i].gross_dt = new Date(one.gross_dt);
+                    objArr[i].gross_dt = objArr[i].gross_dt.toLocaleString('zh-CN', {
+                        timeZone: 'Asia/Shanghai', // 上海时区 = 北京时区
+                        hour12: false // 24小时制
+                    });
                 }
                 one.is_filtered = !one.is_filtered;
             }
