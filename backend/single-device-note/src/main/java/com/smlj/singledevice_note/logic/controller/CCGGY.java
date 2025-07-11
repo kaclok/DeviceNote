@@ -50,7 +50,7 @@ public class CCGGY {
         // calendar.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai")); // 北京时区
         calendar.setTimeInMillis(timestamp); // 设置时间戳
 
-        List<?> fr = null;
+        List<?> finalList = null;
 
         if (goods_id == 500000004) {
             List<Tcggy_wlcc_500000004> wlcc = new ArrayList<Tcggy_wlcc_500000004>();
@@ -66,15 +66,35 @@ public class CCGGY {
                 return Result.fail(goods_id + "的实验室表格解析失败：" + r);
             }
 
-            sort_500000004(wlcc, library);
-            fr = combine_500000004(wlcc, library, calendar);
+            // 是否过滤、是否电石、下样时间
+            library.sort(Comparator.comparing(Tcggy_library_500000004::is_filtered)
+                    .thenComparing(Tcggy_library_500000004::from_ds)
+                    .thenComparing(Tcggy_library_500000004::getXy_dt));
+
+            // 是否过滤、是否电石、毛重时间
+            wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered)
+                    .thenComparing(Tcggy_wlcc_500000004::from_ds)
+                    .thenComparing(obj -> obj.is_filtered() ? null : obj.getGross_time(),
+                            Comparator.nullsLast(Comparator.naturalOrder())));
+
+            List<Tcggy_js_500000004> fr = combine_500000004_un_ds(wlcc, library, calendar);
+
+            // 是否过滤、是否电石(降序)、皮重时间
+            wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered)
+                    .thenComparing(Tcggy_wlcc_500000004::from_ds, Comparator.reverseOrder())
+                    .thenComparing(obj -> obj.is_filtered() ? null : obj.getTare_time(),
+                            Comparator.nullsLast(Comparator.naturalOrder())));
+
+            fr.addAll(combine_500000004_ds(wlcc, library, calendar));
+
+            finalList = fr;
         } else if (goods_id == 500000005) {
 
         } else if (goods_id == 200000775) {
 
         }
 
-        return Result.success(fr);
+        return Result.success(finalList);
     }
 
     private String parse(MultipartFile file, Class cls, ReadListener readListener, int headRowNumber) {
@@ -89,20 +109,62 @@ public class CCGGY {
         return null;
     }
 
-    private List<Tcggy_js_500000004> combine_500000004(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library, Calendar calendar) {
+    private List<Tcggy_js_500000004> combine_500000004_un_ds(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library, Calendar calendar) {
         List<Tcggy_js_500000004> ls = new ArrayList<>();
         for (var w : wlcc) {
-            var js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
-            js.setModify_dt(calendar.getTime());
-
-            ls.add(js);
-
             if (!w.is_filtered()) {
+                if (w.from_ds()) {
+                    continue;
+                }
+
+                // 只add非电石公司且没有被过滤的
+                var js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
+                js.setModify_dt(calendar.getTime());
                 js.setDate(w.getTare_time());
                 js.setGross_dt(w.getGross_time());
 
-                boolean from_ds = w.from_ds();
-                var ll = search(w, library, from_ds);
+                ls.add(js);
+
+                var ll = search(w, library, false);
+                if (ll != null) {
+                    js.setLibrary_id(ll.getId());
+                    js.setFq(ll.getFq());
+                    js.setXy_dt(ll.getXy_dt());
+                    js.setC_comment(ll.getC_commecnt());
+                    js.setGoods_level(ll.getGoods_level());
+
+                    js.set_matched(true);
+                    js.set_js(true);
+                } else {
+                    js.set_matched(false);
+                    js.set_js(false);
+                }
+            }
+        }
+
+        // js_500000004_dao.InsertBatch("t_500000004_js", ls);
+        return ls;
+    }
+
+    private List<Tcggy_js_500000004> combine_500000004_ds(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library, Calendar calendar) {
+        List<Tcggy_js_500000004> ls = new ArrayList<>();
+        for (var w : wlcc) {
+            Tcggy_js_500000004 js = null;
+
+            if (!w.is_filtered()) {
+                if (!w.from_ds()) {
+                    continue;
+                }
+
+                // 只add电石公司且没有被过滤的
+                js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
+                js.setModify_dt(calendar.getTime());
+                js.setDate(w.getTare_time());
+                js.setGross_dt(w.getGross_time());
+
+                ls.add(js);
+
+                var ll = search(w, library, true);
                 if (ll != null) {
                     js.setLibrary_id(ll.getId());
                     js.setFq(ll.getFq());
@@ -117,13 +179,10 @@ public class CCGGY {
                     js.set_js(false);
                 }
             } else {
-                // 被过滤的item也需要设置为：结算状态
-                js.set_matched(false);
-                js.set_js(true);
+                js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
+                ls.add(js);
             }
         }
-
-        // js_500000004_dao.InsertBatch("t_500000004_js", ls);
         return ls;
     }
 
@@ -140,8 +199,8 @@ public class CCGGY {
                 }
             } else {
                 if (ll.from_ds() && !ll.is_matched()) {
-                    var dt = getDate(ll);
-                    boolean beforeEqual = !(w.getGross_time().after(dt));
+                    var dt = getDate(ll.getXy_dt());
+                    boolean beforeEqual = !(w.getTare_time().after(dt));
                     if (beforeEqual) {
                         return ll;
                     } else {
@@ -153,26 +212,14 @@ public class CCGGY {
         return null;
     }
 
-    private Date getDate(Tcggy_library_500000004 ll) {
-        var xy_dt = ll.getXy_dt();
-        var dt12 = DateTimeUtil.convertTo(xy_dt, 12, 0, 0, 0);
-        var dt24 = DateTimeUtil.convertTo(xy_dt, 23, 59, 59, 0);
+    private Date getDate(Date dt) {
+        var dt12 = DateTimeUtil.convertTo(dt, 12, 0, 0, 0);
+        var dt24 = DateTimeUtil.convertTo(dt, 23, 59, 59, 0);
 
-        if (xy_dt.before(dt12)) {
+        if (dt.before(dt12)) {
             return dt12;
         } else {
             return dt24;
         }
-    }
-
-    private void sort_500000004(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library) {
-        library.sort(Comparator.comparing(Tcggy_library_500000004::is_filtered)
-                .thenComparing(Tcggy_library_500000004::from_ds)
-                .thenComparing(Tcggy_library_500000004::getXy_dt));
-
-        wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered)
-                .thenComparing(Tcggy_wlcc_500000004::from_ds)
-                .thenComparing(obj -> obj.is_filtered() ? null : obj.getGross_time(),
-                        Comparator.nullsLast(Comparator.naturalOrder())));
     }
 }
