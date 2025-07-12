@@ -11,7 +11,7 @@
                     <el-sub-menu index="/home/bill">
                         <template #title>结算单</template>
                         <el-menu-item index="/home/bill/input">生成</el-menu-item>
-                        <el-menu-item index="/home/bill/table">记录</el-menu-item>
+                        <el-menu-item index="/home/bill/table">审批</el-menu-item>
                     </el-sub-menu>
                     <el-menu-item index="/home/cgy">采购员</el-menu-item>
                     <el-menu-item index="/home/jhy">计划员</el-menu-item>
