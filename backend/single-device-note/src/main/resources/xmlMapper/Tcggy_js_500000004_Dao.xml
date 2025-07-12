@@ -6,7 +6,6 @@
     <insert id="InsertBatch">
         insert into ${tableName} (
         wlcc_id ,
-        library_id ,
         date ,
         goods_supplier ,
         car_no ,
@@ -17,18 +16,11 @@
         base_price,
         price,
         total_price,
-        is_filtered,
-        is_js,
-        xy_dt,
-        c_comment,
-        goods_level,
-        modify_time,
-        is_matched,
+        modify_dt
         ) values
         <foreach collection="list" item="item" index="index" separator=",">
             (
             #{item.wlcc_id} ,
-            #{item.library_id} ,
             #{item.date} ,
             #{item.goods_supplier} ,
             #{item.car_no} ,
@@ -39,13 +31,7 @@
             ${item.base_price},
             ${item.price},
             ${item.total_price},
-            ${item.is_filtered},
-            ${item.is_js},
-            #{item.xy_dt},
-            #{item.c_comment},
-            #{item.goods_level},
-            #{item.modify_time},
-            ${item.is_matched},
+            ${item.modify_dt}
             )
         </foreach>
     </insert>

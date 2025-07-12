@@ -5,10 +5,13 @@ import com.alibaba.excel.exception.ExcelDataConvertException;
 import com.alibaba.excel.read.listener.ReadListener;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.utils.DateTimeUtil;
+import com.smlj.singledevice_note.logic.controller.reader._500000004_js_reader;
+import com.smlj.singledevice_note.logic.controller.reader._500000004_khl_reader;
 import com.smlj.singledevice_note.logic.controller.reader._500000004_library_reader;
 import com.smlj.singledevice_note.logic.controller.reader._500000004_wlcc_reader;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.Tcggy_js_500000004_Dao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_js_500000004;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_khl_500000004;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_library_500000004;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_wlcc_500000004;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,20 +33,13 @@ import java.util.*;
 @RequestMapping("/x/cggy")
 @Tag(name = "Cggy", description = "采购供应系统")
 public class CCGGY {
-    public static Map<Integer, String> GOODS = Map.of(
-            500000004, "电石",
-            500000005, "煤",
-            200000775, "焦沫（精品）"
-    );
+    public static Map<Integer, String> GOODS = Map.of(500000004, "电石", 500000005, "煤", 200000775, "焦沫（精品）");
 
     private final Tcggy_js_500000004_Dao js_500000004_dao;
 
     @Transactional
     @PostMapping(value = "/submitExcel")
-    public Result<?> submitExcel(@RequestParam(name = "goods_id") int goods_id,
-                                 @RequestParam(name = "timestamp") long timestamp,
-                                 MultipartFile file_wlcc,
-                                 MultipartFile file_library) {
+    public Result<?> submitExcel(@RequestParam(name = "goods_id") int goods_id, @RequestParam(name = "timestamp") long timestamp, MultipartFile file_wlcc, MultipartFile file_library, MultipartFile file_khl) {
 
         // 将js表的modify时间修改为localDateTime
         Calendar calendar = Calendar.getInstance();
@@ -55,10 +51,16 @@ public class CCGGY {
         if (goods_id == 500000004) {
             List<Tcggy_wlcc_500000004> wlcc = new ArrayList<Tcggy_wlcc_500000004>();
             List<Tcggy_library_500000004> library = new ArrayList<Tcggy_library_500000004>();
+            List<Tcggy_khl_500000004> khl = new ArrayList<Tcggy_khl_500000004>();
 
             var r = parse(file_wlcc, Tcggy_wlcc_500000004.class, new _500000004_wlcc_reader(wlcc), 1);
             if (r != null) {
                 return Result.fail(goods_id + "的物流仓储表格解析失败：" + r);
+            }
+
+            r = parse(file_khl, Tcggy_khl_500000004.class, new _500000004_khl_reader(khl), 2);
+            if (r != null) {
+                return Result.fail(goods_id + "的扣灰量表格解析失败：" + r);
             }
 
             r = parse(file_library, Tcggy_library_500000004.class, new _500000004_library_reader(library), 2);
@@ -67,23 +69,15 @@ public class CCGGY {
             }
 
             // 是否过滤、是否电石、下样时间
-            library.sort(Comparator.comparing(Tcggy_library_500000004::is_filtered)
-                    .thenComparing(Tcggy_library_500000004::from_ds)
-                    .thenComparing(Tcggy_library_500000004::getXy_dt));
+            library.sort(Comparator.comparing(Tcggy_library_500000004::is_filtered).thenComparing(Tcggy_library_500000004::from_ds).thenComparing(Tcggy_library_500000004::getXy_dt));
 
             // 是否过滤、是否电石、毛重时间
-            wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered)
-                    .thenComparing(Tcggy_wlcc_500000004::from_ds)
-                    .thenComparing(obj -> obj.is_filtered() ? null : obj.getGross_time(),
-                            Comparator.nullsLast(Comparator.naturalOrder())));
+            wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered).thenComparing(Tcggy_wlcc_500000004::from_ds).thenComparing(obj -> obj.is_filtered() ? null : obj.getGross_time(), Comparator.nullsLast(Comparator.naturalOrder())));
 
             List<Tcggy_js_500000004> fr = combine_500000004_un_ds(wlcc, library, calendar);
 
             // 是否过滤、是否电石(降序)、皮重时间
-            wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered)
-                    .thenComparing(Tcggy_wlcc_500000004::from_ds, Comparator.reverseOrder())
-                    .thenComparing(obj -> obj.is_filtered() ? null : obj.getTare_time(),
-                            Comparator.nullsLast(Comparator.naturalOrder())));
+            wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered).thenComparing(Tcggy_wlcc_500000004::from_ds, Comparator.reverseOrder()).thenComparing(obj -> obj.is_filtered() ? null : obj.getTare_time(), Comparator.nullsLast(Comparator.naturalOrder())));
 
             fr.addAll(combine_500000004_ds(wlcc, library, calendar));
 
@@ -221,5 +215,39 @@ public class CCGGY {
         } else {
             return dt24;
         }
+    }
+
+    @Transactional
+    @PostMapping(value = "/submitJsExcel")
+    public Result<?> submitJsExcel(@RequestParam(name = "goods_id") int goods_id, @RequestParam(name = "upload_ts") long upload_ts, MultipartFile file_js) {
+
+        if (goods_id == 500000004) {
+            List<Tcggy_js_500000004> js = new ArrayList<Tcggy_js_500000004>();
+
+            var r = parse(file_js, Tcggy_js_500000004.class, new _500000004_js_reader(js), 1);
+            if (r != null) {
+                return Result.fail(goods_id + "的结算表格解析失败：" + r);
+            }
+
+            for (var j : js) {
+                var dt = DateTimeUtil.convertTo(upload_ts);
+                j.setModify_dt(dt);
+            }
+
+            js_500000004_dao.InsertBatch("t_js_500000004", js);
+        }
+
+        return Result.success();
+    }
+
+    @Transactional
+    @PostMapping(value = "/search")
+    public Result<?> search(@RequestParam(name = "goods_id") int goods_id, @RequestParam(name = "upload_ts") long upload_ts) {
+        List<?> fr = null;
+        if (goods_id == 500000004) {
+            fr = js_500000004_dao.doSelectSimple("t_js_500000004", "*", "modify_dt = " + upload_ts, "date asc");
+        }
+
+        return Result.success(fr);
     }
 }
