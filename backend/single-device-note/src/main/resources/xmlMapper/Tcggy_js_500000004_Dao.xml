@@ -4,13 +4,13 @@
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.Tcggy_js_500000004_Dao">
     <insert id="InsertBatch">
-        insert into ${tableName} (
-        wlcc_id ,
-        date ,
-        goods_supplier ,
-        car_no ,
+        insert into cggy.${tableName} (
+        wlcc_id,
+        dt,
+        goods_supplier,
+        car_no,
         ash_weight,
-        weight ,
+        weight,
         final_weight,
         fq,
         base_price,
@@ -20,24 +20,24 @@
         ) values
         <foreach collection="list" item="item" index="index" separator=",">
             (
-            #{item.wlcc_id} ,
-            #{item.date} ,
-            #{item.goods_supplier} ,
-            #{item.car_no} ,
+            #{item.wlcc_id},
+            #{item.dt},
+            #{item.goods_supplier},
+            #{item.car_no},
             ${item.ash_weight},
-            ${item.weight} ,
-            ${item.final_weight} ,
-            ${item.fq} ,
+            ${item.weight},
+            ${item.final_weight},
+            ${item.fq},
             ${item.base_price},
             ${item.price},
             ${item.total_price},
-            ${item.modify_dt}
+            #{item.modify_dt}
             )
         </foreach>
     </insert>
 
     <select id="doSelect" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_js_500000004">
-        select ${select} from ${tableName}
+        select ${select} from cggy.${tableName}
         <where>
             <if test="conds != null and conds != ''">
                 <foreach collection="conds" item="item" index="index" separator="">
@@ -52,7 +52,7 @@
     </select>
 
     <select id="doSelectSimple" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.Tcggy_js_500000004">
-        select ${select} from ${tableName}
+        select ${select} from cggy.${tableName}
         <where>
             <if test="conds != null and conds != ''">
                 and (${conds})
@@ -65,6 +65,6 @@
     </select>
 
     <update id="Clear">
-        truncate ${tableName}
+        truncate cggy.${tableName}
     </update>
 </mapper>

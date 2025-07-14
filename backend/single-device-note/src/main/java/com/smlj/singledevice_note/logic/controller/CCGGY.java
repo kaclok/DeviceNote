@@ -18,10 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -114,7 +111,7 @@ public class CCGGY {
                 // 只add非电石公司且没有被过滤的
                 var js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
                 js.setModify_dt(calendar.getTime());
-                js.setDate(w.getTare_time());
+                js.setDt(w.getTare_time());
                 js.setGross_dt(w.getGross_time());
 
                 ls.add(js);
@@ -127,11 +124,11 @@ public class CCGGY {
                     js.setC_comment(ll.getC_commecnt());
                     js.setGoods_level(ll.getGoods_level());
 
-                    js.set_matched(true);
-                    js.set_js(true);
+                    js.setHas_matched(true);
+                    js.setHas_js(true);
                 } else {
-                    js.set_matched(false);
-                    js.set_js(false);
+                    js.setHas_matched(false);
+                    js.setHas_js(false);
                 }
             }
         }
@@ -153,7 +150,7 @@ public class CCGGY {
                 // 只add电石公司且没有被过滤的
                 js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
                 js.setModify_dt(calendar.getTime());
-                js.setDate(w.getTare_time());
+                js.setDt(w.getTare_time());
                 js.setGross_dt(w.getGross_time());
 
                 ls.add(js);
@@ -166,11 +163,11 @@ public class CCGGY {
                     js.setC_comment(ll.getC_commecnt());
                     js.setGoods_level(ll.getGoods_level());
 
-                    js.set_matched(true);
-                    js.set_js(true);
+                    js.setHas_matched(true);
+                    js.setHas_js(true);
                 } else {
-                    js.set_matched(false);
-                    js.set_js(false);
+                    js.setHas_matched(false);
+                    js.setHas_js(false);
                 }
             } else {
                 js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
@@ -220,7 +217,6 @@ public class CCGGY {
     @Transactional
     @PostMapping(value = "/submitJsExcel")
     public Result<?> submitJsExcel(@RequestParam(name = "goods_id") int goods_id, @RequestParam(name = "upload_ts") long upload_ts, MultipartFile file_js) {
-
         if (goods_id == 500000004) {
             List<Tcggy_js_500000004> js = new ArrayList<Tcggy_js_500000004>();
 
@@ -234,18 +230,19 @@ public class CCGGY {
                 j.setModify_dt(dt);
             }
 
-            js_500000004_dao.InsertBatch("t_js_500000004", js);
+            js_500000004_dao.Clear("t_500000004_js");
+            js_500000004_dao.InsertBatch("t_500000004_js", js);
         }
 
         return Result.success();
     }
 
     @Transactional
-    @PostMapping(value = "/search")
+    @GetMapping(value = "/search")
     public Result<?> search(@RequestParam(name = "goods_id") int goods_id, @RequestParam(name = "upload_ts") long upload_ts) {
         List<?> fr = null;
         if (goods_id == 500000004) {
-            fr = js_500000004_dao.doSelectSimple("t_js_500000004", "*", "modify_dt = " + upload_ts, "date asc");
+            fr = js_500000004_dao.doSelectSimple("t_500000004_js", "*", "(extract(epoch from timezone('Asia/Shanghai', modify_dt))::bigint) = " + (upload_ts / 1000), "dt asc");
         }
 
         return Result.success(fr);

@@ -177,9 +177,9 @@ function _req_500000004() {
             let objArr = data.data
             for (let i = 0; i < objArr.length; i++) {
                 let one = objArr[i];
-                if (one.date !== null) {
-                    objArr[i].date = new Date(one.date);
-                    objArr[i].date = objArr[i].date.toLocaleString('zh-CN', {
+                if (one.dt !== null) {
+                    objArr[i].dt = new Date(one.dt);
+                    objArr[i].dt = objArr[i].dt.toLocaleString('zh-CN', {
                         timeZone: 'Asia/Shanghai', // 上海时区 = 北京时区
                         hour12: false // 24小时制
                     });
@@ -205,7 +205,11 @@ function _req_500000004() {
                         hour12: false // 24小时制
                     });
                 }
-                one.is_filtered = !one.is_filtered;
+                one.has_filtered = !one.has_filtered;
+
+                one.has_filtered = one.has_filtered ? 1 : 0;
+                one.has_matched = one.has_matched ? 1 : 0;
+                one.has_js = one.has_js ? 1 : 0;
 
                 // 小数点保持两位
                 /*one.ash_weight = one.ash_weight.toFixed(2)

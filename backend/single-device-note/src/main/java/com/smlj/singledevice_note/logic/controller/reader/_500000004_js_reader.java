@@ -20,7 +20,7 @@ public class _500000004_js_reader extends AnalysisEventListener<Tcggy_js_5000000
 
     @Override
     public void invoke(Tcggy_js_500000004 data, AnalysisContext context) {
-        if (data == null || data.getDate() == null || !data.is_js()) {
+        if (data == null || data.getDt() == null) {
             return;
         }
 

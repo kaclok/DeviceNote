@@ -141,9 +141,6 @@ function openOA() {
     formData.append('upload_ts', nowTimeStamp.value);
     formData.append('file_js', file1.value);
 
-    let now = DateTimeUtil.nowMSTimestamp();
-    formData.append('timestamp', now);
-
     doPost("x/cggy/submitJsExcel", formData, AC_upload.signal, () => {
         loadingUpload.value = true;
     }, (r, data) => {
@@ -172,6 +169,7 @@ function handleSubmit() {
     const url = 'http://oa.sxigc.com/spa/workflow/static4form/index.html?_rdm=' + mills + '#/main/workflow/req?iscreate=1&workflowid=' + workflowId + '&isagent=0&beagenter=0&f_weaver_belongto_userid=&f_weaver_belongto_usertype=0&menuidforportal=' + menuidforportal + '&tabTitle=' + tabTitle + '&preloadkey=' + mills + '&timestamp=' + mills
         + '&goods_id=' + curLevelId.value + '&upload_ts=' + nowTimeStamp.value;
 
+    console.log("handleSubmit:" + url);
     window.open(url, '_blank');
 }
 </script>
