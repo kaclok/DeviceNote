@@ -1,3 +1,6 @@
+// 嵌入的js脚本不能存在return语句，用if代替
+// 居然没有cos的问题
+
 function getHashParam(url, paramName) {
     // 找到hash中的问号位置
     const hashStart = url.indexOf('#');
@@ -53,7 +56,7 @@ function addRows(arr) {
     }
 }
 
-let testArr = [
+/*let testArr = [
     {
         "dt": 1749087292000,
         "wlcc_id": "SH01071653",
@@ -69,24 +72,23 @@ let testArr = [
     }
 ]
 
-addRows(testArr)
+addRows(testArr)*/
 
-const reqUrl = "http://10.8.13.152:7092/x/cggy/search" + "?upload_ts=" + upload_ts + "&goods_id=" + goods_id;
-console.log("reqUrl:" + reqUrl)
-fetch(reqUrl, {
-    method: "GET",
-    headers: {
-        "Content-Type": "application/json",
-    },
-})
-    .then(response => response.json())
-    .then(data => {
-        console.log("POST请求成功:")
-        // console.table(data);
+if (upload_ts !== null && goods_id != null) {
+    const reqUrl = "http://10.8.54.24:7090/x/cggy/search" + "?upload_ts=" + upload_ts + "&goods_id=" + goods_id;
+    console.log("reqUrl:" + reqUrl)
+    fetch(reqUrl, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    }).then(response => response.json())
+        .then(data => {
+            console.log("POST请求成功:")
+            // console.table(data);
+            addRows(data.data);
+        })
+        .catch(error => console.error("POST请求失败"));
 
-        addRows(data.data);
-    })
-    .catch(error => console.error("POST请求失败:", error));
-
-// WfForm.showMessage("运算错误", 2, 10);
-
+    // WfForm.showMessage("运算错误", 2, 10);
+}
