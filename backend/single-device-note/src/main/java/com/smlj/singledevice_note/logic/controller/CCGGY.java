@@ -60,6 +60,13 @@ public class CCGGY {
                 return Result.fail(goods_id + "的扣灰量表格解析失败：" + r);
             }
 
+            log.info("khl length:{}", khl.size());
+
+            // 是否过滤、皮重时间
+            wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered).thenComparing(obj -> obj.is_filtered() ? null : obj.getTare_time(), Comparator.nullsLast(Comparator.naturalOrder())));
+            khl.sort(Comparator.comparing(Tcggy_khl_500000004::getEnter_d).thenComparing(Tcggy_khl_500000004::getEnter_t));
+            _500000004_match_wlcc_khl(wlcc, khl);
+
             r = parse(file_library, Tcggy_library_500000004.class, new _500000004_library_reader(library), 2);
             if (r != null) {
                 return Result.fail(goods_id + "的实验室表格解析失败：" + r);
@@ -68,17 +75,32 @@ public class CCGGY {
             // 是否过滤、是否电石、下样时间
             library.sort(Comparator.comparing(Tcggy_library_500000004::is_filtered).thenComparing(Tcggy_library_500000004::from_ds).thenComparing(Tcggy_library_500000004::getXy_dt));
 
-            // 是否过滤、是否电石、毛重时间
-            wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered).thenComparing(Tcggy_wlcc_500000004::from_ds).thenComparing(obj -> obj.is_filtered() ? null : obj.getGross_time(), Comparator.nullsLast(Comparator.naturalOrder())));
+            List<Tcggy_js_500000004> js_list = new ArrayList<>();
 
-            List<Tcggy_js_500000004> fr = combine_500000004_un_ds(wlcc, library, calendar);
+            // 是否过滤、是否电石(升序)、毛重时间
+            wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered).thenComparing(Tcggy_wlcc_500000004::from_ds).thenComparing(obj -> obj.is_filtered() ? null : obj.getGross_time(), Comparator.nullsLast(Comparator.naturalOrder())));
+            _500000004_match_wlcc_lib(wlcc, library, js_list, calendar, true);
 
             // 是否过滤、是否电石(降序)、皮重时间
             wlcc.sort(Comparator.comparing(Tcggy_wlcc_500000004::is_filtered).thenComparing(Tcggy_wlcc_500000004::from_ds, Comparator.reverseOrder()).thenComparing(obj -> obj.is_filtered() ? null : obj.getTare_time(), Comparator.nullsLast(Comparator.naturalOrder())));
+            _500000004_match_wlcc_lib(wlcc, library, js_list, calendar, false);
 
-            fr.addAll(combine_500000004_ds(wlcc, library, calendar));
+            for (int i = 0; i < wlcc.size(); i++) {
+                var w = wlcc.get(i);
+                if (w.is_filtered()) {
+                    Tcggy_js_500000004 js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
+                    js.setAsh_weight(w.getAsh_weight());
+                    js.setHas_matched_khl(w.has_matched_khl());
 
-            finalList = fr;
+                    js.setDt(w.getTare_time());
+                    js.setGross_dt(w.getGross_time());
+                    js.setModify_dt(calendar.getTime());
+
+                    js_list.add(js);
+                }
+            }
+
+            finalList = js_list;
         } else if (goods_id == 500000005) {
 
         } else if (goods_id == 200000775) {
@@ -100,81 +122,54 @@ public class CCGGY {
         return null;
     }
 
-    private List<Tcggy_js_500000004> combine_500000004_un_ds(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library, Calendar calendar) {
-        List<Tcggy_js_500000004> ls = new ArrayList<>();
+    private void _500000004_match_wlcc_khl(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_khl_500000004> khl) {
         for (var w : wlcc) {
             if (!w.is_filtered()) {
-                if (w.from_ds()) {
-                    continue;
-                }
-
-                // 只add非电石公司且没有被过滤的
-                var js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
-                js.setModify_dt(calendar.getTime());
-                js.setDt(w.getTare_time());
-                js.setGross_dt(w.getGross_time());
-
-                ls.add(js);
-
-                var ll = search(w, library, false);
-                if (ll != null) {
-                    js.setLibrary_id(ll.getId());
-                    js.setFq(ll.getFq());
-                    js.setXy_dt(ll.getXy_dt());
-                    js.setC_comment(ll.getC_commecnt());
-                    js.setGoods_level(ll.getGoods_level());
-
-                    js.setHas_matched(true);
-                    js.setHas_js(true);
-                } else {
-                    js.setHas_matched(false);
-                    js.setHas_js(false);
+                var kk = search(w, khl);
+                if (kk != null) {
+                    w.setAsh_weight(kk.getKhl());
                 }
             }
         }
-
-        // js_500000004_dao.InsertBatch("t_500000004_js", ls);
-        return ls;
     }
 
-    private List<Tcggy_js_500000004> combine_500000004_ds(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library, Calendar calendar) {
-        List<Tcggy_js_500000004> ls = new ArrayList<>();
-        for (var w : wlcc) {
-            Tcggy_js_500000004 js = null;
-
-            if (!w.is_filtered()) {
-                if (!w.from_ds()) {
-                    continue;
+    private void _500000004_match_wlcc_lib(List<Tcggy_wlcc_500000004> wlcc, List<Tcggy_library_500000004> library, List<Tcggy_js_500000004> js_list, Calendar calendar, boolean un_ds) {
+        for (int i = 0; i < wlcc.size(); i++) {
+            var w = wlcc.get(i);
+            if (!w.is_filtered()/* && w.has_matched_khl()*/) {
+                if (un_ds) {
+                    if (w.from_ds()) {
+                        continue;
+                    }
+                } else {
+                    if (!w.from_ds()) {
+                        continue;
+                    }
                 }
 
-                // 只add电石公司且没有被过滤的
-                js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
+                Tcggy_js_500000004 js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
+                js.setHas_matched_khl(w.has_matched_khl());
+                js.setAsh_weight(w.getAsh_weight());
+
                 js.setModify_dt(calendar.getTime());
                 js.setDt(w.getTare_time());
                 js.setGross_dt(w.getGross_time());
 
-                ls.add(js);
+                js_list.add(js);
 
-                var ll = search(w, library, true);
+                var ll = search(w, library, !un_ds);
                 if (ll != null) {
+                    js.setHas_matched_lib(true);
+
                     js.setLibrary_id(ll.getId());
                     js.setFq(ll.getFq());
                     js.setXy_dt(ll.getXy_dt());
                     js.setC_comment(ll.getC_commecnt());
                     js.setGoods_level(ll.getGoods_level());
-
-                    js.setHas_matched(true);
                     js.setHas_js(true);
-                } else {
-                    js.setHas_matched(false);
-                    js.setHas_js(false);
                 }
-            } else {
-                js = new Tcggy_js_500000004(w.getWlcc_id(), w.getGoods_supplier(), w.getCar_no(), w.getDiff_weight(), w.is_filtered());
-                ls.add(js);
             }
         }
-        return ls;
     }
 
     private Tcggy_library_500000004 search(Tcggy_wlcc_500000004 w, List<Tcggy_library_500000004> library, boolean from_ds) {
@@ -184,7 +179,7 @@ public class CCGGY {
             }
 
             if (!from_ds) {
-                if (!ll.from_ds() && !ll.is_matched() && ll.getC_commecnt().equals(w.getCar_no()) && w.getGross_time().before(ll.getXy_dt())) {
+                if (!ll.from_ds() && !ll.is_matched() && ll.getC_commecnt().equalsIgnoreCase(w.getCar_no()) && w.getGross_time().before(ll.getXy_dt())) {
                     ll.set_matched(true);
                     return ll;
                 }
@@ -198,6 +193,21 @@ public class CCGGY {
                         ll.set_matched(true);
                     }
                 }
+            }
+        }
+        return null;
+    }
+
+    private Tcggy_khl_500000004 search(Tcggy_wlcc_500000004 w, List<Tcggy_khl_500000004> khl) {
+        for (var kk : khl) {
+            var hms = kk.getEnter_t();
+            var mills = DateTimeUtil.convertTo(kk.getEnter_d()) + (hms.getHours() * 60 * 60 + hms.getMinutes() * 60 + hms.getSeconds()) * 1000;
+            if (!kk.is_matched()
+                    && kk.getCar_no().equalsIgnoreCase(w.getCar_no())
+                    /*&& w.getDiff_weight() == kk.getDiff_weight()*/
+                    && mills == w.getTare_time().getTime()) {
+                kk.set_matched(true);
+                return kk;
             }
         }
         return null;

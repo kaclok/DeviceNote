@@ -171,6 +171,7 @@ function _req_500000004() {
                 '附加-更新时间',
                 '附加-是否物流仓储数据行合理',
                 '附加-是否有匹配的化验室数据行',
+                '附加-是否有匹配的扣灰量数据行',
                 '附加-是否结算过',
             ];
 
@@ -208,7 +209,8 @@ function _req_500000004() {
                 one.has_filtered = !one.has_filtered;
 
                 one.has_filtered = one.has_filtered ? 1 : 0;
-                one.has_matched = one.has_matched ? 1 : 0;
+                one.has_matched_lib = one.has_matched_lib ? 1 : 0;
+                one.has_matched_khl = one.has_matched_khl ? 1 : 0;
                 one.has_js = one.has_js ? 1 : 0;
 
                 // 小数点保持两位

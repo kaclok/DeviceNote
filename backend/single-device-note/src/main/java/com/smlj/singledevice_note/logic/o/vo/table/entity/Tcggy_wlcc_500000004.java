@@ -1,7 +1,9 @@
 package com.smlj.singledevice_note.logic.o.vo.table.entity;
 
+import com.alibaba.excel.annotation.ExcelIgnore;
 import com.alibaba.excel.annotation.ExcelProperty;
 import com.alibaba.excel.annotation.format.DateTimeFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.springframework.stereotype.Component;
 
@@ -63,6 +65,13 @@ public class Tcggy_wlcc_500000004 implements Serializable {
     private String driver_name;
     @ExcelProperty("手机号")
     private String driver_phone;
+
+    @ExcelIgnore
+    private float ash_weight; // 扣灰量
+
+    public boolean has_matched_khl() {
+        return ash_weight > 0.0;
+    }
 
     // 是否处理过，一般都是因为行数据不对导致程序没有处理，直接过滤掉了
     public boolean is_filtered() {

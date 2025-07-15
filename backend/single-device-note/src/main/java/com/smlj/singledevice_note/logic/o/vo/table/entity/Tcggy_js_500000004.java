@@ -61,9 +61,14 @@ public class Tcggy_js_500000004 implements Serializable {
     @ExcelIgnore
     @JsonProperty("has_filtered")
     private boolean has_filtered = false; // 是否是数据不合理的行
+
     @ExcelIgnore
-    @JsonProperty("has_matched")
-    private boolean has_matched = false; // 是否两个表的数据行匹配
+    @JsonProperty("has_matched_lib")
+    private boolean has_matched_lib = false; // 是否两个表的数据行匹配
+
+    @ExcelIgnore
+    @JsonProperty("has_matched_khl")
+    private boolean has_matched_khl = false; // 是否两个表的数据行匹配
 
     @ExcelProperty("附加-是否结算过")
     @JsonProperty("has_js")
