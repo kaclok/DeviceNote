@@ -2,7 +2,9 @@ package com.smlj.singledevice_note.logic.controller;
 
 import com.alibaba.excel.EasyExcel;
 import com.alibaba.excel.exception.ExcelDataConvertException;
+import com.alibaba.excel.read.builder.ExcelReaderBuilder;
 import com.alibaba.excel.read.listener.ReadListener;
+import com.alibaba.excel.support.ExcelTypeEnum;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.utils.DateTimeUtil;
 import com.smlj.singledevice_note.logic.controller.reader._500000004_js_reader;
@@ -112,7 +114,9 @@ public class CCGGY {
 
     private String parse(MultipartFile file, Class cls, ReadListener readListener, int headRowNumber) {
         try {
-            EasyExcel.read(file.getInputStream(), cls, readListener).ignoreEmptyRow(true).autoTrim(true).headRowNumber(headRowNumber).doReadAll();
+            ExcelReaderBuilder readerBuilder = EasyExcel.read(file.getInputStream(), cls, readListener).excelType(ExcelTypeEnum.XLSX).autoCloseStream(true).ignoreEmptyRow(true).autoTrim(true).headRowNumber(headRowNumber);
+            readerBuilder.sheet().doRead();
+
         } catch (ExcelDataConvertException edce) {
             return String.format("第%s行，第%s列解析异常", edce.getRowIndex() + 1, edce.getColumnIndex() + 1);
         } catch (IOException e) {
@@ -166,7 +170,7 @@ public class CCGGY {
                     js.setXy_dt(ll.getXy_dt());
                     js.setC_comment(ll.getC_commecnt());
                     js.setGoods_level(ll.getGoods_level());
-                    js.setHas_js(true);
+                    js.setHas_js(js.isHas_matched_khl());
                 }
             }
         }
@@ -202,10 +206,8 @@ public class CCGGY {
         for (var kk : khl) {
             var hms = kk.getEnter_t();
             var mills = DateTimeUtil.convertTo(kk.getEnter_d()) + (hms.getHours() * 60 * 60 + hms.getMinutes() * 60 + hms.getSeconds()) * 1000;
-            if (!kk.is_matched()
-                    && kk.getCar_no().equalsIgnoreCase(w.getCar_no())
-                    /*&& w.getDiff_weight() == kk.getDiff_weight()*/
-                    && mills == w.getTare_time().getTime()) {
+            if (!kk.is_matched() && kk.getCar_no().equalsIgnoreCase(w.getCar_no())
+                    /*&& w.getDiff_weight() == kk.getDiff_weight()*/ && mills == w.getTare_time().getTime()) {
                 kk.set_matched(true);
                 return kk;
             }
