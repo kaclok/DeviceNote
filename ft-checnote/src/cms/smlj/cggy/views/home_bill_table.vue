@@ -129,7 +129,8 @@ function canShow() {
 const nowTimeStamp = ref(0)
 
 function openOA() {
-    const url = 'http://oa.sxigc.com/wui/index.html#/main/portal/portal-7-244';
+    /*const url = 'http://oa.sxigc.com/wui/index.html#/main/portal/portal-7-244';*/
+    const url = "http://oa.sxigc.com/wui/index.html";
 
     console.log("openOA: " + url);
     window.open(url, '_blank');
