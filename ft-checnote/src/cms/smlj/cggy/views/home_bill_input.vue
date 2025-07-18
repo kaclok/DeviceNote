@@ -255,7 +255,7 @@ function _req_500000004() {
 
                     ws[`T${row}`] = {t: 'n', f: `=IF(F${row} > 0, 1, 0)`}
 
-                    ws[`U${row}`] = {t: 'n', f: `=IF(AND(R${row}>0,S${row}>0,T${row}>0), 1, 0)`}
+                    ws[`U${row}`] = {t: 'n', f: `=IF(AND(R${row}>0,S${row}>0), 1, 0)`}
                 }
             }, false);
 

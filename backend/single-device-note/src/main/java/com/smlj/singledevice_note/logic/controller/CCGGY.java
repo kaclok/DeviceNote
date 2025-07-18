@@ -170,7 +170,7 @@ public class CCGGY {
                     js.setXy_dt(ll.getXy_dt());
                     js.setC_comment(ll.getC_commecnt());
                     js.setGoods_level(ll.getGoods_level());
-                    js.setHas_js(js.isHas_matched_khl());
+                    js.setHas_js(true/*js.isHas_matched_khl()*/);
                 }
             }
         }
