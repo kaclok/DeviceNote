@@ -19,11 +19,13 @@
             <el-form-item>
                 <el-upload
                     style="margin-left: 15px;margin-bottom:5px;width: 100%"
+                    ref="upload1"
                     v-model:file-list="fileList1"
                     :auto-upload="false"
                     :limit="1"
                     :on-change="handleFileChange1"
                     :on-remove="handleRemove1"
+                    :on-exceed="handleExceed1"
                     accept=".xlsx"
                 >
                     <el-button type="primary" style="width: 150px">选择物流仓储表</el-button>
@@ -33,11 +35,13 @@
             <el-form-item>
                 <el-upload
                     style="margin-left: 15px;margin-bottom:5px;width: 100%"
+                    ref="upload2"
                     v-model:file-list="fileList2"
                     :auto-upload="false"
                     :limit="1"
                     :on-change="handleFileChange2"
                     :on-remove="handleRemove2"
+                    :on-exceed="handleExceed2"
                     accept=".xlsx"
                 >
                     <el-button type="primary" style="width: 150px">选择实验室表</el-button>
@@ -47,11 +51,13 @@
             <el-form-item>
                 <el-upload
                     style="margin-left: 15px;margin-bottom:25px;width: 100%"
+                    ref="upload3"
                     v-model:file-list="fileList3"
                     :auto-upload="false"
                     :limit="1"
                     :on-change="handleFileChange3"
                     :on-remove="handleRemove3"
+                    :on-exceed="handleExceed3"
                     accept=".xlsx"
                 >
                     <el-button type="primary" style="width: 150px">选择扣灰表</el-button>
@@ -84,6 +90,8 @@ import {onMounted, onUnmounted, ref} from 'vue';
 import {doPost} from "@/framework/services/net/Request.js"
 import {DateTimeUtil} from "@/framework/utils/DateTimeUtil.js";
 import {ExcelService} from "@/framework/services/ExcelService.js";
+import {templateRef} from "@vueuse/core";
+import {genFileId} from "element-plus";
 
 const AC_upload = new AbortController();
 const loadingUpload = ref(false);
@@ -92,9 +100,14 @@ const loadingUpload = ref(false);
 const file1 = ref(null);
 const file2 = ref(null);
 const file3 = ref(null);
+
 const fileList1 = ref([]);
 const fileList2 = ref([]);
 const fileList3 = ref([]);
+
+const upload1 = templateRef("upload1")
+const upload2 = templateRef("upload2")
+const upload3 = templateRef("upload3")
 
 const curLevelId = ref(500000004)
 const options = [
@@ -304,6 +317,27 @@ function handleRemove2() {
 function handleRemove3() {
     fileList3.value = [];
     file3.value = null
+}
+
+function handleExceed1(files) {
+    upload1.value.clearFiles()
+    const file = files[0]
+    file.uid = genFileId()
+    upload1.value.handleStart(file)
+}
+
+function handleExceed2(files) {
+    upload2.value.clearFiles()
+    const file = files[0]
+    file.uid = genFileId()
+    upload2.value.handleStart(file)
+}
+
+function handleExceed3(files) {
+    upload3.value.clearFiles()
+    const file = files[0]
+    file.uid = genFileId()
+    upload3.value.handleStart(file)
 }
 
 function canShow() {

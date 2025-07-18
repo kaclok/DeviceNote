@@ -18,11 +18,13 @@
             <el-form-item>
                 <el-upload
                     style="margin-left: 15px;margin-bottom:5px;width: 100%"
+                    ref="upload1"
                     v-model:file-list="fileList1"
                     :auto-upload="false"
                     :limit="1"
                     :on-change="handleFileChange1"
                     :on-remove="handleRemove1"
+                    :on-exceed="handleExceed1"
                     accept=".xlsx"
                 >
                     <el-button type="primary" style="width: 150px">选择结算表</el-button>
@@ -54,12 +56,15 @@
 import {onMounted, onUnmounted, ref} from "vue";
 import {DateTimeUtil} from "@/framework/utils/DateTimeUtil.js";
 import {doGet, doPost} from "@/framework/services/net/Request.js";
+import {templateRef} from "@vueuse/core";
+import {genFileId} from "element-plus";
 
 const AC_upload = new AbortController();
 let loadingUpload = ref(false);
 
 const fileList1 = ref([]);
 const file1 = ref(null);
+const upload1 = templateRef("upload1")
 
 const curLevelId = ref(500000004)
 const options = [
@@ -120,6 +125,13 @@ function handleFileChange1(uploadFile) {
 function handleRemove1() {
     fileList1.value = [];
     file1.value = null
+}
+
+function handleExceed1(files) {
+    upload1.value.clearFiles()
+    const file = files[0]
+    file.uid = genFileId()
+    upload1.value.handleStart(file)
 }
 
 function canShow() {
