@@ -254,7 +254,7 @@ public class CCGGY {
     public Result<?> search(@RequestParam(name = "goods_id") int goods_id, @RequestParam(name = "upload_ts") long upload_ts) {
         List<?> fr = null;
         if (goods_id == 500000004) {
-            fr = js_500000004_dao.doSelectSimple("t_500000004_js", "*", "(extract(epoch from timezone('Asia/Shanghai', modify_dt))::bigint) = " + (upload_ts / 1000), "dt asc");
+            fr = js_500000004_dao.doSelectSimple("t_500000004_js", "*", "(floor(extract(epoch from timezone('Asia/Shanghai', modify_dt)))::bigint) = " + (upload_ts / 1000), "dt asc");
         }
 
         return Result.success(fr);
