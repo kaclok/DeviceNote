@@ -124,7 +124,7 @@ function _reqCover(fs) {
         formData.append('files', f)
     }
 
-    doPost("x/wz/cover", formData, AC_cover, () => {
+    doPost("x/wz/cover", formData, AC_cover.signal, () => {
         loadingCover.value = true;
     }, (r, data) => {
         loadingCover.value = false;
