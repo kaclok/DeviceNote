@@ -1,12 +1,5 @@
 package com.smlj.singledevice_note.core.setting;
 
-import jakarta.validation.constraints.NotNull;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.interceptor.KeyGenerator;
-import org.springframework.stereotype.Component;
-
-import java.lang.reflect.Method;
-
 // springcache默认的连接符是::, 而redis是:,所以设置都是:
 /*@Component
 public class CacheKeyGenerator implements KeyGenerator {

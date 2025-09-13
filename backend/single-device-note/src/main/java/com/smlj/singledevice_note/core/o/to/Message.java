@@ -5,10 +5,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 
 @Setter
 @Getter
 @NoArgsConstructor
+@Accessors(chain = true) // 链式
 @Schema(description = "协议交互,后端给前端返回的业务结构")
 public class Message<T> extends Msg<T> {
     @Schema(description = "业务发生的时间戳")

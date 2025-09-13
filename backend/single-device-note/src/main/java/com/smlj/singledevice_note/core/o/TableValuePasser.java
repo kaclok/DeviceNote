@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode(callSuper = true)
 @Data
 @NoArgsConstructor
-public class TableValuePasser<T> extends ValuePasser<T> {
+public class TableValuePasser<T> extends com.smlj.common.o.ValuePasser<T> {
     @NotNull
     private String tableName;
 

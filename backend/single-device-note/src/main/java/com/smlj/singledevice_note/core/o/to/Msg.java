@@ -4,9 +4,11 @@ import cn.hutool.json.JSONUtil;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 @Data
 @NoArgsConstructor
+@Accessors(chain = true) // 链式
 @Schema(description = "协议交互,后端给前端返回的业务结构")
 public class Msg<T> {
     @Schema(description = "协议码")

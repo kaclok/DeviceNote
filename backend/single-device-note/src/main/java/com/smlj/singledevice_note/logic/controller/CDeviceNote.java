@@ -1,10 +1,7 @@
 package com.smlj.singledevice_note.logic.controller;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.http.server.HttpServerRequest;
-import cn.hutool.http.server.HttpServerResponse;
 import com.github.pagehelper.PageHelper;
-import com.github.pagehelper.PageInfo;
 import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeviceDao;

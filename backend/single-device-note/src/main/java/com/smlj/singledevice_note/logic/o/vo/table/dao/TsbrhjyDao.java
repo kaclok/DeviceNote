@@ -1,12 +1,10 @@
 package com.smlj.singledevice_note.logic.o.vo.table.dao;
 
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TDeviceRecord;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.Tsbrhjy;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Date;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 

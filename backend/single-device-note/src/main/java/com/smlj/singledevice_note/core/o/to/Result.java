@@ -4,12 +4,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.Accessors;
 
 import java.util.Objects;
 
 // 前后端交互数据标准
 @Getter
 @Setter
+@Accessors(chain = true) // 链式
 @NoArgsConstructor  // private和protected的字段必须被lombok暴露出来，才能被json序列化
 public class Result<T> extends Message<T> {
     @Schema(description = "业务逻辑提示信息")
