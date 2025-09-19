@@ -1,7 +1,8 @@
 package com.smlj.encrypt.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smlj.encrypt.core.Result;
+import com.smlj.encrypt.core.ResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.crypto.engines.AESFastEngine;
@@ -19,19 +20,21 @@ import java.util.Base64;
 @RequestMapping("/x/encrypt")
 public class CEncrypt {
     private final ObjectMapper objectMapper;
-    private static byte[] key = "eMoCB4tYXI3bK4W3CH3c1g==".getBytes();
-    private static byte[] iv = "S2xI6A5Kj4p+wn7pSg7Ygw==".getBytes();
 
     @PostMapping(value = "/encryptJson")
     // formType = 0 表示所有  1是作业票  2是操作票
-    public String encryptJson(@RequestParam(name = "json") String json) throws JsonProcessingException {
-        /*var t = new TestXX(212);
-        json = objectMapper.writeValueAsString(t);*/
-        return encrypt(json);
+    public Result<?> encryptJson(@RequestParam(name = "json") String json,
+                                 @RequestParam(name = "key") String key,
+                                 @RequestParam(name = "iv") String iv) {
+        String r = encrypt(json, key.getBytes(), iv.getBytes());
+        if (r == null) {
+            return Result.fail(ResultCode.RC400);
+        }
+        return Result.success(r);
     }
 
-    public static String encrypt(String plainText) {
-        String sr;
+    public static String encrypt(String plainText, byte[] key, byte[] iv) {
+        String sr = null;
         try {
             byte[] plainBytes = plainText.getBytes(StandardCharsets.UTF_8);
             GCMBlockCipher cipher = new GCMBlockCipher(new
@@ -46,7 +49,7 @@ public class CEncrypt {
             cipher.doFinal(encryptedBytes, retLen);
             sr = Base64.getEncoder().encodeToString(encryptedBytes);
         } catch (Exception ex) {
-            throw new RuntimeException(ex.getMessage());
+            sr = null;
         }
         return sr;
     }
