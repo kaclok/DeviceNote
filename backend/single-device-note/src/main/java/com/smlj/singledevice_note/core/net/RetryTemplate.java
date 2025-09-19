@@ -2,12 +2,10 @@ package com.smlj.singledevice_note.core.net;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.MaxAttemptsRetryPolicy;
 
 @Data
-@RequiredArgsConstructor
 @NoArgsConstructor
 public class RetryTemplate {
     private org.springframework.retry.support.RetryTemplate retryTemplate;

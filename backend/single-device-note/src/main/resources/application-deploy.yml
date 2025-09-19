@@ -30,6 +30,10 @@ spring:
 #      host: localhost
 #      port: 6379
 
+  data:
+    mongodb:
+      uri: mongodb://10.8.54.24:27017/lp
+
 server:
   port: 7090
 
