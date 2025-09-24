@@ -1,7 +1,8 @@
-package com.smlj.singledevice_note.logic.o.vo.table.entity;
+package com.smlj.singledevice_note.logic.o.vo.table.entity.lp;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.springframework.stereotype.Component;
 
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Data
 @Accessors(chain = true)
-public class Tlp_czp_1 extends TlpBase {
-    private String a;
+@NoArgsConstructor
+public class Tlp_gzp_2648 extends TlpBase {
 }
 

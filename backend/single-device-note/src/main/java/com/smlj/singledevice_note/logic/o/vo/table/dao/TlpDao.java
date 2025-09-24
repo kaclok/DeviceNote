@@ -1,9 +1,10 @@
 package com.smlj.singledevice_note.logic.o.vo.table.dao;
 
+import com.smlj.singledevice_note.core.setting.mongodb.MongoSetting;
 import com.smlj.singledevice_note.logic.controller.lp.EPtype;
-import com.smlj.singledevice_note.logic.controller.lp.LPReadConverter;
-import com.smlj.singledevice_note.logic.controller.lp.TPCfg;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TlpBase;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpPCfg;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpBase;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpUser;
 import lombok.Data;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -18,12 +19,13 @@ public class TlpDao {
     private static final String COLLECTION_NAME = "reqs";
     private static final String P_COLLECTION_NAME = "p_cfg";
     private static final String WORKFLOW_COLLECTION_NAME = "workflow_cfg";
+    private static final String USER_COLLECTION_NAME = "user";
 
     private MongoTemplate mongoTemplate;
 
-    private List<Integer> gzpList = new  ArrayList<>();
-    private List<Integer> czpList = new  ArrayList<>();
-    private List<Integer> allList = new  ArrayList<>();
+    private List<Integer> gzpList = new ArrayList<>();
+    private List<Integer> czpList = new ArrayList<>();
+    private List<Integer> allList = new ArrayList<>();
 
     public TlpDao(MongoTemplate mongoTemplate) {
         this.mongoTemplate = mongoTemplate;
@@ -43,7 +45,7 @@ public class TlpDao {
             id = "czp";
         }
 
-        TPCfg cfg = mongoTemplate.findById(id, TPCfg.class, P_COLLECTION_NAME);
+        TlpPCfg cfg = mongoTemplate.findById(id, TlpPCfg.class, P_COLLECTION_NAME);
         List<Integer> arr = new ArrayList<>();
         if (cfg != null) {
             arr = cfg.getWorkflows();
@@ -52,9 +54,9 @@ public class TlpDao {
     }
 
     private Query buildBaseQuery(Date begin, Date end, int pType) {
-        return new Query().addCriteria(Criteria.where("archive_time")
-                .gte(begin)
-                .lte(end));
+        return new Query().addCriteria(Criteria.where("submit_time")
+                .gte(begin.getTime())
+                .lte(end.getTime()));
     }
 
     public Map<String, Long> getCount(Date begin, Date end, int pType) {
@@ -90,8 +92,23 @@ public class TlpDao {
     }
 
     // 根据workflowId获取具体类型，从而反序列化
-    public TlpBase getOne(Integer requestId, Integer workflowId) {
-        var cls = LPReadConverter.WORKFLOW_CLS.get(workflowId);
+    public TlpBase getOne(String requestId, Integer workflowId) {
+        var cls = MongoSetting.WORKFLOW_CLS.get(workflowId);
         return mongoTemplate.findById(requestId, cls, COLLECTION_NAME);
+    }
+
+    public <T extends TlpBase> T storeRecord(T lp) {
+        return mongoTemplate.save(lp, COLLECTION_NAME);
+    }
+
+    public TlpUser storeUser(String id, String name) {
+        TlpUser tlpUser = new TlpUser()
+                .setId(id)
+                .setName(name);
+        return mongoTemplate.save(tlpUser, USER_COLLECTION_NAME);
+    }
+
+    public TlpUser findUser(String id) {
+        return mongoTemplate.findById(id, TlpUser.class, USER_COLLECTION_NAME);
     }
 }
