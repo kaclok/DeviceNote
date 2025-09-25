@@ -14,10 +14,5 @@ import org.springframework.stereotype.Component;
 @NoArgsConstructor
 // 神木氯碱电气第二种工作票（检修）
 public class Tlp_gzp_2648 extends TlpGZPBase {
-    private String dw;
-    private String gzfzrjhr;
-    private String jhgzsj;
-    private String gzddhdd1;
-    private String gznr1;
 }
 

@@ -3,9 +3,15 @@ package com.smlj.singledevice_note.logic.o.vo.table.dao;
 import com.mongodb.client.result.DeleteResult;
 import com.smlj.singledevice_note.core.setting.mongodb.MongoSetting;
 import com.smlj.singledevice_note.logic.controller.lp.EPtype;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.*;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpBase;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpGZPBase;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpPCfg;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpUser;
 import lombok.Data;
-import org.apache.poi.ss.formula.functions.T;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -56,7 +62,7 @@ public class TlpDao {
     private Query buildBaseQuery(Date begin, Date end, int pType) {
         return new Query().addCriteria(Criteria.where("submit_time")
                 .gte(begin.getTime())
-                .lte(end.getTime()));
+                .lt(end.getTime()));
     }
 
     public Map<String, Long> getCount(Date begin, Date end, int pType) {
@@ -76,17 +82,26 @@ public class TlpDao {
     }
 
     // todo 如何进行分页查询？
-    public Map<String, List<? extends TlpBase>> getPs(Date begin, Date end, int pType, int pageNum, int pageSize) {
-        Map<String, List<? extends TlpBase>> r = new HashMap<>();
+    public Map<String, PageImpl<? extends TlpBase>> getPs(Date begin, Date end, int pType, int pageNum, int pageSize) {
+        Map<String, PageImpl<? extends TlpBase>> r = new HashMap<>();
+        Pageable pageable = PageRequest.of(pageNum, pageSize, Sort.by("submit_time").descending());
         if (pType == EPtype.GZP.getType() || pType == EPtype.ALL.getType()) {
             var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.gzpList));
+            query.with(pageable);
+
             List<TlpGZPBase> ls = mongoTemplate.find(query, TlpGZPBase.class, COLLECTION_NAME);
-            r.put("gzp", ls);
+            long totalCount = mongoTemplate.count(Query.of(query).limit(-1).skip(-1), TlpGZPBase.class);
+            var t = new PageImpl<>(ls, pageable, totalCount);
+            r.put("gzp", t);
         }
         if (pType == EPtype.CZP.getType() || pType == EPtype.ALL.getType()) {
             var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.czpList));
-            List<TlpCZPBase> ls = mongoTemplate.find(query, TlpCZPBase.class, COLLECTION_NAME);
-            r.put("czp", ls);
+            query.with(pageable);
+
+            List<TlpBase> ls = mongoTemplate.find(query, TlpBase.class, COLLECTION_NAME);
+            long totalCount = mongoTemplate.count(Query.of(query).limit(-1).skip(-1), TlpBase.class);
+            var t = new PageImpl<>(ls, pageable, totalCount);
+            r.put("czp", t);
         }
         return r;
     }
@@ -107,7 +122,7 @@ public class TlpDao {
     public boolean deleteRecord(String requestId) {
         Query query = new Query(
                 Criteria.where("_id")
-                .is(requestId));
+                        .is(requestId));
         DeleteResult result = mongoTemplate.remove(query, COLLECTION_NAME);
         return result.getDeletedCount() > 0;
     }

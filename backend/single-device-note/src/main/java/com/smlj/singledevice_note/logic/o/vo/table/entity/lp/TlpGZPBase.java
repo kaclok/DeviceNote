@@ -8,15 +8,14 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Data
-/*@Document(collection = "reqs")
-@JsonTypeInfo(use = JsonTypeInfo.Id.NONE, property = "workflow_id", visible = true)
-@JsonSubTypes({
-        @JsonSubTypes.Type(value = Tlp_czp_1.class, name = "Tlp_czp_1"),
-        @JsonSubTypes.Type(value = Tlp_czp_2.class, name = "Tlp_czp_2")
-})*/
 @Accessors(chain = true)
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TlpGZPBase extends TlpBase {
+    private String dw;
+    private String gzfzrjhr;
+    private String jhgzsj;
+    private String gzddhdd1;
+    private String gznr1;
 }
 

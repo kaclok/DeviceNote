@@ -1,6 +1,8 @@
 package com.smlj.singledevice_note.logic.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.setting.mongodb.MongoSetting;
@@ -64,7 +66,16 @@ public class Clp {
     @Transactional
     @PostMapping(value = "/getCount")
     // formType = 0 表示所有  1是作业票  2是操作票
-    public Result<?> getCount(@RequestParam(name = "formType", required = false, defaultValue = "0") int formType, @RequestParam(name = "beginTime") Date beginTime, @RequestParam(name = "endTime") Date endTime) {
+    public Result<?> getCount(@RequestParam(name = "formType", required = false, defaultValue = "0") int formType, @RequestParam(name = "beginTime") String beginTimeStr, @RequestParam(name = "endTime") String endTimeStr) {
+        Date beginTime, endTime;
+        if (StrUtil.isEmpty(beginTimeStr) || StrUtil.isEmpty(endTimeStr)) {
+            beginTime = DateUtil.parse("1970/01/01", "yyyy/MM/dd");
+            endTime = DateUtil.parse("2099/01/01", "yyyy/MM/dd");
+        } else {
+            beginTime = DateUtil.parse(beginTimeStr, "yyyy/MM/dd");
+            endTime = DateUtil.parse(endTimeStr, "yyyy/MM/dd");
+        }
+
         Map<String, Long> count = tlpDao.getCount(beginTime, endTime, formType);
         return Result.success(count);
     }
@@ -72,7 +83,16 @@ public class Clp {
     @Transactional
     @PostMapping(value = "/getList")
     // formType = 0 表示所有， 1是作业票  2是操作票
-    public Result<?> getList(@RequestParam(name = "formType", required = false, defaultValue = "0") int formType, @RequestParam(name = "beginTime") Date beginTime, @RequestParam(name = "endTime") Date endTime, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+    public Result<?> getList(@RequestParam(name = "formType", required = false, defaultValue = "0") int formType, @RequestParam(name = "beginTime") String beginTimeStr, @RequestParam(name = "endTime") String endTimeStr, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+        Date beginTime, endTime;
+        if (StrUtil.isEmpty(beginTimeStr) || StrUtil.isEmpty(endTimeStr)) {
+            beginTime = DateUtil.parse("1970/01/01", "yyyy/MM/dd");
+            endTime = DateUtil.parse("2099/01/01", "yyyy/MM/dd");
+        } else {
+            beginTime = DateUtil.parse(beginTimeStr, "yyyy/MM/dd");
+            endTime = DateUtil.parse(endTimeStr, "yyyy/MM/dd");
+        }
+
         var ps = tlpDao.getPs(beginTime, endTime, formType, pageNum, pageSize);
         return Result.success(ps);
     }

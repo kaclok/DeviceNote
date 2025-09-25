@@ -4,9 +4,7 @@ import cn.hutool.json.JSONUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpBase;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpCZPBase;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpGZPBase;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2633;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2665;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2667;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.*;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.gzp.Tlp_gzp_2648;
 import lombok.RequiredArgsConstructor;
 import org.bson.Document;
@@ -93,6 +91,20 @@ public class MongoSetting /*extends AbstractMongoClientConfiguration */ {
             @Override
             public Tlp_czp_2667 convert(Document source) {
                 return Convert(source, Tlp_czp_2667.class);
+            }
+        });
+
+        converterList.add(new Converter<Document, Tlp_czp_2668>() {
+            @Override
+            public Tlp_czp_2668 convert(Document source) {
+                return Convert(source, Tlp_czp_2668.class);
+            }
+        });
+
+        converterList.add(new Converter<Document, TlpCZP_SJ>() {
+            @Override
+            public TlpCZP_SJ convert(Document source) {
+                return Convert(source, TlpCZP_SJ.class);
             }
         });
 
