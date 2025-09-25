@@ -209,7 +209,7 @@ const appGridItems = ref([
     },
     {
         name: "员工培训平台",
-        url: "http://117.36.227.42:8082?group=" + group,
+        url: "http://10.8.54.162:8082/#/login?group=" + group,
         image: logo_book,
         enabled: true,
     },
@@ -227,7 +227,7 @@ const appGridItems = ref([
     },
     {
         name: "作业票统计",
-        url: "http://10.8.54.161:8085/#/jobTicket",
+        url: "http://10.8.54.162:8085/jobTicket?group=" + group,
         image: logo_book,
         enabled: true,
     },
