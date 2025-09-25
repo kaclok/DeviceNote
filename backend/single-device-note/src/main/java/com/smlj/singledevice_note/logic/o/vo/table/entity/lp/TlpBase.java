@@ -1,5 +1,6 @@
 package com.smlj.singledevice_note.logic.o.vo.table.entity.lp;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -8,7 +9,6 @@ import org.springframework.data.mongodb.core.mapping.MongoId;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
-import java.util.Date;
 
 @Component
 @Data
@@ -20,14 +20,19 @@ import java.util.Date;
 })*/
 @Accessors(chain = true)
 @NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TlpBase implements Serializable {
     // @Serial
     // private static final long serialVersionUID = 1;
     @MongoId
     @Field("_id")
-    private String request_id; // 这个字段名不一定非要是id
+    /*@JsonProperty("_id") 的作用是：
+        序列化时：request_id 字段会输出成 JSON 的 _id
+        反序列化时：
+        JSON 的 _id 会赋值给 Java 的 request_id*/
+    private String _id;
 
-    private int workflow_id;
+    private String workflow_id;
 
     private Long submit_time; // 提交时间
     private Long archive_time; // 归档时间

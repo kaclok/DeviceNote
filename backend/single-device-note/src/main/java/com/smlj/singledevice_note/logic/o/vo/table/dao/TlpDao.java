@@ -1,11 +1,11 @@
 package com.smlj.singledevice_note.logic.o.vo.table.dao;
 
+import com.mongodb.client.result.DeleteResult;
 import com.smlj.singledevice_note.core.setting.mongodb.MongoSetting;
 import com.smlj.singledevice_note.logic.controller.lp.EPtype;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpPCfg;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpBase;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpUser;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.*;
 import lombok.Data;
+import org.apache.poi.ss.formula.functions.T;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -23,9 +23,9 @@ public class TlpDao {
 
     private MongoTemplate mongoTemplate;
 
-    private List<Integer> gzpList = new ArrayList<>();
-    private List<Integer> czpList = new ArrayList<>();
-    private List<Integer> allList = new ArrayList<>();
+    private List<String> gzpList = new ArrayList<>();
+    private List<String> czpList = new ArrayList<>();
+    private List<String> allList = new ArrayList<>();
 
     public TlpDao(MongoTemplate mongoTemplate) {
         this.mongoTemplate = mongoTemplate;
@@ -37,7 +37,7 @@ public class TlpDao {
         this.allList.addAll(this.czpList);
     }
 
-    public List<Integer> getPs(EPtype type) {
+    public List<String> getPs(EPtype type) {
         String id = "all";
         if (type == EPtype.GZP) {
             id = "gzp";
@@ -46,7 +46,7 @@ public class TlpDao {
         }
 
         TlpPCfg cfg = mongoTemplate.findById(id, TlpPCfg.class, P_COLLECTION_NAME);
-        List<Integer> arr = new ArrayList<>();
+        List<String> arr = new ArrayList<>();
         if (cfg != null) {
             arr = cfg.getWorkflows();
         }
@@ -76,34 +76,49 @@ public class TlpDao {
     }
 
     // todo 如何进行分页查询？
-    public Map<String, List<TlpBase>> getPs(Date begin, Date end, int pType, int pageNum, int pageSize) {
-        Map<String, List<TlpBase>> r = new HashMap<>();
+    public Map<String, List<? extends TlpBase>> getPs(Date begin, Date end, int pType, int pageNum, int pageSize) {
+        Map<String, List<? extends TlpBase>> r = new HashMap<>();
         if (pType == EPtype.GZP.getType() || pType == EPtype.ALL.getType()) {
             var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.gzpList));
-            List<TlpBase> ls = mongoTemplate.find(query, TlpBase.class, COLLECTION_NAME);
+            List<TlpGZPBase> ls = mongoTemplate.find(query, TlpGZPBase.class, COLLECTION_NAME);
             r.put("gzp", ls);
         }
         if (pType == EPtype.CZP.getType() || pType == EPtype.ALL.getType()) {
             var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.czpList));
-            List<TlpBase> ls = mongoTemplate.find(query, TlpBase.class, COLLECTION_NAME);
+            List<TlpCZPBase> ls = mongoTemplate.find(query, TlpCZPBase.class, COLLECTION_NAME);
             r.put("czp", ls);
         }
         return r;
     }
 
     // 根据workflowId获取具体类型，从而反序列化
-    public TlpBase getOne(String requestId, Integer workflowId) {
+    public TlpBase getOneRecord(String requestId, String workflowId) {
+        if (requestId == null || workflowId == null) {
+            return null;
+        }
+
         var cls = MongoSetting.WORKFLOW_CLS.get(workflowId);
+        if (cls == null) {
+            return null;
+        }
         return mongoTemplate.findById(requestId, cls, COLLECTION_NAME);
     }
 
-    public <T extends TlpBase> T storeRecord(T lp) {
+    public boolean deleteRecord(String requestId) {
+        Query query = new Query(
+                Criteria.where("_id")
+                .is(requestId));
+        DeleteResult result = mongoTemplate.remove(query, COLLECTION_NAME);
+        return result.getDeletedCount() > 0;
+    }
+
+    public <T> T storeRecord(T lp) {
         return mongoTemplate.save(lp, COLLECTION_NAME);
     }
 
     public TlpUser storeUser(String id, String name) {
         TlpUser tlpUser = new TlpUser()
-                .setId(id)
+                .set_id(id)
                 .setName(name);
         return mongoTemplate.save(tlpUser, USER_COLLECTION_NAME);
     }

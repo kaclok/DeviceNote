@@ -1,4 +1,4 @@
-package com.smlj.singledevice_note.logic.o.vo.table.entity.lp;
+package com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 @Data
 @Accessors(chain = true)
 @NoArgsConstructor
-public class Tlp_gzp_2648 extends TlpBase {
+// 合成操作票
+public class Tlp_czp_2633 extends TlpCZP_SJ {
 }
 

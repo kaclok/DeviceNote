@@ -1,0 +1,17 @@
+package com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
+import org.springframework.stereotype.Component;
+
+@EqualsAndHashCode(callSuper = true)
+@Component
+@Data
+@Accessors(chain = true)
+@NoArgsConstructor
+// 氢氯操作票
+public class Tlp_czp_2667 extends TlpCZP_SJ {
+}
+

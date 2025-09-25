@@ -2,17 +2,20 @@ package com.smlj.singledevice_note.core.setting.mongodb;
 
 import cn.hutool.json.JSONUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpBase;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.Tlp_czp_2;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.Tlp_gzp_2648;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpCZPBase;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpGZPBase;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2633;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2665;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2667;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.gzp.Tlp_gzp_2648;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.formula.functions.T;
+import org.bson.Document;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.CustomConversions;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.core.convert.*;
-import org.bson.Document;
 import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 import org.springframework.stereotype.Component;
 
@@ -27,15 +30,16 @@ import java.util.Map;
 @Configuration
 @Component
 public class MongoSetting /*extends AbstractMongoClientConfiguration */ {
-    public static Map<Integer, Class<? extends TlpBase>> WORKFLOW_CLS = Map.ofEntries(
-            Map.entry(2648, Tlp_gzp_2648.class),
-            Map.entry(2085502, Tlp_czp_2.class)
+    public static Map<String, Class<? extends TlpBase>> WORKFLOW_CLS = Map.ofEntries(
+            Map.entry("2648", Tlp_gzp_2648.class),
+            Map.entry("2665", Tlp_czp_2665.class),
+            Map.entry("2667", Tlp_czp_2667.class),
+            Map.entry("2633", Tlp_czp_2633.class)
     );
 
     public static <T extends TlpBase> T Convert(Document source, Class<T> cls) {
         String json = source.toJson();
         T t = JSONUtil.toBean(json, cls);
-        t.setRequest_id(source.getString("_id"));
         return t;
     }
 
@@ -50,10 +54,45 @@ public class MongoSetting /*extends AbstractMongoClientConfiguration */ {
             }
         });
 
+        converterList.add(new Converter<Document, TlpGZPBase>() {
+            @Override
+            public TlpGZPBase convert(Document source) {
+                return Convert(source, TlpGZPBase.class);
+            }
+        });
+
+        converterList.add(new Converter<Document, TlpCZPBase>() {
+            @Override
+            public TlpCZPBase convert(Document source) {
+                return Convert(source, TlpCZPBase.class);
+            }
+        });
+
         converterList.add(new Converter<Document, Tlp_gzp_2648>() {
             @Override
             public Tlp_gzp_2648 convert(Document source) {
                 return Convert(source, Tlp_gzp_2648.class);
+            }
+        });
+
+        converterList.add(new Converter<Document, Tlp_czp_2633>() {
+            @Override
+            public Tlp_czp_2633 convert(Document source) {
+                return Convert(source, Tlp_czp_2633.class);
+            }
+        });
+
+        converterList.add(new Converter<Document, Tlp_czp_2665>() {
+            @Override
+            public Tlp_czp_2665 convert(Document source) {
+                return Convert(source, Tlp_czp_2665.class);
+            }
+        });
+
+        converterList.add(new Converter<Document, Tlp_czp_2667>() {
+            @Override
+            public Tlp_czp_2667 convert(Document source) {
+                return Convert(source, Tlp_czp_2667.class);
             }
         });
 

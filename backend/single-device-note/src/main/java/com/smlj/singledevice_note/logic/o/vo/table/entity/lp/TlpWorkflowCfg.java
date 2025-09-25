@@ -18,7 +18,7 @@ public class TlpWorkflowCfg implements Serializable {
     // @Serial
     // private static final long serialVersionUID = 1;
     @MongoId
-    private int workflow_id; // 这个字段名不一定非要是id
+    private String _id; // 这个字段名不一定非要是id
 
     private String cls;
 }

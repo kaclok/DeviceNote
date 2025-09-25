@@ -17,7 +17,7 @@ public class TlpPCfg implements Serializable {
     // @Serial
     // private static final long serialVersionUID = 1;
     @MongoId
-    private String id; // 这个字段名不一定非要是id
+    private String _id; // 这个字段名不一定非要是id
 
-    private List<Integer> workflows;
+    private List<String> workflows;
 }
