@@ -4,7 +4,10 @@ import cn.hutool.json.JSONUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpBase;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpCZPBase;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpGZPBase;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.*;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2633;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2665;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2667;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp.Tlp_czp_2668;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.gzp.Tlp_gzp_2648;
 import lombok.RequiredArgsConstructor;
 import org.bson.Document;
@@ -28,12 +31,13 @@ import java.util.Map;
 @Configuration
 @Component
 public class MongoSetting /*extends AbstractMongoClientConfiguration */ {
-    public static Map<String, Class<? extends TlpBase>> WORKFLOW_CLS = Map.ofEntries(
-            Map.entry("2648", Tlp_gzp_2648.class),
-            Map.entry("2665", Tlp_czp_2665.class),
-            Map.entry("2667", Tlp_czp_2667.class),
-            Map.entry("2633", Tlp_czp_2633.class)
-    );
+/*    public static Map<String, Class<? extends TlpBase>> WORKFLOW_CLS = Map.ofEntries(
+            Map.entry("2648", TlpBase.class),
+            Map.entry("2665", TlpGZPBase.class),
+            Map.entry("2667", TlpCZPBase.class),
+            Map.entry("2633", Tlp_czp_2633.class),
+            Map.entry("2668", Tlp_czp_2633.class)
+    );*/
 
     public static <T extends TlpBase> T Convert(Document source, Class<T> cls) {
         String json = source.toJson();
@@ -63,48 +67,6 @@ public class MongoSetting /*extends AbstractMongoClientConfiguration */ {
             @Override
             public TlpCZPBase convert(Document source) {
                 return Convert(source, TlpCZPBase.class);
-            }
-        });
-
-        converterList.add(new Converter<Document, Tlp_gzp_2648>() {
-            @Override
-            public Tlp_gzp_2648 convert(Document source) {
-                return Convert(source, Tlp_gzp_2648.class);
-            }
-        });
-
-        converterList.add(new Converter<Document, Tlp_czp_2633>() {
-            @Override
-            public Tlp_czp_2633 convert(Document source) {
-                return Convert(source, Tlp_czp_2633.class);
-            }
-        });
-
-        converterList.add(new Converter<Document, Tlp_czp_2665>() {
-            @Override
-            public Tlp_czp_2665 convert(Document source) {
-                return Convert(source, Tlp_czp_2665.class);
-            }
-        });
-
-        converterList.add(new Converter<Document, Tlp_czp_2667>() {
-            @Override
-            public Tlp_czp_2667 convert(Document source) {
-                return Convert(source, Tlp_czp_2667.class);
-            }
-        });
-
-        converterList.add(new Converter<Document, Tlp_czp_2668>() {
-            @Override
-            public Tlp_czp_2668 convert(Document source) {
-                return Convert(source, Tlp_czp_2668.class);
-            }
-        });
-
-        converterList.add(new Converter<Document, TlpCZP_SJ>() {
-            @Override
-            public TlpCZP_SJ convert(Document source) {
-                return Convert(source, TlpCZP_SJ.class);
             }
         });
 

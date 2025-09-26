@@ -3,10 +3,7 @@ package com.smlj.singledevice_note.logic.o.vo.table.dao;
 import com.mongodb.client.result.DeleteResult;
 import com.smlj.singledevice_note.core.setting.mongodb.MongoSetting;
 import com.smlj.singledevice_note.logic.controller.lp.EPtype;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpBase;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpGZPBase;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpPCfg;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpUser;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.*;
 import lombok.Data;
 import org.bson.Document;
 import org.springframework.data.domain.PageImpl;
@@ -99,28 +96,15 @@ public class TlpDao {
             var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.czpList));
             query.with(pageable);
 
-            List<TlpBase> ls = mongoTemplate.find(query, TlpBase.class, COLLECTION_NAME);
-            long totalCount = mongoTemplate.count(Query.of(query).limit(-1).skip(-1), TlpBase.class);
+            List<TlpCZPBase> ls = mongoTemplate.find(query, TlpCZPBase.class, COLLECTION_NAME);
+            long totalCount = mongoTemplate.count(Query.of(query).limit(-1).skip(-1), TlpCZPBase.class);
             var t = new PageImpl<>(ls, pageable, totalCount);
             r.put("czp", t);
         }
         return r;
     }
 
-    // 根据workflowId获取具体类型，从而反序列化
-    public TlpBase getOneRecord(String requestId, String workflowId) {
-        if (requestId == null || workflowId == null) {
-            return null;
-        }
-
-        var cls = MongoSetting.WORKFLOW_CLS.get(workflowId);
-        if (cls == null) {
-            return null;
-        }
-        return mongoTemplate.findById(requestId, cls, COLLECTION_NAME);
-    }
-
-    public Document _getOneRecord(String requestId) {
+    public Document getDocRecord(String requestId) {
         if (requestId == null) {
             return null;
         }

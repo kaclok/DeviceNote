@@ -1,14 +1,11 @@
 package com.smlj.singledevice_note.logic.controller;
 
-import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.smlj.singledevice_note.core.o.to.Result;
-import com.smlj.singledevice_note.core.setting.mongodb.MongoSetting;
 import com.smlj.singledevice_note.logic.controller.lp.EPtype;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TlpDao;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpBase;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -101,29 +98,31 @@ public class Clp {
     @Transactional
     @PostMapping(value = "/storeRecordArchiveTime")
     public Result<?> storeRecordArchiveTime(@RequestParam("_id") String requestId,
-                                            @RequestParam("workflow_id") String workflowId,
                                             @RequestParam(value = "archive_time") Long archiveTimeMS) {
-        var lp = tlpDao.getOneRecord(requestId, workflowId);
-        if (lp != null && lp.getWorkflow_id().equals(workflowId)) {
-            lp.setArchive_time(archiveTimeMS);
-            lp.setStatus(2);
-            tlpDao.storeRecord(lp);
-            return Result.success(lp);
+        var doc = tlpDao.getDocRecord(requestId);
+        if (doc != null) {
+            if (!doc.containsKey("archive_time")) {
+                doc.put("archive_time", archiveTimeMS);
+            } else {
+                doc.replace("archive_time", archiveTimeMS);
+            }
+
+            if (!doc.containsKey("status")) {
+                doc.put("status", 2);
+            } else {
+                doc.replace("status", 2);
+            }
+
+            tlpDao.storeRecord(doc);
+            return Result.success(doc);
         }
-        return Result.fail("不存在_id：" + requestId + "  workflow_id:" + workflowId + " 对应的文档");
+        return Result.fail("不存在_id：" + requestId + " 对应的文档");
     }
 
     @Transactional
-    @PostMapping(value = "/getOneRecord")
-    public Result<TlpBase> getOneRecord(@RequestParam(name = "_id") String requestId, @RequestParam(name = "workflow_id") String workflowId) {
-        var lp = tlpDao.getOneRecord(requestId, workflowId);
-        return Result.success(lp);
-    }
-
-    @Transactional
-    @PostMapping(value = "/_getOneRecord")
-    public Result<?> _getOneRecord(@RequestParam(name = "_id") String requestId) {
-        var lp = tlpDao._getOneRecord(requestId);
+    @PostMapping(value = "/getDocRecord")
+    public Result<?> getDocRecord(@RequestParam(name = "_id") String requestId) {
+        var lp = tlpDao.getDocRecord(requestId);
         return Result.success(lp);
     }
 
@@ -136,29 +135,39 @@ public class Clp {
 
     @Transactional
     @PostMapping(value = "/storeRecord")
-    public Result<?> storeRecord(@RequestParam("workflow_id") String workflowId,
-                                 @RequestParam Map<String, Object> map) {
+    public Result<?> storeRecord(@RequestParam Map<String, Object> map) {
         String requestId = map.get("_id").toString();
-
-        var lp = tlpDao.getOneRecord(requestId, workflowId);
+        var lp = tlpDao.getDocRecord(requestId);
         if (lp == null) { // 第一次进入
-            Class<? extends TlpBase> cls = MongoSetting.WORKFLOW_CLS.getOrDefault(workflowId, TlpBase.class);
-            TlpBase t = BeanUtil.mapToBean(map, cls, false, null);
-
-            String createrId = t.getCreate_user_id();
+            Document doc = new Document(map);
+            String createrId = doc.get("create_user_id").toString();
             String createrName = null;
             var user = tlpDao.findUser(createrId);
             if (user != null) {
                 createrName = user.getName();
             }
 
-            t.setCreate_user_name(createrName);
-            t.setStatus(1);
-            var r = tlpDao.storeRecord(t);
+            if (!doc.containsKey("create_user_name")) {
+                doc.put("create_user_name", createrName);
+            }
+
+            if (doc.containsKey("archive_time")) {
+                if (!doc.containsKey("status")) {
+                    doc.put("status", 2);
+                }
+                else {
+                    doc.replace("status", 2);
+                }
+            }
+            else {
+                doc.put("status", 1);
+            }
+
+            var r = tlpDao.storeRecord(doc);
             return Result.success(r);
         }
 
-        return Result.fail("已存在_id：" + requestId + "  workflow_id:" + workflowId + " 对应的文档");
+        return Result.fail("已存在_id：" + requestId + " 对应的文档");
     }
 
     @Data
@@ -178,17 +187,13 @@ public class Clp {
     public Result<?> getInfo(@RequestParam(name = "_id") String requestId,
                              @RequestParam(name = "workflow_id") String workflowId) {
         EPtype ep = tlpDao.getCzpList().contains(workflowId) ? EPtype.CZP : EPtype.GZP;
-        TlpBase lp = tlpDao.getOneRecord(requestId, workflowId);
-        boolean hasArchiveTime = false;
-        if (lp != null) {
-            hasArchiveTime = lp.getArchive_time() != null;
-        }
-
+        var doc = tlpDao.getDocRecord(requestId);
+        boolean hasArchiveTime = (doc != null) && (doc.containsKey("archive_time"));
         Tp tp = new Tp()
                 .setWorkflowId(workflowId)
                 .setExists(tlpDao.getAllList().contains(workflowId))
                 .setEptype(ep.getType())
-                .setHasRecord(lp != null)
+                .setHasRecord(doc != null)
                 .setHasArchiveTime(hasArchiveTime);
         return Result.success(tp);
     }

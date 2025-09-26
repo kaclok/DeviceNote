@@ -1,5 +1,6 @@
 package com.smlj.singledevice_note.logic.o.vo.table.entity.lp.czp;
 
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpCZPBase;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -12,6 +13,6 @@ import org.springframework.stereotype.Component;
 @Accessors(chain = true)
 @NoArgsConstructor
 // 电解操作票
-public class Tlp_czp_2665 extends TlpCZP_SJ {
+public class Tlp_czp_2665 extends TlpCZPBase {
 }
 
