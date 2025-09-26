@@ -14,7 +14,7 @@
         "  createUserId:" + createUserId + "  currentMS: " + currentMS +
         "  nodeType:" + nodeType);
 
-    let url = "http://10.8.54.24:7090/x/lp"
+    let url = "http://117.36.227.42:7090/x/lp"
     url = "http://10.8.13.152:7090/x/lp"
 
     let isLp = false;
@@ -66,6 +66,13 @@
             czpz = WfForm.getSelectShowName(fieldId);
         }
         urlencoded.append("czpz", czpz);
+
+        let gw = null;
+        fieldId = WfForm.convertFieldNameToId("gw");
+        if (fieldId) {
+            gw = WfForm.getFieldValue(fieldId);
+        }
+        urlencoded.append("gw", gw);
 
         let flr = null;
         fieldId = WfForm.convertFieldNameToId("flr");
@@ -128,12 +135,19 @@
         }
         urlencoded.append("dw", dw);
 
-        let jhgzsj = null;
-        fieldId = WfForm.convertFieldNameToId("jhgzsj");
+        let jhkssj = null;
+        fieldId = WfForm.convertFieldNameToId("jhkssj");
         if (fieldId) {
-            jhgzsj = WfForm.getBrowserShowName(fieldId);
+            jhkssj = WfForm.getBrowserShowName(fieldId);
         }
-        urlencoded.append("jhgzsj", jhgzsj);
+        urlencoded.append("jhkssj", jhkssj);
+
+        let jhjssj = null;
+        fieldId = WfForm.convertFieldNameToId("jhjssj");
+        if (fieldId) {
+            jhjssj = WfForm.getBrowserShowName(fieldId);
+        }
+        urlencoded.append("jhjssj", jhjssj);
 
         let gzddhdd1 = null;
         fieldId = WfForm.convertFieldNameToId("gzddhdd1");

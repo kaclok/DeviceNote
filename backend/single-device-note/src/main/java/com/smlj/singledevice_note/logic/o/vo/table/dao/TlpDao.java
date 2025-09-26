@@ -8,6 +8,7 @@ import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpGZPBase;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpPCfg;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TlpUser;
 import lombok.Data;
+import org.bson.Document;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -117,6 +118,14 @@ public class TlpDao {
             return null;
         }
         return mongoTemplate.findById(requestId, cls, COLLECTION_NAME);
+    }
+
+    public Document _getOneRecord(String requestId) {
+        if (requestId == null) {
+            return null;
+        }
+
+        return mongoTemplate.findById(requestId, Document.class, COLLECTION_NAME);
     }
 
     public boolean deleteRecord(String requestId) {

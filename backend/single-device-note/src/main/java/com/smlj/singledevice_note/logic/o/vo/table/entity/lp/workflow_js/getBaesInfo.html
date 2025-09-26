@@ -1,0 +1,16 @@
+<script>
+    let requestId = WfForm.getBaseInfo().requestid.toString()
+    let workflowId = WfForm.getBaseInfo().workflowid.toString()
+
+    let currentUserId = WfForm.getGlobalStore().commonParam.currentUserid.toString()
+    let currentUserName = WfForm.getGlobalStore().commonParam.lastname
+    let createUserId = WfForm.getGlobalStore().commonParam.creater
+    let currentMS = WfForm.getGlobalStore().commonParam.apiResultCacheKey
+
+    let nodeType = WfForm.getGlobalStore().commonParam.nodetype
+
+    console.error("requestId:" + requestId + "  workflowId: " + workflowId +
+        "  currentUserId:" + currentUserId + "  currentUserName: " + currentUserName +
+        "  createUserId:" + createUserId + "  currentMS: " + currentMS +
+        "  nodeType:" + nodeType);
+</script>

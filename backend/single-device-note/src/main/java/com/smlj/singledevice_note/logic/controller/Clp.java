@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -105,6 +106,7 @@ public class Clp {
         var lp = tlpDao.getOneRecord(requestId, workflowId);
         if (lp != null && lp.getWorkflow_id().equals(workflowId)) {
             lp.setArchive_time(archiveTimeMS);
+            lp.setStatus(2);
             tlpDao.storeRecord(lp);
             return Result.success(lp);
         }
@@ -115,6 +117,13 @@ public class Clp {
     @PostMapping(value = "/getOneRecord")
     public Result<TlpBase> getOneRecord(@RequestParam(name = "_id") String requestId, @RequestParam(name = "workflow_id") String workflowId) {
         var lp = tlpDao.getOneRecord(requestId, workflowId);
+        return Result.success(lp);
+    }
+
+    @Transactional
+    @PostMapping(value = "/_getOneRecord")
+    public Result<?> _getOneRecord(@RequestParam(name = "_id") String requestId) {
+        var lp = tlpDao._getOneRecord(requestId);
         return Result.success(lp);
     }
 
@@ -144,6 +153,7 @@ public class Clp {
             }
 
             t.setCreate_user_name(createrName);
+            t.setStatus(1);
             var r = tlpDao.storeRecord(t);
             return Result.success(r);
         }

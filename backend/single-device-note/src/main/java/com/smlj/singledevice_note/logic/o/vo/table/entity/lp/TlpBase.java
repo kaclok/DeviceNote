@@ -39,5 +39,9 @@ public class TlpBase implements Serializable {
 
     private String create_user_id;
     private String create_user_name; // 申请人
+
+    // 1 进行中
+    // 2 已归档
+    private int status;
 }
 
