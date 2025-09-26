@@ -151,17 +151,10 @@ public class Clp {
                 doc.put("create_user_name", createrName);
             }
 
-            if (doc.containsKey("archive_time")) {
-                if (!doc.containsKey("status")) {
-                    doc.put("status", 2);
-                }
-                else {
-                    doc.replace("status", 2);
-                }
-            }
-            else {
-                doc.put("status", 1);
-            }
+            var submitTime = Long.valueOf(doc.get("submit_time").toString());
+            doc.replace("submit_time", submitTime);
+
+            doc.put("status", 1);
 
             var r = tlpDao.storeRecord(doc);
             return Result.success(r);

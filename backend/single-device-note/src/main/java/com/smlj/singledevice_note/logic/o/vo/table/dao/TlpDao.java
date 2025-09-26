@@ -67,12 +67,12 @@ public class TlpDao {
         Map<String, Long> r = new HashMap<>();
         if (pType == EPtype.GZP.getType() || pType == EPtype.ALL.getType()) {
             var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.gzpList));
-            Long count = Long.valueOf(mongoTemplate.count(query, COLLECTION_NAME));
+            Long count = mongoTemplate.count(query, COLLECTION_NAME);
             r.put("gzp", count);
         }
         if (pType == EPtype.CZP.getType() || pType == EPtype.ALL.getType()) {
             var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.czpList));
-            Long count = Long.valueOf(mongoTemplate.count(query, COLLECTION_NAME));
+            Long count = mongoTemplate.count(query, COLLECTION_NAME);
             r.put("czp", count);
         }
 
