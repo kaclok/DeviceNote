@@ -138,29 +138,25 @@ public class Clp {
     public Result<?> storeRecord(@RequestParam Map<String, Object> map) {
         String requestId = map.get("_id").toString();
         var lp = tlpDao.getDocRecord(requestId);
-        if (lp == null) { // 第一次进入
-            Document doc = new Document(map);
-            String createrId = doc.get("create_user_id").toString();
-            String createrName = null;
-            var user = tlpDao.findUser(createrId);
-            if (user != null) {
-                createrName = user.getName();
-            }
-
-            if (!doc.containsKey("create_user_name")) {
-                doc.put("create_user_name", createrName);
-            }
-
-            var submitTime = Long.valueOf(doc.get("submit_time").toString());
-            doc.replace("submit_time", submitTime);
-
-            doc.put("status", 1);
-
-            var r = tlpDao.storeRecord(doc);
-            return Result.success(r);
+        Long submitTime = Long.valueOf(map.get("submit_time").toString());
+        if (lp != null && lp.get("submit_time") != null) {
+            submitTime = Long.valueOf(lp.get("submit_time").toString());
         }
 
-        return Result.fail("已存在_id：" + requestId + " 对应的文档");
+        Document doc = new Document(map);
+        String createrId = doc.get("create_user_id").toString();
+        String createrName = null;
+        var user = tlpDao.findUser(createrId);
+        if (user != null) {
+            createrName = user.getName();
+        }
+
+        doc.put("create_user_name", createrName);
+        doc.replace("submit_time", submitTime);
+        doc.put("status", 1);
+
+        var r = tlpDao.storeRecord(doc);
+        return Result.success(r);
     }
 
     @Data
@@ -172,6 +168,7 @@ public class Clp {
         private boolean exists;
         private int eptype;
         private boolean hasRecord;
+        private boolean hasSubmitTime;
         private boolean hasArchiveTime;
     }
 
@@ -182,11 +179,13 @@ public class Clp {
         EPtype ep = tlpDao.getCzpList().contains(workflowId) ? EPtype.CZP : EPtype.GZP;
         var doc = tlpDao.getDocRecord(requestId);
         boolean hasArchiveTime = (doc != null) && (doc.containsKey("archive_time"));
+        boolean hasSubmitTime = (doc != null) && (doc.containsKey("submit_time"));
         Tp tp = new Tp()
                 .setWorkflowId(workflowId)
                 .setExists(tlpDao.getAllList().contains(workflowId))
                 .setEptype(ep.getType())
                 .setHasRecord(doc != null)
+                .setHasSubmitTime(hasSubmitTime)
                 .setHasArchiveTime(hasArchiveTime);
         return Result.success(tp);
     }

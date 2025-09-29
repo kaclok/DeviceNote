@@ -49,6 +49,10 @@ public class TlpDao {
             id = "czp";
         }
 
+        return _getPs(id);
+    }
+
+    private List<String> _getPs(String id) {
         TlpPCfg cfg = mongoTemplate.findById(id, TlpPCfg.class, P_COLLECTION_NAME);
         List<String> arr = new ArrayList<>();
         if (cfg != null) {

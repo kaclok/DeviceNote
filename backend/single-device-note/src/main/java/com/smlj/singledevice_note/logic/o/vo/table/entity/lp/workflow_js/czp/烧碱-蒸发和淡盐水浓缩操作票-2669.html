@@ -1,0 +1,186 @@
+<script>
+    let requestId = WfForm.getBaseInfo().requestid.toString()
+    let workflowId = WfForm.getBaseInfo().workflowid.toString()
+
+    let currentUserId = WfForm.getGlobalStore().commonParam.currentUserid.toString()
+    let currentUserName = WfForm.getGlobalStore().commonParam.lastname
+    let createUserId = WfForm.getGlobalStore().commonParam.creater
+    let currentMS = WfForm.getGlobalStore().commonParam.apiResultCacheKey
+
+    let nodeType = WfForm.getGlobalStore().commonParam.nodetype
+
+    console.error("requestId:" + requestId + "  workflowId: " + workflowId +
+        "  currentUserId:" + currentUserId + "  currentUserName: " + currentUserName +
+        "  createUserId:" + createUserId + "  currentMS: " + currentMS +
+        "  nodeType:" + nodeType);
+
+    let url = "http://117.36.227.42:7090/x/lp"
+
+    let isLp = false;
+    let eptype = -1;
+    let hasRecord = false;
+    let hasSubmitTime = false;
+    let hasArchiveTime = false;
+
+    function postData(uri, urlencoded, onSuccess) {
+        console.error(uri + " 请求参数:", urlencoded)
+
+        let bodyData = urlencoded;
+        if (urlencoded === null || urlencoded === undefined) {
+            bodyData = new URLSearchParams()
+        }
+
+        fetch(uri, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "*/*",
+            },
+            body: bodyData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (onSuccess !== null && typeof onSuccess === 'function') {
+                    onSuccess(data)
+                } else {
+                    console.error(uri + " 请求成功:", data)
+                }
+            })
+            .catch(error => console.error(uri + " 请求失败:", error));
+    }
+
+    function trySaveUser() {
+        if (requestId === "-1") { // 创建节点
+            let urlencoded = new URLSearchParams();
+            urlencoded.append("_id", currentUserId);
+            urlencoded.append("name", currentUserName);
+
+            postData(url + "/storeUser", urlencoded, null)
+        }
+    }
+
+    function _getFieldValue(urlencoded, dbFieldName) {
+        let t = null;
+        let fieldId = WfForm.convertFieldNameToId(dbFieldName);
+        if (fieldId) {
+            t = WfForm.getFieldValue(fieldId);
+        }
+        urlencoded.append(dbFieldName, t);
+    }
+
+    function _getBrowserShowName(urlencoded, dbFieldName) {
+        let t = null;
+        let fieldId = WfForm.convertFieldNameToId(dbFieldName);
+        if (fieldId) {
+            t = WfForm.getBrowserShowName(fieldId);
+        }
+        urlencoded.append(dbFieldName, t);
+    }
+
+    function _getSelectShowName(urlencoded, dbFieldName) {
+        let t = null;
+        let fieldId = WfForm.convertFieldNameToId(dbFieldName);
+        if (fieldId) {
+            t = WfForm.getSelectShowName(fieldId);
+        }
+        urlencoded.append(dbFieldName, t);
+    }
+
+    // 浏览、时间 用getBrowserShowName
+    // 下拉菜单 用getSelectShowName
+    // 普通文本 用getFieldValue
+    function _fill(urlencoded) {
+        _getSelectShowName(urlencoded, "czpz");
+        _getFieldValue(urlencoded, "gw");
+        _getFieldValue(urlencoded, "bh");
+        _getBrowserShowName(urlencoded, "flr");
+        _getBrowserShowName(urlencoded, "slr");
+        _getBrowserShowName(urlencoded, "flsj");
+        _getBrowserShowName(urlencoded, "czkssj");
+        _getBrowserShowName(urlencoded, "czjssj");
+        _getFieldValue(urlencoded, "czrw");
+        _getFieldValue(urlencoded, "czjs");
+
+        _getFieldValue(urlencoded, "dg");
+        for (let k = 2; k <= 75; k++) {
+            _getFieldValue(urlencoded, "dg" + k);
+        }
+    }
+
+    function fillRecord(urlencoded) {
+        urlencoded.append("create_user_id", createUserId);
+        urlencoded.append("submit_time", currentMS);
+
+        // 操作票
+        if (workflowId === "2669") {
+            _fill(urlencoded);
+        }
+    }
+
+    function tryStoreRecord() {
+        let urlencoded = new URLSearchParams();
+        urlencoded.append("_id", requestId);
+        urlencoded.append("workflow_id", workflowId);
+
+        if (nodeType !== "3") {
+            fillRecord(urlencoded);
+            postData(url + "/storeRecord", urlencoded, null)
+        } else {
+            urlencoded.append("archive_time", currentMS);
+            postData(url + "/storeRecordArchiveTime", urlencoded, null)
+        }
+    }
+
+    function tryDeleteRecord() {
+        let urlencoded = new URLSearchParams();
+        urlencoded.append("_id", requestId);
+        postData(url + "/deleteRecord", urlencoded, null)
+    }
+
+    WfForm.registerCheckEvent(WfForm.OPER_SUBMIT, function (callback) {
+        trySaveUser();
+
+        if (requestId !== "-1" && isLp) { // 非创建节点
+            tryStoreRecord();
+        }
+
+        callback();
+    });
+
+    WfForm.registerCheckEvent(WfForm.OPER_SAVE, function (callback) {
+        trySaveUser();
+
+        callback();
+    });
+
+    WfForm.registerCheckEvent(WfForm.OPER_DELETE, function (callback) {
+        tryDeleteRecord();
+
+        callback();
+    });
+
+    function onGetInfo(data) {
+        isLp = data.data.exists
+        eptype = data.data.eptype
+        hasRecord = data.data.hasRecord
+
+        console.error("isLp: " + isLp + "  eptype:" + eptype + "  hasRecord:" + hasRecord);
+
+        if (nodeType === "3") {
+            tryStoreRecord();
+        }
+    }
+
+    function doNext() {
+        if (requestId === "-1") {
+            return;
+        }
+
+        let urlencoded = new URLSearchParams();
+        urlencoded.append("_id", requestId);
+        urlencoded.append("workflow_id", workflowId);
+        postData(url + "/getInfo", urlencoded, onGetInfo)
+    }
+
+    doNext();
+</script>
