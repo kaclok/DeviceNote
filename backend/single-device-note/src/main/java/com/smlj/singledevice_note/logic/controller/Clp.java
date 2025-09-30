@@ -70,8 +70,8 @@ public class Clp {
             beginTime = DateUtil.parse("1970/01/01", "yyyy/MM/dd");
             endTime = DateUtil.parse("2099/01/01", "yyyy/MM/dd");
         } else {
-            beginTime = DateUtil.parse(beginTimeStr, "yyyy/MM/dd");
-            endTime = DateUtil.parse(endTimeStr, "yyyy/MM/dd");
+            beginTime = DateUtil.parse(beginTimeStr, "yyyy/MM/dd HH:mm:ss");
+            endTime = DateUtil.parse(endTimeStr, "yyyy/MM/dd HH:mm:ss");
         }
 
         Map<String, Long> count = tlpDao.getCount(beginTime, endTime, formType);
@@ -87,8 +87,8 @@ public class Clp {
             beginTime = DateUtil.parse("1970/01/01", "yyyy/MM/dd");
             endTime = DateUtil.parse("2099/01/01", "yyyy/MM/dd");
         } else {
-            beginTime = DateUtil.parse(beginTimeStr, "yyyy/MM/dd");
-            endTime = DateUtil.parse(endTimeStr, "yyyy/MM/dd");
+            beginTime = DateUtil.parse(beginTimeStr, "yyyy/MM/dd HH:mm:ss");
+            endTime = DateUtil.parse(endTimeStr, "yyyy/MM/dd HH:mm:ss");
         }
 
         var ps = tlpDao.getPs(beginTime, endTime, formType, pageNum, pageSize);
