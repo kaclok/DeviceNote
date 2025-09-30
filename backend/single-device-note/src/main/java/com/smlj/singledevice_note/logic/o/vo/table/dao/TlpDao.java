@@ -27,18 +27,8 @@ public class TlpDao {
 
     private MongoTemplate mongoTemplate;
 
-    private List<String> gzpList = new ArrayList<>();
-    private List<String> czpList = new ArrayList<>();
-    private List<String> allList = new ArrayList<>();
-
     public TlpDao(MongoTemplate mongoTemplate) {
         this.mongoTemplate = mongoTemplate;
-
-        this.gzpList = getPs(EPtype.GZP);
-        this.czpList = getPs(EPtype.CZP);
-
-        this.allList.addAll(this.gzpList);
-        this.allList.addAll(this.czpList);
     }
 
     public List<String> getPs(EPtype type) {
@@ -70,12 +60,12 @@ public class TlpDao {
     public Map<String, Long> getCount(Date begin, Date end, int pType) {
         Map<String, Long> r = new HashMap<>();
         if (pType == EPtype.GZP.getType() || pType == EPtype.ALL.getType()) {
-            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.gzpList));
+            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.GZP)));
             Long count = mongoTemplate.count(query, COLLECTION_NAME);
             r.put("gzp", count);
         }
         if (pType == EPtype.CZP.getType() || pType == EPtype.ALL.getType()) {
-            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.czpList));
+            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.CZP)));
             Long count = mongoTemplate.count(query, COLLECTION_NAME);
             r.put("czp", count);
         }
@@ -88,7 +78,7 @@ public class TlpDao {
         Map<String, PageImpl<? extends TlpBase>> r = new HashMap<>();
         Pageable pageable = PageRequest.of(pageNum, pageSize, Sort.by("submit_time").descending());
         if (pType == EPtype.GZP.getType() || pType == EPtype.ALL.getType()) {
-            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.gzpList));
+            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.GZP)));
             query.with(pageable);
 
             List<TlpGZPBase> ls = mongoTemplate.find(query, TlpGZPBase.class, COLLECTION_NAME);
@@ -97,7 +87,7 @@ public class TlpDao {
             r.put("gzp", t);
         }
         if (pType == EPtype.CZP.getType() || pType == EPtype.ALL.getType()) {
-            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(this.czpList));
+            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.CZP)));
             query.with(pageable);
 
             List<TlpCZPBase> ls = mongoTemplate.find(query, TlpCZPBase.class, COLLECTION_NAME);

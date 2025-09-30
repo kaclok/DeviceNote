@@ -49,7 +49,7 @@ public class Clp {
     @PostMapping(value = "/getType")
     // formType = 0 表示所有  1是作业票  2是操作票
     public Result<?> getType(@RequestParam(name = "workflow_id") String workflowId) {
-        EPtype ep = tlpDao.getCzpList().contains(workflowId) ? EPtype.CZP : EPtype.GZP;
+        EPtype ep = tlpDao.getPs(EPtype.CZP).contains(workflowId) ? EPtype.CZP : EPtype.GZP;
         return Result.success(ep.getType());
     }
 
@@ -176,13 +176,13 @@ public class Clp {
     @PostMapping(value = "/getInfo")
     public Result<?> getInfo(@RequestParam(name = "_id") String requestId,
                              @RequestParam(name = "workflow_id") String workflowId) {
-        EPtype ep = tlpDao.getCzpList().contains(workflowId) ? EPtype.CZP : EPtype.GZP;
+        EPtype ep = tlpDao.getPs(EPtype.CZP).contains(workflowId) ? EPtype.CZP : EPtype.GZP;
         var doc = tlpDao.getDocRecord(requestId);
         boolean hasArchiveTime = (doc != null) && (doc.containsKey("archive_time"));
         boolean hasSubmitTime = (doc != null) && (doc.containsKey("submit_time"));
         Tp tp = new Tp()
                 .setWorkflowId(workflowId)
-                .setExists(tlpDao.getAllList().contains(workflowId))
+                .setExists(tlpDao.getPs(EPtype.ALL).contains(workflowId))
                 .setEptype(ep.getType())
                 .setHasRecord(doc != null)
                 .setHasSubmitTime(hasSubmitTime)
