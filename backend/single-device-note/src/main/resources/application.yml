@@ -120,11 +120,15 @@ spring:
 # https://zhuanlan.zhihu.com/p/654487249
 # https://zhuanlan.zhihu.com/p/562942271
 logging:
+  charset:
+    console: UTF-8 #确保调试控制台中文log不乱吗
+
   # https://blog.csdn.net/zwrlj527/article/details/120553432
   # lockback-spring.xml中配置
   # config: classpath:logback-spring.xml
   # https://github.com/big-peng/monitor path属性表示监控的日志文件所在的路径，如果不配置name的话，默认就是目录下的spring.log文件
   file:
+    charset: UTF-8  #确保日志文件内容不乱吗
     name: .logs/log.txt
     # pattern: # https://docs.spring-boot-admin.com/current/client.html
     # file: %clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID}){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx
