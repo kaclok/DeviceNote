@@ -310,6 +310,20 @@
                             <timeZone>GMT+8</timeZone>
                         </configuration>
                     </execution>
+
+                    <execution>
+                        <id>jdk-version-property</id>
+                        <goals>
+                            <goal>regex-property</goal>
+                        </goals>
+                        <configuration>
+                            <name>jdk.version</name>
+                            <value>${java.vm.version}</value>
+                            <regex>^(\d+\.\d+\.\d+)</regex>
+                            <replacement>$1</replacement>
+                            <failIfNoMatch>false</failIfNoMatch>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
 
@@ -341,7 +355,7 @@
             </plugin>
         </plugins>
 
-        <finalName>${project.groupId}.${project.artifactId}-[${activated}-java${java.version}]-${project.version}-${build.time}</finalName>
+        <finalName>${project.groupId}.${project.artifactId}-[${activated}-jdk${jdk.version}-java${java.version}]-${project.version}-${build.time}</finalName>
     </build>
 
     <!-- 使用 huawei / aliyun 的 Maven 源，提升下载速度 -->
