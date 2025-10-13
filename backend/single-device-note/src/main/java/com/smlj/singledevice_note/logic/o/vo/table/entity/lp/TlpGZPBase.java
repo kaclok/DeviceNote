@@ -14,8 +14,16 @@ import org.springframework.stereotype.Component;
 public class TlpGZPBase extends TlpBase {
     private String dw;
     private String gzfzrjhr;
-    private String jhgzsj;
+
+    private String jhkssj;
+    private String jhjssj;
+
+    private String bz;
     private String gzddhdd1;
     private String gznr1;
+    private String gzddhdd2;
+    private String gznr2;
+    private String gzddhdd3;
+    private String gznr3;
 }
 
