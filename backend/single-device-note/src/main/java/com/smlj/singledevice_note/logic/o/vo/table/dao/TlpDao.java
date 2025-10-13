@@ -79,20 +79,22 @@ public class TlpDao {
         Pageable pageable = PageRequest.of(pageNum, pageSize, Sort.by("submit_time").descending());
         if (pType == EPtype.GZP.getType() || pType == EPtype.ALL.getType()) {
             var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.GZP)));
-            query.with(pageable);
+            long count = mongoTemplate.count(query, COLLECTION_NAME);
 
+            query.with(pageable);
             List<TlpGZPBase> ls = mongoTemplate.find(query, TlpGZPBase.class, COLLECTION_NAME);
-            long totalCount = mongoTemplate.count(Query.of(query).limit(-1).skip(-1), TlpGZPBase.class);
-            var t = new PageImpl<>(ls, pageable, totalCount);
+
+            var t = new PageImpl<>(ls, pageable, count);
             r.put("gzp", t);
         }
         if (pType == EPtype.CZP.getType() || pType == EPtype.ALL.getType()) {
             var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.CZP)));
-            query.with(pageable);
+            long count = mongoTemplate.count(query, COLLECTION_NAME);
 
+            query.with(pageable);
             List<TlpCZPBase> ls = mongoTemplate.find(query, TlpCZPBase.class, COLLECTION_NAME);
-            long totalCount = mongoTemplate.count(Query.of(query).limit(-1).skip(-1), TlpCZPBase.class);
-            var t = new PageImpl<>(ls, pageable, totalCount);
+
+            var t = new PageImpl<>(ls, pageable, count);
             r.put("czp", t);
         }
         return r;
