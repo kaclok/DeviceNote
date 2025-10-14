@@ -11,8 +11,9 @@ import org.bouncycastle.crypto.params.AEADParameters;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.springframework.web.bind.annotation.*;
 
+import java.lang.reflect.Array;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.util.*;
 
 @Slf4j
 @RestController
@@ -23,14 +24,24 @@ public class CEncrypt {
 
     @PostMapping(value = "/encryptJson")
     // formType = 0 表示所有  1是作业票  2是操作票
-    public Result<?> encryptJson(@RequestParam(name = "json") String json,
+    public Result<?> encryptJson(@RequestParam(name = "data") String data,
+                                 @RequestParam(name = "zypdata") String zypdata,
                                  @RequestParam(name = "key") String key,
                                  @RequestParam(name = "iv") String iv) {
-        String r = encrypt(json, key.getBytes(), iv.getBytes());
-        if (r == null) {
-            return Result.fail(ResultCode.RC400);
+        String r_data = encrypt(data, key.getBytes(), iv.getBytes());
+        String r_zypdata = encrypt(zypdata, key.getBytes(), iv.getBytes());
+        if (r_data == null) {
+            return Result.fail(data + "加密失败");
         }
-        return Result.success(r);
+        if (r_zypdata == null) {
+            return Result.fail(zypdata + "加密失败");
+        }
+
+        Map<String, String> map = new HashMap<>();
+        map.put("data", r_data);
+        map.put("zypdata", r_zypdata);
+
+        return Result.success(map);
     }
 
     public static String encrypt(String plainText, byte[] key, byte[] iv) {
