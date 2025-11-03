@@ -40,8 +40,12 @@ spring:
     name: mm[@activated@]:${server.port}
 
   main:
-    banner-mode: off # 关闭Banner
+    banner-mode: console
+    # banner-mode: off # 关闭Banner
     allow-circular-references: true # 允许循环依赖，因为项目是三层架构，无法避免这个情况。
+  output:
+    ansi:
+      enabled: ALWAYS
 
   profiles: # 测试、开发、部署环境切换
     # 切换Profiles的配置之后不生效：https://blog.csdn.net/qq_43377237/article/details/103869813
