@@ -101,7 +101,7 @@
         _getFieldValue(urlencoded, "czjs");
 
         _getFieldValue(urlencoded, "dg");
-        for (let k = 2; k <= 99; k++) {
+        for (let k = 2; k <= 94; k++) {
             _getFieldValue(urlencoded, "dg" + k);
         }
     }
@@ -111,7 +111,7 @@
         urlencoded.append("submit_time", currentMS);
 
         // 操作票
-        if (workflowId === "2678") {
+        if (workflowId === "2697") {
             _fill(urlencoded);
         }
     }
