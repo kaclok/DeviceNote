@@ -34,6 +34,8 @@ public class TlpBase implements Serializable {
 
     private String workflow_id;
 
+    private Integer group;
+
     private Long submit_time; // 提交时间
     private Long archive_time; // 归档时间
 

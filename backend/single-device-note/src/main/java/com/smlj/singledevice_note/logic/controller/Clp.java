@@ -64,7 +64,8 @@ public class Clp {
     @Transactional
     @PostMapping(value = "/getCount")
     // formType = 0 表示所有  1是作业票  2是操作票
-    public Result<?> getCount(@RequestParam(name = "formType", required = false, defaultValue = "0") int formType, @RequestParam(name = "beginTime") String beginTimeStr, @RequestParam(name = "endTime") String endTimeStr) {
+    public Result<?> getCount(@RequestParam(name = "formType", required = false, defaultValue = "0") int formType, @RequestParam(name = "beginTime") String beginTimeStr, @RequestParam(name = "endTime") String endTimeStr,
+                              @RequestParam(name = "group", required = false, defaultValue = "1") Integer group) {
         Date beginTime, endTime;
         if (StrUtil.isEmpty(beginTimeStr) || StrUtil.isEmpty(endTimeStr)) {
             beginTime = DateUtil.parse("1970/01/01", "yyyy/MM/dd");
@@ -74,14 +75,15 @@ public class Clp {
             endTime = DateUtil.parse(endTimeStr, "yyyy/MM/dd HH:mm:ss");
         }
 
-        Map<String, Long> count = tlpDao.getCount(beginTime, endTime, formType);
+        Map<String, Long> count = tlpDao.getCount(group, beginTime, endTime, formType);
         return Result.success(count);
     }
 
     @Transactional
     @PostMapping(value = "/getList")
     // formType = 0 表示所有， 1是作业票  2是操作票
-    public Result<?> getList(@RequestParam(name = "formType", required = false, defaultValue = "0") int formType, @RequestParam(name = "beginTime") String beginTimeStr, @RequestParam(name = "endTime") String endTimeStr, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+    public Result<?> getList(@RequestParam(name = "formType", required = false, defaultValue = "0") int formType, @RequestParam(name = "beginTime") String beginTimeStr, @RequestParam(name = "endTime") String endTimeStr, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+                             @RequestParam(name = "group", required = false, defaultValue = "1") Integer group) {
         Date beginTime, endTime;
         if (StrUtil.isEmpty(beginTimeStr) || StrUtil.isEmpty(endTimeStr)) {
             beginTime = DateUtil.parse("1970/01/01", "yyyy/MM/dd");
@@ -91,7 +93,7 @@ public class Clp {
             endTime = DateUtil.parse(endTimeStr, "yyyy/MM/dd HH:mm:ss");
         }
 
-        var ps = tlpDao.getPs(beginTime, endTime, formType, pageNum, pageSize);
+        var ps = tlpDao.getPs(group, beginTime, endTime, formType, pageNum, pageSize);
         return Result.success(ps);
     }
 
@@ -149,6 +151,10 @@ public class Clp {
         var user = tlpDao.findUser(createrId);
         if (user != null) {
             createrName = user.getName();
+        }
+
+        if(!doc.containsKey("group")) {
+            doc.put("group", 1);
         }
 
         doc.put("create_user_name", createrName);

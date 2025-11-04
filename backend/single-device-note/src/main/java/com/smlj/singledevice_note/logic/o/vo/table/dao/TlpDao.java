@@ -51,21 +51,23 @@ public class TlpDao {
         return arr;
     }
 
-    private Query buildBaseQuery(Date begin, Date end, int pType) {
-        return new Query().addCriteria(Criteria.where("submit_time")
-                .gte(begin.getTime())
-                .lt(end.getTime()));
+    private Query buildBaseQuery(Integer group, Date begin, Date end, int pType) {
+        int gp = group == null ? 1 : group;
+        return new Query()
+                .addCriteria(Criteria.where("group").is(gp))
+                .addCriteria(Criteria.where("submit_time").gte(begin.getTime()).lt(end.getTime())
+                );
     }
 
-    public Map<String, Long> getCount(Date begin, Date end, int pType) {
+    public Map<String, Long> getCount(Integer group, Date begin, Date end, int pType) {
         Map<String, Long> r = new HashMap<>();
         if (pType == EPtype.GZP.getType() || pType == EPtype.ALL.getType()) {
-            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.GZP)));
+            var query = buildBaseQuery(group, begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.GZP)));
             Long count = mongoTemplate.count(query, COLLECTION_NAME);
             r.put("gzp", count);
         }
         if (pType == EPtype.CZP.getType() || pType == EPtype.ALL.getType()) {
-            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.CZP)));
+            var query = buildBaseQuery(group, begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.CZP)));
             Long count = mongoTemplate.count(query, COLLECTION_NAME);
             r.put("czp", count);
         }
@@ -74,11 +76,11 @@ public class TlpDao {
     }
 
     // todo 如何进行分页查询？
-    public Map<String, PageImpl<? extends TlpBase>> getPs(Date begin, Date end, int pType, int pageNum, int pageSize) {
+    public Map<String, PageImpl<? extends TlpBase>> getPs(Integer group, Date begin, Date end, int pType, int pageNum, int pageSize) {
         Map<String, PageImpl<? extends TlpBase>> r = new HashMap<>();
         Pageable pageable = PageRequest.of(pageNum, pageSize, Sort.by("submit_time").descending());
         if (pType == EPtype.GZP.getType() || pType == EPtype.ALL.getType()) {
-            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.GZP)));
+            var query = buildBaseQuery(group, begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.GZP)));
             long count = mongoTemplate.count(query, COLLECTION_NAME);
 
             query.with(pageable);
@@ -88,7 +90,7 @@ public class TlpDao {
             r.put("gzp", t);
         }
         if (pType == EPtype.CZP.getType() || pType == EPtype.ALL.getType()) {
-            var query = buildBaseQuery(begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.CZP)));
+            var query = buildBaseQuery(group, begin, end, pType).addCriteria(Criteria.where("workflow_id").in(getPs(EPtype.CZP)));
             long count = mongoTemplate.count(query, COLLECTION_NAME);
 
             query.with(pageable);
