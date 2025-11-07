@@ -54,6 +54,7 @@ public class TlpDao {
     private Query buildBaseQuery(Integer group, Date begin, Date end, int pType) {
         int gp = group == null ? 1 : group;
         return new Query()
+                .addCriteria(Criteria.where("is_test").is("false"))
                 .addCriteria(Criteria.where("group").is(gp))
                 .addCriteria(Criteria.where("submit_time").gte(begin.getTime()).lt(end.getTime())
                 );
