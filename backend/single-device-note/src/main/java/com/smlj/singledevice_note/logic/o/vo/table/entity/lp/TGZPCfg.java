@@ -13,5 +13,8 @@ import java.util.List;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TGZPCfg {
-
+    private String _id;
+    private List<String> selectShowName = new ArrayList<>();
+    private List<String> browserShowName = new ArrayList<>();
+    private List<String> fieldValue = new ArrayList<>();
 }
