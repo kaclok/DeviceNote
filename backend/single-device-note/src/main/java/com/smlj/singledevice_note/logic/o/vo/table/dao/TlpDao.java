@@ -51,6 +51,16 @@ public class TlpDao {
         return arr;
     }
 
+    public TGZPCfg getGZPCfg(String workflowId) {
+        TGZPCfg cfg = mongoTemplate.findById(workflowId, TGZPCfg.class, WORKFLOW_COLLECTION_NAME);
+        return cfg;
+    }
+
+    public TCZPCfg getCZPCfg(String workflowId) {
+        TCZPCfg cfg = mongoTemplate.findById(workflowId, TCZPCfg.class, WORKFLOW_COLLECTION_NAME);
+        return cfg;
+    }
+
     private Query buildBaseQuery(Integer group, Date begin, Date end, int pType) {
         int gp = group == null ? 1 : group;
         return new Query()

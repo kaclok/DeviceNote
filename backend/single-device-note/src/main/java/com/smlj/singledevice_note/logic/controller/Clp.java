@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.logic.controller.lp.EPtype;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TlpDao;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TCZPCfg;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.TGZPCfg;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -153,7 +155,7 @@ public class Clp {
             createrName = user.getName();
         }
 
-        if(!doc.containsKey("group")) {
+        if (!doc.containsKey("group")) {
             doc.put("group", 1);
         }
 
@@ -176,6 +178,9 @@ public class Clp {
         private boolean hasRecord;
         private boolean hasSubmitTime;
         private boolean hasArchiveTime;
+
+        private TCZPCfg czpcfg;
+        private TGZPCfg gzpCfg;
     }
 
     @Transactional
@@ -193,6 +198,14 @@ public class Clp {
                 .setHasRecord(doc != null)
                 .setHasSubmitTime(hasSubmitTime)
                 .setHasArchiveTime(hasArchiveTime);
+
+        if (ep == EPtype.GZP) {
+            var cfg = tlpDao.getGZPCfg(workflowId);
+            tp.setGzpCfg(cfg);
+        } else if (ep == EPtype.CZP) {
+            var cfg = tlpDao.getCZPCfg(workflowId);
+            tp.setCzpcfg(cfg);
+        }
         return Result.success(tp);
     }
 }
