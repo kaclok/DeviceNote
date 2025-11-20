@@ -113,10 +113,7 @@
         urlencoded.append("create_user_id", createUserId);
         urlencoded.append("submit_time", currentMS);
 
-        // 操作票
-        if (workflowId === "2648") {
-            _fill(urlencoded);
-        }
+        _fill(urlencoded);
     }
 
     function tryStoreRecord() {
