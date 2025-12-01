@@ -1,0 +1,9 @@
+${Ansi.CYAN}
+===========================================
+==  项目名称：(${spring.application.name})
+==  端口：(${server.port})
+==  环境：(${spring.profiles.active})
+==  JDK：(${java.vm.version})
+==  SpringBoot：(v${spring-boot.version})
+===========================================
+${Ansi.DEFAULT}
