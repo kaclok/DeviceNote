@@ -112,7 +112,7 @@ const aiGridItems = ref([
         name: "金泰Ai助手",
         url: "http://10.8.13.54:8080",
         image: logo_jt,
-        enabled: true,
+        enabled: false,
     },
     {
         name: "豆包",
@@ -270,6 +270,12 @@ const appGridItems = ref([
     {
         name: "采购供应管理",
         url: "http://10.8.54.24:4177/pages/smlj/cggy/index.html?group=" + group,
+        image: logo_book,
+        enabled: true,
+    },
+    {
+        name: "两票系统",
+        url: "http://10.8.54.162:8087?group=" + group,
         image: logo_book,
         enabled: true,
     },
