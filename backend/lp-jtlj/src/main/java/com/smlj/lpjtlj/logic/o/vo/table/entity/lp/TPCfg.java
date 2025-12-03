@@ -12,9 +12,10 @@ import java.util.List;
 @Accessors(chain = true)
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class TGZPCfg {
+public class TPCfg {
     private String _id;
     private List<String> selectShowName = new ArrayList<>();
     private List<String> browserShowName = new ArrayList<>();
     private List<String> fieldValue = new ArrayList<>();
+    private Integer dgCount;
 }

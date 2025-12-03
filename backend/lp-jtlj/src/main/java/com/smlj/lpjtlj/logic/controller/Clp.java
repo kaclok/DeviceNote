@@ -6,8 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.smlj.lpjtlj.core.o.to.Result;
 import com.smlj.lpjtlj.logic.controller.lp.EPtype;
 import com.smlj.lpjtlj.logic.o.vo.table.dao.TlpDao;
-import com.smlj.lpjtlj.logic.o.vo.table.entity.lp.TCZPCfg;
-import com.smlj.lpjtlj.logic.o.vo.table.entity.lp.TGZPCfg;
+import com.smlj.lpjtlj.logic.o.vo.table.entity.lp.TPCfg;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -177,8 +176,7 @@ public class Clp {
         private boolean hasSubmitTime;
         private boolean hasArchiveTime;
 
-        private TCZPCfg czpcfg;
-        private TGZPCfg gzpCfg;
+        private TPCfg pcfg;
     }
 
     @Transactional
@@ -197,13 +195,8 @@ public class Clp {
                 .setHasSubmitTime(hasSubmitTime)
                 .setHasArchiveTime(hasArchiveTime);
 
-        if (ep == EPtype.GZP) {
-            var cfg = tlpDao.getGZPCfg(workflowId);
-            tp.setGzpCfg(cfg);
-        } else if (ep == EPtype.CZP) {
-            var cfg = tlpDao.getCZPCfg(workflowId);
-            tp.setCzpcfg(cfg);
-        }
+        var cfg = tlpDao.getPCfg(workflowId);
+        tp.setPcfg(cfg);
         return Result.success(tp);
     }
 }

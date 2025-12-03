@@ -50,13 +50,8 @@ public class TlpDao {
         return arr;
     }
 
-    public TGZPCfg getGZPCfg(String workflowId) {
-        TGZPCfg cfg = mongoTemplate.findById(workflowId, TGZPCfg.class, WORKFLOW_COLLECTION_NAME);
-        return cfg;
-    }
-
-    public TCZPCfg getCZPCfg(String workflowId) {
-        TCZPCfg cfg = mongoTemplate.findById(workflowId, TCZPCfg.class, WORKFLOW_COLLECTION_NAME);
+    public TPCfg getPCfg(String workflowId) {
+        TPCfg cfg = mongoTemplate.findById(workflowId, TPCfg.class, WORKFLOW_COLLECTION_NAME);
         return cfg;
     }
 

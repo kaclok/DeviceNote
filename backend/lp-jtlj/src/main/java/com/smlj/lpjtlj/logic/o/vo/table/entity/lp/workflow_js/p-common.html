@@ -21,8 +21,7 @@
     let eptype = -1;
     let hasRecord = false;
     let hasArchiveTime = false;
-    let czpCfg = null;
-    let gzpCfg = null;
+    let pCfg = null;
 
     function postData(uri, urlencoded, onSuccess) {
         console.error(uri + " 请求参数:", urlencoded)
@@ -92,23 +91,23 @@
     // 下拉菜单 用getSelectShowName
     // 普通文本 用getFieldValue
     function _fill(urlencoded) {
-        if(!czpCfg) {
+        if(!pCfg) {
             return;
         }
         
-        for (let element of czpCfg.selectShowName) {
+        for (let element of pCfg.selectShowName) {
             _getSelectShowName(urlencoded, element);
         }
 
-        for (let element of czpCfg.browserShowName) {
+        for (let element of pCfg.browserShowName) {
             _getBrowserShowName(urlencoded, element);
         }
 
-        for (let element of czpCfg.fieldValue) {
+        for (let element of pCfg.fieldValue) {
             _getFieldValue(urlencoded, element);
         }
 
-        for (let k = 2; k <= czpCfg.dgCount; k++) {
+        for (let k = 1; k <= pCfg.dgCount; k++) {
             _getFieldValue(urlencoded, "dg" + k);
         }
     }
@@ -167,10 +166,9 @@
         isLp = data.data.exists
         eptype = data.data.eptype
         hasRecord = data.data.hasRecord
-        czpCfg = data.data.czpcfg
-        gzpCfg = data.data.gzpCfg
+        pCfg = data.data.pCfg
 
-        console.error("isLp: " + isLp + "  eptype:" + eptype + "  hasRecord:" + hasRecord + "  czpCfg:" + czpCfg + "  gzpCfg:" + gzpCfg);
+        console.error("isLp: " + isLp + "  eptype:" + eptype + "  hasRecord:" + hasRecord + "  pCfg:" + pCfg);
 
         if (nodeType === "3") {
             tryStoreRecord();

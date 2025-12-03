@@ -31,3 +31,7 @@ replay_pid*
 /ft-checnote/dist-0.0.1-cors
 /backend/single-device-note/.logs
 /backend/watchdog/.logs
+/backend/lp-jtlj/.logs
+backend/lp-jtlj/.logs/log.txt
+/backend/lp-jtlj/.logs
+backend/lp-jtlj/.logs/log.txt
