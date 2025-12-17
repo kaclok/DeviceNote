@@ -1,5 +1,7 @@
 <script>
     let isTest = WfForm.getGlobalStore().commonParam.belongTest
+    let isMobile = WfForm.isMobile()
+
     let requestId = WfForm.getBaseInfo().requestid.toString()
     let workflowId = WfForm.getBaseInfo().workflowid.toString()
 
@@ -10,7 +12,7 @@
 
     let nodeType = WfForm.getGlobalStore().commonParam.nodetype
 
-    console.error("requestId:" + requestId + "  workflowId: " + workflowId +
+    console.error("isTest:" + isTest + " isMobile:" + isMobile +  " requestId:" + requestId + "  workflowId: " + workflowId +
         "  currentUserId:" + currentUserId + "  currentUserName: " + currentUserName +
         "  createUserId:" + createUserId + "  currentMS: " + currentMS +
         "  nodeType:" + nodeType);
@@ -125,6 +127,7 @@
         urlencoded.append("_id", requestId);
         urlencoded.append("workflow_id", workflowId);
         urlencoded.append("is_test", isTest);
+        urlencoded.append("isMobile", isMobile);
 
         if (nodeType !== "3") {
             fillRecord(urlencoded);
