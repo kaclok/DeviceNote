@@ -1,8 +1,10 @@
 package com.smlj.singledevice_note.logic.controller;
 
+import cn.hutool.core.date.DateUtil;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.to.Result;
+import com.smlj.singledevice_note.core.utils.DateTimeUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCheckBJDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCheckRecordDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCheckRecord;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -104,6 +107,56 @@ public class CCheckNote {
     public static class To_Excel<T> implements Serializable {
         private ArrayList<String> colNames = new ArrayList<String>();
         private ArrayList<ArrayList<String>> rows = new ArrayList<ArrayList<String>>();
+    }
+
+    @Transactional
+    @GetMapping(value = "/find")
+    public Result<?> find(String bgId,
+                          String query,
+                          Long beginDate,
+                          Long endDate,
+                          @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
+                          @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+        var bjs = tCheckBJDao.doSelectSimple("t_check_bj", "*", "bj_id = '" + bgId + "'", null);
+        if (bjs == null || bjs.isEmpty()) {
+            return Result.fail("bgId：" + bgId + "不存在");
+        }
+
+        int currentYear = LocalDate.now().getYear();
+        var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        Date beginTime = DateUtil.parse(currentYear + "/01/01", "yyyy/MM/dd");
+        if (beginDate != null) {
+            Calendar t = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+            t.setTime(new Date(beginDate));
+            t.set(Calendar.HOUR_OF_DAY, 0);
+            t.set(Calendar.MINUTE, 0);
+            t.set(Calendar.SECOND, 0);
+            t.set(Calendar.MILLISECOND, 0);
+            beginTime = t.getTime();
+        }
+
+        Date endTime = new Date();
+        if (endDate != null) {
+            Calendar t = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+            t.setTime(new Date(endDate));
+            t.set(Calendar.HOUR_OF_DAY, 0);
+            t.set(Calendar.MINUTE, 0);
+            t.set(Calendar.SECOND, 0);
+            t.set(Calendar.MILLISECOND, 0);
+            endTime = t.getTime();
+        }
+
+        var bj = bjs.get(0);
+        var tableName = bj.getTableName();
+        String beginFormat = sdf.format(beginTime.getTime());
+        String endFormat = sdf.format(endTime.getTime());
+
+        String conds = "'" + beginFormat + "' <= (time::date)::timestamp and (time::date)::timestamp <= '" + endFormat + "'";
+        String orderBy = "time desc";
+
+        PageHelper.startPage(pageNum, pageSize, true, true, true);
+        var ls = tCheckRecordDao.find(tableName, query, bgId, conds, orderBy);
+        return Result.success(new PageSerializable<>(ls));
     }
 
     @Transactional

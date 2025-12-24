@@ -36,6 +36,15 @@ class SysX {
             onAfter?.(false, fail);
         });
     }
+
+    async query(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        ApiX.query(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, fail);
+        });
+    }
 }
 
 export {

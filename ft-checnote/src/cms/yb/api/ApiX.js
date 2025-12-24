@@ -28,4 +28,11 @@ export class ApiX {
             signal: signal,
         })
     }
+
+    static query(paras, signal) {
+        return axiosR.get("x/find", {
+            params: paras,
+            signal: signal,
+        })
+    }
 }

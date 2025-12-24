@@ -14,6 +14,8 @@ public interface TCheckRecordDao {
 
     ArrayList<TCheckRecord> doSelectSimple(@Param("tableName") String tableName, @Param("select") String select, @Param("conds") String conds, @Param("orderBys") String orderBys);
 
+    ArrayList<TCheckRecord> find(@Param("tableName") String tableName, @Param("content") String content, @Param("bjId") String bjId, @Param("conds") String conds, @Param("orderBys") String orderBys);
+
     void insert(@Param("tableName") String tableName, @Param("item") TCheckRecord item);
 
     void update(@Param("tableName") String tableName, @Param("item") TCheckRecord item);

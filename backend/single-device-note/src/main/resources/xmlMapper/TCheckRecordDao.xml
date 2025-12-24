@@ -47,6 +47,24 @@
         </if>
     </select>
 
+    <select id="find" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCheckRecord">
+        select * from ${tableName}
+        where
+            ( c_name LIKE CONCAT('%', #{content}, '%')
+            OR c_desc LIKE CONCAT('%', #{content}, '%')
+            OR c_progress LIKE CONCAT('%', #{content}, '%')
+            OR c_person LIKE CONCAT('%', #{content}, '%')
+            OR c_summary LIKE CONCAT('%', #{content}, '%') )
+        and "bj_id" = #{bjId}
+        <if test="conds != null and conds != ''">
+            and (${conds})
+        </if>
+
+        <if test="orderBys != null and orderBys != ''">
+            order by ${orderBys}
+        </if>
+    </select>
+
     <select id="exist" resultType="java.lang.Integer">
         SELECT COUNT(*) FROM ${tableName} WHERE id = ${id}
     </select>

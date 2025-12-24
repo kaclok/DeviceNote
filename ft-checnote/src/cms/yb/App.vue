@@ -11,19 +11,25 @@ const PAGE_SIZE = 13
 let AC_getList = new AbortController();
 let AC_add = new AbortController();
 let AC_export = new AbortController();
+let AC_query = new AbortController();
 
 let loadingList = ref(false);
 let loadingAdd = ref(false);
 let loadingExport = ref(false)
+let loadingQuery = ref(false)
 
 let curBJId = ref("1");
 let curDate = ref(Date.now());
-let dateRange = ref('');
+let dateRange = ref(null);
+let input = ref('')
 
 let curPageIndex = ref(1)
 
 const formList = ref([])
 let formTotal = 0
+// 1:正常模式
+// 2:搜索模式
+let mode = 1;
 
 let formRef = ref(null)
 const __info__ = {
@@ -52,6 +58,7 @@ onUnmounted(() => {
     AC_getList.abort();
     AC_add.abort();
     AC_export.abort();
+    AC_query.abort();
 });
 
 onMounted(() => {
@@ -68,8 +75,57 @@ let beginTimestamp = null;
 let endTimestamp = null;
 
 function onDateRangeChanged(range) {
+    dateRange.value = range;
+
     beginTimestamp = Math.round(range[0]);
     endTimestamp = Math.round(range[1]);
+}
+
+function onSearch() {
+    if (!input.value) {
+        // window.alert('请选择导出时间区间');
+        ElMessage({
+            showClose: true,
+            message: '请输入搜索关键字',
+            type: 'warning',
+            center: true,
+            duration: 1500,
+        });
+
+        return
+    }
+
+    mode = 2;
+    curPageIndex.value = 1
+    _query(curPageIndex.value);
+}
+
+function _query(pageNum) {
+    Singleton.getInstance(SysX).query({
+        bgId: curBJId.value,
+        query: input.value,
+        beginDate: beginTimestamp,
+        endDate: endTimestamp,
+        pageNum: pageNum,
+        pageSize: PAGE_SIZE
+    }, AC_query.signal, () => {
+        loadingQuery.value = true;
+    }, (r, data) => {
+        loadingQuery.value = false;
+        showDialogue.value = false
+
+        if (r) {
+            formList.value = data.data.list
+            formTotal = data.data.total
+        }
+    });
+}
+
+function onResetTimeArea() {
+    dateRange.value = null;
+
+    beginTimestamp = null;
+    endTimestamp = null;
 }
 
 function onExportAll() {
@@ -80,7 +136,7 @@ function onExportAll() {
             message: '请选择导出时间区间',
             type: 'warning',
             center: true,
-            duration: 2000,
+            duration: 1500,
         });
 
         return
@@ -103,6 +159,7 @@ function onMenuClicked(menuIndex) {
     curBJId.value = menuIndex
 
     formTotal = 0
+    mode = 1;
     curPageIndex.value = 1
 
     recordMode.value = 0
@@ -115,7 +172,11 @@ function onPageChanged(pageIndex) {
     if (pageIndex !== curPageIndex.value) {
         curPageIndex.value = pageIndex
 
-        _getList(pageIndex);
+        if (mode === 1) {
+            _getList(pageIndex);
+        } else if (mode === 2) {
+            _query(pageIndex);
+        }
     }
 }
 
@@ -206,11 +267,11 @@ function onArrowChanged(newIndex, oldIndex) {
             </div>
         </div>
 
-        <div>
-            <div style="width: 230px">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px;">
+            <div>
                 <!--                <el-carousel height="40px" @change="onArrowChanged" indicator-position="none" arrow="always">
                                     <el-carousel-item>-->
-                <el-date-picker style="width: 130px; height: 35px; padding-top: 10px; padding-left: 2px"
+                <el-date-picker style="width: 130px;"
                                 @change="onDateChanged"
                                 :clearable="false"
                                 v-model="curDate"
@@ -221,26 +282,30 @@ function onArrowChanged(newIndex, oldIndex) {
                                 value-format="x"
                                 size="small"
                 />
-                <!--                    </el-carousel-item>
-                                </el-carousel>-->
             </div>
-
+            <div style="width: 480px;">
+                <el-input v-model="input" placeholder="输入搜索关键字" style="width: calc(100% - 72px);"/>
+                <el-button @click="onSearch" :dark="true" type="warning" style="margin-left: 12px;">搜索</el-button>
+            </div>
             <div>
-                <el-date-picker style="position: absolute; right: 60px; top: 60px"
-                                @change="onDateRangeChanged"
-                                :clearable="false"
-                                v-model="dateRange"
-                                type="daterange"
-                                range-separator="至"
-                                start-placeholder="导出开始日期"
-                                end-placeholder="导出结束日期"
-                                format="YYYY/MM/DD"
-                                :editable="false"
-                                value-format="x"
-                                size="small"
+
+                <el-date-picker
+                    @change="onDateRangeChanged"
+                    :clearable="false"
+                    v-model="dateRange"
+                    type="daterange"
+                    range-separator="至"
+                    start-placeholder="开始日期"
+                    end-placeholder="结束日期"
+                    format="YYYY/MM/DD"
+                    :editable="false"
+                    value-format="x"
+                    size="small"
                 />
 
-                <el-button @click="onExportAll" circle :dark="true" type="warning" style="position: absolute; right: 20px; top: 55px">导出
+                <el-button @click="onResetTimeArea" circle :dark="true" type="warning">重置
+                </el-button>
+                <el-button @click="onExportAll" circle :dark="true" type="warning">导出
                 </el-button>
             </div>
         </div>
@@ -257,7 +322,7 @@ function onArrowChanged(newIndex, oldIndex) {
                 </el-button-group>
 
                 <el-table show-overflow-tooltip :data="formList" fit stripe border highlight-current-row max-height="100%">
-                    <el-table-column sortable fixed type="index" label="序号" width="75"/>
+                    <el-table-column sortable fixed type="index" label="序号" width="55"/>
                     <el-table-column prop="c_finish" label="完成情况" width="90">
                         <template #default="scope1">
                             <el-switch
@@ -273,12 +338,20 @@ function onArrowChanged(newIndex, oldIndex) {
                     </el-table-column>
                     <el-table-column sortable prop="c_name" label="位号/名称" width="200"/>
                     <el-table-column sortable prop="c_person" label="作业人员" width="140"/>
-                    <el-table-column prop="c_desc" label="故障描述" width="250"/>
+                    <el-table-column prop="c_desc" label="故障描述" width="150"/>
                     <el-table-column prop="c_progress" label="维修过程"/>
                     <el-table-column sortable prop="c_result" label="维修结果" width="190"/>
-                    <el-table-column prop="c_summary" label="技术小结" width="120"/>
-                    <el-table-column prop="c_comment" label="班长批注"/>
-
+                    <el-table-column prop="time" label="日期" width="125">
+                        <template #default="scope1">
+                            <el-date-picker
+                                format="YYYY-MM-DD HH"
+                                :disabled="true"
+                                type="datetime"
+                                class="item"
+                                v-model="scope1.row.time">
+                            </el-date-picker>
+                        </template>
+                    </el-table-column>
                     <el-table-column fixed="left" label="" min-width="45" width="70">
                         <template #default="scope">
                             <el-button link type="primary" size="small" @click.prevent="onDeviceClicked(scope.row)">查看
