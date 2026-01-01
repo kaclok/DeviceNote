@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolRecordDao">
+   <insert id="insert" useGeneratedKeys="true" keyProperty="item.id">
+      insert into nfcpatrol.t_nfcpatrol_record (pointid
+         , time
+         , person
+         , content)
+      values (#{item.pointid},
+         #{item.time},
+         #{item.person},
+         #{item.content})
+   </insert>
+
+   <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolRecord">
+      select * from nfcpatrol.t_nfcpatrol_record
+   </select>
+</mapper>

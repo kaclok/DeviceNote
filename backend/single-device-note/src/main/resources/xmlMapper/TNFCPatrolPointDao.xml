@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolPointDao">
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
+        select * from nfcpatrol.t_nfcpatrol_point
+        where deleted = false
+        <if test="queryByNum != null and queryByNum != ''">
+            and pointnum LIKE CONCAT('%', #{queryByNum}, '%')
+        </if>
+        <if test="queryByName != null and queryByName != ''">
+            and pointname LIKE CONCAT('%', #{queryByName}, '%')
+        </if>
+        <if test="queryByRfId != null and queryByRfId != ''">
+            and rfid LIKE CONCAT('%', #{queryByRfId}, '%')
+        </if>
+        order by createtime
+    </select>
+
+    <select id="queryUnused" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
+        select * from nfcpatrol.t_nfcpatrol_point
+        where deleted = false and lineid is null
+        <if test="queryByNum != null and queryByNum != ''">
+            and pointnum LIKE CONCAT('%', #{queryByNum}, '%')
+        </if>
+        <if test="queryByName != null and queryByName != ''">
+            and pointname LIKE CONCAT('%', #{queryByName}, '%')
+        </if>
+        <if test="queryByRfId != null and queryByRfId != ''">
+            and rfid LIKE CONCAT('%', #{queryByRfId}, '%')
+        </if>
+        order by createtime
+    </select>
+
+    <select id="queryById" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
+        select * from nfcpatrol.t_nfcpatrol_point
+        where rfid = #{id} and deleted = FALSE
+    </select>
+
+    <update id="delete">
+        update nfcpatrol.t_nfcpatrol_point
+        SET deleted = TRUE
+        where rfid = #{id} and deleted = FALSE
+    </update>
+
+    <select id="exist" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM nfcpatrol.t_nfcpatrol_point WHERE rfid = #{id}
+    </select>
+
+    <!--
+    返回值含义
+    0	不存在符合where的条目
+    1	成功将 1 条 deleted = FALSE 的记录标记为已删除
+    >1	成功将多条记录标记为已删除（如果 rfId 不是主键或唯一约束）
+    -->
+    <update id="updateBase">
+        update nfcpatrol.t_nfcpatrol_point
+        SET
+            pointname = #{item.pointname},
+            pointnum = #{item.pointnum},
+            pointaddr = #{item.pointaddr}
+        where rfid = #{item.rfid} and deleted = FALSE
+    </update>
+
+    <update id="updateLineId">
+        update nfcpatrol.t_nfcpatrol_point
+        SET
+            lineid = #{lineid}
+        where rfid = #{rfid} and deleted = FALSE
+    </update>
+
+    <!--
+    返回值的含义：
+    返回 1：成功插入了一条记录
+    返回 0：插入失败（没有插入任何记录）
+    -->
+    <insert id="insert">
+        insert into nfcpatrol.t_nfcpatrol_point (rfid
+            , pointname
+            , pointnum
+            , pointaddr
+            , createtime)
+        values (#{item.rfid},
+            #{item.pointname},
+            #{item.pointnum},
+            #{item.pointaddr},
+            #{item.createtime})
+    </insert>
+</mapper>

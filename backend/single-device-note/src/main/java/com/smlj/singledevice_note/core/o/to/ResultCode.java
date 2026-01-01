@@ -7,6 +7,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum ResultCode {
+    RC199(199, "失败"),
     RC200(200, "成功"),
 
     // 协议参数传输

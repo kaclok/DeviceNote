@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolLineDao">
+    <resultMap id="lineResultMap" type="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine">
+        <id property="id" column="id"/>
+        <result property="linenum" column="linenum"/>
+        <result property="linename" column="linename"/>
+        <result property="deptid" column="deptid"/>
+        <result property="cycle" column="cycle"/>
+        <result property="begintime" column="begintime"/>
+        <result property="createtime" column="createtime"/>
+        <!-- 关键：为数组字段指定 TypeHandler -->
+        <result property="pointids" column="pointids" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+    </resultMap>
+
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine" resultMap="lineResultMap">
+        select * from nfcpatrol.t_nfcpatrol_line
+        where deleted = false
+        <if test="queryByNum != null and queryByNum != ''">
+            and linenum LIKE CONCAT('%', #{queryByNum}, '%')
+        </if>
+        <if test="queryByName != null and queryByName != ''">
+            and linename LIKE CONCAT('%', #{queryByName}, '%')
+        </if>
+        <if test="queryByDeptId != null and queryByDeptId != ''">
+            and deptid LIKE CONCAT('%', #{queryByDeptId}, '%')
+        </if>
+        order by createtime
+    </select>
+
+    <select id="queryPointsByLine" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
+        SELECT * FROM nfcpatrol.t_nfcpatrol_point
+        WHERE
+            rfid in (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line WHERE id = ${id})
+        order by createtime
+    </select>
+
+    <select id="queryRelativedPoints" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
+        (SELECT * FROM nfcpatrol.t_nfcpatrol_point WHERE rfid IN (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line WHERE id = ${id})) UNION
+        (SELECT * FROM nfcpatrol.t_nfcpatrol_point WHERE lineid IS NULL)
+        ORDER BY createtime
+    </select>
+
+    <select id="queryById" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine" resultMap="lineResultMap">
+        select * from nfcpatrol.t_nfcpatrol_line
+        where id = ${id}
+    </select>
+
+    <update id="delete">
+        update nfcpatrol.t_nfcpatrol_line
+        SET deleted = TRUE
+        where id = ${id} and deleted = FALSE
+    </update>
+
+    <update id="updateBase">
+        update nfcpatrol.t_nfcpatrol_line
+        SET
+            linenum = #{item.linenum},
+            linename = #{item.linename},
+            deptid = #{item.deptid},
+            cycle = #{item.cycle},
+            begintime = #{item.begintime},
+            pointids = #{item.pointids, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
+        where id = ${item.id} and deleted = FALSE
+    </update>
+
+    <update id="updatePoints">
+        update nfcpatrol.t_nfcpatrol_line
+        SET pointids = #{pointids, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
+        where id = ${id} and deleted = FALSE
+    </update>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into nfcpatrol.t_nfcpatrol_line (linenum
+            , linename
+            , deptid
+            , cycle
+            , begintime
+            , createtime
+            , pointids)
+        values (#{item.linenum},
+            #{item.linename},
+            #{item.deptid},
+            #{item.cycle},
+            #{item.begintime},
+            #{item.createtime},
+            #{item.pointids, typeHandler=org.apache.ibatis.type.ArrayTypeHandler})
+    </insert>
+</mapper>

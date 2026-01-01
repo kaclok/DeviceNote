@@ -50,6 +50,10 @@ public class Result<T> extends Message<T> {
         return fail(resultCode, null);
     }
 
+    public static <T> Result<T> fail() {
+        return fail("操作失败", null);
+    }
+
     // 自定义失败信息, fail返回值其实会自动推导，因为T没有传递下去
     public static <T> Result<T> fail(String message) {
         return fail(message, null);
@@ -73,6 +77,14 @@ public class Result<T> extends Message<T> {
     }
 
     // 成功/失败都处理
+    public static <T> Result<T> sf(boolean r) {
+        if (r) {
+            return success();
+        } else {
+            return fail();
+        }
+    }
+
     public static <T> Result<T> sf(ResultCode resultCode, T data) {
         if (isSuccess(resultCode.getCode())) {
             return success(data);
