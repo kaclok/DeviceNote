@@ -11,18 +11,18 @@ import com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolPointDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolRecordDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolRecord;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.TimeZone;
+import java.util.*;
 
 @Slf4j
 @RestController
@@ -147,18 +147,6 @@ public class CNFCPatrol {
         return Result.success(new PageSerializable<>(ls));
     }
 
-    private ArrayList<TNFCPatrolPoint> _queryPointsByLine(int id) {
-        var ls = new ArrayList<TNFCPatrolPoint>();
-        var line = lineDao.queryById(id);
-        if(line != null && line.getPointids() != null && line.getPointids().length > 0) {
-            for(var pointid : line.getPointids()) {
-                var point = pointDao.queryById(pointid);
-                ls.add(point);
-            }
-        }
-        return ls;
-    }
-
     @Transactional
     @PostMapping(value = "/deleteLine")
     public Result<?> deleteLine(@RequestParam(name = "id") int id) {
@@ -168,19 +156,18 @@ public class CNFCPatrol {
 
     @Transactional
     private void connectLinePoint(Integer lineid, String[] pointids, boolean incrOrUpdate) {
-        if(incrOrUpdate) {
+        if (incrOrUpdate) {
             for (int i = 0; i < pointids.length; i++) {
                 pointDao.updateLineId(pointids[i], lineid);
             }
-        }
-        else {
+        } else {
             var line = lineDao.queryById(lineid);
             if (line == null) {
                 return;
             }
 
             // 清空旧数据
-            if(line.getPointids() == null ||  line.getPointids().length == 0) {
+            if (line.getPointids() == null || line.getPointids().length == 0) {
                 return;
             }
             var ls = line.getPointids();
@@ -241,10 +228,8 @@ public class CNFCPatrol {
         var dt = DateUtil.parse(begintime, "yyyy-MM-dd HH");
         line.setBegintime(dt);
 
+        connectLinePoint(id, pointids, false);
         int r = lineDao.updateBase(line);
-        if (r > 0) {
-            connectLinePoint(id, pointids, false);
-        }
         return Result.sf(r > 0);
     }
 
@@ -254,10 +239,11 @@ public class CNFCPatrol {
                                   @RequestParam(name = "queryByPerson", required = false) String queryByPerson,
                                   @RequestParam(name = "queryBegin", required = false) String queryBegin,
                                   @RequestParam(name = "queryEnd", required = false) String queryEnd,
+                                  @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus,
                                   @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
                                   @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         Date beginDt, endDt;
-        if(StrUtil.isEmpty(queryBegin)) {
+        if (StrUtil.isEmpty(queryBegin)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
             calendar.setTime(new Date());
             calendar.add(Calendar.DAY_OF_MONTH, -2);  // 减去2天
@@ -265,7 +251,7 @@ public class CNFCPatrol {
         }
         beginDt = DateUtil.parse(queryBegin, "yyyy-MM-dd");
 
-        if(StrUtil.isEmpty(queryEnd)) {
+        if (StrUtil.isEmpty(queryEnd)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
             calendar.setTime(new Date());
             queryEnd = new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime());
@@ -278,8 +264,156 @@ public class CNFCPatrol {
             return Result.success(new PageSerializable<>(ls));
         }
 
+        var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = recordDao.queryAll(queryByDeptId, queryByPerson, beginDt, endDt);
+        var begin = sdf.format(beginDt);
+        var end = sdf.format(endDt);
+        var ls = recordDao.queryAll(queryByDeptId, queryByPerson, begin, end);
         return Result.success(new PageSerializable<>(ls));
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class RecordInfo {
+        private TNFCPatrolPoint point;
+        private TNFCPatrolRecord record;
+    }
+
+    @EqualsAndHashCode(callSuper = false)
+    @Data
+    @NoArgsConstructor
+    public static class LineInfo {
+        private TNFCPatrolLine line;
+        private Date time;
+        private int finishCnt;
+    }
+
+    /*@Transactional
+    @PostMapping(value = "/queryPointInfo")
+    public Result<?> queryPoints(@RequestParam(name = "rfid") String rfid, @RequestParam(name = "includeLine", required = false) boolean includeLine) {
+        var point = pointDao.queryById(rfid);
+        if (point == null) {
+            return Result.fail("不存在rfid为:" + rfid + "的巡检点");
+        }
+
+        PointInfo pi = new PointInfo();
+        pi.setPoint(point);
+
+        if (includeLine) {
+            TNFCPatrolLine line = null;
+            var lineId = point.getLineid();
+            if (lineId != null) {
+                line = lineDao.queryById(lineId);
+            }
+            pi.setLine(line);
+        }
+
+        return Result.success(pi);
+    }
+
+    private Pair<Map<String, Integer>, Integer> _getLineErrorInfo(TNFCPatrolLine line, Date beginDt, Date endDt) {
+        int cnt = 0;
+        Map<String, Integer> info = new HashMap<>();
+        for (var pointId : line.getPointids()) {
+            var records = recordDao.queryAll(null, pointId, beginDt, endDt);
+            if (records != null && !records.isEmpty()) {
+                // 因为结果是order by time desc, 所以第一个是最新的
+                info.put(pointId, records.get(0).getErrornum());
+            } else {
+                info.put(pointId, 0);
+            }
+        }
+
+        return Pair.of(info, cnt);
+    }*/
+
+    @Transactional
+    @PostMapping(value = "/queryLinesByDept")
+    public Result<?> queryLinesByDept(@RequestParam(name = "deptid") String deptid) {
+        ArrayList<LineInfo> ls = new ArrayList<>();
+
+        var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        var now = new Date();
+        var lines = lineDao.queryByDeptId(deptid);
+        if (lines != null && !lines.isEmpty()) {
+            for (var line : lines) {
+                LineInfo one = new LineInfo();
+                ls.add(one);
+
+                one.setLine(line);
+                var preDt = _getPreDt(line, now);
+                one.setTime(preDt);
+                var begin = sdf.format(preDt);
+                var end = sdf.format(now);
+                one.setFinishCnt(recordDao.queryPointRecordCntOfLine(line.getId(), begin, end));
+            }
+        }
+
+        return Result.success(ls);
+    }
+
+    @Transactional
+    @PostMapping(value = "/queryPointsInfoByLine")
+    public Result<?> queryPointsInfoByLine(@RequestParam(name = "lineid") int lineid,
+                                           @RequestParam(name = "queryBegin") String queryBegin) {
+        ArrayList<RecordInfo> ls = new ArrayList<>();
+
+        var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        var now = new Date();
+        Date beginDt = DateUtil.parse(queryBegin, "yyyy-MM-dd HH:mm:ss");
+        var line = lineDao.queryById(lineid);
+        if (line != null && line.getPointids() != null) {
+            for (var pointId : line.getPointids()) {
+                RecordInfo one = new RecordInfo();
+                ls.add(one);
+
+                TNFCPatrolPoint point = pointDao.queryById(pointId);
+                one.setPoint(point);
+
+                TNFCPatrolRecord record = null;
+                var begin = sdf.format(beginDt);
+                var end =sdf.format(now);
+                var records = recordDao.queryAll(null, pointId, begin, end);
+                if (records != null && !records.isEmpty()) {
+                    record = records.get(0);
+                }
+                one.setRecord(record);
+            }
+        }
+
+        return Result.success(ls);
+    }
+
+    @Transactional
+    @PostMapping(value = "/addRecord")
+    public Result<?> addRecord(@RequestParam(name = "rfid") String rfid,
+                               @RequestParam(name = "person") String person,
+                               @RequestParam(name = "content") String content,
+                               @RequestParam(name = "errornum") int errornum) {
+        if (pointDao.exist(rfid) <= 0) {
+            return Result.fail("添加失败，该巡检点id不存在");
+        }
+
+        TNFCPatrolRecord record = new TNFCPatrolRecord();
+        record.setRfid(rfid);
+        record.setPerson(person);
+        record.setContent(content);
+        record.setErrornum(errornum);
+        record.setDotime(new Date());
+
+        int r = recordDao.insert(record);
+        return Result.sf(r > 0);
+    }
+
+    private Date _getPreDt(TNFCPatrolLine line, Date targetTime) {
+        var diff = targetTime.getTime() - line.getBegintime().getTime();
+        if (diff > 0) {
+            long seconds = diff / 1000;
+            long hours = seconds / 3600;
+            int cycle = (int) (line.getCycle());
+            long cycleSegment = hours / cycle;
+            return new Date(line.getBegintime().getTime() + cycleSegment * cycle * 3600 * 1000);
+        }
+        return null;
     }
 }

@@ -12,8 +12,8 @@ public class TNFCPatrolRecord implements Serializable {
     // @Serial
     // private static final long serialVersionUID = 1;
 
-    private String pointid;
-    private Date time; // 打卡时间
+    private String rfid;
+    private Date dotime; // 打卡时间
     private String person; // 巡检人员
     private long id;
     private String content; // 该点位设备巡检情况

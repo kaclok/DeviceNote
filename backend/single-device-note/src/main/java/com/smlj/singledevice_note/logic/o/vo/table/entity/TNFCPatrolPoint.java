@@ -22,6 +22,6 @@ public class TNFCPatrolPoint implements Serializable {
     private Date createtime;
 
     // 冗余设计
-    private String lineid; // 路线id
+    private Integer lineid; // 路线id
 }
 

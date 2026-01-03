@@ -16,9 +16,8 @@ public class TNFCPatrolLine implements Serializable {
     private int id; // 自增id
     private String linenum;
     private String linename;
-    private String[] pointids;
-
     private Date createtime;
+    private String[] pointids;
 
     private String deptid; // 部门
     private float cycle; // 巡检周期

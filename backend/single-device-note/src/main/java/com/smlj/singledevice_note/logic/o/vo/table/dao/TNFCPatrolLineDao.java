@@ -28,4 +28,6 @@ public interface TNFCPatrolLineDao {
     ArrayList<TNFCPatrolPoint> queryRelativedPoints(@Param("id") int id);
 
     TNFCPatrolLine queryById(@Param("id") int id);
+
+    ArrayList<TNFCPatrolLine> queryByDeptId(@Param("deptid") String deptid);
 }

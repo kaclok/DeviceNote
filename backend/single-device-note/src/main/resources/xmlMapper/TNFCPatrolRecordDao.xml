@@ -4,17 +4,45 @@
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolRecordDao">
    <insert id="insert" useGeneratedKeys="true" keyProperty="item.id">
-      insert into nfcpatrol.t_nfcpatrol_record (pointid
-         , time
+      insert into nfcpatrol.t_nfcpatrol_record (rfid
+         , dotime
          , person
-         , content)
-      values (#{item.pointid},
-         #{item.time},
+         , content
+         , errornum)
+      values (#{item.rfid},
+         #{item.dotime},
          #{item.person},
-         #{item.content})
+         #{item.content},
+         ${item.errornum})
    </insert>
 
    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolRecord">
-      select * from nfcpatrol.t_nfcpatrol_record
+      select * from nfcpatrol.t_nfcpatrol_record where 1 = 1
+      <if test="queryByPerson != null and queryByPerson != ''">
+         and person LIKE CONCAT('%', #{queryByPerson}, '%')
+      </if>
+      <if test="rfid != null and rfid != ''">
+         and rfid = #{rfid}
+      </if>
+      <if test="queryBegin != null and queryBegin != ''">
+         and #{queryBegin}::timestamp &lt;= (dotime::timestamp)
+      </if>
+      <if test="queryEnd != null and queryEnd != ''">
+         and (dotime::timestamp) &lt;= #{queryEnd}::timestamp
+      </if>
+      order by dotime desc
+   </select>
+
+   <select id="queryPointRecordCntOfLine" resultType="java.lang.Integer">
+      SELECT COUNT(DISTINCT rfid) as cnt FROM nfcpatrol.t_nfcpatrol_record
+      WHERE
+         (rfid IN (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line WHERE id = ${lineid}))
+
+      <if test="queryBegin != null and queryBegin != ''">
+         and #{queryBegin}::timestamp &lt;= (dotime::timestamp)
+      </if>
+      <if test="queryEnd != null and queryEnd != ''">
+         and (dotime::timestamp) &lt;= #{queryEnd}::timestamp
+      </if>
    </select>
 </mapper>
