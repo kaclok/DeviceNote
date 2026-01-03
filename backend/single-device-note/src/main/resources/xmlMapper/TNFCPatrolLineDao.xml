@@ -48,10 +48,20 @@
         where id = ${id}
     </select>
 
+    <select id="queryByDeptId" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine" resultMap="lineResultMap">
+        select * from nfcpatrol.t_nfcpatrol_line
+        where deptid = #{deptid}
+    </select>
+
     <update id="delete">
         update nfcpatrol.t_nfcpatrol_line
-        SET deleted = TRUE
-        where id = ${id} and deleted = FALSE
+        SET deleted = TRUE,
+            pointids = null
+        where id = ${id};
+
+        UPDATE nfcpatrol.t_nfcpatrol_point
+        SET lineid = NULL
+        WHERE rfid IN (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line WHERE id = ${id});
     </update>
 
     <update id="updateBase">
