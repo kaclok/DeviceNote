@@ -41,6 +41,7 @@ dependencies {
 
     // http网络库
     implementation(libs.okhttp)
+    implementation(libs.okio)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

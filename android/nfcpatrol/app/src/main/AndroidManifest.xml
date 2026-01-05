@@ -2,6 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.NFC" />
+
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="true" />
+
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,12 +21,35 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.NFCPatrol">
+
+        <activity
+            android:name=".NFCActivity"
+            android:exported="true">
+            <intent-filter>
+                <!-- 处理"发现NFC标签"这个动作 -->
+                <action android:name="android.nfc.action.TAG_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".PointsActivity"
+            android:exported="false" />
+
+        <!--
+            Intent要启动该Activity，必须满足：
+            Action匹配：Intent必须包含过滤器中的至少一个action
+            Category匹配：Intent中的每个category都必须在过滤器中存在（DEFAULT是特殊情况）
+            Data匹配：如果过滤器定义了data，也要匹配（你的例子中没有data）
+        -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
+                <!-- 应用入口 -->
                 <action android:name="android.intent.action.MAIN" />
-
+                <!-- 在启动器中显示 -->
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
