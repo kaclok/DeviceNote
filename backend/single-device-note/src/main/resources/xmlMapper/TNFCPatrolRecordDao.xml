@@ -103,8 +103,8 @@
         ),
         final_result AS (
             SELECT
-                cps.line_id,
-                cps.linename,
+                cps.line_id as lineid,
+                cps.linename as linename,
                 COALESCE(d.name, '/') AS deptname,
                 cps.cycle_start_time,
                 cps.cycle_end_time,
