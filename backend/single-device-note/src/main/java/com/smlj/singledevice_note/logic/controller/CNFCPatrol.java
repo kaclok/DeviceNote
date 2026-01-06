@@ -236,10 +236,9 @@ public class CNFCPatrol {
     @Transactional
     @PostMapping(value = "/queryRecords")
     public Result<?> queryRecords(@RequestParam(name = "queryByDeptId", required = false) String queryByDeptId,
-                                  @RequestParam(name = "queryByPerson", required = false) String queryByPerson,
+                                  @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus,
                                   @RequestParam(name = "queryBegin", required = false) String queryBegin,
                                   @RequestParam(name = "queryEnd", required = false) String queryEnd,
-                                  @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus,
                                   @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
                                   @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         Date beginDt, endDt;
@@ -265,10 +264,11 @@ public class CNFCPatrol {
         }
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        PageHelper.startPage(pageNum, pageSize, true, true, true);
         var begin = sdf.format(beginDt);
         var end = sdf.format(endDt);
-        var ls = recordDao.queryAll(queryByDeptId, queryByPerson, begin, end);
+
+        PageHelper.startPage(pageNum, pageSize, true, true, true);
+        var ls = recordDao.querySeries(queryByDeptId, queryByStatus, begin, end);
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -372,7 +372,7 @@ public class CNFCPatrol {
 
                 TNFCPatrolRecord record = null;
                 var begin = sdf.format(beginDt);
-                var end =sdf.format(now);
+                var end = sdf.format(now);
                 var records = recordDao.queryAll(null, pointId, begin, end);
                 if (records != null && !records.isEmpty()) {
                     record = records.get(0);
