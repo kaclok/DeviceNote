@@ -22,7 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.TimeZone;
 
 @Slf4j
 @RestController
@@ -273,21 +276,6 @@ public class CNFCPatrol {
         return Result.success(new PageSerializable<>(ls));
     }
 
-    @Transactional
-    @PostMapping(value = "/queryLineRecords")
-    public Result<?> queryLineRecords(@RequestParam(name = "lineid") int lineid,
-                                  @RequestParam(name = "queryBegin", required = false) String queryBegin,
-                                  @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-                                  @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
-        var line = lineDao.queryById(lineid);
-        if(line != null) {
-            var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            var begin = sdf.format(queryBegin);
-            return Result.success(new PageSerializable<>());
-        }
-        return Result.fail("不存在该路线");
-    }
-
     @Data
     @NoArgsConstructor
     public static class RecordInfo {
@@ -343,13 +331,21 @@ public class CNFCPatrol {
         return Pair.of(info, cnt);
     }*/
 
+    // 查询queryTime附近某个deptid的巡检路线列表
     @Transactional
     @PostMapping(value = "/queryLinesByDept")
-    public Result<?> queryLinesByDept(@RequestParam(name = "deptid") String deptid) {
+    public Result<?> queryLinesByDept(@RequestParam(name = "deptid") String deptid,
+                                      @RequestParam(name = "queryTime", required = false) String queryTime) {
         ArrayList<LineInfo> ls = new ArrayList<>();
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         var now = new Date();
+        if(StrUtil.isEmpty(queryTime)) {
+            Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+            calendar.setTime(now);
+            queryTime = sdf.format(calendar.getTime());
+        }
+        var aimDt = DateUtil.parse(queryTime, sdf);
         var lines = lineDao.queryByDeptId(deptid);
         if (lines != null && !lines.isEmpty()) {
             for (var line : lines) {
@@ -357,10 +353,10 @@ public class CNFCPatrol {
                 ls.add(one);
 
                 one.setLine(line);
-                var preDt = _getPreDt(line, now);
+                var preDt = _getPreDt(line, aimDt);
                 one.setTime(preDt);
                 var begin = sdf.format(preDt);
-                var end = sdf.format(now);
+                var end = sdf.format(aimDt);
                 one.setFinishCnt(recordDao.queryPointRecordCntOfLine(line.getId(), begin, end));
             }
         }
@@ -375,10 +371,14 @@ public class CNFCPatrol {
         ArrayList<RecordInfo> ls = new ArrayList<>();
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        var now = new Date();
-        Date beginDt = DateUtil.parse(queryBegin, "yyyy-MM-dd HH:mm:ss");
+        Date beginDt = DateUtil.parse(queryBegin, sdf);
         var line = lineDao.queryById(lineid);
         if (line != null && line.getPointids() != null) {
+            Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+            calendar.setTime(beginDt);
+            calendar.add(Calendar.HOUR_OF_DAY, (int)line.getCycle());
+            Date endDt =calendar.getTime();
+
             for (var pointId : line.getPointids()) {
                 RecordInfo one = new RecordInfo();
                 ls.add(one);
@@ -388,7 +388,7 @@ public class CNFCPatrol {
 
                 TNFCPatrolRecord record = null;
                 var begin = sdf.format(beginDt);
-                var end = sdf.format(now);
+                var end = sdf.format(endDt);
                 var records = recordDao.queryAll(null, pointId, begin, end);
                 if (records != null && !records.isEmpty()) {
                     record = records.get(0);
