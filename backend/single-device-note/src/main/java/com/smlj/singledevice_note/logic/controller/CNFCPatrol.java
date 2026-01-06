@@ -246,18 +246,17 @@ public class CNFCPatrol {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
             calendar.setTime(new Date());
             calendar.add(Calendar.DAY_OF_MONTH, -1);  // 减去1天
-            calendar.set(Calendar.HOUR_OF_DAY, 0);
-            queryBegin = new SimpleDateFormat("yyyy-MM-dd HH").format(calendar.getTime());
+            queryBegin = new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime());
         }
-        beginDt = DateUtil.parse(queryBegin, "yyyy-MM-dd HH");
+        beginDt = DateUtil.parse(queryBegin, "yyyy-MM-dd");
 
         if (StrUtil.isEmpty(queryEnd)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
             calendar.setTime(new Date());
-            calendar.set(Calendar.HOUR_OF_DAY, 0);
-            queryEnd = new SimpleDateFormat("yyyy-MM-dd HH").format(calendar.getTime());
+            queryEnd = new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime());
         }
-        endDt = DateUtil.parse(queryEnd, "yyyy-MM-dd HH");
+
+        endDt = DateUtil.parse(queryEnd, "yyyy-MM-dd");
         endDt.setTime(endDt.getTime() + 24 * 3600 * 1000 - 1);
 
         if (beginDt.getTime() >= endDt.getTime()) {
