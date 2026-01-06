@@ -139,21 +139,9 @@ const aiGridItems = ref([
         enabled: true,
     },
     {
-        name: "腾讯元宝",
-        url: "https://yuanbao.tencent.com/chat",
-        image: logo_txyb,
-        enabled: true,
-    },
-    {
         name: "通义千问",
         url: "https://tongyi.aliyun.com",
         image: logo_tyqw,
-        enabled: true,
-    },
-    {
-        name: "文心一言",
-        url: "https://yiyan.baidu.com",
-        image: logo_wxyy,
         enabled: true,
     },
     {
@@ -276,6 +264,12 @@ const appGridItems = ref([
     {
         name: "两票系统",
         url: "http://10.8.54.162:8087?group=" + group,
+        image: logo_book,
+        enabled: true,
+    },
+    {
+        name: "NFC巡检",
+        url: "http://10.8.54.162:12303?group=" + group,
         image: logo_book,
         enabled: true,
     },
