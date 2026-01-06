@@ -245,17 +245,19 @@ public class CNFCPatrol {
         if (StrUtil.isEmpty(queryBegin)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
             calendar.setTime(new Date());
-            calendar.add(Calendar.DAY_OF_MONTH, -2);  // 减去2天
-            queryBegin = new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime());
+            calendar.add(Calendar.DAY_OF_MONTH, -1);  // 减去1天
+            calendar.set(Calendar.HOUR_OF_DAY, 0);
+            queryBegin = new SimpleDateFormat("yyyy-MM-dd HH").format(calendar.getTime());
         }
-        beginDt = DateUtil.parse(queryBegin, "yyyy-MM-dd");
+        beginDt = DateUtil.parse(queryBegin, "yyyy-MM-dd HH");
 
         if (StrUtil.isEmpty(queryEnd)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
             calendar.setTime(new Date());
-            queryEnd = new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime());
+            calendar.set(Calendar.HOUR_OF_DAY, 0);
+            queryEnd = new SimpleDateFormat("yyyy-MM-dd HH").format(calendar.getTime());
         }
-        endDt = DateUtil.parse(queryEnd, "yyyy-MM-dd");
+        endDt = DateUtil.parse(queryEnd, "yyyy-MM-dd HH");
         endDt.setTime(endDt.getTime() + 24 * 3600 * 1000 - 1);
 
         if (beginDt.getTime() >= endDt.getTime()) {
@@ -270,6 +272,21 @@ public class CNFCPatrol {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = recordDao.querySeries(queryByDeptId, queryByStatus, begin, end);
         return Result.success(new PageSerializable<>(ls));
+    }
+
+    @Transactional
+    @PostMapping(value = "/queryLineRecords")
+    public Result<?> queryLineRecords(@RequestParam(name = "lineid") int lineid,
+                                  @RequestParam(name = "queryBegin", required = false) String queryBegin,
+                                  @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
+                                  @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+        var line = lineDao.queryById(lineid);
+        if(line != null) {
+            var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            var begin = sdf.format(queryBegin);
+            return Result.success(new PageSerializable<>());
+        }
+        return Result.fail("不存在该路线");
     }
 
     @Data
