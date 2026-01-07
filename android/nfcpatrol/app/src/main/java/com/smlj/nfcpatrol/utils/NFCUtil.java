@@ -64,8 +64,16 @@ public class NFCUtil {
 
     public static NFCStatus GetNfcStatus(NfcAdapter nfcAdapter) {
         if (nfcAdapter == null) {
+            // 设备根本不支持NFC硬件
             return NFCStatus.NOT_SUPPORTED;
         } else if (!nfcAdapter.isEnabled()) {
+            // 设备有NFC硬件，但用户关闭了NFC功能
+            /* 可能原因：
+                用户在设置中手动关闭了NFC
+                省电模式自动关闭了NFC
+                飞行模式开启时NFC被禁用
+                某些情景模式关闭了NFC
+            */
             return NFCStatus.NOT_ENABLED;
         } else {
             return NFCStatus.READY;
