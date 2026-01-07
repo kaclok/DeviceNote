@@ -6,8 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:id="@+id/main"
-    tools:context=".NFCScanActivity"
-    android:background="@android:color/transparent">
+    tools:context=".NFCScanActivity">
 
     <!-- 下半部分：扫描卡片 -->
     <androidx.cardview.widget.CardView
@@ -108,7 +107,7 @@
                     android:layout_below="@id/phone_container"
                     android:layout_centerHorizontal="true"
                     android:layout_marginTop="16dp"
-                    android:text="扫描成功！"
+                    android:text="扫描成功"
                     android:textColor="#4CAF50"
                     android:textSize="14sp"
                     android:textStyle="bold"

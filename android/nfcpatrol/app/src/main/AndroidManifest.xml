@@ -24,7 +24,8 @@
 
         <activity
             android:name=".NFCScanActivity"
-            android:exported="false">
+            android:exported="false"
+            android:hardwareAccelerated="false">
 
         <!--
                 操作系统级别的通知，也就是os发现tag的nfc之后就会立即扫描所有带有TAG_DISCOVERED的activity然后形成一个列表让用户选择用哪个最终识别nfc

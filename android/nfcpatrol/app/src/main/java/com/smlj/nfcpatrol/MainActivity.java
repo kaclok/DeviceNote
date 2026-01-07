@@ -38,13 +38,10 @@ public class MainActivity extends AppCompatActivity {
                 this::handleNfcResult
         );
 
-        Button btnNFC = findViewById(R.id.btn_nfc);
-        if (btnNFC != null) {
-            btnNFC.setOnClickListener(v -> {
-                Intent intent = new Intent(this, NFCScanActivity.class);
-                nfcLauncher.launch(intent);
-            });
-        }
+        findViewById(R.id.btn_nfc).setOnClickListener(v -> {
+            Intent intent = new Intent(this, NFCScanActivity.class);
+            nfcLauncher.launch(intent);
+        });
     }
 
     private void handleNfcResult(ActivityResult result) {
