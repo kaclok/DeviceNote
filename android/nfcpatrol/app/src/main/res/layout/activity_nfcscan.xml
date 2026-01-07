@@ -6,6 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:id="@+id/main"
+    android:background="@android:color/transparent"
     tools:context=".NFCScanActivity">
 
     <!-- 下半部分：扫描卡片 -->
