@@ -1,14 +1,9 @@
 package com.smlj.nfcpatrol;
 
 import android.app.Activity;
-import android.app.PendingIntent;
 import android.content.Intent;
-import android.nfc.NfcAdapter;
-import android.nfc.Tag;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
@@ -21,13 +16,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
-
 public class MainActivity extends AppCompatActivity {
-    private NfcAdapter nfcAdapter;
-    private PendingIntent pendingIntent;
-    private BottomSheetDialog nfcDialog;
+    private ActivityResultLauncher<Intent> nfcLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,107 +31,17 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        nfcAdapter = NfcAdapter.getDefaultAdapter(this);
-
-        // 创建PendingIntent，当检测到NFC标签时发送给NFCScanActivity的Activity，并且让NFCScanActivity为FLAG_ACTIVITY_SINGLE_TOP模式
-        // 1. 创建Intent：当NFC事件发生时，要启动哪个Activity
-        var intent = new Intent(getApplicationContext(), NFCScanActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-
-        // Android 12（API 31）及以上必须指定可变性,即PendingIntent.FLAG_IMMUTABLE或者PendingIntent.FLAG_MUTABLE必须有
-        // ⚠️ NFC需要FLAG_MUTABLE，因为系统要修改Intent
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            flags |= PendingIntent.FLAG_MUTABLE;
-        }
-        // 2. 创建PendingIntent：封装这个Intent，交给系统保管
-        pendingIntent = PendingIntent.getActivity(this,
-                0,
-                intent,
-                flags);
+        // 注册NFC扫描启动器
+        // 结果回调
+        nfcLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                this::handleNfcResult
+        );
 
         findViewById(R.id.btn_nfc).setOnClickListener(v -> {
-            showNfcScanDialog();
+            Intent intent = new Intent(this, NFCScanActivity.class);
+            nfcLauncher.launch(intent);
         });
-    }
-
-    private void showNfcScanDialog() {
-        nfcDialog = new BottomSheetDialog(
-                this,
-                R.style.TransparentBottomSheet
-        );
-
-        View view = getLayoutInflater()
-                .inflate(R.layout.activity_nfcscan, null);
-
-        nfcDialog.setContentView(view);
-        nfcDialog.setCancelable(true);
-        nfcDialog.setCanceledOnTouchOutside(true);
-
-        // ❗让它一开始就是“展开状态”
-        View bottomSheet = nfcDialog.findViewById(
-                com.google.android.material.R.id.design_bottom_sheet
-        );
-        if (bottomSheet != null) {
-            BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
-            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            behavior.setSkipCollapsed(true);
-        }
-
-        nfcDialog.show();
-
-        // 取消按钮
-        view.findViewById(R.id.cancel_button)
-                .setOnClickListener(v -> nfcDialog.dismiss());
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // 将PendingIntent注册到NFC系统，当发生nfc被监测事件机会执行PendingIntent
-        nfcAdapter.enableForegroundDispatch(this,
-                pendingIntent,  // NFC事件发生时执行的Intent
-                null, // 监听哪些NFC事件
-                null); // 监听哪些NFC技术
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        //  Disable Foreground Dispatch
-        nfcAdapter.disableForegroundDispatch(this);
-    }
-
-    // 每次到栈顶，但是intent参数发生变化
-    // 4. 当NFC标签被检测到时，系统会调用这里
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-
-        handleIntent(intent);
-    }
-
-    private void handleIntent(Intent intent) {
-        if (NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) {
-            Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-            if (tag == null) {
-                return;
-            }
-
-            /*Intent resultIntent = new Intent();
-            resultIntent.putExtra("rfId", NFCUtil.ByteArrayToHexString(tag.getId()));
-            setResult(Activity.RESULT_OK, resultIntent);
-            finish();*/
-
-            if (nfcDialog == null) return;
-
-            View view = nfcDialog.findViewById(R.id.main);
-            if (view == null) return;
-
-            view.findViewById(R.id.success_icon)
-                    .setVisibility(View.VISIBLE);
-            view.findViewById(R.id.success_text)
-                    .setVisibility(View.VISIBLE);
-        }
     }
 
     private void handleNfcResult(ActivityResult result) {

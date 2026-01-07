@@ -1,9 +1,0 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="TransparentBottomSheet" parent="Theme.Material3.Light.BottomSheetDialog">
-        <!-- ❗让遮罩层完全透明 -->
-        <item name="scrimBackground">@android:color/transparent</item>
-
-        <!-- 可选：防止系统再补色 -->
-        <item name="android:backgroundDimEnabled">false</item>
-    </style>
-</resources>

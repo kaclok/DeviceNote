@@ -7,7 +7,6 @@ import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -17,14 +16,11 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.smlj.nfcpatrol.utils.NFCUtil;
 
 public class NFCScanActivity extends AppCompatActivity {
     private NfcAdapter nfcAdapter;
     private PendingIntent pendingIntent;
-    private BottomSheetDialog nfcDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,8 +56,6 @@ public class NFCScanActivity extends AppCompatActivity {
             setResult(Activity.RESULT_CANCELED);
             finish();
         });
-
-        showNfcScanDialog();
     }
 
     @Override
@@ -97,50 +91,10 @@ public class NFCScanActivity extends AppCompatActivity {
                 return;
             }
 
-            /*Intent resultIntent = new Intent();
+            Intent resultIntent = new Intent();
             resultIntent.putExtra("rfId", NFCUtil.ByteArrayToHexString(tag.getId()));
             setResult(Activity.RESULT_OK, resultIntent);
-            finish();*/
-
-            if (nfcDialog == null) return;
-
-            View view = nfcDialog.findViewById(R.id.main);
-            if (view == null) return;
-
-            view.findViewById(R.id.success_icon)
-                    .setVisibility(View.VISIBLE);
-            view.findViewById(R.id.success_text)
-                    .setVisibility(View.VISIBLE);
+            finish();
         }
-    }
-
-    private void showNfcScanDialog() {
-        nfcDialog = new BottomSheetDialog(
-                this,
-                com.google.android.material.R.style.Theme_Material3_Light_BottomSheetDialog
-        );
-
-        View view = getLayoutInflater()
-                .inflate(R.layout.activity_nfcscan, null);
-
-        nfcDialog.setContentView(view);
-        nfcDialog.setCancelable(true);
-        nfcDialog.setCanceledOnTouchOutside(true);
-
-        // ❗让它一开始就是“展开状态”
-        View bottomSheet = nfcDialog.findViewById(
-                com.google.android.material.R.id.design_bottom_sheet
-        );
-        if (bottomSheet != null) {
-            BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
-            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-            behavior.setSkipCollapsed(true);
-        }
-
-        nfcDialog.show();
-
-        // 取消按钮
-        view.findViewById(R.id.cancel_button)
-                .setOnClickListener(v -> nfcDialog.dismiss());
     }
 }
