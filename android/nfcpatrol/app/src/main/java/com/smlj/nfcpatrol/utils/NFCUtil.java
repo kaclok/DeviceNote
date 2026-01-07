@@ -5,23 +5,6 @@ import android.nfc.NfcAdapter;
 import java.util.Arrays;
 
 public class NFCUtil {
-    public static final String AID = "F202302231";
-
-    // ISO-DEP command HEADER for selecting an AID.
-    // Format: [Class | Instruction | Parameter 1 | Parameter 2]
-    public static final String SELECT_APDU_HEADER = "00A40400";
-
-    // "OK" status word sent in response to SELECT AID command (0x9000)
-    public static final byte[] SELECT_OK_SW = HexStringToByteArray("9000");
-
-    // "UNKNOWN" status word sent in response to invalid APDU command (0x0000)
-    public static final byte[] UNKNOWN_CMD_SW = HexStringToByteArray("0000");
-
-    public static byte[] BuildSelectApdu(String aid) {
-        // Format: [CLASS | INSTRUCTION | PARAMETER 1 | PARAMETER 2 | LENGTH | DATA]
-        return HexStringToByteArray(NFCUtil.SELECT_APDU_HEADER + String.format("%02X", aid.length() / 2) + aid);
-    }
-
     public static String ByteArrayToHexString(byte[] bytes) {
         final char[] hexArray = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
         char[] hexChars = new char[bytes.length * 2]; // Each byte has two hex characters (nibbles)
@@ -62,7 +45,7 @@ public class NFCUtil {
         return result;
     }
 
-    public static NFCStatus GetNfcStatus(NfcAdapter nfcAdapter) {
+    public static NFCStatus NfcStatus(NfcAdapter nfcAdapter) {
         if (nfcAdapter == null) {
             // 设备根本不支持NFC硬件
             return NFCStatus.NOT_SUPPORTED;
