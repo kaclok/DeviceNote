@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">NFCPatrol</string>
+    <string name="app_name">NFC巡检</string>
 
     <!-- Common -->
     <string name="nfc_not_supported">NFC is NOT supported</string>
