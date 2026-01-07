@@ -48,10 +48,14 @@ dependencies {
     // http网络库
     implementation(libs.okhttp)
     implementation(libs.okio)
+    implementation(libs.okhttpLogInterceptor)
 
     // json库
     // implementation(libs.hutoolJson)
     implementation(libs.gson)
+
+    implementation(libs.retrofit)
+    implementation(libs.retrofitConverterGson)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
