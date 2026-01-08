@@ -18,8 +18,8 @@ import com.smlj.nfcpatrol.R;
 import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
 import com.smlj.nfcpatrol.core.network.PageSerializable;
 import com.smlj.nfcpatrol.core.network.Result;
-import com.smlj.nfcpatrol.logic.network.NFCPatrol.NFCPatrolDao;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
+import com.smlj.nfcpatrol.logic.network.NFCPatrol.api.NFCPatrolDao;
 
 import retrofit2.Call;
 
@@ -63,8 +63,8 @@ public class MainActivity extends AppCompatActivity {
                 NFCPatrolDao.instance().GetPointInfo(rfId).enqueue(new ActivitySafeCallback<>(this) {
                     @Override
                     protected void onSafeResponse(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Result<PageSerializable<TNFCPatrolPoint>> response) {
-                        if (response.code == 200) {
-                            Toast.makeText(activity, response.data.list.get(0).toString(), Toast.LENGTH_LONG).show();
+                        if (response.getCode() == 200) {
+                            Toast.makeText(activity, response.getData().getList().get(0).toString(), Toast.LENGTH_LONG).show();
                         }
                     }
 

@@ -3,11 +3,14 @@ package com.smlj.nfcpatrol.core.network;
 import java.io.Serializable;
 import java.util.List;
 
+import lombok.Data;
+
+@Data
 public class PageSerializable<T> implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public long total;
-    public List<? extends T> list;
+    private long total;
+    private List<? extends T> list;
 
     public PageSerializable() {
     }
@@ -15,22 +18,6 @@ public class PageSerializable<T> implements Serializable {
     public PageSerializable(List<? extends T> list, long total) {
         this.list = list;
         this.total = total;
-    }
-
-    public long getTotal() {
-        return this.total;
-    }
-
-    public void setTotal(long total) {
-        this.total = total;
-    }
-
-    public List<? extends T> getList() {
-        return this.list;
-    }
-
-    public void setList(List<T> list) {
-        this.list = list;
     }
 
     public String toString() {

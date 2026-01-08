@@ -1,11 +1,19 @@
 package com.smlj.nfcpatrol.core.network;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 
+@Setter
+@Getter
+@NoArgsConstructor
+@Accessors(chain = true)
 // 前后端交互数据标准
 public class Result<T> extends Message<T> {
-    public String message = null;
+    protected String message = null;
 
-    public Result(int code, T data) {
+    protected Result(int code, T data) {
         super(code, data);
     }
 

@@ -3,17 +3,20 @@ package com.smlj.nfcpatrol.logic.network.NFCPatrol;
 import java.io.Serializable;
 import java.util.Date;
 
+import lombok.Data;
+
+@Data
 public class TNFCPatrolPoint implements Serializable {
     // @Serial
     // private static final long serialVersionUID = 1;
 
-    public String rfid;
-    public String pointname;
-    public String pointnum;
-    public String pointaddr;
+    private String rfid;
+    private String pointname;
+    private String pointnum;
+    private String pointaddr;
 
-    public Date createtime;
+    private Date createtime;
 
     // 冗余设计
-    public Integer lineid; // 路线id
+    private Integer lineid; // 路线id
 }
