@@ -1,7 +1,8 @@
-package com.smlj.nfcpatrol.logic.network.NFCPatrol;
+package com.smlj.nfcpatrol.logic.network.NFCPatrol.api;
 
 import com.smlj.nfcpatrol.core.network.PageSerializable;
 import com.smlj.nfcpatrol.core.network.Result;
+import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
 
 import retrofit2.Call;
 import retrofit2.http.Field;
