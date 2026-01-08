@@ -1,4 +1,4 @@
-package com.smlj.nfcpatrol.network.apiService;
+package com.smlj.nfcpatrol.logic.network.NFCPatrol;
 
 import java.io.Serializable;
 import java.util.Date;

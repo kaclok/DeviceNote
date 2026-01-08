@@ -1,4 +1,4 @@
-package com.smlj.nfcpatrol.utils;
+package com.smlj.nfcpatrol.core.utils;
 
 import android.nfc.NfcAdapter;
 

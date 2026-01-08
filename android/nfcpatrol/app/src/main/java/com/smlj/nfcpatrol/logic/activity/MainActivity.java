@@ -1,4 +1,4 @@
-package com.smlj.nfcpatrol;
+package com.smlj.nfcpatrol.logic.activity;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -9,23 +9,19 @@ import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.gson.reflect.TypeToken;
-import com.smlj.nfcpatrol.core.ActivityCallback;
-import com.smlj.nfcpatrol.core.ResultCallback;
-import com.smlj.nfcpatrol.core.PageSerializable;
-import com.smlj.nfcpatrol.core.Result;
-import com.smlj.nfcpatrol.network.apiService.NFCPatrol;
-import com.smlj.nfcpatrol.network.apiService.TNFCPatrolPoint;
+import com.smlj.nfcpatrol.R;
+import com.smlj.nfcpatrol.core.ActivitySafeCallback;
+import com.smlj.nfcpatrol.core.network.PageSerializable;
+import com.smlj.nfcpatrol.core.network.Result;
+import com.smlj.nfcpatrol.logic.network.NFCPatrol.NFCPatrolDao;
+import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
 
-import java.io.IOException;
-
-import okhttp3.Call;
+import retrofit2.Call;
 
 public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> nfcLauncher;
@@ -62,21 +58,21 @@ public class MainActivity extends AppCompatActivity {
                 String rfId = data.getStringExtra("rfId");
                 // Toast.makeText(this, "扫描成功", Toast.LENGTH_SHORT).show();
 
-                var type = new TypeToken<Result<PageSerializable<TNFCPatrolPoint>>>() {
-                }.getType();
-
-                NFCPatrol.GetPointInfo(rfId).enqueue(new ActivityCallback<>(this, type, new ResultCallback<PageSerializable<TNFCPatrolPoint>>() {
+                // Retrofit 的 onResponse() 里 可以 直接操作 Activity 的 View，但“有前提条件”，否则会有隐患。
+                // Retrofit（Android 版本）默认会把 enqueue() 的回调切回主线程（UI 线程）
+                NFCPatrolDao.instance().GetPointInfo(rfId).enqueue(new ActivitySafeCallback<>(this) {
                     @Override
-                    public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                    }
-
-                    @Override
-                    public void onResponse(@NonNull Call call, Result<PageSerializable<TNFCPatrolPoint>> result) {
-                        if (result.code == 200) {
-                            Toast.makeText(MainActivity.this, result.data.toString(), Toast.LENGTH_SHORT).show();
+                    protected void onSafeResponse(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Result<PageSerializable<TNFCPatrolPoint>> response) {
+                        if (response.code == 200) {
+                            Toast.makeText(activity, response.data.toString(), Toast.LENGTH_SHORT).show();
                         }
                     }
-                }));
+
+                    @Override
+                    protected void onSafeFailure(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Throwable t) {
+
+                    }
+                });
             }
         }
     }

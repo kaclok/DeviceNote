@@ -1,4 +1,4 @@
-package com.smlj.nfcpatrol.core;
+package com.smlj.nfcpatrol.core.network;
 
 public class Msg<T> {
     public int code = 0;

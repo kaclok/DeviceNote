@@ -1,4 +1,4 @@
-package com.smlj.nfcpatrol.core;
+package com.smlj.nfcpatrol.core.network;
 
 public class Message<T> extends Msg<T> {
     public long timestamp = 0;

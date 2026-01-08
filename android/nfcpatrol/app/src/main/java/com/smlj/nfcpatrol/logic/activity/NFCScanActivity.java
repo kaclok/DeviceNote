@@ -1,4 +1,4 @@
-package com.smlj.nfcpatrol;
+package com.smlj.nfcpatrol.logic.activity;
 
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -15,7 +15,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.smlj.nfcpatrol.utils.NFCUtil;
+import com.smlj.nfcpatrol.R;
+import com.smlj.nfcpatrol.core.utils.NFCUtil;
 
 public class NFCScanActivity extends AppCompatActivity {
     private NfcAdapter nfcAdapter;

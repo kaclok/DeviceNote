@@ -1,4 +1,4 @@
-package com.smlj.nfcpatrol.core;
+package com.smlj.nfcpatrol.core.network;
 
 
 // 前后端交互数据标准

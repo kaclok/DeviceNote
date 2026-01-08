@@ -1,4 +1,4 @@
-package com.smlj.nfcpatrol.core;
+package com.smlj.nfcpatrol.core.network;
 
 import java.io.Serializable;
 import java.util.List;

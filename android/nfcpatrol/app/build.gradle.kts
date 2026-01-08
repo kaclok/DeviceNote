@@ -52,7 +52,7 @@ dependencies {
 
     // json库
     // implementation(libs.hutoolJson)
-    implementation(libs.gson)
+    // implementation(libs.gson)
 
     implementation(libs.retrofit)
     implementation(libs.retrofitConverterGson)

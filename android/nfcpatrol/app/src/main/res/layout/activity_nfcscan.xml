@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:id="@+id/main"
-    tools:context=".NFCScanActivity">
+    tools:context=".logic.activity.NFCScanActivity">
 
     <!-- 下半部分：扫描卡片 -->
     <androidx.cardview.widget.CardView
