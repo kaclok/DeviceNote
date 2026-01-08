@@ -15,7 +15,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.smlj.nfcpatrol.R;
-import com.smlj.nfcpatrol.core.ActivitySafeCallback;
+import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
 import com.smlj.nfcpatrol.core.network.PageSerializable;
 import com.smlj.nfcpatrol.core.network.Result;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.NFCPatrolDao;
@@ -64,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     protected void onSafeResponse(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Result<PageSerializable<TNFCPatrolPoint>> response) {
                         if (response.code == 200) {
-                            Toast.makeText(activity, response.data.toString(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(activity, response.data.list.get(0).toString(), Toast.LENGTH_LONG).show();
                         }
                     }
 
