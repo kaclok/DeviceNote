@@ -39,3 +39,7 @@ backend/lp-jtlj/.logs/log.txt
 /android/nfcpatrol/.gradle
 /android/nfcpatrol/.idea
 /android/nfcpatrol/.gradle
+/android/nfcpatrol/app/release/app-release.apk
+/android/nfcpatrol/app/release/baselineProfiles/0/app-release.dm
+/android/nfcpatrol/app/release/baselineProfiles/1/app-release.dm
+/android/nfcpatrol/app/release/output-metadata.json
