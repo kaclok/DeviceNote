@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 外圆 -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:pathData="
+            M12,2
+            A10,10 0 1,1 11.999,2
+        "/>
+
+    <!-- 最外层信号弧 -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="
+            M8,8
+            A4,4 0 0,1 16,8
+        "/>
+
+    <!-- 中间信号弧 -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#000000"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="
+            M9.5,9.5
+            A2.5,2.5 0 0,1 14.5,9.5
+        "/>
+
+    <!-- 信号点 -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="
+            M12,11.5
+            m-0.8,0
+            a0.8,0.8 0 1,0 1.6,0
+            a0.8,0.8 0 1,0 -1.6,0
+        "/>
+
+    <!-- N -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="
+            M7,14
+            h1
+            l2,3
+            v-3
+            h1
+            v5
+            h-1
+            l-2,-3
+            v3
+            h-1
+            z
+        "/>
+
+    <!-- F -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="
+            M11.5,14
+            h3
+            v1
+            h-2
+            v1
+            h1.8
+            v1
+            h-1.8
+            v2
+            h-1
+            z
+        "/>
+
+    <!-- C -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="
+            M16.5,15
+            a2,2 0 1,0 0,4
+            h-1
+            a1,1 0 1,1 0,-2
+            h1
+            z
+        "/>
+
+</vector>

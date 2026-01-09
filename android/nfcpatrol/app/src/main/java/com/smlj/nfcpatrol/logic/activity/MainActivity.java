@@ -3,33 +3,43 @@ package com.smlj.nfcpatrol.logic.activity;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.smlj.nfcpatrol.R;
 import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
-import com.smlj.nfcpatrol.core.network.PageSerializable;
 import com.smlj.nfcpatrol.core.network.Result;
-import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
+import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
+import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolDept;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.api.NFCPatrolDao;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import retrofit2.Call;
 
 public class MainActivity extends AppCompatActivity {
-    private ActivityResultLauncher<Intent> nfcLauncher;
+    private String selectedDeptId;
+    private Call<Result<ArrayList<LineInfo>>> call;
+    private LineAdapter lineAdapter = new LineAdapter();
+    private RecyclerView recyclerView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -38,42 +48,94 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // 注册NFC扫描启动器
-        // 结果回调
-        nfcLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                this::handleNfcResult
-        );
+        Spinner spinner = findViewById(R.id.spinner_filter);
+        List<TNFCPatrolDept> depts = new ArrayList<>();
+        depts.add(new TNFCPatrolDept("1-1", "烧碱一班"));
+        depts.add(new TNFCPatrolDept("1-2", "烧碱二班"));
+        depts.add(new TNFCPatrolDept("1-3", "烧碱三班"));
+        depts.add(new TNFCPatrolDept("1-4", "烧碱四班"));
+        depts.add(new TNFCPatrolDept("2-1", "聚氯乙烯一班"));
+        depts.add(new TNFCPatrolDept("2-2", "聚氯乙烯二班"));
+        depts.add(new TNFCPatrolDept("2-3", "聚氯乙烯三班"));
+        depts.add(new TNFCPatrolDept("2-4", "聚氯乙烯四班"));
+        depts.add(new TNFCPatrolDept("3-1", "公辅一班"));
+        depts.add(new TNFCPatrolDept("3-2", "公辅二班"));
+        depts.add(new TNFCPatrolDept("3-3", "公辅三班"));
+        depts.add(new TNFCPatrolDept("3-4", "公辅四班"));
+        depts.add(new TNFCPatrolDept("4-1", "热动力一班"));
+        depts.add(new TNFCPatrolDept("4-2", "热动力二班"));
+        depts.add(new TNFCPatrolDept("4-3", "热动力三班"));
+        depts.add(new TNFCPatrolDept("4-4", "热动力四班"));
 
-        findViewById(R.id.btn_nfc).setOnClickListener(v -> {
-            Intent intent = new Intent(this, NFCScanActivity.class);
-            nfcLauncher.launch(intent);
+        ArrayAdapter<TNFCPatrolDept> adapter = new ArrayAdapter<>(this, R.layout.spinner_selected_item, depts);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                TNFCPatrolDept one = (TNFCPatrolDept) parent.getItemAtPosition(position);
+                String key = one.getId();      // ✅ 给接口 / 查询用
+                String value = one.getName();  // 仅展示
+
+                Log.d("smlj-NFCPatrol", "onItemSelected: " + key + "  " + value);
+
+                selectedDeptId = key;
+                Refresh(key);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        spinner.setAdapter(adapter);
+
+        recyclerView = findViewById(R.id.rv_line_list);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+        lineAdapter = new LineAdapter();
+        lineAdapter.setOnItemClickListener(line -> {
+            Intent intent = new Intent(this, PointsActivity.class);
+            intent.putExtra("line", line);
+
+            startActivity(intent);
         });
     }
 
-    private void handleNfcResult(ActivityResult result) {
-        if (result.getResultCode() == Activity.RESULT_OK) {
-            Intent data = result.getData();
-            if (data != null) {
-                String rfId = data.getStringExtra("rfId");
-                // Toast.makeText(this, "扫描成功", Toast.LENGTH_SHORT).show();
+    @Override
+    protected void onResume() {
+        super.onResume();
 
-                // Retrofit 的 onResponse() 里 可以 直接操作 Activity 的 View，但“有前提条件”，否则会有隐患。
-                // Retrofit（Android 版本）默认会把 enqueue() 的回调切回主线程（UI 线程）
-                NFCPatrolDao.instance().GetPointInfo(rfId).enqueue(new ActivitySafeCallback<>(this) {
-                    @Override
-                    protected void onSafeResponse(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Result<PageSerializable<TNFCPatrolPoint>> response) {
-                        if (response.getCode() == 200) {
-                            Toast.makeText(activity, response.getData().getList().get(0).toString(), Toast.LENGTH_LONG).show();
-                        }
-                    }
-
-                    @Override
-                    protected void onSafeFailure(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Throwable t) {
-
-                    }
-                });
-            }
+        if (selectedDeptId != null) {
+            Refresh(selectedDeptId);
         }
+    }
+
+    private void Refresh(String deptId) {
+        if (call != null) {
+            // 避免连续点击引起上次回包刷新本次UI
+            call.cancel();
+        }
+
+        call = NFCPatrolDao.instance().queryLinesByDept(deptId);
+        call.enqueue(new ActivitySafeCallback<Result<ArrayList<LineInfo>>>(this) {
+            @Override
+            protected void onSafeResponse(Activity activity, Call<Result<ArrayList<LineInfo>>> call, Result<ArrayList<LineInfo>> response) {
+                if (response.getCode() == 200) {
+                    var ls = response.getData();
+                    if (ls == null || ls.isEmpty()) {
+                        Toast toast = Toast.makeText(activity, "当前班组无巡检计划", Toast.LENGTH_SHORT);
+                        toast.setGravity(Gravity.CENTER, 0, 0);
+                        toast.show();
+                    }
+                    lineAdapter.setList(ls);
+                    recyclerView.setAdapter(lineAdapter);
+                }
+            }
+
+            @Override
+            protected void onSafeFailure(Activity activity, Call<Result<ArrayList<LineInfo>>> call, Throwable t) {
+
+            }
+        });
     }
 }
