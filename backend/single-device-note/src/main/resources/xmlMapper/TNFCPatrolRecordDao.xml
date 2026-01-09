@@ -3,7 +3,7 @@
 <!-- mapper namespace作用是：代码和xml进行关联 -->
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolRecordDao">
-   <insert id="insert" useGeneratedKeys="true" keyProperty="item.id">
+   <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
       insert into nfcpatrol.t_nfcpatrol_record (rfid
          , dotime
          , person
