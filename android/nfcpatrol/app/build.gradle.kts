@@ -37,6 +37,21 @@ android {
             excludes += "META-INF/INDEX.LIST"
         }
     }
+
+    androidComponents {
+        onVariants(selector().all()) { variant ->
+            val appName = "NFCPatrol"
+            val versionName = defaultConfig.versionName ?: "1.0"
+
+            variant.outputs.forEach { output ->
+                // 对于 APK 输出
+                if (output is com.android.build.api.variant.impl.VariantOutputImpl) {
+                    output.outputFileName.set("$appName-${variant.buildType}-$versionName.apk")
+                }
+            }
+        }
+    }
+
 }
 
 dependencies {
