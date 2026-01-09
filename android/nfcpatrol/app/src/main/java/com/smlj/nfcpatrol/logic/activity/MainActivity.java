@@ -94,10 +94,17 @@ public class MainActivity extends AppCompatActivity {
 
         lineAdapter = new LineAdapter();
         lineAdapter.setOnItemClickListener(line -> {
-            Intent intent = new Intent(this, PointsActivity.class);
-            intent.putExtra("line", line);
+            var pointIds = line.getLine().getPointids();
+            if (pointIds == null || pointIds.length == 0) {
+                Toast toast = Toast.makeText(this, "当前路线未配置巡检点", Toast.LENGTH_SHORT);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                toast.show();
+            } else {
+                Intent intent = new Intent(this, PointsActivity.class);
+                intent.putExtra("line", line);
 
-            startActivity(intent);
+                startActivity(intent);
+            }
         });
     }
 

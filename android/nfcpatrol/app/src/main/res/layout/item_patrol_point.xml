@@ -88,12 +88,12 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_nfc"
-                android:tint="#999999"/>
+                app:tint="#999999" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="NFC感应"
+                android:text="点击进行NFC感应"
                 android:textSize="14sp"
                 android:textColor="#999999"
                 android:layout_marginStart="8dp"/>

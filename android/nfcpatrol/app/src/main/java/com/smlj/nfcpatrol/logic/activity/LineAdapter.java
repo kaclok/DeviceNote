@@ -43,14 +43,14 @@ public class LineAdapter extends RecyclerView.Adapter<LineAdapter.ViewHolder> {
         holder.tv_title.setText(line.getLine().getLinename());
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH");
-        holder.tv_time.setText(sdf.format(line.getTime()));
+        holder.tv_time.setText(sdf.format(line.getTime()) + "时");
 
         var finishCnt = line.getFinishCnt();
         var pointIds = line.getLine().getPointids();
         var totalCnt = pointIds == null ? 0 : pointIds.length;
         String status = "已完成";
         int resid = R.drawable.bg_status_done;
-        if(finishCnt == 0) {
+        if (finishCnt == 0) {
             status = "待巡检";
             resid = R.drawable.bg_status_pending;
         } else if (finishCnt < totalCnt) {
