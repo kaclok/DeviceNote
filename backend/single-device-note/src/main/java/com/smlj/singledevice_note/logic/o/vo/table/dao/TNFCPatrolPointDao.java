@@ -13,7 +13,9 @@ import java.util.ArrayList;
 public interface TNFCPatrolPointDao {
     int insert(@Param("item") TNFCPatrolPoint item);
 
-    int delete(@Param("id") String id);
+    int delete(@Param("rfid") String rfid);
+
+    int deleteFromLine(@Param("rfid") String rfid);
 
     int exist(@Param("id") String id);
 

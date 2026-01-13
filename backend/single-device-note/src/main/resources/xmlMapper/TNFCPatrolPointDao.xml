@@ -38,10 +38,19 @@
         where rfid = #{id} and deleted = FALSE
     </select>
 
+    <update id="deleteFromLine">
+        UPDATE nfcpatrol.t_nfcpatrol_line
+        SET pointids = ARRAY_REMOVE (pointids, #{rfid})
+        WHERE
+        id = (SELECT lineid FROM nfcpatrol.t_nfcpatrol_point WHERE rfid = #{rfid});
+    </update>
+
     <update id="delete">
-        update nfcpatrol.t_nfcpatrol_point
-        SET deleted = TRUE
-        where rfid = #{id} and deleted = FALSE
+        UPDATE nfcpatrol.t_nfcpatrol_point
+        SET deleted = TRUE,
+        lineid = NULL
+        WHERE
+        rfid = #{rfid};
     </update>
 
     <select id="exist" resultType="java.lang.Integer">

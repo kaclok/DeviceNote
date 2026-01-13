@@ -58,7 +58,9 @@
         SET deleted = TRUE,
             pointids = null
         where id = ${id};
+    </update>
 
+    <update id="nullLineId">
         UPDATE nfcpatrol.t_nfcpatrol_point
         SET lineid = NULL
         WHERE rfid IN (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line WHERE id = ${id});

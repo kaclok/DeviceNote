@@ -57,7 +57,7 @@
         CROSS JOIN LATERAL (
             SELECT generate_series(
                 0,
-                FLOOR(EXTRACT(EPOCH FROM (trr.end_time - GREATEST(l.begintime, trr.begin_time))) / (l.cycle * 3600))::int
+                FLOOR(EXTRACT(EPOCH FROM (LEAST(trr.end_time, now()) - GREATEST(l.begintime, trr.begin_time))) / (l.cycle * 3600))::int
             ) AS cycle_index
         ) gs
         WHERE l.deleted = false

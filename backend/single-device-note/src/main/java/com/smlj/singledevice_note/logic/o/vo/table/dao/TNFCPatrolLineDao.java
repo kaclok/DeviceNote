@@ -15,6 +15,8 @@ public interface TNFCPatrolLineDao {
 
     int delete(@Param("id") int id);
 
+    int nullLineId(@Param("id") int id);
+
     int updateBase(@Param("item") TNFCPatrolLine item);
 
     int updatePoints(@Param("id") int id, @Param("pointIds") ArrayList<String> pointIds);

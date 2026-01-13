@@ -82,8 +82,9 @@ public class CNFCPatrol {
     @Transactional
     @PostMapping(value = "/deletePoint")
     public Result<?> deletePoint(@RequestParam(name = "rfid") String rfid) {
-        int r = pointDao.delete(rfid);
-        return Result.sf(r > 0);
+        int r1 = pointDao.deleteFromLine(rfid);
+        int r2 = pointDao.delete(rfid);
+        return Result.sf(r1 > 0 && r2 > 0);
     }
 
     @Transactional
@@ -153,8 +154,9 @@ public class CNFCPatrol {
     @Transactional
     @PostMapping(value = "/deleteLine")
     public Result<?> deleteLine(@RequestParam(name = "id") int id) {
-        int r = lineDao.delete(id);
-        return Result.sf(r > 0);
+        int r1 = lineDao.nullLineId(id);
+        int r2 = lineDao.delete(id);
+        return Result.sf(r1 > 0 && r2 > 0);
     }
 
     @Transactional
