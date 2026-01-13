@@ -41,12 +41,31 @@ public class SubmitActivity extends AppCompatActivity {
             point = (TNFCPatrolPoint) getIntent().getSerializableExtra("point");
         }
 
-        ((TextView) findViewById(R.id.tv_title)).setText("巡检点：" + point.getPointnum());
+        ((TextView) findViewById(R.id.tv_title)).setText("巡检点：" + point.getPointname());
         findViewById(R.id.btn_submit).setOnClickListener(v -> {
             var et_name = ((TextView) findViewById(R.id.et_name)).getText().toString().trim();
             var et_count = ((TextView) findViewById(R.id.et_count)).getText().toString().trim();
             var et_detail = ((TextView) findViewById(R.id.et_detail)).getText().toString().trim();
             var cnt = Integer.parseInt(et_count);
+
+            boolean isValid = true;
+            String tip = null;
+            if (et_name.isEmpty()) {
+                isValid = false;
+                tip = "请输入巡检人员姓名";
+            }
+
+            if (cnt != 0 && et_detail.isEmpty()) {
+                isValid = false;
+                tip = "巡检点有异常必须填写详情";
+            }
+
+            if (!isValid) {
+                Toast toast = Toast.makeText(SubmitActivity.this, tip, Toast.LENGTH_SHORT);
+                toast.setGravity(Gravity.CENTER, 0, 0);
+                toast.show();
+                return;
+            }
 
             NFCPatrolDao.instance().addRecord(point.getRfid(), et_name, et_detail, cnt).enqueue(new ActivitySafeCallback<Result<Void>>(this) {
                 @Override

@@ -21,7 +21,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="巡检班组： "
+            android:text="巡检装置： "
             android:textColor="#333333"
             android:textSize="12sp" />
 
@@ -31,8 +31,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
-            android:background="@android:drawable/btn_dropdown"
             android:padding="0dp"
+            android:dropDownVerticalOffset="35dp"
             android:spinnerMode="dropdown" />
     </LinearLayout>
 

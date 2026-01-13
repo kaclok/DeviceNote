@@ -33,10 +33,10 @@
             android:textColor="#999999"
             android:textSize="13sp" />
 
-        <!-- 状态按钮 -->
+        <!-- NFC 扫描 / 状态按钮 -->
         <TextView
             android:id="@+id/tv_status"
-            android:layout_width="72dp"
+            android:layout_width="64dp"
             android:layout_height="32dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
@@ -44,7 +44,18 @@
             android:gravity="center"
             android:text="待巡检"
             android:textColor="#FFFFFF"
-            android:textSize="14sp" />
+            android:textSize="12sp" />
+
+        <ImageView
+            android:id="@+id/iv_scan"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_toStartOf="@id/tv_status"
+            android:layout_marginEnd="12dp"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_nfc"
+            app:tint="#999999" />
+
 
     </RelativeLayout>
 

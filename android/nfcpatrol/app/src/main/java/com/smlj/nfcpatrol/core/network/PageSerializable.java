@@ -1,5 +1,7 @@
 package com.smlj.nfcpatrol.core.network;
 
+import androidx.annotation.NonNull;
+
 import java.io.Serializable;
 import java.util.List;
 
@@ -20,6 +22,7 @@ public class PageSerializable<T> implements Serializable {
         this.total = total;
     }
 
+    @NonNull
     public String toString() {
         return "PageSerializable{total=" + this.total + ", list=" + this.list + '}';
     }

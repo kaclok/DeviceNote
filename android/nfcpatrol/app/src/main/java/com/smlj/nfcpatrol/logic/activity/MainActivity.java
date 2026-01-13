@@ -2,6 +2,7 @@ package com.smlj.nfcpatrol.logic.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
@@ -12,6 +13,9 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -21,9 +25,11 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.smlj.nfcpatrol.R;
 import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
+import com.smlj.nfcpatrol.core.network.PageSerializable;
 import com.smlj.nfcpatrol.core.network.Result;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolDept;
+import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.api.NFCPatrolDao;
 
 import java.util.ArrayList;
@@ -31,11 +37,14 @@ import java.util.List;
 
 import retrofit2.Call;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements LineAdapter.OnItemClickListener {
+    private ActivityResultLauncher<Intent> nfcLauncher;
     private String selectedDeptId;
-    private Call<Result<ArrayList<LineInfo>>> call;
+    private Call<Result<ArrayList<LineInfo>>> callLines;
     private LineAdapter lineAdapter = new LineAdapter();
     private RecyclerView recyclerView;
+    private LineInfo selectedLine;
+    private SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +56,8 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        nfcLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleNfcResult);
 
         Spinner spinner = findViewById(R.id.spinner_filter);
         List<TNFCPatrolDept> depts = new ArrayList<>();
@@ -79,6 +90,8 @@ public class MainActivity extends AppCompatActivity {
                 Log.d("smlj-NFCPatrol", "onItemSelected: " + key + "  " + value);
 
                 selectedDeptId = key;
+                prefs.edit().putString("prefsDeptId", selectedDeptId).apply();
+                
                 Refresh(key);
             }
 
@@ -86,26 +99,27 @@ public class MainActivity extends AppCompatActivity {
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
-
         spinner.setAdapter(adapter);
+
+        prefs = getSharedPreferences("smlj-nfcpatrol", MODE_PRIVATE);
+        var prefsDeptId = prefs.getString("prefsDeptId", "1-1");
+        boolean founded = false;
+        for (int i = 0; i < depts.size(); i++) {
+            var one = depts.get(i);
+            if (one.getId().equals(prefsDeptId)) {
+                spinner.setSelection(i);
+                founded = true;
+                break;
+            }
+        }
+        if (!founded) {
+            spinner.setSelection(0);
+        }
 
         recyclerView = findViewById(R.id.rv_line_list);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-
         lineAdapter = new LineAdapter();
-        lineAdapter.setOnItemClickListener(line -> {
-            var pointIds = line.getLine().getPointids();
-            if (pointIds == null || pointIds.length == 0) {
-                Toast toast = Toast.makeText(this, "当前路线未配置巡检点", Toast.LENGTH_SHORT);
-                toast.setGravity(Gravity.CENTER, 0, 0);
-                toast.show();
-            } else {
-                Intent intent = new Intent(this, PointsActivity.class);
-                intent.putExtra("line", line);
-
-                startActivity(intent);
-            }
-        });
+        lineAdapter.setOnItemClickListener(this);
     }
 
     @Override
@@ -118,13 +132,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void Refresh(String deptId) {
-        if (call != null) {
+        if (callLines != null) {
             // 避免连续点击引起上次回包刷新本次UI
-            call.cancel();
+            callLines.cancel();
         }
 
-        call = NFCPatrolDao.instance().queryLinesByDept(deptId);
-        call.enqueue(new ActivitySafeCallback<Result<ArrayList<LineInfo>>>(this) {
+        callLines = NFCPatrolDao.instance().queryLinesByDept(deptId);
+        callLines.enqueue(new ActivitySafeCallback<Result<ArrayList<LineInfo>>>(this) {
             @Override
             protected void onSafeResponse(Activity activity, Call<Result<ArrayList<LineInfo>>> call, Result<ArrayList<LineInfo>> response) {
                 if (response.getCode() == 200) {
@@ -144,5 +158,67 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+    }
+
+    @Override
+    public void onBtnStatusClicked(LineInfo line) {
+        var pointIds = line.getLine().getPointids();
+        if (pointIds == null || pointIds.length == 0) {
+            Toast toast = Toast.makeText(this, "当前路线未配置巡检点", Toast.LENGTH_SHORT);
+            toast.setGravity(Gravity.CENTER, 0, 0);
+            toast.show();
+        } else {
+            Intent intent = new Intent(this, PointsActivity.class);
+            intent.putExtra("line", line);
+            startActivity(intent);
+        }
+    }
+
+    @Override
+    public void onBtnScanClicked(LineInfo line) {
+        this.selectedLine = line;
+
+        Intent intent = new Intent(this, NFCScanActivity.class);
+        nfcLauncher.launch(intent);
+    }
+
+    private void handleNfcResult(ActivityResult result) {
+        if (result.getResultCode() == Activity.RESULT_OK) {
+            Intent data = result.getData();
+            if (data != null) {
+                String rfId = data.getStringExtra("rfId");
+
+                Call<Result<PageSerializable<TNFCPatrolPoint>>> callPoints = NFCPatrolDao.instance().queryPoints(rfId);
+                callPoints.enqueue(new ActivitySafeCallback<Result<PageSerializable<TNFCPatrolPoint>>>(MainActivity.this) {
+                    @Override
+                    protected void onSafeResponse(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Result<PageSerializable<TNFCPatrolPoint>> response) {
+                        if (response.getCode() == 200) {
+                            var ls = response.getData().getList();
+                            if (ls == null || ls.isEmpty()) {
+                                Toast toast = Toast.makeText(activity, "该NFC标签未注册或者不合法", Toast.LENGTH_SHORT);
+                                toast.setGravity(Gravity.CENTER, 0, 0);
+                                toast.show();
+                            } else {
+                                var point = ls.get(0);
+                                if (selectedLine != null && point.getLineid() != selectedLine.getLine().getId()) {
+                                    Toast toast = Toast.makeText(activity, "该NFC标签非选中路线的巡检点", Toast.LENGTH_SHORT);
+                                    toast.setGravity(Gravity.CENTER, 0, 0);
+                                    toast.show();
+                                } else {
+                                    Intent intent = new Intent(activity, SubmitActivity.class);
+                                    intent.putExtra("point", point);
+                                    startActivity(intent);
+                                }
+                            }
+                        }
+                    }
+
+                    @Override
+                    protected void onSafeFailure(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Throwable t) {
+
+                    }
+                });
+            }
+        }
     }
 }

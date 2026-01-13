@@ -3,6 +3,7 @@ package com.smlj.nfcpatrol.logic.activity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -40,7 +41,7 @@ public class LineAdapter extends RecyclerView.Adapter<LineAdapter.ViewHolder> {
         LineInfo line = list.get(position);
 
         // 左侧文字
-        holder.tv_title.setText(line.getLine().getLinename());
+        holder.tv_title.setText(position + "->" + line.getLine().getLinename());
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH");
         holder.tv_time.setText(sdf.format(line.getTime()) + "时");
@@ -59,11 +60,15 @@ public class LineAdapter extends RecyclerView.Adapter<LineAdapter.ViewHolder> {
         }
         holder.tv_status.setText(status);
         holder.tv_status.setBackgroundResource(resid);
-
-        // item 点击（进入 NFC 扫描）
-        holder.itemView.setOnClickListener(v -> {
+        holder.tv_status.setOnClickListener(v -> {
             if (listener != null) {
-                listener.onItemClick(line);
+                listener.onBtnStatusClicked(line);
+            }
+        });
+
+        holder.iv_scan.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onBtnScanClicked(line);
             }
         });
     }
@@ -77,6 +82,7 @@ public class LineAdapter extends RecyclerView.Adapter<LineAdapter.ViewHolder> {
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tv_title;
         TextView tv_time;
+        ImageView iv_scan;
         TextView tv_status;
 
         ViewHolder(@NonNull View v) {
@@ -85,12 +91,14 @@ public class LineAdapter extends RecyclerView.Adapter<LineAdapter.ViewHolder> {
             tv_title = v.findViewById(R.id.tv_title);
             tv_time = v.findViewById(R.id.tv_time);
             tv_status = v.findViewById(R.id.tv_status);
+            iv_scan = v.findViewById(R.id.iv_scan);
         }
     }
 
     // ④ 点击回调（推荐）
     public interface OnItemClickListener {
-        void onItemClick(LineInfo point);
+        void onBtnStatusClicked(LineInfo line);
+        void onBtnScanClicked(LineInfo line);
     }
 
     private OnItemClickListener listener;
