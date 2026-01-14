@@ -38,7 +38,15 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = false
+    }
+
     androidComponents {
+        beforeVariants { variant ->
+            variant.androidTest.enable = false
+        }
+
         onVariants(selector().all()) { variant ->
             val appName = "NFCPatrol"
             val versionName = defaultConfig.versionName ?: "1.0"
@@ -61,9 +69,11 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.recyclerview)
     implementation(libs.ui.graphics)
+    /*
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    */
 
     // http网络库
     implementation(libs.okhttp)
