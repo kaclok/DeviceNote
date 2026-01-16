@@ -28,6 +28,9 @@
         android:theme="@style/Theme.NFCPatrol"
         android:usesCleartextTraffic="true">
         <activity
+            android:name=".logic.activity.WebViewActivity"
+            android:exported="false" />
+        <activity
             android:name=".logic.activity.SubmitActivity"
             android:exported="false" />
         <activity

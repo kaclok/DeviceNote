@@ -72,6 +72,14 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
         }
         Log.d("===========", "WebView versionName: " + version);
 
+        var btnWebview = findViewById(R.id.btn_webview);
+        btnWebview.setOnClickListener(v -> {
+            String url = "http://117.36.227.42:4177/pages/ai_entry/index.html";
+            Intent intent = new Intent(this, WebViewActivity.class);
+            intent.putExtra("url", url);
+            startActivity(intent);
+        });
+
         nfcLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleNfcResult);
 
         Spinner spinner = findViewById(R.id.spinner_filter);
