@@ -1,7 +1,10 @@
 package com.smlj.nfcpatrol.logic.activity;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -33,7 +36,25 @@ public class WebViewActivity extends AppCompatActivity {
         // 允许调试
         WebView.setWebContentsDebuggingEnabled(true);
 
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                String url = request.getUrl().toString();
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    return false; // 继续在WebView中加载
+                } else {
+                    try {
+                        // 处理其他Scheme (如 openapp.jdmobile://, weixin://, alipays://)
+                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                        startActivity(intent);
+                        return true;
+                    } catch (Exception e) {
+                        // 未安装对应应用，忽略或提示
+                        return true;
+                    }
+                }
+            }
+        });
         webView.setWebChromeClient(new WebChromeClient());
 
         // 处理返回键
