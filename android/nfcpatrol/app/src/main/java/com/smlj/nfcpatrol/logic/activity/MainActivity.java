@@ -167,11 +167,6 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
                 lineAdapter.setList(ls);
                 recyclerView.setAdapter(lineAdapter);
             }
-
-            @Override
-            protected void onSafeFailure(Activity activity, Call<ArrayList<LineInfo>> call, Throwable t) {
-
-            }
         });
     }
 
@@ -224,11 +219,6 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
                                 startActivity(intent);
                             }
                         }
-                    }
-
-                    @Override
-                    protected void onSafeFailure(Activity activity, Call<PageSerializable<TNFCPatrolPoint>> call, Throwable t) {
-
                     }
                 });
             }

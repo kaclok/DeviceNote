@@ -49,5 +49,6 @@ public abstract class ActivitySafeCallback<T> implements Callback<T> {
     // 由子类实现
     protected abstract void onSafeResponse(Activity activity, Call<T> call, T resp);
 
-    protected abstract void onSafeFailure(Activity activity, Call<T> call, Throwable t);
+    protected void onSafeFailure(Activity activity, Call<T> call, Throwable t) {
+    }
 }

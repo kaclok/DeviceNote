@@ -102,11 +102,6 @@ public class PointsActivity extends AppCompatActivity {
                 pointAdapter.setList(ls);
                 recyclerView.setAdapter(pointAdapter);
             }
-
-            @Override
-            protected void onSafeFailure(Activity activity, Call<ArrayList<RecordInfo>> call, Throwable t) {
-
-            }
         });
     }
 
