@@ -7,7 +7,7 @@
 
     <uses-feature
         android:name="android.hardware.nfc"
-        android:required="false" />
+        android:required="true" />
 
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"

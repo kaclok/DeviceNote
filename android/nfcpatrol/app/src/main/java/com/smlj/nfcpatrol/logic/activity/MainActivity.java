@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
+import android.webkit.WebView;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
@@ -34,6 +35,7 @@ import com.smlj.nfcpatrol.logic.network.NFCPatrol.api.NFCPatrolDao;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import retrofit2.Call;
 
@@ -56,6 +58,20 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        // 获取手机上webview的版本
+        // 此API要求Android 7.0（API 24）及以上
+        String version = "";
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            var wv = WebView.getCurrentWebViewPackage();
+            if (wv != null) {
+                version = wv.versionName;
+            }
+        } else {
+            // 对于Android 7.0以下的设备，WebView是系统组件，版本通常与系统绑定
+            version = "System WebView (Pre-N)";
+        }
+        Log.d("===========", "versionName: " + version);
 
         nfcLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleNfcResult);
 
@@ -91,7 +107,7 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
 
                 selectedDeptId = key;
                 prefs.edit().putString("prefsDeptId", selectedDeptId).apply();
-                
+
                 Refresh(key);
             }
 
