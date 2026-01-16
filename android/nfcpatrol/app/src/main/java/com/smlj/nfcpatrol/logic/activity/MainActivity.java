@@ -28,6 +28,7 @@ import com.smlj.nfcpatrol.R;
 import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
 import com.smlj.nfcpatrol.core.network.PageSerializable;
 import com.smlj.nfcpatrol.core.network.Result;
+import com.smlj.nfcpatrol.core.utils.ListUtil;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolDept;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
@@ -35,7 +36,6 @@ import com.smlj.nfcpatrol.logic.network.NFCPatrol.api.NFCPatrolDao;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 import retrofit2.Call;
 
@@ -119,17 +119,11 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
 
         prefs = getSharedPreferences("smlj-nfcpatrol", MODE_PRIVATE);
         var prefsDeptId = prefs.getString("prefsDeptId", "1-1");
-        boolean founded = false;
-        for (int i = 0; i < depts.size(); i++) {
-            var one = depts.get(i);
-            if (one.getId().equals(prefsDeptId)) {
-                spinner.setSelection(i);
-                founded = true;
-                break;
-            }
-        }
-        if (!founded) {
-            spinner.setSelection(0);
+        int idx = ListUtil.finalIdx(prefsDeptId, depts, (aimId, ele) -> {
+            return ele.getId().equals(aimId);
+        });
+        if (idx != -1) {
+            spinner.setSelection(idx);
         }
 
         recyclerView = findViewById(R.id.rv_line_list);
