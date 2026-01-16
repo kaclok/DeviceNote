@@ -23,6 +23,7 @@ public class RetrofitProvider {
             _retrofit = new Retrofit.Builder()
                     .baseUrl(_baseUrl) // ⚠️ 必须以 / 结尾
                     .client(OkHttpProvider.instance())
+                    .addConverterFactory(new UnwrapConverterFactory())
                     .addConverterFactory(GsonConverterFactory.create(_gson))
                     .build();
         }

@@ -28,19 +28,26 @@ public abstract class ActivitySafeCallback<T> implements Callback<T> {
     @Override
     public final void onResponse(@NonNull Call<T> call, @NonNull Response<T> response) {
         Activity activity = getActivity();
-        if (activity == null) return;
-        onSafeResponse(activity, call, response.body());
+        if (activity != null && !activity.isFinishing()) {
+            if (response.isSuccessful()) {
+                // 现在 response.body() 直接就是 T 类型，没有 Result 包装
+                onSafeResponse(activity, call, response.body());
+            } else {
+                onSafeFailure(activity, call, new ApiException(response.code(), response.message()));
+            }
+        }
     }
 
     @Override
     public final void onFailure(@NonNull Call<T> call, @NonNull Throwable t) {
         Activity activity = getActivity();
-        if (activity == null) return;
-        onSafeFailure(activity, call, t);
+        if (activity != null && !activity.isFinishing()) {
+            onSafeFailure(activity, call, t);
+        }
     }
 
     // 由子类实现
-    protected abstract void onSafeResponse(Activity activity, Call<T> call, T response);
+    protected abstract void onSafeResponse(Activity activity, Call<T> call, T resp);
 
     protected abstract void onSafeFailure(Activity activity, Call<T> call, Throwable t);
 }

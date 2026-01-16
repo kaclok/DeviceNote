@@ -1,7 +1,6 @@
 package com.smlj.nfcpatrol.logic.network.NFCPatrol.api;
 
 import com.smlj.nfcpatrol.core.network.PageSerializable;
-import com.smlj.nfcpatrol.core.network.Result;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.RecordInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
@@ -31,20 +30,20 @@ public interface NFCPatrolAPIService {
     @FormUrlEncoded
     @POST("queryLinesByDept")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
-    Call<Result<ArrayList<LineInfo>>> queryLinesByDept(@Field("deptid") String deptId);
+    Call<ArrayList<LineInfo>> queryLinesByDept(@Field("deptid") String deptId);
 
     @FormUrlEncoded
     @POST("queryPointsInfoByLine")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
-    Call<Result<ArrayList<RecordInfo>>> queryPointsInfoByLine(@Field("lineid") int lineid, @Field("queryBegin") String queryBegin);
+    Call<ArrayList<RecordInfo>> queryPointsInfoByLine(@Field("lineid") int lineid, @Field("queryBegin") String queryBegin);
 
     @FormUrlEncoded
     @POST("addRecord")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
-    Call<Result<Void>> addRecord(@Field("rfid") String rfid, @Field("person") String person, @Field("content") String content, @Field("errornum") int errornum);
+    Call<Void> addRecord(@Field("rfid") String rfid, @Field("person") String person, @Field("content") String content, @Field("errornum") int errornum);
 
     @FormUrlEncoded
     @POST("queryPoints")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
-    Call<Result<PageSerializable<TNFCPatrolPoint>>> queryPoints(@Field("queryByRfId") String queryByRfId);
+    Call<PageSerializable<TNFCPatrolPoint>> queryPoints(@Field("queryByRfId") String queryByRfId);
 }

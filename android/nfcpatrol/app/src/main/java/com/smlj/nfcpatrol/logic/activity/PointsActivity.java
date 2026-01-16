@@ -20,7 +20,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.smlj.nfcpatrol.R;
 import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
-import com.smlj.nfcpatrol.core.network.Result;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.RecordInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
@@ -35,7 +34,7 @@ public class PointsActivity extends AppCompatActivity {
     private LineInfo lineInfo;
     private PointAdapter pointAdapter = new PointAdapter();
     private RecyclerView recyclerView;
-    private Call<Result<ArrayList<RecordInfo>>> call;
+    private Call<ArrayList<RecordInfo>> call;
     private TNFCPatrolPoint point;
 
     private ActivityResultLauncher<Intent> nfcLauncher;
@@ -91,23 +90,21 @@ public class PointsActivity extends AppCompatActivity {
         var lineId = lineInfo.getLine().getId();
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         call = NFCPatrolDao.instance().queryPointsInfoByLine(lineId, sdf.format(lineInfo.getTime()));
-        call.enqueue(new ActivitySafeCallback<Result<ArrayList<RecordInfo>>>(this) {
+        call.enqueue(new ActivitySafeCallback<ArrayList<RecordInfo>>(this) {
             @Override
-            protected void onSafeResponse(Activity activity, Call<Result<ArrayList<RecordInfo>>> call, Result<ArrayList<RecordInfo>> response) {
-                if (response.getCode() == 200) {
-                    var ls = response.getData();
-                    if (ls == null || ls.isEmpty()) {
-                        Toast toast = Toast.makeText(activity, "当前路线未配置巡检点", Toast.LENGTH_SHORT);
-                        toast.setGravity(Gravity.CENTER, 0, 0);
-                        toast.show();
-                    }
-                    pointAdapter.setList(ls);
-                    recyclerView.setAdapter(pointAdapter);
+            protected void onSafeResponse(Activity activity, Call<ArrayList<RecordInfo>> call, ArrayList<RecordInfo> resp) {
+                var ls = resp;
+                if (ls == null || ls.isEmpty()) {
+                    Toast toast = Toast.makeText(activity, "当前路线未配置巡检点", Toast.LENGTH_SHORT);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
                 }
+                pointAdapter.setList(ls);
+                recyclerView.setAdapter(pointAdapter);
             }
 
             @Override
-            protected void onSafeFailure(Activity activity, Call<Result<ArrayList<RecordInfo>>> call, Throwable t) {
+            protected void onSafeFailure(Activity activity, Call<ArrayList<RecordInfo>> call, Throwable t) {
 
             }
         });

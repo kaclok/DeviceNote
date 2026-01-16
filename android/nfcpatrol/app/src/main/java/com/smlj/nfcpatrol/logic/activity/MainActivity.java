@@ -27,7 +27,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.smlj.nfcpatrol.R;
 import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
 import com.smlj.nfcpatrol.core.network.PageSerializable;
-import com.smlj.nfcpatrol.core.network.Result;
 import com.smlj.nfcpatrol.core.utils.ListUtil;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolDept;
@@ -42,7 +41,7 @@ import retrofit2.Call;
 public class MainActivity extends AppCompatActivity implements LineAdapter.OnItemClickListener {
     private ActivityResultLauncher<Intent> nfcLauncher;
     private String selectedDeptId;
-    private Call<Result<ArrayList<LineInfo>>> callLines;
+    private Call<ArrayList<LineInfo>> callLines;
     private LineAdapter lineAdapter = new LineAdapter();
     private RecyclerView recyclerView;
     private LineInfo selectedLine;
@@ -71,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
             // 对于Android 7.0以下的设备，WebView是系统组件，版本通常与系统绑定
             version = "System WebView (Pre-N)";
         }
-        Log.d("===========", "versionName: " + version);
+        Log.d("===========", "WebView versionName: " + version);
 
         nfcLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleNfcResult);
 
@@ -148,23 +147,21 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
         }
 
         callLines = NFCPatrolDao.instance().queryLinesByDept(deptId);
-        callLines.enqueue(new ActivitySafeCallback<Result<ArrayList<LineInfo>>>(this) {
+        callLines.enqueue(new ActivitySafeCallback<ArrayList<LineInfo>>(this) {
             @Override
-            protected void onSafeResponse(Activity activity, Call<Result<ArrayList<LineInfo>>> call, Result<ArrayList<LineInfo>> response) {
-                if (response.getCode() == 200) {
-                    var ls = response.getData();
-                    if (ls == null || ls.isEmpty()) {
-                        Toast toast = Toast.makeText(activity, "当前班组无巡检计划", Toast.LENGTH_SHORT);
-                        toast.setGravity(Gravity.CENTER, 0, 0);
-                        toast.show();
-                    }
-                    lineAdapter.setList(ls);
-                    recyclerView.setAdapter(lineAdapter);
+            protected void onSafeResponse(Activity activity, Call<ArrayList<LineInfo>> call, ArrayList<LineInfo> resp) {
+                var ls = resp;
+                if (ls == null || ls.isEmpty()) {
+                    Toast toast = Toast.makeText(activity, "当前班组无巡检计划", Toast.LENGTH_SHORT);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
                 }
+                lineAdapter.setList(ls);
+                recyclerView.setAdapter(lineAdapter);
             }
 
             @Override
-            protected void onSafeFailure(Activity activity, Call<Result<ArrayList<LineInfo>>> call, Throwable t) {
+            protected void onSafeFailure(Activity activity, Call<ArrayList<LineInfo>> call, Throwable t) {
 
             }
         });
@@ -198,33 +195,31 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
             if (data != null) {
                 String rfId = data.getStringExtra("rfId");
 
-                Call<Result<PageSerializable<TNFCPatrolPoint>>> callPoints = NFCPatrolDao.instance().queryPoints(rfId);
-                callPoints.enqueue(new ActivitySafeCallback<Result<PageSerializable<TNFCPatrolPoint>>>(MainActivity.this) {
+                Call<PageSerializable<TNFCPatrolPoint>> callPoints = NFCPatrolDao.instance().queryPoints(rfId);
+                callPoints.enqueue(new ActivitySafeCallback<PageSerializable<TNFCPatrolPoint>>(MainActivity.this) {
                     @Override
-                    protected void onSafeResponse(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Result<PageSerializable<TNFCPatrolPoint>> response) {
-                        if (response.getCode() == 200) {
-                            var ls = response.getData().getList();
-                            if (ls == null || ls.isEmpty()) {
-                                Toast toast = Toast.makeText(activity, "该NFC标签未注册或者不合法", Toast.LENGTH_SHORT);
+                    protected void onSafeResponse(Activity activity, Call<PageSerializable<TNFCPatrolPoint>> call, PageSerializable<TNFCPatrolPoint> resp) {
+                        var ls = resp.getList();
+                        if (ls == null || ls.isEmpty()) {
+                            Toast toast = Toast.makeText(activity, "该NFC标签未注册或者不合法", Toast.LENGTH_SHORT);
+                            toast.setGravity(Gravity.CENTER, 0, 0);
+                            toast.show();
+                        } else {
+                            var point = ls.get(0);
+                            if (selectedLine != null && point.getLineid() != selectedLine.getLine().getId()) {
+                                Toast toast = Toast.makeText(activity, "该NFC标签非选中路线的巡检点", Toast.LENGTH_SHORT);
                                 toast.setGravity(Gravity.CENTER, 0, 0);
                                 toast.show();
                             } else {
-                                var point = ls.get(0);
-                                if (selectedLine != null && point.getLineid() != selectedLine.getLine().getId()) {
-                                    Toast toast = Toast.makeText(activity, "该NFC标签非选中路线的巡检点", Toast.LENGTH_SHORT);
-                                    toast.setGravity(Gravity.CENTER, 0, 0);
-                                    toast.show();
-                                } else {
-                                    Intent intent = new Intent(activity, SubmitActivity.class);
-                                    intent.putExtra("point", point);
-                                    startActivity(intent);
-                                }
+                                Intent intent = new Intent(activity, SubmitActivity.class);
+                                intent.putExtra("point", point);
+                                startActivity(intent);
                             }
                         }
                     }
 
                     @Override
-                    protected void onSafeFailure(Activity activity, Call<Result<PageSerializable<TNFCPatrolPoint>>> call, Throwable t) {
+                    protected void onSafeFailure(Activity activity, Call<PageSerializable<TNFCPatrolPoint>> call, Throwable t) {
 
                     }
                 });

@@ -15,7 +15,6 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.smlj.nfcpatrol.R;
 import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
-import com.smlj.nfcpatrol.core.network.Result;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.api.NFCPatrolDao;
 
@@ -67,23 +66,20 @@ public class SubmitActivity extends AppCompatActivity {
                 return;
             }
 
-            NFCPatrolDao.instance().addRecord(point.getRfid(), et_name, et_detail, cnt).enqueue(new ActivitySafeCallback<Result<Void>>(this) {
+            NFCPatrolDao.instance().addRecord(point.getRfid(), et_name, et_detail, cnt).enqueue(new ActivitySafeCallback<Void>(this) {
                 @Override
-                protected void onSafeResponse(Activity activity, Call<Result<Void>> call, Result<Void> response) {
-                    String tip = "提交失败";
-                    if (response.getCode() == 200) {
-                        tip = "提交成功";
-                        finish();
-                    }
-
-                    Toast toast = Toast.makeText(activity, tip, Toast.LENGTH_SHORT);
+                protected void onSafeResponse(Activity activity, Call<Void> call, Void resp) {
+                    Toast toast = Toast.makeText(activity, "提交成功", Toast.LENGTH_SHORT);
                     toast.setGravity(Gravity.CENTER, 0, 0);
                     toast.show();
+                    finish();
                 }
 
                 @Override
-                protected void onSafeFailure(Activity activity, Call<Result<Void>> call, Throwable t) {
-
+                protected void onSafeFailure(Activity activity, Call<Void> call, Throwable t) {
+                    Toast toast = Toast.makeText(activity, "提交失败", Toast.LENGTH_SHORT);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
                 }
             });
         });
