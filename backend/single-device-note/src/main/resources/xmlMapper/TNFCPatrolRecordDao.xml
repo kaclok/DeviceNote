@@ -106,8 +106,8 @@
                 cps.line_id as lineid,
                 cps.linename as linename,
                 COALESCE(d.name, '/') AS deptname,
-                cps.cycle_start_time,
-                cps.cycle_end_time,
+                cps.cycle_start_time as cycle_start_time,
+                cps.cycle_end_time as cycle_end_time,
                 COALESCE(cps.patrol_persons, '/') AS patrol_person,
                 cps.checked_points AS checked_cnt,
                 cps.total_points AS total_cnt,
@@ -139,6 +139,7 @@
                 status = ${queryByStatus}
             </if>
         </where>
+        order by cycle_start_time desc
     </select>
 
    <select id="queryPointRecordCntOfLine" resultType="java.lang.Integer">
