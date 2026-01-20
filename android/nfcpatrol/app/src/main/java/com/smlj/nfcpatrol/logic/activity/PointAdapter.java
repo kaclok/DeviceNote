@@ -39,7 +39,7 @@ public class PointAdapter extends RecyclerView.Adapter<PointAdapter.ViewHolder> 
         RecordInfo recordInfo = list.get(position);
 
         // 左侧文字
-        holder.tv_num.setText(position + "->" + recordInfo.getPoint().getPointnum());
+        holder.tv_num.setText((position + 1) + "->" + recordInfo.getPoint().getPointnum());
         holder.tv_name.setText(recordInfo.getPoint().getPointname());
         holder.tv_addr.setText(recordInfo.getPoint().getPointaddr());
 

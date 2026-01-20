@@ -41,7 +41,7 @@ public class LineAdapter extends RecyclerView.Adapter<LineAdapter.ViewHolder> {
         LineInfo line = list.get(position);
 
         // 左侧文字
-        holder.tv_title.setText(position + "->" + line.getLine().getLinename());
+        holder.tv_title.setText((position + 1) + "->" + line.getLine().getLinename());
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH");
         holder.tv_time.setText(sdf.format(line.getTime()) + "时");
