@@ -8,8 +8,10 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+
 import com.smlj.nfcpatrol.R;
 
 public class WebViewActivity extends AppCompatActivity {
@@ -32,6 +34,14 @@ public class WebViewActivity extends AppCompatActivity {
         settings.setAllowFileAccess(true);
         // 允许混合内容（HTTP/HTTPS）
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+
+        // webview中支持双指缩放网页
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
+        // 隐藏默认缩放控件
+        settings.setDisplayZoomControls(false);
+        settings.setUseWideViewPort(true); // 支持viewport
+        settings.setLoadWithOverviewMode(true); // 缩放至屏幕大小
         
         // 允许调试
         WebView.setWebContentsDebuggingEnabled(true);
