@@ -32,13 +32,13 @@ public class PageUtil {
         return result;
     }
 
-    public static <T, R> PageSerializable<R> doPage(int pageNum, int pageSize, Function<?, ArrayList<T>> getSqlList, Function<T, R> converter) {
+    public static <T, R> PageSerializable<R> doPage(int pageNum, int pageSize, Function<Void, ArrayList<T>> getSqlList, Function<T, R> converter) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         PageSerializable<T> pi = new PageSerializable<>(getSqlList.apply(null));
         return convert(pi, converter);
     }
 
-    public static <T, R> int calcTotal(Function<?, ArrayList<T>> getSqlList, Function<T, R> converter) {
+    public static <T, R> int calcTotal(Function<Void, ArrayList<T>> getSqlList, Function<T, R> converter) {
         var all = getSqlList.apply(null);
         return (int) all.stream()
                 .map(converter)
