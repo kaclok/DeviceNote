@@ -87,6 +87,11 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofitConverterGson)
 
+    implementation(libs.socketIO) {
+        // 因Android已自带org.json，所以需要屏蔽
+        exclude(group = "org.json", module = "json")
+    }
+
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
 }

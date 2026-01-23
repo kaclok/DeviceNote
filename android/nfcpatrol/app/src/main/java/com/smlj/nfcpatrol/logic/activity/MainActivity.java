@@ -1,16 +1,13 @@
 package com.smlj.nfcpatrol.logic.activity;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
-import android.view.View;
 import android.webkit.WebView;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -27,14 +24,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.smlj.nfcpatrol.R;
 import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
 import com.smlj.nfcpatrol.core.network.PageSerializable;
-import com.smlj.nfcpatrol.core.utils.ListUtil;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
-import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolDept;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.api.NFCPatrolDao;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import retrofit2.Call;
 
@@ -45,8 +39,8 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
     private LineAdapter lineAdapter = new LineAdapter();
     private RecyclerView recyclerView;
     private LineInfo selectedLine;
-    private SharedPreferences prefs;
 
+    @SuppressLint("SetTextI18n")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -72,66 +66,24 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
         }
         Log.d("===========", "WebView versionName: " + version);
 
-        var btnWebview = findViewById(R.id.btn_webview);
-        btnWebview.setOnClickListener(v -> {
-            String url = "http://117.36.227.42:4177/pages/ai_entry/index.html";
-            Intent intent = new Intent(this, WebViewActivity.class);
-            intent.putExtra("url", url);
-            startActivity(intent);
-        });
-
         nfcLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleNfcResult);
 
-        Spinner spinner = findViewById(R.id.spinner_filter);
-        List<TNFCPatrolDept> depts = new ArrayList<>();
-        depts.add(new TNFCPatrolDept("1-1", "烧碱一班"));
-        depts.add(new TNFCPatrolDept("1-2", "烧碱二班"));
-        depts.add(new TNFCPatrolDept("1-3", "烧碱三班"));
-        depts.add(new TNFCPatrolDept("1-4", "烧碱四班"));
-        depts.add(new TNFCPatrolDept("2-1", "聚氯乙烯一班"));
-        depts.add(new TNFCPatrolDept("2-2", "聚氯乙烯二班"));
-        depts.add(new TNFCPatrolDept("2-3", "聚氯乙烯三班"));
-        depts.add(new TNFCPatrolDept("2-4", "聚氯乙烯四班"));
-        depts.add(new TNFCPatrolDept("3-1", "公辅一班"));
-        depts.add(new TNFCPatrolDept("3-2", "公辅二班"));
-        depts.add(new TNFCPatrolDept("3-3", "公辅三班"));
-        depts.add(new TNFCPatrolDept("3-4", "公辅四班"));
-        depts.add(new TNFCPatrolDept("4-1", "热动力一班"));
-        depts.add(new TNFCPatrolDept("4-2", "热动力二班"));
-        depts.add(new TNFCPatrolDept("4-3", "热动力三班"));
-        depts.add(new TNFCPatrolDept("4-4", "热动力四班"));
+        var zzName = getIntent().getStringExtra("zzName");
+        var deptName = getIntent().getStringExtra("deptName");
+        var person = getIntent().getStringExtra("person");
+        selectedDeptId = getIntent().getStringExtra("deptId");
 
-        ArrayAdapter<TNFCPatrolDept> adapter = new ArrayAdapter<>(this, R.layout.spinner_selected_item, depts);
-        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item);
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                TNFCPatrolDept one = (TNFCPatrolDept) parent.getItemAtPosition(position);
-                String key = one.getId();      // ✅ 给接口 / 查询用
-                String value = one.getName();  // 仅展示
-
-                Log.d("smlj-NFCPatrol", "onItemSelected: " + key + "  " + value);
-
-                selectedDeptId = key;
-                prefs.edit().putString("prefsDeptId", selectedDeptId).apply();
-
-                Refresh(key);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
+        var btnWebview = findViewById(R.id.btn_webview);
+        btnWebview.setOnClickListener(v -> {
+            /*String url = "http://117.36.227.42:4177/pages/ai_entry/index.html";
+            Intent intent = new Intent(this, WebViewActivity.class);
+            intent.putExtra("url", url);
+            startActivity(intent);*/
+            Refresh(selectedDeptId);
         });
-        spinner.setAdapter(adapter);
 
-        prefs = getSharedPreferences("smlj-nfcpatrol", MODE_PRIVATE);
-        var prefsDeptId = prefs.getString("prefsDeptId", "1-1");
-        int idx = ListUtil.finalIdx(prefsDeptId, depts, (aimId, ele) -> {
-            return ele.getId().equals(aimId);
-        });
-        if (idx != -1) {
-            spinner.setSelection(idx);
-        }
+        TextView tv_title = findViewById(R.id.tv_title);
+        tv_title.setText(zzName + " / " + deptName + " / " + person);
 
         recyclerView = findViewById(R.id.rv_line_list);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -143,9 +95,7 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
     protected void onResume() {
         super.onResume();
 
-        if (selectedDeptId != null) {
-            Refresh(selectedDeptId);
-        }
+        Refresh(selectedDeptId);
     }
 
     private void Refresh(String deptId) {
@@ -216,6 +166,7 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
                             } else {
                                 Intent intent = new Intent(activity, SubmitActivity.class);
                                 intent.putExtra("point", point);
+                                intent.putExtra("person", getIntent().getStringExtra("person"));
                                 startActivity(intent);
                             }
                         }

@@ -41,10 +41,10 @@ public class LineAdapter extends RecyclerView.Adapter<LineAdapter.ViewHolder> {
         LineInfo line = list.get(position);
 
         // 左侧文字
-        holder.tv_title.setText((position + 1) + "->" + line.getLine().getLinename());
+        holder.tv_title.setText((position + 1) + ": " + line.getLine().getLinename());
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH");
-        holder.tv_time.setText(sdf.format(line.getTime()) + "时");
+        holder.tv_time.setText(sdf.format(line.getTime()) + "时开始" + "   (" + (int)(line.getLine().getCycle()) + "h）");
 
         var finishCnt = line.getFinishCnt();
         var pointIds = line.getLine().getPointids();

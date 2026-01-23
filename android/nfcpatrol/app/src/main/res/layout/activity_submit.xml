@@ -26,67 +26,34 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- 01 巡检人员姓名 -->
-        <TextView
-            android:id="@+id/tv_label_1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="* 01  巡检人员姓名"
-            android:textColor="#333333"
-            android:layout_marginTop="16dp"
-            app:layout_constraintTop_toBottomOf="@id/tv_title"
-            app:layout_constraintStart_toStartOf="parent" />
-
-        <EditText
-            android:id="@+id/et_name"
+        <!-- 01 巡检状态 -->
+        <RadioGroup
+            android:id="@+id/rg_status"
             android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:hint="请输入"
-            android:background="@android:drawable/edit_text"
-            android:padding="12dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:singleLine="true"
-            android:maxLength="125"
-            app:layout_constraintTop_toBottomOf="@id/tv_label_1"
+            android:orientation="horizontal"
+            app:layout_constraintTop_toBottomOf="@id/tv_title"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- 02 异常数量 -->
+            <CheckBox
+                android:id="@+id/rb_valid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="是否存在异常？(勾选表示异常)"
+                android:checked="false" />
+
+        </RadioGroup>
+
+        <!-- 02 巡检详情 -->
         <TextView
             android:id="@+id/tv_label_2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="* 02  该巡检点异常数量"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/et_name"
-            app:layout_constraintStart_toStartOf="parent" />
-
-        <EditText
-            android:id="@+id/et_count"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:hint="请输入"
-            android:inputType="number"
-            android:digits="0123456789"
-            android:maxLength="5"
-            android:background="@android:drawable/edit_text"
-            android:padding="12dp"
-            android:layout_marginTop="8dp"
-            android:imeOptions="actionDone"
-            android:singleLine="true"
-            android:text="0"
-            app:layout_constraintTop_toBottomOf="@id/tv_label_2"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <!-- 03 巡检点详情 -->
-        <TextView
-            android:id="@+id/tv_label_3"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="* 03  该巡检点详情"
-            android:layout_marginTop="24dp"
-            app:layout_constraintTop_toBottomOf="@id/et_count"
+            android:text="* 01  该巡检点异常设备详情"
+            android:layout_marginTop="12dp"
+            app:layout_constraintTop_toBottomOf="@id/rg_status"
             app:layout_constraintStart_toStartOf="parent" />
 
         <EditText
@@ -99,12 +66,13 @@
             android:padding="12dp"
             android:maxLength="999"
             android:layout_marginTop="8dp"
-            app:layout_constraintTop_toBottomOf="@id/tv_label_3"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
             android:inputType="textMultiLine"
             android:minLines="7"
-            android:textSize="10sp"/>
+            android:textSize="10sp"
+            app:layout_constraintTop_toBottomOf="@id/tv_label_2"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
 
         <!-- 提交按钮（紧贴第三个输入框下方） -->
         <Button

@@ -1,7 +1,7 @@
 package com.smlj.nfcpatrol.logic.network.NFCPatrol.api;
 
 import com.smlj.nfcpatrol.core.network.PageSerializable;
-import com.smlj.nfcpatrol.core.network.RetrofitProvider;
+import com.smlj.nfcpatrol.core.network.http.RetrofitProvider;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.RecordInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;

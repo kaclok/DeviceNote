@@ -13,10 +13,6 @@
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
-    <!--
-        如果是 http（非 https），要加 android:usesCleartextTraffic="true"
-    -->
-
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -27,6 +23,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.NFCPatrol"
         android:usesCleartextTraffic="true">
+        <activity
+            android:name=".logic.activity.MainActivity"
+            android:exported="false" />
         <activity
             android:name=".logic.activity.WebViewActivity"
             android:exported="false" />
@@ -60,7 +59,7 @@
             -->
         </activity>
         <activity
-            android:name=".logic.activity.MainActivity"
+            android:name=".logic.activity.LoginActivity"
             android:exported="true">
             <intent-filter>
 

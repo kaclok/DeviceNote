@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -20,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.smlj.nfcpatrol.R;
 import com.smlj.nfcpatrol.core.network.ActivitySafeCallback;
+import com.smlj.nfcpatrol.logic.Const;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.RecordInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
@@ -55,6 +57,24 @@ public class PointsActivity extends AppCompatActivity {
         } else {
             lineInfo = (LineInfo) getIntent().getSerializableExtra("line");
         }
+
+        var btnWebview = findViewById(R.id.btn_webview);
+        btnWebview.setOnClickListener(v -> {
+            /*String url = "http://117.36.227.42:4177/pages/ai_entry/index.html";
+            Intent intent = new Intent(this, WebViewActivity.class);
+            intent.putExtra("url", url);
+            startActivity(intent);*/
+
+            refresh();
+        });
+
+        var prefs = getSharedPreferences(Const.prefsTag, MODE_PRIVATE);
+        var prefsTag_person = prefs.getString(Const.prefsTag_person, "*");
+        var prefsTag_zzName = prefs.getString(Const.prefsTag_zzName, "*");
+        var prefsTag_deptName = prefs.getString(Const.prefsTag_deptName, "*");
+
+        TextView tv_title = findViewById(R.id.tv_title);
+        tv_title.setText(prefsTag_zzName + " / " + prefsTag_deptName + " / " + prefsTag_person);
 
         // 注册NFC扫描启动器
         // 结果回调

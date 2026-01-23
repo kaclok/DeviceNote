@@ -1,4 +1,4 @@
-package com.smlj.nfcpatrol.core.network.converter;
+package com.smlj.nfcpatrol.core.converter;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
