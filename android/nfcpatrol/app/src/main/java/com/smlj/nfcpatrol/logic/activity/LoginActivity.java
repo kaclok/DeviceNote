@@ -122,8 +122,14 @@ public class LoginActivity extends AppCompatActivity {
                 var depts = map.get(key);
                 adapterDept.clear();
                 adapterDept.addAll(depts);
+
+                // 因为spinnerDept默认选中index0, 然后当切换spinnerZZ的时候，此时spinnerDept的下拉列表数据被更新了，但是没有触发onItemSelected
+                // 此时需要手动记录selectDeptId和selectDeptName
+                selectDeptId = depts.get(0).getId();
+                selectDeptName = depts.get(0).getName();
+
                 // 默认选中
-                spinnerDept.setSelection(0);
+                spinnerDept.setSelection(0, true);
             }
 
             @Override
