@@ -23,7 +23,7 @@ public interface TNFCPatrolLineDao {
 
     ArrayList<TNFCPatrolLine> queryAll(@Param("queryByNum") String queryByNum,
                                        @Param("queryByName") String queryByName,
-                                       @Param("queryByDeptId") String queryByDeptId);
+                                       @Param("queryByDeptIdArray") ArrayList<String> queryByDeptIdArray);
 
     ArrayList<TNFCPatrolPoint> queryPointsByLine(@Param("id") int id);
 

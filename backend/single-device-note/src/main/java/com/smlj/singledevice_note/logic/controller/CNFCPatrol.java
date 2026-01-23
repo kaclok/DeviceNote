@@ -5,10 +5,8 @@ import cn.hutool.core.util.StrUtil;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.to.Result;
-import com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolDeptDao;
-import com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolLineDao;
-import com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolPointDao;
-import com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolRecordDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.*;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolDept;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolRecord;
@@ -37,11 +35,23 @@ public class CNFCPatrol {
     private final TNFCPatrolLineDao lineDao;
     private final TNFCPatrolRecordDao recordDao;
     private final TNFCPatrolDeptDao deptDao;
+    private final TNFCPatrolZzDao zzDao;
 
     @Transactional
     @GetMapping(value = "/queryDepts")
     public Result<?> queryDepts() {
-        var ls = deptDao.queryAll();
+        var ls = deptDao.queryAll(null);
+        return Result.success(ls);
+    }
+
+    @Transactional
+    @GetMapping(value = "/queryDeptsTree")
+    public Result<?> queryDeptsTree() {
+        var ls = zzDao.queryAll();
+        for (TNFCPatrolDept zz : ls) {
+            var depts = deptDao.queryAll(zz.getId());
+            zz.setChildren(depts);
+        }
         return Result.success(ls);
     }
 
@@ -133,11 +143,11 @@ public class CNFCPatrol {
     @PostMapping(value = "/queryLines")
     public Result<?> queryLines(@RequestParam(name = "queryByNum", required = false) String queryByNum,
                                 @RequestParam(name = "queryByName", required = false) String queryByName,
-                                @RequestParam(name = "queryByDeptId", required = false) String queryByDeptId,
+                                @RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray,
                                 @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
                                 @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = lineDao.queryAll(queryByNum, queryByName, queryByDeptId);
+        var ls = lineDao.queryAll(queryByNum, queryByName, queryByDeptIdArray);
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -176,14 +186,14 @@ public class CNFCPatrol {
                 return;
             }
             var ls = line.getPointids();
-            for (int i = 0; i < ls.length; i++) {
-                pointDao.updateLineId(ls[i], null);
+            for (String l : ls) {
+                pointDao.updateLineId(l, null);
             }
 
             // 更新新数据
             ls = pointids;
-            for (int i = 0; i < ls.length; i++) {
-                pointDao.updateLineId(ls[i], lineid);
+            for (String l : ls) {
+                pointDao.updateLineId(l, lineid);
             }
         }
     }
@@ -240,7 +250,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryRecords")
-    public Result<?> queryRecords(@RequestParam(name = "queryByDeptId", required = false) String queryByDeptId,
+    public Result<?> queryRecords(@RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray,
                                   @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus,
                                   @RequestParam(name = "queryBegin", required = false) String queryBegin,
                                   @RequestParam(name = "queryEnd", required = false) String queryEnd,
@@ -274,7 +284,7 @@ public class CNFCPatrol {
         var end = sdf.format(endDt);
 
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = recordDao.querySeries(queryByDeptId, queryByStatus, begin, end);
+        var ls = recordDao.querySeries(queryByDeptIdArray, queryByStatus, begin, end);
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -342,7 +352,7 @@ public class CNFCPatrol {
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         var now = new Date();
-        if(StrUtil.isEmpty(queryTime)) {
+        if (StrUtil.isEmpty(queryTime)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
             calendar.setTime(now);
             queryTime = sdf.format(calendar.getTime());
@@ -378,8 +388,8 @@ public class CNFCPatrol {
         if (line != null && line.getPointids() != null) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
             calendar.setTime(beginDt);
-            calendar.add(Calendar.HOUR_OF_DAY, (int)line.getCycle());
-            Date endDt =calendar.getTime();
+            calendar.add(Calendar.HOUR_OF_DAY, (int) line.getCycle());
+            Date endDt = calendar.getTime();
 
             for (var pointId : line.getPointids()) {
                 RecordInfo one = new RecordInfo();

@@ -9,8 +9,8 @@ import java.util.ArrayList;
 
 @Mapper
 @Repository
-public interface TNFCPatrolDeptDao {
-    ArrayList<TNFCPatrolDept> queryAll(@Param("zzid") String zzid);
+public interface TNFCPatrolZzDao {
+    ArrayList<TNFCPatrolDept> queryAll();
 
     TNFCPatrolDept query(@Param("id") String id);
 }

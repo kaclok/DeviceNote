@@ -63,8 +63,11 @@
         WHERE l.deleted = false
             AND ARRAY_LENGTH(l.pointids, 1) != 0
             AND (l.begintime::timestamp) &lt;= (trr.end_time::timestamp)
-            <if test="queryByDept != null and queryByDept != ''">
-                and l.deptid = #{queryByDept}
+            <if test="queryByDeptIdArray != null and queryByDeptIdArray.size() > 0">
+                AND l.deptid IN
+                <foreach collection="queryByDeptIdArray" item="oneid" open="(" separator="," close=")">
+                    #{oneid}
+                </foreach>
             </if>
         ),
         cycle_patrol_stats AS (

@@ -5,7 +5,6 @@ import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Date;
 
 @Component
 @Data
@@ -15,5 +14,7 @@ public class TNFCPatrolDept implements Serializable {
 
     private String id; // 自增id
     private String name;
+    private String zzid;
+    private ArrayList<TNFCPatrolDept> children;
 }
 

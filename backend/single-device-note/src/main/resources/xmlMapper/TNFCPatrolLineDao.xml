@@ -24,8 +24,11 @@
         <if test="queryByName != null and queryByName != ''">
             and linename LIKE CONCAT('%', #{queryByName}, '%')
         </if>
-        <if test="queryByDeptId != null and queryByDeptId != ''">
-            and deptid LIKE CONCAT('%', #{queryByDeptId}, '%')
+        <if test="queryByDeptIdArray != null and queryByDeptIdArray.size() > 0">
+            AND deptid IN
+            <foreach collection="queryByDeptIdArray" item="oneid" open="(" separator="," close=")">
+                #{oneid}
+            </foreach>
         </if>
         order by createtime
     </select>
