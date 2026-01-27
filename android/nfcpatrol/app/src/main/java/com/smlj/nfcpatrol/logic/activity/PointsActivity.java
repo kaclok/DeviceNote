@@ -96,8 +96,8 @@ public class PointsActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
+    protected void onResume() {
+        super.onResume();
 
         refresh();
     }
@@ -139,6 +139,9 @@ public class PointsActivity extends AppCompatActivity {
                     } else {
                         Intent intent = new Intent(this, SubmitActivity.class);
                         intent.putExtra("point", point);
+                        intent.putExtra("person", getIntent().getStringExtra("person"));
+                        intent.putExtra("deptId", getIntent().getStringExtra("deptId"));
+                        intent.putExtra("deptName", getIntent().getStringExtra("deptName"));
                         startActivity(intent);
                     }
                 }

@@ -9,6 +9,6 @@
     </select>
 
     <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolDept">
-        select * from nfcpatrol.t_nfcpatrol_zz where deleted = FALSE
+        select * from nfcpatrol.t_nfcpatrol_zz where deleted = FALSE order by id
     </select>
 </mapper>

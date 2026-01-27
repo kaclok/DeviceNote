@@ -46,11 +46,13 @@ public class CNFCPatrol {
 
     @Transactional
     @GetMapping(value = "/queryDeptsTree")
-    public Result<?> queryDeptsTree() {
+    public Result<?> queryDeptsTree(@RequestParam(name = "needChildren", required = false, defaultValue = "1") boolean needChildren) {
         var ls = zzDao.queryAll();
-        for (TNFCPatrolDept zz : ls) {
-            var depts = deptDao.queryAll(zz.getId());
-            zz.setChildren(depts);
+        if(needChildren) {
+            for (TNFCPatrolDept zz : ls) {
+                var depts = deptDao.queryAll(zz.getId());
+                zz.setChildren(depts);
+            }
         }
         return Result.success(ls);
     }
@@ -209,7 +211,7 @@ public class CNFCPatrol {
         var line = new TNFCPatrolLine();
         line.setLinename(linename);
         line.setLinenum(linenum);
-        line.setDeptid(deptid);
+        line.setZzid(deptid);
         line.setCycle(cycle);
         line.setPointids(pointids);
         line.setCreatetime(new Date());
@@ -237,7 +239,7 @@ public class CNFCPatrol {
         line.setId(id);
         line.setLinename(linename);
         line.setLinenum(linenum);
-        line.setDeptid(deptid);
+        line.setZzid(deptid);
         line.setCycle(cycle);
         line.setPointids(pointids);
         var dt = DateUtil.parse(begintime, "yyyy-MM-dd HH");
@@ -358,7 +360,7 @@ public class CNFCPatrol {
             queryTime = sdf.format(calendar.getTime());
         }
         var aimDt = DateUtil.parse(queryTime, sdf);
-        var lines = lineDao.queryByDeptId(deptid);
+        var lines = lineDao.queryByZzId(deptid);
         if (lines != null && !lines.isEmpty()) {
             for (var line : lines) {
                 LineInfo one = new LineInfo();
@@ -404,6 +406,9 @@ public class CNFCPatrol {
                 var records = recordDao.queryAll(null, pointId, begin, end);
                 if (records != null && !records.isEmpty()) {
                     record = records.get(0);
+                    var deptid = record.getDeptid();
+                    var deptName = deptDao.query(deptid) == null ? "/" :  deptDao.query(deptid).getName();
+                    record.setDeptname(deptName);
                 }
                 one.setRecord(record);
             }
@@ -417,7 +422,8 @@ public class CNFCPatrol {
     public Result<?> addRecord(@RequestParam(name = "rfid") String rfid,
                                @RequestParam(name = "person") String person,
                                @RequestParam(name = "content") String content,
-                               @RequestParam(name = "errornum") int errornum) {
+                               @RequestParam(name = "errornum") int errornum,
+                               @RequestParam(name = "deptid") String deptid) {
         if (pointDao.exist(rfid) <= 0) {
             return Result.fail("添加失败，该巡检点id不存在");
         }
@@ -428,6 +434,7 @@ public class CNFCPatrol {
         record.setContent(content);
         record.setErrornum(errornum);
         record.setDotime(new Date());
+        record.setDeptid(deptid);
 
         int r = recordDao.insert(record);
         return Result.sf(r > 0);

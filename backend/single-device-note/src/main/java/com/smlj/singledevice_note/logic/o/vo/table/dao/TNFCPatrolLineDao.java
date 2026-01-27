@@ -31,5 +31,5 @@ public interface TNFCPatrolLineDao {
 
     TNFCPatrolLine queryById(@Param("id") int id);
 
-    ArrayList<TNFCPatrolLine> queryByDeptId(@Param("deptid") String deptid);
+    ArrayList<TNFCPatrolLine> queryByZzId(@Param("zzid") String zzid);
 }

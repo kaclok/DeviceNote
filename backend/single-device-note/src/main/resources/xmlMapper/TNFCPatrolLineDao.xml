@@ -7,7 +7,7 @@
         <id property="id" column="id"/>
         <result property="linenum" column="linenum"/>
         <result property="linename" column="linename"/>
-        <result property="deptid" column="deptid"/>
+        <result property="zzid" column="zzid"/>
         <result property="cycle" column="cycle"/>
         <result property="begintime" column="begintime"/>
         <result property="createtime" column="createtime"/>
@@ -25,7 +25,7 @@
             and linename LIKE CONCAT('%', #{queryByName}, '%')
         </if>
         <if test="queryByDeptIdArray != null and queryByDeptIdArray.size() > 0">
-            AND deptid IN
+            AND zzid IN
             <foreach collection="queryByDeptIdArray" item="oneid" open="(" separator="," close=")">
                 #{oneid}
             </foreach>
@@ -51,9 +51,9 @@
         where id = ${id}
     </select>
 
-    <select id="queryByDeptId" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine" resultMap="lineResultMap">
+    <select id="queryByZzId" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine" resultMap="lineResultMap">
         select * from nfcpatrol.t_nfcpatrol_line
-        where deptid = #{deptid}
+        where zzid = #{zzid}
     </select>
 
     <update id="delete">
@@ -74,7 +74,7 @@
         SET
             linenum = #{item.linenum},
             linename = #{item.linename},
-            deptid = #{item.deptid},
+            zzid = #{item.zzid},
             cycle = #{item.cycle},
             begintime = #{item.begintime},
             pointids = #{item.pointids, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
@@ -90,14 +90,14 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into nfcpatrol.t_nfcpatrol_line (linenum
             , linename
-            , deptid
+            , zzid
             , cycle
             , begintime
             , createtime
             , pointids)
         values (#{item.linenum},
             #{item.linename},
-            #{item.deptid},
+            #{item.zzid},
             #{item.cycle},
             #{item.begintime},
             #{item.createtime},

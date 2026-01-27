@@ -18,5 +18,7 @@ public class TNFCPatrolRecord implements Serializable {
     private long id;
     private String content; // 该点位设备巡检情况
     private int errornum; // 该点位异常设备数量
+    private String deptid;
+    private String deptname;
 }
 

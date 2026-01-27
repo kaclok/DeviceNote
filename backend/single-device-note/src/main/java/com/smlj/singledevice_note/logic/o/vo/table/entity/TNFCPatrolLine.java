@@ -4,7 +4,6 @@ import lombok.Data;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Date;
 
 @Component
@@ -19,7 +18,7 @@ public class TNFCPatrolLine implements Serializable {
     private Date createtime;
     private String[] pointids;
 
-    private String deptid; // 部门
+    private String zzid; // 部门
     private float cycle; // 巡检周期
     private Date begintime; // 该路线巡检开始时间
 }

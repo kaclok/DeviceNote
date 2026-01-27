@@ -30,8 +30,8 @@ public class NFCPatrolDao {
         return api.queryPointsInfoByLine(lineid, queryBegin);
     }
 
-    public Call<Void> addRecord(String rfid, String person, String content, int errornum) {
-        return api.addRecord(rfid, person, content, errornum);
+    public Call<Void> addRecord(String rfid, String person, String content, int errornum, String deptId) {
+        return api.addRecord(rfid, person, content, errornum, deptId);
     }
 
     public Call<PageSerializable<TNFCPatrolPoint>> queryPoints(String rfid) {

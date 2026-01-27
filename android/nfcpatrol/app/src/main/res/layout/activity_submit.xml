@@ -19,7 +19,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="巡检点名称"
-            android:textSize="18sp"
+            android:textSize="15sp"
             android:textStyle="bold"
             android:gravity="center"
             app:layout_constraintTop_toTopOf="parent"

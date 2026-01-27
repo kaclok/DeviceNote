@@ -10,11 +10,13 @@ import java.io.Serializable;
 public class VNFCPatrolLineRecord implements Serializable {
     private int lineid;
     private String linename;
+    private String zzid;
     private String deptname;
     private String cycle_start_time;
+    private String cycle_end_time;
     private String patrol_person;
     private int checked_cnt;
     private int total_cnt;
-    private int error_count;
     private int status;
+    private String deptid;
 }

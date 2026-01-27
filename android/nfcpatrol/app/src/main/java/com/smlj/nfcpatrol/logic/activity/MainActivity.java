@@ -34,7 +34,7 @@ import retrofit2.Call;
 
 public class MainActivity extends AppCompatActivity implements LineAdapter.OnItemClickListener {
     private ActivityResultLauncher<Intent> nfcLauncher;
-    private String selectedDeptId;
+    private String selectedZzId;
     private Call<ArrayList<LineInfo>> callLines;
     private LineAdapter lineAdapter = new LineAdapter();
     private RecyclerView recyclerView;
@@ -68,10 +68,10 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
 
         nfcLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleNfcResult);
 
+        selectedZzId = getIntent().getStringExtra("zzId");
         var zzName = getIntent().getStringExtra("zzName");
         var deptName = getIntent().getStringExtra("deptName");
         var person = getIntent().getStringExtra("person");
-        selectedDeptId = getIntent().getStringExtra("deptId");
 
         var btnWebview = findViewById(R.id.btn_webview);
         btnWebview.setOnClickListener(v -> {
@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
             Intent intent = new Intent(this, WebViewActivity.class);
             intent.putExtra("url", url);
             startActivity(intent);*/
-            Refresh(selectedDeptId);
+            Refresh(selectedZzId);
         });
 
         TextView tv_title = findViewById(R.id.tv_title);
@@ -95,16 +95,16 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
     protected void onResume() {
         super.onResume();
 
-        Refresh(selectedDeptId);
+        Refresh(selectedZzId);
     }
 
-    private void Refresh(String deptId) {
+    private void Refresh(String zzId) {
         if (callLines != null) {
             // 避免连续点击引起上次回包刷新本次UI
             callLines.cancel();
         }
 
-        callLines = NFCPatrolDao.instance().queryLinesByDept(deptId);
+        callLines = NFCPatrolDao.instance().queryLinesByDept(zzId);
         callLines.enqueue(new ActivitySafeCallback<ArrayList<LineInfo>>(this) {
             @Override
             protected void onSafeResponse(Activity activity, Call<ArrayList<LineInfo>> call, ArrayList<LineInfo> resp) {
@@ -130,6 +130,9 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
         } else {
             Intent intent = new Intent(this, PointsActivity.class);
             intent.putExtra("line", line);
+            intent.putExtra("person", getIntent().getStringExtra("person"));
+            intent.putExtra("deptId", getIntent().getStringExtra("deptId"));
+            intent.putExtra("deptName", getIntent().getStringExtra("deptName"));
             startActivity(intent);
         }
     }
@@ -167,6 +170,8 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
                                 Intent intent = new Intent(activity, SubmitActivity.class);
                                 intent.putExtra("point", point);
                                 intent.putExtra("person", getIntent().getStringExtra("person"));
+                                intent.putExtra("deptId", getIntent().getStringExtra("deptId"));
+                                intent.putExtra("deptName", getIntent().getStringExtra("deptName"));
                                 startActivity(intent);
                             }
                         }

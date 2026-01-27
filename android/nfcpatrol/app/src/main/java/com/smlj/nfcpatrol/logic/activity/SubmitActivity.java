@@ -42,6 +42,7 @@ public class SubmitActivity extends AppCompatActivity {
         }
 
         var person = getIntent().getStringExtra("person");
+        var deptId = getIntent().getStringExtra("deptId");
 
         ((TextView) findViewById(R.id.tv_title)).setText("巡检点：" + point.getPointname());
         findViewById(R.id.btn_submit).setOnClickListener(v -> {
@@ -61,7 +62,7 @@ public class SubmitActivity extends AppCompatActivity {
             // 简单起见，如果设备正常 cnt=0，异常且详情不为空 cnt=1 (或者您可以添加专门的异常数量输入框，如果之前的 et_count 还在的话)
             // 根据之前的代码，似乎 et_count 被移除了？如果移除了，这里我们可以根据状态设置 cnt
             int cnt = invalid ? 1 : 0;
-            NFCPatrolDao.instance().addRecord(point.getRfid(), person, et_detail, cnt).enqueue(new ActivitySafeCallback<Void>(this) {
+            NFCPatrolDao.instance().addRecord(point.getRfid(), person, et_detail, cnt, deptId).enqueue(new ActivitySafeCallback<Void>(this) {
                 @Override
                 protected void onSafeResponse(Activity activity, Call<Void> call, Void resp) {
                     Toast toast = Toast.makeText(activity, "提交成功", Toast.LENGTH_SHORT);

@@ -40,7 +40,7 @@ public interface NFCPatrolAPIService {
     @FormUrlEncoded
     @POST("addRecord")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
-    Call<Void> addRecord(@Field("rfid") String rfid, @Field("person") String person, @Field("content") String content, @Field("errornum") int errornum);
+    Call<Void> addRecord(@Field("rfid") String rfid, @Field("person") String person, @Field("content") String content, @Field("errornum") int errornum, @Field("deptid") String deptid);
 
     @FormUrlEncoded
     @POST("queryPoints")
