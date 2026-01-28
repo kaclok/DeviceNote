@@ -65,12 +65,11 @@
         WHERE l.deleted = false
             AND ARRAY_LENGTH(l.pointids, 1) != 0
             AND (l.begintime::timestamp) &lt;= (trr.end_time::timestamp)
-            <if test="queryByDeptIdArray != null and queryByDeptIdArray.size() > 0">
-                AND (
-                <foreach collection="queryByDeptIdArray" item="oneid" separator=" OR ">
-                    #{oneid} LIKE CONCAT(zzid, '%')
+            <if test="zzIds != null and zzIds.size() > 0">
+                AND zzid IN
+                <foreach collection="zzIds" item="oneid" open="(" close=")" separator=",">
+                    #{oneid}
                 </foreach>
-                )
             </if>
         ),
         cycle_patrol_stats AS (
@@ -79,6 +78,7 @@
                 pc.linename,
                 pc.linenum,
                 pc.zzid,
+                pc.cycle,
                 pc.cycle_index,
                 pc.cycle_start_time,
                 pc.cycle_end_time,
@@ -109,6 +109,7 @@
             pc.linename,
             pc.linenum,
             pc.zzid,
+            pc.cycle,
             pc.cycle_index,
             pc.cycle_start_time,
             pc.cycle_end_time,
@@ -120,6 +121,7 @@
                 cps.line_id as lineid,
                 cps.linename as linename,
                 cps.zzid as zzid,
+                cps.cycle as cycle,
                 cps.last_deptid as deptid,
                 COALESCE(d.name, '/') AS deptname,
                 cps.cycle_start_time as cycle_start_time,
@@ -152,6 +154,14 @@
         <where>
             <if test="queryByStatus != null">
                 status = ${queryByStatus}
+            </if>
+
+            <if test="queryByDeptIdArray != null and queryByDeptIdArray.size() > 0">
+                AND (deptid IN
+                <foreach collection="queryByDeptIdArray" item="oneid" open="(" separator="," close=")">
+                    #{oneid}
+                </foreach>
+                or deptid = '/')
             </if>
         </where>
         order by linename, cycle_start_time desc

@@ -48,7 +48,7 @@ public class CNFCPatrol {
     @GetMapping(value = "/queryDeptsTree")
     public Result<?> queryDeptsTree(@RequestParam(name = "needChildren", required = false, defaultValue = "1") boolean needChildren) {
         var ls = zzDao.queryAll();
-        if(needChildren) {
+        if (needChildren) {
             for (TNFCPatrolDept zz : ls) {
                 var depts = deptDao.queryAll(zz.getId());
                 zz.setChildren(depts);
@@ -285,8 +285,18 @@ public class CNFCPatrol {
         var begin = sdf.format(beginDt);
         var end = sdf.format(endDt);
 
+        ArrayList<String> ids = new ArrayList<>();
+        if (queryByDeptIdArray != null && !queryByDeptIdArray.isEmpty()) {
+            for (String s : queryByDeptIdArray) {
+                var queryByDeptId = s.substring(0, 1);
+                if (!ids.contains(queryByDeptId)) {
+                    ids.add(queryByDeptId);
+                }
+            }
+        }
+
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = recordDao.querySeries(queryByDeptIdArray, queryByStatus, begin, end);
+        var ls = recordDao.querySeries(ids, queryByDeptIdArray, queryByStatus, begin, end);
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -407,7 +417,7 @@ public class CNFCPatrol {
                 if (records != null && !records.isEmpty()) {
                     record = records.get(0);
                     var deptid = record.getDeptid();
-                    var deptName = deptDao.query(deptid) == null ? "/" :  deptDao.query(deptid).getName();
+                    var deptName = deptDao.query(deptid) == null ? "/" : deptDao.query(deptid).getName();
                     record.setDeptname(deptName);
                 }
                 one.setRecord(record);
