@@ -37,11 +37,17 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <CheckBox
-                android:id="@+id/rb_valid"
+            <RadioButton
+                android:id="@+id/rb_1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="是否存在异常？(勾选表示异常)"
+                android:text="正常？"
+                android:checked="true" />
+            <RadioButton
+                android:id="@+id/rb_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="异常？"
                 android:checked="false" />
 
         </RadioGroup>

@@ -4,7 +4,7 @@ import android.app.Activity;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.widget.CheckBox;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -46,8 +46,9 @@ public class SubmitActivity extends AppCompatActivity {
 
         ((TextView) findViewById(R.id.tv_title)).setText("巡检点：" + point.getPointname());
         findViewById(R.id.btn_submit).setOnClickListener(v -> {
-            CheckBox rbValid = findViewById(R.id.rb_valid);
-            boolean invalid = rbValid.isChecked();
+            RadioGroup rg_status = findViewById(R.id.rg_status);
+            var rbId = rg_status.getCheckedRadioButtonId();
+            boolean invalid = rbId == R.id.rb_2;
             var et_detail = ((TextView) findViewById(R.id.et_detail)).getText().toString().trim();
 
             if (invalid && et_detail.isEmpty()) {
