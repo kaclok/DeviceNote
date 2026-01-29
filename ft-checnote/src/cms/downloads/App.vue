@@ -8,7 +8,7 @@
                 v-for="item in appList"
                 :key="item.id"
             >
-                <img class="app-icon" :src="item.icon" alt="icon"/>
+                <img class="app-icon" :src="logo_book" alt="icon"/>
 
                 <div class="app-name">{{ item.name }}</div>
 
