@@ -25,6 +25,7 @@
         android:usesCleartextTraffic="true">
         <activity
             android:name=".logic.activity.SplashActivity"
+            android:theme="@style/SplashTheme"
             android:exported="true">
             <intent-filter>
                 <!-- 应用入口 -->
