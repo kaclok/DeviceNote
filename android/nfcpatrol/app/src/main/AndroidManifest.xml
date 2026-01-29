@@ -24,6 +24,16 @@
         android:theme="@style/Theme.NFCPatrol"
         android:usesCleartextTraffic="true">
         <activity
+            android:name=".logic.activity.SplashActivity"
+            android:exported="true">
+            <intent-filter>
+                <!-- 应用入口 -->
+                <action android:name="android.intent.action.MAIN" />
+                <!-- 在启动器中显示 -->
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".logic.activity.MainActivity"
             android:exported="false" />
         <activity
@@ -61,13 +71,6 @@
         <activity
             android:name=".logic.activity.LoginActivity"
             android:exported="true">
-            <intent-filter>
-
-                <!-- 应用入口 -->
-                <action android:name="android.intent.action.MAIN" />
-                <!-- 在启动器中显示 -->
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
     </application>
 

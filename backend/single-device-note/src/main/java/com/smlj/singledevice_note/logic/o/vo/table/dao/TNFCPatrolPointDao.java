@@ -1,6 +1,5 @@
 package com.smlj.singledevice_note.logic.o.vo.table.dao;
 
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

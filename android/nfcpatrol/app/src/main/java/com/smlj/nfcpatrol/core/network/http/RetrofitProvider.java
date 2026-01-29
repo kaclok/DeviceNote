@@ -14,7 +14,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class RetrofitProvider {
     private static Retrofit _retrofit;
 
-    private static final String _baseUrl = "http://117.36.227.42:7090/x/nfcPatrol/";
+    private static final String _baseUrl = "http://117.36.227.42:7090/x/";
 
     private static final Gson _gson = new GsonBuilder().registerTypeAdapter(Date.class, new MillsToDateConverter())
             /*.registerTypeAdapter()*/

@@ -275,7 +275,7 @@ const appGridItems = ref([
     },
     {
         name: "下载中心",
-        url: "http://10.8.54.24:4177/pages/downloads/index.html",
+        url: "http://117.36.227.42:4177/pages/downloads/index.html",
         image: logo_book,
         enabled: true,
     },

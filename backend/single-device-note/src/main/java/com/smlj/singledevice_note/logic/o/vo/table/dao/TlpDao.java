@@ -1,7 +1,6 @@
 package com.smlj.singledevice_note.logic.o.vo.table.dao;
 
 import com.mongodb.client.result.DeleteResult;
-import com.smlj.singledevice_note.core.setting.mongodb.MongoSetting;
 import com.smlj.singledevice_note.logic.controller.lp.EPtype;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.lp.*;
 import lombok.Data;

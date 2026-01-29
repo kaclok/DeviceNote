@@ -28,22 +28,22 @@ import retrofit2.http.POST;
 
 public interface NFCPatrolAPIService {
     @FormUrlEncoded
-    @POST("queryLinesByDept")
+    @POST("nfcPatrol/queryLinesByDept")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
     Call<ArrayList<LineInfo>> queryLinesByDept(@Field("deptid") String deptId);
 
     @FormUrlEncoded
-    @POST("queryPointsInfoByLine")
+    @POST("nfcPatrol/queryPointsInfoByLine")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
     Call<ArrayList<RecordInfo>> queryPointsInfoByLine(@Field("lineid") int lineid, @Field("queryBegin") String queryBegin);
 
     @FormUrlEncoded
-    @POST("addRecord")
+    @POST("nfcPatrol/addRecord")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
     Call<Void> addRecord(@Field("rfid") String rfid, @Field("person") String person, @Field("content") String content, @Field("errornum") int errornum, @Field("deptid") String deptid);
 
     @FormUrlEncoded
-    @POST("queryPoints")
+    @POST("nfcPatrol/queryPoints")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
     Call<PageSerializable<TNFCPatrolPoint>> queryPoints(@Field("queryByRfId") String queryByRfId);
 }

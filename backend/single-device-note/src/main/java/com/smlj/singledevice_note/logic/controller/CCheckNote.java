@@ -4,7 +4,6 @@ import cn.hutool.core.date.DateUtil;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.to.Result;
-import com.smlj.singledevice_note.core.utils.DateTimeUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCheckBJDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCheckRecordDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCheckRecord;
