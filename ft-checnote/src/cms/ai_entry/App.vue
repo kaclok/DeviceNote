@@ -25,19 +25,6 @@
                 <div style="white-space: pre-line; text-align: center" class="label">{{ item.name }}</div>
             </div>
         </div>
-
-        <h2 style="position: relative; top: 10px"> 下载: </h2>
-        <div class="grid-container">
-            <div
-                v-for="item in filterItems(downloadGridItems)"
-                :key="item.name"
-                class="grid-item"
-                @click="item.url ? onClickedImg(item.url) : undefined"
-            >
-                <img :src="item.image" :alt="item.name" class="icon">
-                <div style="white-space: pre-line; text-align: center" class="label">{{ item.name }}</div>
-            </div>
-        </div>
     </div>
 </template>
 
@@ -286,15 +273,12 @@ const appGridItems = ref([
         image: logo_book,
         enabled: true,
     },
-])
-
-const downloadGridItems = ref([
     {
-        name: "NFC巡检Apk",
-        url: "http://10.8.54.24:4177/pages/yb/index.html/../downloads/NFCPatrol-release-1.0.apk",
+        name: "下载中心",
+        url: "http://10.8.54.24:4177/pages/downloads/index.html",
         image: logo_book,
         enabled: true,
-    }
+    },
 ])
 
 // Example of a method to handle clicks on grid items

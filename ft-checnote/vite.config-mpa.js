@@ -13,6 +13,7 @@ const mpaInput = {
     watchdog: resolve(__dirname, './pages/smds/watchdog/index.html'),
     sbrhjy: resolve(__dirname, './pages/smlj/sbrhjy/index.html'),
     cggy: resolve(__dirname, './pages/smlj/cggy/index.html'),
+    downloads: resolve(__dirname, './pages/downloads/index.html'),
 }
 
 // https://blog.csdn.net/usernotdefined/article/details/129897995
