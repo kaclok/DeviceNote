@@ -1,9 +1,12 @@
 package com.smlj.singledevice_note.logic.controller;
 
+import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.to.Result;
+import com.smlj.singledevice_note.core.utils.PageUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TOrgDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TOrgUserDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TOrg;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TOrgUser;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 @Slf4j
 @RestController
@@ -66,6 +66,13 @@ public class COrgUser {
         return r.toArray(new String[0]);
     }
 
+    // 将用户填充到t_org的
+    @Transactional
+    @PostMapping("/warpUsersToOrgs")
+    public Result<?> warpUsersToOrgs() {
+        return null;
+    }
+
     // 获取某个部门的子部门信息
     @Transactional
     @PostMapping("/getSubDepts")
@@ -102,10 +109,53 @@ public class COrgUser {
     // includeSubType == 3表示查找用户为deptCode部门的人员，会在递归子部门查询
     @Transactional
     @PostMapping("/getUsers")
-    public Result<?> getUsers(String deptCode,
-                              @RequestParam(name = "deptCode", required = false) int includeSubType,
-                              @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-                              @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
-        return null;
+    public Result<?> getUsers(@RequestParam(name = "deptCode", required = false, defaultValue = "1030") String deptCode,
+                              @RequestParam(name = "includeSubType", required = false, defaultValue = "2") int includeSubType,
+                              @RequestParam(name = "pageNum", required = false, defaultValue = "0") int pageNum,
+                              @RequestParam(name = "pageSize", required = false, defaultValue = "0") int pageSize) {
+        PageSerializable<TOrgUser> r = null;
+        if (includeSubType == 1) {
+            r = PageUtil.doPage(pageNum, pageSize, v -> {
+                var depts = new ArrayList<String>(Arrays.asList(deptCode));
+                var us = orgUserDao.queryByDepts(depts);
+                return us;
+            }, v -> {
+                return v;
+            });
+
+        } else if (includeSubType == 2) {
+            r = PageUtil.doPage(pageNum, pageSize, v -> {
+                var depts = new ArrayList<String>(Arrays.asList(deptCode));
+                var dept = orgDao.queryById(deptCode);
+                if (dept != null) {
+                    var ls = dept.getIds_direct_sub_depts();
+                    if (ls != null && ls.length > 0) {
+                        Collections.addAll(depts, ls);
+                    }
+                }
+
+                var us = orgUserDao.queryByDepts(depts);
+                return us;
+            }, v -> {
+                return v;
+            });
+        } else if (includeSubType == 3) {
+            r = PageUtil.doPage(pageNum, pageSize, v -> {
+                var depts = new ArrayList<String>(Arrays.asList(deptCode));
+                var dept = orgDao.queryById(deptCode);
+                if (dept != null) {
+                    var ls = dept.getIds_recursive_sub_depts();
+                    if (ls != null && ls.length > 0) {
+                        Collections.addAll(depts, ls);
+                    }
+                }
+
+                var us = orgUserDao.queryByDepts(depts);
+                return us;
+            }, v -> {
+                return v;
+            });
+        }
+        return Result.success(r);
     }
 }

@@ -4,11 +4,22 @@
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TOrgUserDao">
     <select id="queryById" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TOrgUser">
-        select * from package.t_package
-        where package_name = #{packageName}
+        select * from org_user.t_user
+        where id = #{id}
+    </select>
+
+    <select id="queryByDepts" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TOrgUser">
+        select * from org_user.t_user
+        where is_using = true
+        <if test="depts != null and depts.size() > 0">
+            AND dept_code IN
+            <foreach collection="depts" item="oneid" open="(" separator="," close=")">
+                #{oneid}
+            </foreach>
+        </if>
     </select>
 
     <select id="exist" resultType="java.lang.Integer">
-        SELECT COUNT(*) FROM package.t_package WHERE package_name = #{packageName}
+        SELECT COUNT(*) FROM org_user.t_user WHERE id = #{id}
     </select>
 </mapper>
