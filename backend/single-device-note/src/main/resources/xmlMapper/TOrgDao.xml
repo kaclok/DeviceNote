@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TOrgDao">
+    <resultMap id="lineResultMap" type="com.smlj.singledevice_note.logic.o.vo.table.entity.TOrg">
+        <id property="dept_code" column="dept_code"/>
+        <result property="dept_name" column="dept_name"/>
+        <result property="parent_dept_code" column="parent_dept_code"/>
+        <result property="dept_leader" column="dept_leader"/>
+        <result property="master_leader" column="master_leader"/>
+        <result property="dept_all_name" column="dept_all_name"/>
+        <!-- 关键：为数组字段指定 TypeHandler -->
+        <result property="ids_direct_sub_depts" column="ids_direct_sub_depts" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+        <!-- 关键：为数组字段指定 TypeHandler -->
+        <result property="ids_recursive_sub_depts" column="ids_recursive_sub_depts" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+    </resultMap>
+
+    <update id="updateDirect">
+        update org_user.t_org
+        SET
+        ids_direct_sub_depts = #{subs, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
+        where dept_code = #{deptCode}
+        and is_using = true
+    </update>
+
+    <update id="updateRecursive">
+        update org_user.t_org
+        SET
+        ids_recursive_sub_depts = #{subs, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
+        where dept_code = #{deptCode}
+        and is_using = true
+    </update>
+
+    <select id="queryById" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TOrg" resultMap="lineResultMap">
+        select * from org_user.t_org
+        where dept_code = #{deptCode}
+    </select>
+
+    <select id="exist" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM org_user.t_org WHERE dept_code = #{deptCode} and is_using = true
+    </select>
+
+    <select id="querySubDepts" resultType="java.lang.String">
+        select dept_code from org_user.t_org where parent_dept_code = #{deptCode} and is_using = true
+    </select>
+
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TOrg" resultMap="lineResultMap">
+        select * from org_user.t_org where is_using = true
+    </select>
+</mapper>

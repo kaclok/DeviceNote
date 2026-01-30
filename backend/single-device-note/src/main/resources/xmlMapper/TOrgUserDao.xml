@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TOrgUserDao">
+    <select id="queryById" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TOrgUser">
+        select * from package.t_package
+        where package_name = #{packageName}
+    </select>
+
+    <select id="exist" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM package.t_package WHERE package_name = #{packageName}
+    </select>
+</mapper>
