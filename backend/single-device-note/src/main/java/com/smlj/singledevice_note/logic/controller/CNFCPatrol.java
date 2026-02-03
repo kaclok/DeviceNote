@@ -266,6 +266,10 @@ public class CNFCPatrol {
             queryBegin = new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime());
         }
         beginDt = DateUtil.parse(queryBegin, "yyyy-MM-dd");
+        Calendar calendar1 = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+        calendar1.setTime(beginDt);
+        calendar1.add(Calendar.HOUR, 1);
+        beginDt = calendar1.getTime();
 
         if (StrUtil.isEmpty(queryEnd)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
