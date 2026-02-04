@@ -53,7 +53,7 @@
 
     <select id="queryByZzId" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine" resultMap="lineResultMap">
         select * from nfcpatrol.t_nfcpatrol_line
-        where zzid = #{zzid}
+        where zzid = #{zzid} ORDER BY id
     </select>
 
     <update id="delete">
