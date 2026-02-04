@@ -9,6 +9,7 @@ import java.io.Serializable;
 @Data
 public class VNFCPatrolLineRecord implements Serializable {
     private int lineid;
+    private int cycle;
     private String linename;
     private String zzid;
     private String deptname;
