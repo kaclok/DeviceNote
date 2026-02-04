@@ -63,7 +63,7 @@
             ) AS cycle_index
         ) gs
         WHERE l.deleted = false
-            AND ARRAY_LENGTH(l.pointids, 1) != 0
+            AND ARRAY_LENGTH(l.pointids, 1) > 0
             AND (l.begintime::timestamp) &lt;= (trr.end_time::timestamp)
             <if test="zzIds != null and zzIds.size() > 0">
                 AND zzid IN
@@ -71,6 +71,34 @@
                     #{oneid}
                 </foreach>
             </if>
+        ),
+        cycle_points AS (
+            SELECT
+                pc.line_id,
+                pc.cycle_index,
+                pc.cycle_start_time,
+                pc.cycle_end_time,
+                unnest(pc.pointids) AS point_id,
+                pc.linename,
+                pc.linenum,
+                pc.zzid,
+                pc.cycle,
+                pc.total_points
+            FROM patrol_cycles pc
+        ),
+        patrol_records AS (
+            SELECT DISTINCT ON (cp.line_id, cp.cycle_index, r.rfid)
+                cp.line_id,
+                cp.cycle_index,
+                r.rfid,
+                r.person,
+                r.deptid,
+                r.dotime
+            FROM cycle_points cp
+            INNER JOIN nfcpatrol.t_nfcpatrol_record r
+                ON r.rfid = cp.point_id
+                AND r.dotime BETWEEN cp.cycle_start_time AND cp.cycle_end_time
+            ORDER BY cp.line_id, cp.cycle_index, r.rfid, r.dotime DESC
         ),
         cycle_patrol_stats AS (
             SELECT
@@ -83,88 +111,73 @@
                 pc.cycle_start_time,
                 pc.cycle_end_time,
                 pc.total_points,
-                COUNT(DISTINCT last_records.rfid) AS checked_points,
-                STRING_AGG(DISTINCT last_records.person, ', ') AS patrol_persons,
-                COALESCE(
-                (   SELECT r.deptid FROM nfcpatrol.t_nfcpatrol_record r
-                    WHERE r.rfid = ANY(pc.pointids)
-                    AND r.dotime BETWEEN pc.cycle_start_time AND pc.cycle_end_time
-                    ORDER BY r.dotime DESC LIMIT 1),
-                    '/'
-                ) AS last_deptid
+                COUNT(DISTINCT pr.rfid) AS checked_points,
+                STRING_AGG(DISTINCT pr.person, ', ') AS patrol_persons,
+                (ARRAY_AGG(pr.deptid ORDER BY pr.dotime DESC))[1] AS last_deptid
             FROM patrol_cycles pc
-            LEFT JOIN LATERAL (
-                SELECT DISTINCT ON (r.rfid)
-                r.rfid,
-                r.person,
-                r.errornum,
-                r.dotime,
-                r.deptid
-            FROM nfcpatrol.t_nfcpatrol_record r
-            WHERE r.rfid = ANY(pc.pointids) AND r.dotime BETWEEN pc.cycle_start_time AND pc.cycle_end_time
-            ORDER BY r.rfid, r.dotime DESC
-        ) last_records ON true
-        GROUP BY
-            pc.line_id,
-            pc.linename,
-            pc.linenum,
-            pc.zzid,
-            pc.cycle,
-            pc.cycle_index,
-            pc.cycle_start_time,
-            pc.cycle_end_time,
-            pc.total_points,
-            pc.pointids
+            LEFT JOIN patrol_records pr
+                ON pr.line_id = pc.line_id
+                AND pr.cycle_index = pc.cycle_index
+            GROUP BY
+                pc.line_id,
+                pc.linename,
+                pc.linenum,
+                pc.zzid,
+                pc.cycle,
+                pc.cycle_index,
+                pc.cycle_start_time,
+                pc.cycle_end_time,
+                pc.total_points
         ),
         final_result AS (
             SELECT
                 cps.line_id as lineid,
-                cps.linename as linename,
-                cps.zzid as zzid,
-                cps.cycle as cycle,
-                cps.last_deptid as deptid,
+                cps.linename,
+                cps.zzid,
+                cps.cycle,
+                COALESCE(cps.last_deptid, '/') as deptid,
                 COALESCE(d.name, '/') AS deptname,
-                cps.cycle_start_time as cycle_start_time,
-                cps.cycle_end_time as cycle_end_time,
+                cps.cycle_start_time,
+                cps.cycle_end_time,
                 COALESCE(cps.patrol_persons, '/') AS patrol_person,
                 cps.checked_points AS checked_cnt,
                 cps.total_points AS total_cnt,
-            CASE
-                WHEN CURRENT_TIMESTAMP BETWEEN cps.cycle_start_time AND cps.cycle_end_time THEN
                 CASE
-                    WHEN cps.checked_points = 0 THEN 1
-                    WHEN cps.checked_points != 0 AND cps.checked_points &lt; cps.total_points THEN 2
-                    WHEN cps.checked_points >= cps.total_points THEN 3
-                END
+                    WHEN CURRENT_TIMESTAMP BETWEEN cps.cycle_start_time AND cps.cycle_end_time THEN
+                    CASE
+                        WHEN cps.checked_points = 0 THEN 1
+                        WHEN cps.checked_points &lt; cps.total_points THEN 2
+                        ELSE 3
+                    END
 
-            WHEN cps.cycle_end_time &lt; CURRENT_TIMESTAMP THEN
-                CASE
-                    WHEN cps.checked_points = 0 THEN 4
-                    WHEN cps.checked_points != 0 AND cps.checked_points &lt; cps.total_points THEN 5
-                    WHEN cps.checked_points >= cps.total_points THEN 3
-                END
-            ELSE 6
-            END AS status
+                    WHEN cps.cycle_end_time &lt; CURRENT_TIMESTAMP THEN
+                        CASE
+                        WHEN cps.checked_points = 0 THEN 4
+                        WHEN cps.checked_points &lt; cps.total_points THEN 5
+                        ELSE 3
+                    END
+
+                    ELSE 6
+                END AS status
             FROM cycle_patrol_stats cps
-                LEFT JOIN nfcpatrol.t_nfcpatrol_dept d
+            LEFT JOIN nfcpatrol.t_nfcpatrol_dept d
             ON d.id = cps.last_deptid
         )
 
-        select * from final_result
+        SELECT * FROM final_result
         <where>
             <if test="queryByStatus != null">
                 status = ${queryByStatus}
             </if>
-
             <if test="queryByDeptIdArray != null and queryByDeptIdArray.size() > 0">
                 AND (deptid IN
                 <foreach collection="queryByDeptIdArray" item="oneid" open="(" separator="," close=")">
                     #{oneid}
                 </foreach>
-                or deptid = '/')
+                OR deptid = '/')
             </if>
         </where>
-        order by linename, cycle_start_time desc
+        ORDER BY linename, cycle_start_time DESC
     </select>
 
    <select id="queryPointRecordCntOfLine" resultType="java.lang.Integer">
