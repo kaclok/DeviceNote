@@ -153,7 +153,7 @@
                     WHEN cps.cycle_end_time &lt; CURRENT_TIMESTAMP THEN
                         CASE
                         WHEN cps.checked_points = 0 THEN 4
-                        WHEN cps.checked_points &lt; cps.total_points THEN 5
+                        WHEN cps.checked_points &lt; cps.total_points THEN 4
                         ELSE 3
                     END
 
