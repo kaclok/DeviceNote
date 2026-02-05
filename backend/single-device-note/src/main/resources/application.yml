@@ -183,6 +183,11 @@ info:
   author: 崔斌斌 572005238@qq.com
 
 mybatis:
+  # 配置自定义的类型适配器，从而减少在xml中手动类似
+  #    UPDATE nfcpatrol.t_nfcpatrol_line
+  #     SET pointids = #{pointids, typeHandler=com.xxx.StringArrayTypeHandler}
+  #    WHERE id = #{id} 的配置
+  type-handlers-package: com.smlj.singledevice_note.core.o.converter.mybatis.typeHandler
   # resources目录下xml的mapper路径
   mapper-locations:
     - classpath:xmlMapper/*.xml
