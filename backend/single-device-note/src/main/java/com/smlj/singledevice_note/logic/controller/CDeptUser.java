@@ -3,10 +3,10 @@ package com.smlj.singledevice_note.logic.controller;
 import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.utils.PageUtil;
-import com.smlj.singledevice_note.logic.o.vo.table.dao.TOrgDao;
-import com.smlj.singledevice_note.logic.o.vo.table.dao.TOrgUserDao;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TOrg;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TOrgUser;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptUserDao;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TDept;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptUser;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,28 +22,28 @@ import java.util.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/x")
-@Tag(name = "COrgUser", description = "组织架构相关操作")
-public class COrgUser {
-    private final TOrgDao orgDao;
-    private final TOrgUserDao orgUserDao;
+@Tag(name = "CDeptUser", description = "组织架构相关操作")
+public class CDeptUser {
+    private final TDeptDao deptDao;
+    private final TDeptUserDao deptUserDao;
 
     // 将t_org表的ids_direct_sub_depts和ids_recursive_sub_depts进行计算填充
     @Transactional
     @PostMapping("/warpOrgs")
     public Result<?> warpOrgs() {
-        var allDepts = orgDao.queryAll();
-        for (TOrg dept : allDepts) {
+        var allDepts = deptDao.queryAll();
+        for (TDept dept : allDepts) {
             _warpOrgs(dept.getDept_code());
         }
         return Result.success();
     }
 
     private void _warpOrgs(String deptCode) {
-        var directSubDeptCodes = orgDao.querySubDepts(deptCode);
-        orgDao.updateDirect(deptCode, directSubDeptCodes);
+        var directSubDeptCodes = deptDao.querySubDepts(deptCode);
+        deptDao.updateDirect(deptCode, directSubDeptCodes);
 
         var recursiveSubDeptCodes = _queryOrgs(deptCode, new HashSet<>());
-        orgDao.updateRecursive(deptCode, recursiveSubDeptCodes);
+        deptDao.updateRecursive(deptCode, recursiveSubDeptCodes);
     }
 
     private String[] _queryOrgs(String deptCode, HashSet<String> set) {
@@ -53,7 +53,7 @@ public class COrgUser {
         set.add(deptCode);
 
         List<String> r = new ArrayList<>();
-        var subs = orgDao.querySubDepts(deptCode);
+        var subs = deptDao.querySubDepts(deptCode);
         for (var subDeptCode : subs) {
             r.add(subDeptCode);
 
@@ -79,13 +79,13 @@ public class COrgUser {
     public Result<?> getSubDepts(
             @RequestParam(name = "deptCode", required = false, defaultValue = "1030") String deptCode,
             @RequestParam(name = "recursiveOrDirect", required = false, defaultValue = "0") boolean recursiveOrDirect) {
-        ArrayList<TOrg> subs = _getSubDepts(deptCode, recursiveOrDirect);
+        ArrayList<TDept> subs = _getSubDepts(deptCode, recursiveOrDirect);
         return Result.success(subs);
     }
 
-    private ArrayList<TOrg> _getSubDepts(String deptCode, boolean recursiveOrDirect) {
-        var org = orgDao.queryById(deptCode);
-        ArrayList<TOrg> subs = new ArrayList<>();
+    private ArrayList<TDept> _getSubDepts(String deptCode, boolean recursiveOrDirect) {
+        var org = deptDao.queryById(deptCode);
+        ArrayList<TDept> subs = new ArrayList<>();
         if (org != null) {
             String[] subDeptCodes = null;
             if (!recursiveOrDirect) {
@@ -96,7 +96,7 @@ public class COrgUser {
 
             if (subDeptCodes != null) {
                 for (var subDeptCode : subDeptCodes) {
-                    var subOrg = orgDao.queryById(subDeptCode);
+                    var subOrg = deptDao.queryById(subDeptCode);
                     subs.add(subOrg);
                 }
             }
@@ -113,11 +113,11 @@ public class COrgUser {
                               @RequestParam(name = "includeSubType", required = false, defaultValue = "2") int includeSubType,
                               @RequestParam(name = "pageNum", required = false, defaultValue = "0") int pageNum,
                               @RequestParam(name = "pageSize", required = false, defaultValue = "0") int pageSize) {
-        PageSerializable<TOrgUser> r = null;
+        PageSerializable<TDeptUser> r = null;
         if (includeSubType == 1) {
             r = PageUtil.doPage(pageNum, pageSize, v -> {
                 var depts = new ArrayList<String>(Arrays.asList(deptCode));
-                var us = orgUserDao.queryByDepts(depts);
+                var us = deptUserDao.queryByDepts(depts);
                 return us;
             }, v -> {
                 return v;
@@ -126,7 +126,7 @@ public class COrgUser {
         } else if (includeSubType == 2) {
             r = PageUtil.doPage(pageNum, pageSize, v -> {
                 var depts = new ArrayList<String>(Arrays.asList(deptCode));
-                var dept = orgDao.queryById(deptCode);
+                var dept = deptDao.queryById(deptCode);
                 if (dept != null) {
                     var ls = dept.getIds_direct_sub_depts();
                     if (ls != null && ls.length > 0) {
@@ -134,7 +134,7 @@ public class COrgUser {
                     }
                 }
 
-                var us = orgUserDao.queryByDepts(depts);
+                var us = deptUserDao.queryByDepts(depts);
                 return us;
             }, v -> {
                 return v;
@@ -142,7 +142,7 @@ public class COrgUser {
         } else if (includeSubType == 3) {
             r = PageUtil.doPage(pageNum, pageSize, v -> {
                 var depts = new ArrayList<String>(Arrays.asList(deptCode));
-                var dept = orgDao.queryById(deptCode);
+                var dept = deptDao.queryById(deptCode);
                 if (dept != null) {
                     var ls = dept.getIds_recursive_sub_depts();
                     if (ls != null && ls.length > 0) {
@@ -150,7 +150,7 @@ public class COrgUser {
                     }
                 }
 
-                var us = orgUserDao.queryByDepts(depts);
+                var us = deptUserDao.queryByDepts(depts);
                 return us;
             }, v -> {
                 return v;

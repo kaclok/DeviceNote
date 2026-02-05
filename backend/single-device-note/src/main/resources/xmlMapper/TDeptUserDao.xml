@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptUserDao">
+    <select id="isIdExist" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM dept_user.t_user WHERE id = #{id}
+    </select>
+
+    <select id="queryById" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptUser">
+        select * from dept_user.t_user
+        where id = #{id}
+    </select>
+
+    <select id="queryByIds" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptUser">
+        select * from dept_user.t_user
+        where is_using = true
+        <if test="ids != null and ids.size() > 0">
+            and id IN
+            <foreach collection="ids" item="oneId" open="(" separator="," close=")">
+                #{oneId}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="queryByDept" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptUser">
+        select * from dept_user.t_user
+        where dept_code = #{dept}
+    </select>
+
+    <select id="queryByDepts" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptUser">
+        select * from dept_user.t_user
+        where is_using = true
+        <if test="deptCodes != null and deptCodes.size() > 0">
+            AND dept_code IN
+            <foreach collection="deptCodes" item="oneDeptCode" open="(" separator="," close=")">
+                #{oneDeptCode}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="queryByAccount" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptUser">
+        select * from dept_user.t_user
+        where account = #{account}
+    </select>
+
+    <select id="queryByAccounts" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptUser">
+        select * from dept_user.t_user
+        where is_using = true
+        <if test="accounts != null and accounts.size() > 0">
+            AND account IN
+            <foreach collection="accounts" item="oneAccount" open="(" separator="," close=")">
+                #{oneAccount}
+            </foreach>
+        </if>
+    </select>
+</mapper>

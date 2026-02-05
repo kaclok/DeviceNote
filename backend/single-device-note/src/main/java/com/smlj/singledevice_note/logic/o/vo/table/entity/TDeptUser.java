@@ -9,7 +9,7 @@ import java.io.Serializable;
 @Component
 @Data
 @NoArgsConstructor
-public class TOrgUser implements Serializable {
+public class TDeptUser implements Serializable {
     // @Serial
     // private static final long serialVersionUID = 1;
 

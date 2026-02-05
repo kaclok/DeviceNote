@@ -11,6 +11,7 @@ public class JwtUtil {
     public static final String AT_HEADER = "at";
     public static final String KEY = "smlj";
     public static final String AUTHORIZE = "Authorize";
+    public static final String TOKEN = "Token";
     public static final byte[] KEY_BYTES = KEY.getBytes();
     // 动态延长token过期时间
     // https://mp.weixin.qq.com/s/juSk00SEKhYKb2IkG1NhSQ

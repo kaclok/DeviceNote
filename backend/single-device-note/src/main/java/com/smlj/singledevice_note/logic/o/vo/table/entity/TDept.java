@@ -5,12 +5,11 @@ import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 
 @Component
 @Data
 @NoArgsConstructor
-public class TOrg implements Serializable {
+public class TDept implements Serializable {
     // @Serial
     // private static final long serialVersionUID = 1;
 
