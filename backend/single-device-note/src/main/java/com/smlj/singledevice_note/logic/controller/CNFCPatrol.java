@@ -465,4 +465,21 @@ public class CNFCPatrol {
         }
         return null;
     }
+
+    @Transactional
+    @PostMapping(value = "/testArray")
+    public Result<?> testArray() {
+        ArrayList<String> ls = new ArrayList<>();
+        ls.add("1");
+        ls.add("2");
+        int r = lineDao.updatePoints(11, ls);
+        return Result.success(r > 0);
+    }
+
+    @Transactional
+    @PostMapping(value = "/testArray1")
+    public Result<?> testArray1() {
+        var r = lineDao.queryById(11);
+        return Result.success(r);
+    }
 }
