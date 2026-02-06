@@ -172,10 +172,10 @@ public class CNFCPatrol {
     }
 
     @Transactional
-    private void connectLinePoint(Integer lineid, String[] pointids, boolean incrOrUpdate) {
+    protected void connectLinePoint(Integer lineid, String[] pointids, boolean incrOrUpdate) {
         if (incrOrUpdate) {
-            for (int i = 0; i < pointids.length; i++) {
-                pointDao.updateLineId(pointids[i], lineid);
+            for (String pointid : pointids) {
+                pointDao.updateLineId(pointid, lineid);
             }
         } else {
             var line = lineDao.queryById(lineid);
@@ -319,45 +319,6 @@ public class CNFCPatrol {
         private Date time;
         private int finishCnt;
     }
-
-    /*@Transactional
-    @PostMapping(value = "/queryPointInfo")
-    public Result<?> queryPoints(@RequestParam(name = "rfid") String rfid, @RequestParam(name = "includeLine", required = false) boolean includeLine) {
-        var point = pointDao.queryById(rfid);
-        if (point == null) {
-            return Result.fail("不存在rfid为:" + rfid + "的巡检点");
-        }
-
-        PointInfo pi = new PointInfo();
-        pi.setPoint(point);
-
-        if (includeLine) {
-            TNFCPatrolLine line = null;
-            var lineId = point.getLineid();
-            if (lineId != null) {
-                line = lineDao.queryById(lineId);
-            }
-            pi.setLine(line);
-        }
-
-        return Result.success(pi);
-    }
-
-    private Pair<Map<String, Integer>, Integer> _getLineErrorInfo(TNFCPatrolLine line, Date beginDt, Date endDt) {
-        int cnt = 0;
-        Map<String, Integer> info = new HashMap<>();
-        for (var pointId : line.getPointids()) {
-            var records = recordDao.queryAll(null, pointId, beginDt, endDt);
-            if (records != null && !records.isEmpty()) {
-                // 因为结果是order by time desc, 所以第一个是最新的
-                info.put(pointId, records.get(0).getErrornum());
-            } else {
-                info.put(pointId, 0);
-            }
-        }
-
-        return Pair.of(info, cnt);
-    }*/
 
     // 查询queryTime附近某个deptid的巡检路线列表
     @Transactional
