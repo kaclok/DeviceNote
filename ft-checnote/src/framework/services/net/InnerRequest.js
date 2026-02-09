@@ -18,6 +18,16 @@ function _request(option) {
     })
 }
 
+function _requestAsync(method, option, callback) {
+    _request({method: method, ...option})
+        .then(res => {
+            callback(true, res.data)
+        })
+        .catch(err => {
+            callback(false, err)
+        })
+}
+
 async function get(option) {
     const res = await _request({method: 'GET', ...option})
     return res.data
@@ -28,18 +38,21 @@ async function post(option) {
     return res.data
 }
 
-async function reqOriginal(method, option) {
-    return _request({method, ...option});
-}
-
-async function _delete(option) {
-    const res = await _request({method: 'DELETE', ...option})
-    return res.data
-}
-
 async function put(option) {
     const res = await _request({method: 'PUT', ...option})
     return res.data
+}
+
+async function getAsync(option, callback) {
+    return _requestAsync('GET', option, callback)
+}
+
+async function postAsync(option, callback) {
+    return _requestAsync('POST', option, callback)
+}
+
+async function putAsync(option, callback) {
+    return _requestAsync('PUT', option, callback)
 }
 
 async function download(option) {
@@ -54,4 +67,8 @@ async function upload(option) {
     return _request({method: 'POST', ...option});
 }
 
-export {get, post, reqOriginal, _delete, put, download, upload}
+export {
+    get, post, put,
+    getAsync, postAsync, putAsync,
+    download, upload
+}
