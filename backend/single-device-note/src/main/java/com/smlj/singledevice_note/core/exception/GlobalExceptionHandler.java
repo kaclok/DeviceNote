@@ -3,6 +3,7 @@ package com.smlj.singledevice_note.core.exception;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -50,6 +51,12 @@ public class GlobalExceptionHandler {
             return Result.fail(ResultCode.RC400.getCode(), ex.getMessage());
         }
         return Result.fail(ResultCode.RC400);
+    }
+
+    // 处理 HTTP 消息不可读（如 JSON 格式错误）
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public Result<?> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+        return Result.fail("请求格式错误", ex.getMessage());
     }
 
     // https://mp.weixin.qq.com/s/vVBmqCbhmLXYjW1w8gsk3Q
