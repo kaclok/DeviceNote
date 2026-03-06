@@ -1,14 +1,12 @@
 package com.jthx.x.cms.watchdog.Detector;
 
 import com.jthx.x.cms.watchdog.dao.mapper.SMDSBranchInfoMapper;
-import com.jthx.x.cms.watchdog.pojo.Snapshot;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.text.DecimalFormat;
-import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -24,8 +22,6 @@ public class DataHandler {
     // 滑动窗口大小，注意在运行过程中不要修改窗口大小
     private int windowSize;
 
-    // 趋势阈值
-    private double threshold;
     // 用于存储滑动窗口中的数据
     private Queue<Double> window = new LinkedList<>();
     // 存储窗口中变化率的总和
@@ -35,13 +31,13 @@ public class DataHandler {
     private double snapshotValue = Double.NaN;
     private int num = 0;
 
+    // 趋势阈值
+    private double threshold;
     private Date date;
     private int indicatorId;
     private int deviceId;
     private int branchId;
     private String indicatorName;
-    private SMDSBranchInfoMapper branchInfoMapper;
-    private DecimalFormat df = new DecimalFormat("0.0000");
 
     /**
      * 使用滑动窗口，判断指标当前增长率是否超过了阈值
@@ -51,11 +47,17 @@ public class DataHandler {
      */
     public Boolean detectIndicator(double currentValue) {
         if (!Double.isNaN(preValue)) {
+            // 如果是非第一次进来
             System.out.println("currentValue: " + currentValue + "preValue: " + preValue);
+            // todo preValue为0怎么处理？
+            if(preValue == 0) {
+
+            }
             double rateOfChange = (currentValue - preValue) / preValue;
 
+            // 去头
             if (window.size() >= windowSize) {
-                Double removed = window.poll();
+                var removed = window.poll();
                 if (removed != null) {
                     sumOfChangeRates -= removed;
                 }
@@ -73,26 +75,11 @@ public class DataHandler {
             System.out.println("--第" + num + "次");
             System.out.println("窗口值为" + window);
             System.out.println("---窗口当前平均增长率-" + averageChange);
-            if (!Double.isNaN(currentValue) && !Double.isNaN(averageChange)) {
-                Snapshot snapshot = new Snapshot();
-                snapshot.setIndicatorId(indicatorId);
-                snapshot.setDeviceId(deviceId);
-                snapshot.setBranchId(branchId);
-                snapshot.setIndicatorName(indicatorName);
-                snapshot.setRate(Double.valueOf(df.format(averageChange)));
-                snapshot.setValue(currentValue);
-                snapshot.setDate(LocalDateTime.now());
-
-                branchInfoMapper.insertSnapshotInfo(snapshot);
-            }
-
-            if (Math.abs(averageChange) > threshold) {
-                return false;
-            } else {
-                return true;
-            }
+            return Math.abs(averageChange) <= threshold;
+        } else {
+            // 第一次进来
+            preValue = currentValue;
+            return true;
         }
-        preValue = currentValue;
-        return true;
     }
 }

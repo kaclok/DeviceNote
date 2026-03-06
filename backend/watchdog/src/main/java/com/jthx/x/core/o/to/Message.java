@@ -19,11 +19,11 @@ public class Message<T> extends Msg<T> {
 
     public Message(int code, T data) {
         super(code, data);
-        this.setTime();
+        this.setTime(false);
     }
 
-    public void setTime() {
-        this.timestamp = DateTimeUtil.nowTimestamp(true);
+    public void setTime(boolean useSeconds) {
+        this.timestamp = DateTimeUtil.nowTimestamp(useSeconds);
         this.zoneOffset = DateTimeUtil.getZoneOffset();
     }
 }

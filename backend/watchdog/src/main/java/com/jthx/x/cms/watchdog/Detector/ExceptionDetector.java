@@ -7,6 +7,10 @@ import com.jthx.x.cms.watchdog.pojo.response.IndicatorResponseInfo;
 import com.jthx.x.cms.watchdog.service.SMDSRequestService;
 import com.jthx.x.cms.watchdog.service.WebSocketPushService;
 import com.jthx.x.cms.watchdog.util.SMDSSafeAPI;
+import com.jthx.x.core.o.to.Result;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -14,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +37,7 @@ public class ExceptionDetector {
     private IndicatorResponseInfo indicatorResponseInfo;
 
     private Thread thread = null;
+    private int batchIndex = 0;
 
     // 用来记录每个指标当前的运行状态
     private Map<String, DetectorExceptionStatus> deviceStatus = new HashMap<>();
@@ -58,7 +64,6 @@ public class ExceptionDetector {
             dataHandler.setIndicatorName(indicatorInfo.getIndicatorName());
             dataHandler.setBranchId(indicatorInfo.getBranchId());
             dataHandler.setDeviceId(indicatorInfo.getDeviceId());
-            dataHandler.setBranchInfoMapper(branchInfoMapper);
 
             String key = this.indicatorKeyWithIndicatorInfo(indicatorInfo);
             dataHandlerMap.put(key, dataHandler);
@@ -78,8 +83,8 @@ public class ExceptionDetector {
 
     public void stopMonitoring() {
         log.info("stopMonitoring");
-
         if (thread != null) {
+            log.info("thread hashcode: " + thread.hashCode());
             thread.interrupt();
         }
     }
@@ -98,11 +103,13 @@ public class ExceptionDetector {
             while (true) {
                 try {
                     System.out.println("-------------这是第" + ++num + "轮检测-------------");
+                    batchIndex = num;
                     Thread.currentThread().sleep(20000);
                     System.out.println("距离上次检测过了" + (System.currentTimeMillis() - lastTime) + "秒");
                     lastTime = System.currentTimeMillis();
+                    // 获取本次的点表数据
                     this.indicatorResponseInfo = requestService.requestSnapshotInfo(indicatorJoinInfoList);
-                    System.out.println("要进行检测的数据有以下" + this.indicatorResponseInfo.getSnapshotMap());
+                    System.out.println("要进行检测的数据有以下:" + this.indicatorResponseInfo.getSnapshotMap());
 
                     exceptionList.clear();
                     this.detectorException();
@@ -133,38 +140,46 @@ public class ExceptionDetector {
             dataHandler.setSnapshotValue(av);
 
             System.out.println("-------------------------------------------");
-            System.out.println("指标名称" + indicatorInfo.getIndicatorName());
+            log.info("指标id：{} 名称：{}", indicatorInfo.getIndicatorId(), indicatorInfo.getIndicatorName());
 
             // 检测是否超过峰值
-            DetectorExceptionStatus status = detectError(av, indicatorInfo);
-            if (status == DetectorExceptionStatus.DetectorOverError) {
-                changeDetectorStatus(key, status);
+            DetectorExceptionStatus curStatus = detectError(av, indicatorInfo);
+            if (curStatus == DetectorExceptionStatus.DetectorOverError) {
+                changeDetectorStatus(key, curStatus);
                 exceptionList.add(indicatorInfo);
-                System.out.println("超出报警阈值" + indicatorInfo.getTrendThreshold() + " 当前实时值为 " + av);
+                log.info("超出报警阈值：{} 当前实时值为：{}", indicatorInfo.getTrendThreshold(), av);
                 continue;
             }
 
             DetectorExceptionStatus lastStatus = deviceStatus.get(key);
+            // 如果key不存在，返回null
             Double lastNormal = lastNormalValue.get(key);
-            Boolean isException = dataHandler.detectIndicator(av);
-            System.out.println(indicatorInfo);
-            if (!isException) {
+
+            // 变化率是否正常?
+            Boolean isNormal = dataHandler.detectIndicator(av);
+
+            if (!isNormal) {
                 addExceptionCount(key);
-            } else if (lastStatus != DetectorExceptionStatus.DetectorNormal && lastNormal != null && !Double.isNaN(lastNormal) && (av - lastNormal) / av < indicatorInfo.getTrendThreshold()) { // 如果这次判断中指标是正常的，那么把当前指标和上一次正常的指标做一次变化率计算，如果变化率符合正常，那么就表明当前指标是恢复正常的了
+            } else if (lastStatus != DetectorExceptionStatus.DetectorNormal
+                    && lastNormal != null &&
+                    !Double.isNaN(lastNormal)
+                    && (av - lastNormal) / av < indicatorInfo.getTrendThreshold()) {
+                // 如果这次判断中指标是正常的，那么把当前指标和上一次正常的指标做一次变化率计算，如果变化率符合正常，那么就表明当前指标是恢复正常的了
                 changeDetectorStatus(key, DetectorExceptionStatus.DetectorNormal);
                 exceptionCount.put(key, 0);
             }
-            if (isException) {
+
+            if (isNormal) {
                 lastNormalValue.put(key, av);
                 exceptionCount.put(key, 0);
                 deviceStatus.put(key, DetectorExceptionStatus.DetectorNormal);
             }
 
-            if (exceptionCount.get(key) >= indicatorInfo.getExceptionCount() && lastStatus != DetectorExceptionStatus.DetectorOverError) {
+            if (exceptionCount.get(key) >= indicatorInfo.getExceptionCount()
+                    && lastStatus != DetectorExceptionStatus.DetectorOverError) {
                 exceptionList.add(indicatorInfo);
                 System.out.println("-----发生异常------");
                 changeDetectorStatus(key, DetectorExceptionStatus.DetectorOverError);
-                continue;
             }
         }
     }
@@ -176,6 +191,7 @@ public class ExceptionDetector {
         return indicatorResponseInfo.getVByTag(tag);
     }
 
+    // 检测上限、下限错误
     private DetectorExceptionStatus detectError(double av, IndicatorInfo indicatorInfo) {
         DetectorExceptionStatus status = DetectorExceptionStatus.DetectorNormal;
         if (av > indicatorInfo.getNormalMax() || av < indicatorInfo.getNormalMin()) {
@@ -205,9 +221,16 @@ public class ExceptionDetector {
      * 处理异常发生相关事件
      */
     private void handleException() {
-        for (IndicatorInfo exception : exceptionList) {
-            insertExceptionInfo(exception);
-            WebSocketPushService.sendExceptionMessage(exception.getIndicatorName() + "异常，请及时排查");
+        log.info("exceptionList.size():" + exceptionList.size());
+        for (int i = 0; i < exceptionList.size(); i++) {
+            IndicatorInfo indicatorInfo = exceptionList.get(i);
+
+            insertExceptionInfo(indicatorInfo, i);
+
+            var now = LocalDateTime.now();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            var lm = new LogMsg(/*now.format(formatter), */indicatorInfo, batchIndex, i + 1);
+            WebSocketPushService.sendExceptionMessageToAll(lm.fullMsg());
         }
     }
 
@@ -216,7 +239,7 @@ public class ExceptionDetector {
      *
      * @param indicatorInfo
      */
-    private void insertExceptionInfo(IndicatorInfo indicatorInfo) {
+    private void insertExceptionInfo(IndicatorInfo indicatorInfo, int index) {
         ExceptionInfo exceptionInfo = new ExceptionInfo();
         exceptionInfo.setIndicatorId(indicatorInfo.getIndicatorId());
         exceptionInfo.setIndicatorName(indicatorInfo.getIndicatorName());
@@ -226,5 +249,19 @@ public class ExceptionDetector {
         exceptionInfo.setDate(dateTime);
 
         branchInfoMapper.insertExceptionInfo(exceptionInfo);
+    }
+}
+
+@Slf4j
+@AllArgsConstructor
+@NoArgsConstructor
+@Data
+class LogMsg {
+    private IndicatorInfo indicatorInfo;
+    private int batchIndex = 0;
+    private long index;
+
+    public String fullMsg() {
+        return Result.success(this).toJson();
     }
 }

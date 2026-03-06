@@ -22,6 +22,7 @@ public class IndicatorResponseInfo {
     @JsonProperty("timestamp")
     private Long timestamp;
 
+    // tag:av
     private HashMap<String, Double> snapshotMap = new HashMap<String, Double>();
 
     public void tryFillSnapshotMap() {

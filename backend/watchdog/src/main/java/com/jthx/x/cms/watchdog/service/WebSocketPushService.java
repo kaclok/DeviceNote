@@ -18,7 +18,7 @@ import java.util.Set;
 public class WebSocketPushService {
     private static Set<Session> sessions = new HashSet<>();
 
-    private static boolean isDetecting = false;
+    private static volatile boolean isDetecting = false;
 
     @Autowired
     private ExceptionDetector detector; // 由Spring注入
@@ -29,16 +29,20 @@ public class WebSocketPushService {
             return;
         }
 
-        System.out.println("websocket连接已建立");
+        sessions.add(session);
+        System.out.println(this.hashCode() + " websocket连接已建立:" + session.hashCode() + "  总个数：" + sessions.size() + " isDetecting:" + isDetecting);
         /*if (sessions.isEmpty()) {
             detector.startMonitoring();
         }*/
 
-        if(!isDetecting) {
-            detector.startMonitoring();
-            isDetecting = true;
+        synchronized (WebSocketPushService.class) {
+            if (!isDetecting) {
+                isDetecting = true;
+                detector.startMonitoring();
+            }
         }
-        sessions.add(session);
+
+        // 发送之前的过期的异常消息
     }
 
     @OnClose
@@ -49,20 +53,20 @@ public class WebSocketPushService {
             detector.stopMonitoring();
         }*/
 
-        System.out.println("websocket连接以关闭");
+        System.out.println("websocket连接已关闭:" + session.hashCode());
     }
 
     @OnMessage
     public void onMessage(Session session, String message) {
         try {
             System.out.println(message);
-            session.getBasicRemote().sendText("以下异常工况请及时处理");
+            session.getBasicRemote().sendText("接收来自前端的消息");
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static void sendExceptionMessage(String message) {
+    public static void sendExceptionMessageToAll(String message) {
         for (Session session : sessions) {
             try {
                 if (session.isOpen()) {
