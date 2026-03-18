@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
+import java.util.List;
 
 @Mapper
 @Repository
@@ -18,11 +19,17 @@ public interface TNFCPatrolRecordDao {
                                          @Param("queryBegin") String queryBegin,
                                          @Param("queryEnd") String queryEnd);
 
-    ArrayList<VNFCPatrolLineRecord> querySeries(@Param("zzIds") ArrayList<String> zzIds,
-                                                @Param("queryByDeptIdArray") ArrayList<String> queryByDeptIdArray,
+    ArrayList<VNFCPatrolLineRecord> querySeries(@Param("zzIds") List<String> zzIds,
+                                                @Param("queryByDeptIdArray") List<String> queryByDeptIdArray,
                                                 @Param("queryByStatus") Integer queryByStatus,
                                                 @Param("queryBegin") String queryBegin,
                                                 @Param("queryEnd") String queryEnd);
+
+    int querySeriesCount(@Param("zzIds") List<String> zzIds,
+                         @Param("queryByDeptIdArray") List<String> queryByDeptIdArray,
+                         @Param("queryByStatus") Integer queryByStatus,
+                         @Param("queryBegin") String queryBegin,
+                         @Param("queryEnd") String queryEnd);
 
     int queryPointRecordCntOfLine(@Param("lineid") Integer lineid,
                                   @Param("queryBegin") String queryBegin,

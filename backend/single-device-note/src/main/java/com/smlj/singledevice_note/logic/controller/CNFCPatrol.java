@@ -2,8 +2,10 @@ package com.smlj.singledevice_note.logic.controller;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
+import com.smlj.singledevice_note.core.o.dto.KV;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.*;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolDept;
@@ -20,10 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.TimeZone;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -59,11 +59,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryUnusedPoints")
-    public Result<?> queryUnusedPoints(@RequestParam(name = "queryByNum", required = false) String queryByNum,
-                                       @RequestParam(name = "queryByName", required = false) String queryByName,
-                                       @RequestParam(name = "queryByRfId", required = false) String queryByRfId,
-                                       @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-                                       @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> queryUnusedPoints(@RequestParam(name = "queryByNum", required = false) String queryByNum, @RequestParam(name = "queryByName", required = false) String queryByName, @RequestParam(name = "queryByRfId", required = false) String queryByRfId, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = pointDao.queryUnused(queryByNum, queryByName, queryByRfId);
         return Result.success(new PageSerializable<>(ls));
@@ -71,9 +67,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryRelativedPoints")
-    public Result<?> queryRelativedPoints(@RequestParam(name = "id", required = false) int id,
-                                          @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-                                          @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> queryRelativedPoints(@RequestParam(name = "id", required = false) int id, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = lineDao.queryRelativedPoints(id);
         return Result.success(new PageSerializable<>(ls));
@@ -81,11 +75,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryPoints")
-    public Result<?> queryPoints(@RequestParam(name = "queryByNum", required = false) String queryByNum,
-                                 @RequestParam(name = "queryByName", required = false) String queryByName,
-                                 @RequestParam(name = "queryByRfId", required = false) String queryByRfId,
-                                 @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-                                 @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> queryPoints(@RequestParam(name = "queryByNum", required = false) String queryByNum, @RequestParam(name = "queryByName", required = false) String queryByName, @RequestParam(name = "queryByRfId", required = false) String queryByRfId, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = pointDao.queryAll(queryByNum, queryByName, queryByRfId);
         return Result.success(new PageSerializable<>(ls));
@@ -101,10 +91,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/addPoint")
-    public Result<?> addPoint(@RequestParam(name = "rfid") String rfid,
-                              @RequestParam(name = "pointname") String pointname,
-                              @RequestParam(name = "pointnum") String pointnum,
-                              @RequestParam(name = "pointaddr") String pointaddr) {
+    public Result<?> addPoint(@RequestParam(name = "rfid") String rfid, @RequestParam(name = "pointname") String pointname, @RequestParam(name = "pointnum") String pointnum, @RequestParam(name = "pointaddr") String pointaddr) {
 
         if (pointDao.exist(rfid) > 0) {
             return Result.fail("添加失败，已存在rfid为:" + rfid + "的巡检点");
@@ -125,10 +112,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/updatePoint")
-    public Result<?> updatePoint(@RequestParam(name = "rfid") String rfid,
-                                 @RequestParam(name = "pointname") String pointname,
-                                 @RequestParam(name = "pointnum") String pointnum,
-                                 @RequestParam(name = "pointaddr") String pointaddr) {
+    public Result<?> updatePoint(@RequestParam(name = "rfid") String rfid, @RequestParam(name = "pointname") String pointname, @RequestParam(name = "pointnum") String pointnum, @RequestParam(name = "pointaddr") String pointaddr) {
         var point = new TNFCPatrolPoint();
         point.setRfid(rfid);
         point.setPointname(pointname);
@@ -143,11 +127,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryLines")
-    public Result<?> queryLines(@RequestParam(name = "queryByNum", required = false) String queryByNum,
-                                @RequestParam(name = "queryByName", required = false) String queryByName,
-                                @RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray,
-                                @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-                                @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> queryLines(@RequestParam(name = "queryByNum", required = false) String queryByNum, @RequestParam(name = "queryByName", required = false) String queryByName, @RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = lineDao.queryAll(queryByNum, queryByName, queryByDeptIdArray);
         return Result.success(new PageSerializable<>(ls));
@@ -155,9 +135,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryPointsByLine")
-    public Result<?> queryPointsByLine(@RequestParam(name = "id", required = false) int id,
-                                       @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-                                       @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> queryPointsByLine(@RequestParam(name = "id", required = false) int id, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = lineDao.queryPointsByLine(id);
         return Result.success(new PageSerializable<>(ls));
@@ -202,12 +180,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/addLine")
-    public Result<?> addLine(@RequestParam(name = "linenum") String linenum,
-                             @RequestParam(name = "linename") String linename,
-                             @RequestParam(name = "deptid") String deptid,
-                             @RequestParam(name = "cycle") Float cycle,
-                             @RequestParam(name = "begintime") String begintime,
-                             @RequestParam(name = "pointids") String[] pointids) {
+    public Result<?> addLine(@RequestParam(name = "linenum") String linenum, @RequestParam(name = "linename") String linename, @RequestParam(name = "deptid") String deptid, @RequestParam(name = "cycle") Float cycle, @RequestParam(name = "begintime") String begintime, @RequestParam(name = "pointids") String[] pointids) {
         var line = new TNFCPatrolLine();
         line.setLinename(linename);
         line.setLinenum(linenum);
@@ -228,13 +201,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/updateLine")
-    public Result<?> updateLine(@RequestParam(name = "id") int id,
-                                @RequestParam(name = "linenum") String linenum,
-                                @RequestParam(name = "linename") String linename,
-                                @RequestParam(name = "deptid") String deptid,
-                                @RequestParam(name = "cycle") Float cycle,
-                                @RequestParam(name = "begintime") String begintime,
-                                @RequestParam(name = "pointids") String[] pointids) {
+    public Result<?> updateLine(@RequestParam(name = "id") int id, @RequestParam(name = "linenum") String linenum, @RequestParam(name = "linename") String linename, @RequestParam(name = "deptid") String deptid, @RequestParam(name = "cycle") Float cycle, @RequestParam(name = "begintime") String begintime, @RequestParam(name = "pointids") String[] pointids) {
         var line = new TNFCPatrolLine();
         line.setId(id);
         line.setLinename(linename);
@@ -252,12 +219,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryRecords")
-    public Result<?> queryRecords(@RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray,
-                                  @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus,
-                                  @RequestParam(name = "queryBegin", required = false) String queryBegin,
-                                  @RequestParam(name = "queryEnd", required = false) String queryEnd,
-                                  @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-                                  @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> queryRecords(@RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray, @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus, @RequestParam(name = "queryBegin", required = false) String queryBegin, @RequestParam(name = "queryEnd", required = false) String queryEnd, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         Date beginDt, endDt;
         if (StrUtil.isEmpty(queryBegin)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
@@ -323,8 +285,7 @@ public class CNFCPatrol {
     // 查询queryTime附近某个deptid的巡检路线列表
     @Transactional
     @PostMapping(value = "/queryLinesByDept")
-    public Result<?> queryLinesByDept(@RequestParam(name = "deptid") String deptid,
-                                      @RequestParam(name = "queryTime", required = false) String queryTime) {
+    public Result<?> queryLinesByDept(@RequestParam(name = "deptid") String deptid, @RequestParam(name = "queryTime", required = false) String queryTime) {
         ArrayList<LineInfo> ls = new ArrayList<>();
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -355,8 +316,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryPointsInfoByLine")
-    public Result<?> queryPointsInfoByLine(@RequestParam(name = "lineid") int lineid,
-                                           @RequestParam(name = "queryBegin") String queryBegin) {
+    public Result<?> queryPointsInfoByLine(@RequestParam(name = "lineid") int lineid, @RequestParam(name = "queryBegin") String queryBegin) {
         ArrayList<RecordInfo> ls = new ArrayList<>();
 
         var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -394,11 +354,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/addRecord")
-    public Result<?> addRecord(@RequestParam(name = "rfid") String rfid,
-                               @RequestParam(name = "person") String person,
-                               @RequestParam(name = "content") String content,
-                               @RequestParam(name = "errornum") int errornum,
-                               @RequestParam(name = "deptid") String deptid) {
+    public Result<?> addRecord(@RequestParam(name = "rfid") String rfid, @RequestParam(name = "person") String person, @RequestParam(name = "content") String content, @RequestParam(name = "errornum") int errornum, @RequestParam(name = "deptid") String deptid) {
         if (pointDao.exist(rfid) <= 0) {
             return Result.fail("添加失败，该巡检点id不存在");
         }
@@ -442,5 +398,69 @@ public class CNFCPatrol {
     public Result<?> testArray1() {
         var r = lineDao.queryById(11);
         return Result.success(r);
+    }
+
+    @Transactional
+    @PostMapping(value = "/getStat")
+    public Result<?> getStat(@RequestParam(name = "zzId", required = false) String zzId, @RequestParam(name = "queryByStatus", required = false, defaultValue = "4") Integer queryByStatus, @RequestParam(name = "queryBegin", required = false) String queryBegin, @RequestParam(name = "queryEnd", required = false) String queryEnd) {
+        Date beginDt, endDt;
+        if (StrUtil.isEmpty(queryBegin)) {
+            Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+            calendar.setTime(new Date());
+            calendar.add(Calendar.DAY_OF_MONTH, -1);  // 减去1天
+            queryBegin = new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime());
+        }
+        beginDt = DateUtil.parse(queryBegin, "yyyy-MM-dd");
+        Calendar calendar1 = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+        calendar1.setTime(beginDt);
+        calendar1.add(Calendar.HOUR, 1);
+        beginDt = calendar1.getTime();
+
+        if (StrUtil.isEmpty(queryEnd)) {
+            Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+            calendar.setTime(new Date());
+            queryEnd = new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime());
+        }
+
+        endDt = DateUtil.parse(queryEnd, "yyyy-MM-dd");
+        endDt.setTime(endDt.getTime() + 24 * 3600 * 1000 - 1);
+
+        var sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        var begin = sdf.format(beginDt);
+        var end = sdf.format(endDt);
+
+        ArrayList<String> zzIds = new ArrayList<>();
+        zzIds.add(zzId);
+
+        List<KV<String, Long>> kvList1 = new ArrayList<>();
+        var idArray = new ArrayList<String>();
+        var allIdArray = new ArrayList<String>();
+        var depts = deptDao.queryAll(zzId);
+        for (var dept : depts) {
+            idArray.clear();
+            idArray.add(dept.getId());
+            allIdArray.add(dept.getId());
+
+            long total = recordDao.querySeriesCount(zzIds, idArray, queryByStatus, begin, end);
+            kvList1.add(new KV<>(dept.getName(), total));
+        }
+
+
+        List<KV<Integer, String>> statusList = new ArrayList<>();
+        statusList.add(new KV<>(2, "巡检中"));
+        statusList.add(new KV<>(3, "已完成"));
+        statusList.add(new KV<>(4, "漏检"));
+        // todo 状态为5的未完成其实应该也算作漏检，这里未做处理
+
+        List<KV<String, Long>> kvList2 = new ArrayList<>();
+        for (var st : statusList) {
+            long total = recordDao.querySeriesCount(zzIds, allIdArray, st.key, begin, end);
+            kvList2.add(new KV<>(st.value, total));
+        }
+
+        Map<String, List<KV<String, Long>>> map = new HashMap<>();
+        map.put("left", kvList1);
+        map.put("right", kvList2);
+        return Result.success(map);
     }
 }
