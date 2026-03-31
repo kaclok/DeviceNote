@@ -1,5 +1,6 @@
 package com.jthx.x.cms.watchdog.Detector;
 
+import com.jthx.x.cms.watchdog.pojo.Point;
 import lombok.Data;
 
 import java.util.LinkedList;
@@ -15,9 +16,11 @@ public class TrendJumpDetector {
     private double prevValue = Double.NaN;
 
     // CUSUM
-    private double cusum = 0;
+    private double cusumPos = 0;
+    private double cusumNeg = 0;
     private double k = 0.01; // 容忍误差k
-    private double cusumThreshold = 0.2;
+    private double cusumPosThreshold = 0.2;
+    private double cusumNegThreshold = 0.2;
 
     // 突变阈值
     private double spikeThreshold = 0.3;
@@ -33,22 +36,45 @@ public class TrendJumpDetector {
     private long cdMillis = 3 * 60 * 1000;  // 冷却时间（毫秒）
     private long lastAlarmTime = 0;  // 上次报警时间
 
-    private boolean useSuddenDetect = true;
+    private boolean useSpikeDetect = true;
     private boolean useCUSUMDetect = true;
     private boolean useZScoreDetect = false;
+    private boolean useCd = true;
 
-    public TrendJumpDetector(boolean useSuddenDetect, boolean useCUSUMDetect, boolean useZScoreDetect, int windowSize, double spikeThreshold, double k, double cusumThreshold, double zScoreThreshold) {
-        this.useSuddenDetect = useSuddenDetect;
-        this.useCUSUMDetect = useCUSUMDetect;
-        this.useZScoreDetect = useZScoreDetect;
+    private int failReason = -1;
 
-        this.windowSize = windowSize;
+    public boolean isWindowFull() {
+        return window.size() >= windowSize;
+    }
 
-        this.spikeThreshold = spikeThreshold;
-        this.k = k;
-        this.cusumThreshold = cusumThreshold;
+    public boolean isOverCount() {
+        return anomalyCounter >= alarmConfirmCount;
+    }
 
-        this.zScoreThreshold = zScoreThreshold;
+    public boolean isOverCD() {
+        long now = System.currentTimeMillis();
+        if (now - lastAlarmTime > cdMillis) {
+            return true;
+        }
+        return false;
+    }
+
+    public TrendJumpDetector(Point point) {
+        this.useSpikeDetect = point.isUseSpikeDetect();
+        this.useCUSUMDetect = point.isUseCUSUMDetect();
+        this.useZScoreDetect = point.isUseZScoreDetect();
+        this.useCd = point.isUseCd();
+
+        this.windowSize = point.getWindowSize();
+
+        this.spikeThreshold = point.getSpikeThreshold();
+        this.k = point.getK();
+        this.cusumNegThreshold = this.cusumPosThreshold = point.getCusumThreshold();
+
+        this.zScoreThreshold = point.getZScoreThreshold();
+
+        this.alarmConfirmCount = point.getExceptionCount();
+        this.cdMillis = point.getCdMills();
     }
 
     // ---------- 更新窗口 ----------
@@ -77,10 +103,19 @@ public class TrendJumpDetector {
 
     // ---------- CUSUM趋势检测 ----------
     private boolean detectCUSUM(double value, double average) {
-        cusum = Math.max(0, cusum + value - average - k);
-        if (cusum > cusumThreshold) {
-            // 重置cusum， 否则异常之后的全部都是异常
-            cusum = 0;
+        double diff = value - average;
+
+        // ---------- 上升趋势 ----------
+        cusumPos = Math.max(0, cusumPos + diff - k);
+
+        // ---------- 下降趋势 ----------
+        cusumNeg = Math.max(0, cusumNeg - diff - k);
+
+        if (cusumPos > cusumPosThreshold || cusumNeg > cusumNegThreshold) {
+            // reset， 否则异常之后的全部都是异常
+            cusumPos = 0;
+            cusumNeg = 0;
+
             return true;
         }
 
@@ -114,7 +149,7 @@ public class TrendJumpDetector {
 
         // ---------- 突然跳变检测 ----------
         boolean spike = false;
-        if (useSuddenDetect) {
+        if (useSpikeDetect) {
             spike = detectSpike(value);
         }
 
@@ -133,8 +168,21 @@ public class TrendJumpDetector {
             zScore = detectZScore(value, average, std);
         }
 
-        boolean anomaly = spike || trend || zScore;
+        boolean anomaly = false;
+        if (spike) {
+            anomaly = true;
+            failReason = 1;
+        }
+        if (trend) {
+            anomaly = true;
+            failReason = 2;
+        }
+        if (zScore) {
+            anomaly = true;
+            failReason = 3;
+        }
 
+        // 必须连续 N 次异常才报警
         if (anomaly) {
             anomalyCounter++;
         } else {
@@ -143,19 +191,16 @@ public class TrendJumpDetector {
 
         prevValue = value;
 
-        if (anomalyCounter >= alarmConfirmCount) {
+        if (isOverCount()) {
             anomalyCounter = 0;
 
-            long now = System.currentTimeMillis();
-            // ---------- 冷却时间判断 ----------
-            if (now - lastAlarmTime < cdMillis) {
-
-                // 在冷却时间内，不报警
-                return true;
+            if (useCd) {
+                if (!isOverCD()) {
+                    return true;
+                }
+                lastAlarmTime = System.currentTimeMillis();
             }
 
-            // 触发报警
-            lastAlarmTime = now;
             return false;
         }
 

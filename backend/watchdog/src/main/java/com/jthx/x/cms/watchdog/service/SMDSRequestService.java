@@ -2,6 +2,7 @@ package com.jthx.x.cms.watchdog.service;
 
 import com.jthx.x.cms.watchdog.network.SMDSRestTemplate;
 import com.jthx.x.cms.watchdog.pojo.IndicatorInfo;
+import com.jthx.x.cms.watchdog.pojo.Point;
 import com.jthx.x.cms.watchdog.pojo.request.IndicatorRequestInfo;
 import com.jthx.x.cms.watchdog.pojo.request.IndicatorRequestItem;
 import com.jthx.x.cms.watchdog.pojo.response.IndicatorResponseInfo;
@@ -28,6 +29,30 @@ public class SMDSRequestService {
 
         // 根据传入的model，构建请求体并model化
         for (IndicatorInfo indicatorInfo : indicatorJoinInfoList) {
+            IndicatorRequestItem item = new IndicatorRequestItem();
+            item.setNamespace(indicatorInfo.getNamespace());
+            item.setTag(indicatorInfo.getTag());
+            item.setItems(null);
+
+            tags.add(item);
+        }
+
+        IndicatorResponseInfo responseInfo = restTemplate.getIndicatorInfo(requestInfo);
+        responseInfo.tryFillSnapshotMap();
+        return responseInfo;
+    }
+
+    public IndicatorResponseInfo requestSnapshotInfoByPoints(List<Point> indicatorJoinInfoList) {
+        if (indicatorJoinInfoList == null || indicatorJoinInfoList.isEmpty()) {
+            // 在这里输入请排查数据库的log，便于维护人员维护
+            return null;
+        }
+        IndicatorRequestInfo requestInfo = new IndicatorRequestInfo();
+        List<IndicatorRequestItem> tags = new ArrayList<>();
+        requestInfo.setTags(tags);
+
+        // 根据传入的model，构建请求体并model化
+        for (Point indicatorInfo : indicatorJoinInfoList) {
             IndicatorRequestItem item = new IndicatorRequestItem();
             item.setNamespace(indicatorInfo.getNamespace());
             item.setTag(indicatorInfo.getTag());

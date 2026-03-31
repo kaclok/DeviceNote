@@ -321,13 +321,6 @@
                 <activeByDefault>true</activeByDefault>
             </activation>-->
         </profile>
-        <!--测试环境-->
-        <profile>
-            <id>test</id>
-            <properties>
-                <activated>test</activated>
-            </properties>
-        </profile>
         <!--生产环境-->
         <profile>
             <id>deploy</id>

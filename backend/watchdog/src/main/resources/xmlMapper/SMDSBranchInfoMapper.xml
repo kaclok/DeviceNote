@@ -6,28 +6,32 @@
 <mapper namespace="com.jthx.x.cms.watchdog.dao.mapper.SMDSBranchInfoMapper">
     <select id="getAllIndicatorInfo" resultType="com.jthx.x.cms.watchdog.pojo.IndicatorInfo">
         select
-            i.normal_min normal_min,
-            i.normal_max normal_max,
-            i.indicator_id indicator_id,
-            i.indicator_name indicator_name,
-            i.branch_id branch_id,
-            i.device_id device_id,
-            i.exception_count exception_count,
-            i.trend_threshold trend_threshold,
-            i.namespace,
-            i.tag
+        i.normal_min normal_min,
+        i.normal_max normal_max,
+        i.indicator_id indicator_id,
+        i.indicator_name indicator_name,
+        i.branch_id branch_id,
+        i.device_id device_id,
+        i.exception_count exception_count,
+        i.trend_threshold trend_threshold,
+        i.namespace,
+        i.tag
         from
-            smds_snapshot_branch b
+        smds_snapshot_branch b
         left join
-            smds_snapshot_device d
+        smds_snapshot_device d
         on
-            b.branch_id = d.branch_id
+        b.branch_id = d.branch_id
         left join
-            smds_snapshot_indicator i
+        smds_snapshot_indicator i
         on
-            d.branch_id = i.branch_id
+        d.branch_id = i.branch_id
         where
-            i.indicator_id > 0
+        i.indicator_id > 0
+    </select>
+
+    <select id="getAllPoints" resultType="com.jthx.x.cms.watchdog.pojo.Point">
+        select * from smds_snapshot_point where status = 1
     </select>
 
     <insert id="insertSnapshotInfo" parameterType="com.jthx.x.cms.watchdog.pojo.Snapshot">
@@ -38,5 +42,9 @@
     <insert id="insertExceptionInfo" parameterType="com.jthx.x.cms.watchdog.pojo.ExceptionInfo">
         insert into smds_exception (id, value, indicator_id,indicator_name, device_id, branch_id, date)
         values(#{id}, #{value}, #{indicatorId}, #{indicatorName}, #{deviceId}, #{branchId}, #{date})
+    </insert>
+
+    <insert id="insertSnap">
+
     </insert>
 </mapper>

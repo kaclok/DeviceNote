@@ -36,7 +36,6 @@ public class ExceptionDetector {
     // 指标实时数据列表
     private IndicatorResponseInfo indicatorResponseInfo;
 
-    private Thread thread = null;
     private int batchIndex = 0;
 
     // 用来记录每个指标当前的运行状态
@@ -81,46 +80,34 @@ public class ExceptionDetector {
         return !indicatorJoinInfoList.isEmpty();
     }
 
-    public void stopMonitoring() {
-        log.info("stopMonitoring");
-        if (thread != null) {
-            log.info("thread hashcode: " + thread.hashCode());
-            thread.interrupt();
-        }
-    }
-
     @Transactional
     public void startMonitoring() {
         log.info("startMonitoring");
 
         // 模拟监测过程
-        stopMonitoring();
-        thread = new Thread(() -> {
-            // 查询数据库，查询需要进行监测的指标信息
-            this.prepareForDetect();
-            int num = 0;
-            Long lastTime = System.currentTimeMillis();
-            while (true) {
-                try {
-                    System.out.println("-------------这是第" + ++num + "轮检测-------------");
-                    batchIndex = num;
-                    Thread.currentThread().sleep(20000);
-                    System.out.println("距离上次检测过了" + (System.currentTimeMillis() - lastTime) + "秒");
-                    lastTime = System.currentTimeMillis();
-                    // 获取本次的点表数据
-                    this.indicatorResponseInfo = requestService.requestSnapshotInfo(indicatorJoinInfoList);
-                    System.out.println("要进行检测的数据有以下:" + this.indicatorResponseInfo.getSnapshotMap());
+        // 查询数据库，查询需要进行监测的指标信息
+        this.prepareForDetect();
+        int num = 0;
+        Long lastTime = System.currentTimeMillis();
+        while (true) {
+            try {
+                System.out.println("-------------这是第" + ++num + "轮检测-------------");
+                batchIndex = num;
+                Thread.currentThread().sleep(20000);
+                System.out.println("距离上次检测过了" + (System.currentTimeMillis() - lastTime) + "秒");
+                lastTime = System.currentTimeMillis();
+                // 获取本次的点表数据
+                this.indicatorResponseInfo = requestService.requestSnapshotInfo(indicatorJoinInfoList);
+                System.out.println("要进行检测的数据有以下:" + this.indicatorResponseInfo.getSnapshotMap());
 
-                    exceptionList.clear();
-                    this.detectorException();
-                    this.handleException();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    break;
-                }
+                exceptionList.clear();
+                this.detectorException();
+                this.handleException();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                break;
             }
-        });
-        thread.start();
+        }
     }
 
     @Transactional
@@ -248,7 +235,7 @@ public class ExceptionDetector {
         LocalDateTime dateTime = LocalDateTime.now();
         exceptionInfo.setDate(dateTime);
 
-        branchInfoMapper.insertExceptionInfo(exceptionInfo);
+        // branchInfoMapper.insertExceptionInfo(exceptionInfo);
     }
 }
 

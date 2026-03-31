@@ -23,9 +23,9 @@ spring:
       datasource:
         watchdog:
           # Docker从容器中项目如何访问到宿主机MYSQL https://blog.csdn.net/jcmj123456/article/details/131692252
-          url: jdbc:mysql://10.8.54.244:3306/smds-snapshot?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
-          username: smds-dyzx
-          password: smds@2024
+          url: jdbc:mysql://10.8.54.24:3306/smds_snapshot?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
+          username: root
+          password:
           driver-class-name: com.mysql.cj.jdbc.Driver
     
 #  data:
