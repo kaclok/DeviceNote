@@ -1,59 +1,27 @@
 <template>
-  <div class="flex justify-between items-center flex-wrap header-content">
-    <div
-      v-for="(shadow, i) in shadowGroup"
-      :key="i"
-      class="flex flex-col justify-center items-center header-content"
-      m="auto"
-      w="46"
-    >
-      <el-menu
-        :default-active="activeIndex2"
-        class="header-content"
-        mode="horizontal"
-        background-color="#545c64"
-        text-color="#fff"
-        active-text-color="#ffd04b"
-        @select="handleSelect"
-      >
-        <!-- 第一个菜单项 -->
-        <el-menu-item index="1">
-          <div
-            class="inline-flex header-content"
-            h="30"
-            w="30"
-            m="2"
-            :style="{
-              boxShadow: `var(${getCssVarName(shadow.type)})`,
-            }"
-          >
-            <div style="width: 20px;"></div>
-            <br />
-            <img src="../../assets/smds.png" width="66" height="40" />
-            <b style="color: aliceblue; font-size: 20px;">
-              异常工况预警系统
-            </b>
+  <div class="page-container">
+      <div class="page-title">
+          <img src="@/assets/st_logo.png" class="page-logo-content" alt="">
+          <span class="page-title-content">{{ "异常工况预警系统" }}</span>
+
+          <div class="left-menu">
+              <el-menu mode="horizontal" background-color="#1C4785" text-color="#DCDCDC" active-text-color="#ffffff"
+                       :default-active="activeIndex2"
+                       @select="handleSelect">
+                  <el-menu-item index="1">详情</el-menu-item>
+                  <el-menu-item index="2">设置</el-menu-item>
+                  <el-menu-item index="3">查询</el-menu-item>
+              </el-menu>
           </div>
-        </el-menu-item>
-        <!-- 第二个菜单项，使用 CSS 推动到右侧 -->
-        <!-- <el-menu-item index="2" class="menu-item-right">管理</el-menu-item>-->
-      </el-menu>
-    </div>
+      </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref } from "vue";
+import {ref} from "vue";
 import router from "../../router/router";
 
-const shadowGroup = ref([
-  {
-    name: "Basic Shadow",
-    type: "",
-  },
-]);
-
-const activeIndex2 = ref("1");
+const activeIndex2 = ref("1")
 
 const handleSelect = (key: string, keyPath: string[]) => {
   if (key == '1') {
@@ -61,22 +29,59 @@ const handleSelect = (key: string, keyPath: string[]) => {
   } else if (key == '2') {
     router.push('/settings')
   }
+  else if (key == '3') {
+      window.open("http://10.8.54.110:8900/#/real_time");
+  }
 };
 
-const getCssVarName = (type: string) => {
-  return `--el-box-shadow${type ? "-" : ""}${type}`;
-};
 </script>
 
 <style scoped>
-.header-content {
-  display: flex;
-  width: 100%; /* 让内部元素占满 header 的宽度 */
-  height: 100%; /* 让内部元素高度与 header 保持一致 */
-  align-items: center; /* 垂直居中 */
-}
+.page-container {
+    width: 100%;
+    height: 100%;
+    background-color: #F5F5F5;
+    display: flex;
+    flex-direction: column;
 
-.menu-item-right {
-  margin-left: auto; /* 推动到右侧 */
+    .page-title {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        background-color: #1C4785;
+
+        .page-logo-content {
+            position: relative;
+            left: 20px;
+
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .page-title-content {
+            min-width: 250px;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: bolder;
+            text-align: center;
+        }
+
+        .left-menu {
+            position: relative;
+            left: -60px;
+
+            width: 850px;
+            padding-left: 56px;
+        }
+    }
+
+    .page-content {
+        flex: 1;
+        width: 100%;
+        display: flex;
+        overflow: hidden;
+    }
 }
 </style>

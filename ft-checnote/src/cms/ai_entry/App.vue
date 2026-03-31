@@ -247,7 +247,7 @@ const appGridItems = ref([
         name: "异常工况预警",
         url: "http://117.36.227.42:4177/pages/smds/watchdog/index.html?group=" + group,
         image: logo_book,
-        enabled: false,
+        enabled: true,
     },
     {
         name: "设备润滑加油",

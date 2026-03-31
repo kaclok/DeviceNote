@@ -1,19 +1,10 @@
 <template>
     <div class="content_container">
-
-        <el-row style="height: 48%;">
-            <el-col v-for="(item, index) in allElem1" :key="index" :span="8">
+        <el-row style="height: 94%;">
+            <el-col v-for="(item, index) in socketInfo.allBranchInfo" :key="index" :span="8">
                 <div class="content_container">
-                    <span class="el-row-status">{{ item.label }}</span>
-                    <ContentItem></ContentItem>
-                </div>
-            </el-col>
-        </el-row>
-        <el-row style="height: 48%;">
-            <el-col v-for="(item, index) in allElem2" :key="index" :span="8">
-                <div class="content_container">
-                    <span class="el-row-status">{{ item.label }}</span>
-                    <ContentItem></ContentItem>
+                    <span class="el-row-status">{{ item.id + '-' + item.name + '(' + getMsgLength(item.id) + '/6)' }}</span>
+                    <ContentItem :id="item.id"/>
                 </div>
             </el-col>
         </el-row>
@@ -23,27 +14,20 @@
 
 <script setup>
 
-import {reactive} from 'vue'
 import ContentItem from './content_item.vue'
+import {branchInfo} from '@/cms/smds/watchdog/store/global.js'
 
-const allElem1 = reactive([
-    {label: '电石一分厂'},
-    {label: '电石二分厂'},
-    {label: '电石三分厂'}
-]);
-const allElem2 = reactive([
-    {label: '白灰分厂'},
-    {label: '兰炭分厂'},
-    {label: '热电分厂'}
-]);
+const socketInfo = ref(branchInfo())
+
+function getMsgLength(id) {
+    return socketInfo.value.getBranchInfo_1(id).length
+}
 
 </script>
 
 <style>
 .el-row {
-    margin-bottom: 0px;
-    margin-left: 0px;
-    margin-right: 0px;
+    margin-bottom: 3px;
 }
 
 .el-row-status {
@@ -68,7 +52,7 @@ const allElem2 = reactive([
 
 
 .content_container {
-    padding: 0px;
+    padding: 30px;
     width: 100%;
     height: 100%;
 }

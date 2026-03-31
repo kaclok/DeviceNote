@@ -1,63 +1,108 @@
 <template>
     <div class="content_container">
         <div class="top_layout">
-            <b>异常工况</b>
+            <el-select v-model="branchId" filterable placeholder="Select" style="width: 50%">
+                <el-option
+                    v-for="item in options"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item.id"
+                />
+            </el-select>
+
+            <el-button type="primary" size="small" round :icon="Delete" @click="onClearBtnClicked"
+                       style="margin-left: 5px; margin-top: 5px">
+                {{getMsgs().length}}
+            </el-button>
         </div>
 
         <el-alert
-            v-for="(alert, index) in socketInfo.socketInfo"
-            :key="index"
-            :title="'请确认正常后再关闭该条目'"
-            :description="alert.message"
+            v-for="(msg, index) in getMsgs()"
+            :key="msg.index"
+            :title="'[' + msg.batchIndex + '-' + msg.dataIndex + '] ' + msg.branchId + '-' + msg.branchName + ' 趋势异常:'"
+            :description="msg.message"
             :type="'warning'"
             :effect="'dark'"
             :closeable="true"
-            @close="removeAlertItem(index)"
-            show-icon
-            center/>
+            @close="removeAlertItem(index, msg)"
+        >
+        </el-alert>
+
+<!--        <SideItem
+            v-for="(msg, index) in getMsgs()"
+            :key="msg.index"
+            :msg="msg"
+            :branchId="branchId"
+        >
+        </SideItem>-->
     </div>
 </template>
 
 <script lang="ts" setup>
-import {
-    Document,
-    Menu as IconMenu,
-    Location,
-    Setting,
-} from '@element-plus/icons-vue'
-import {effect, reactive, onMounted} from 'vue';
-import {connectWebSocket, sendMessage} from '../../socket/webSocket.js'
+import {onMounted} from 'vue';
+import {connectWebSocket} from '../../socket/webSocket.js'
+import SideItem from './SideItem.vue'
 import {branchInfo} from '../../store/global.js'
+
+import {Delete} from "@element-plus/icons-vue";
+
+const options = [
+    {
+        id: 0,
+        name: '所有',
+    },
+    {
+        id: 1,
+        name: '电石一分厂',
+    },
+    {
+        id: 2,
+        name: '电石二分厂',
+    },
+    {
+        id: 3,
+        name: '电石三分厂',
+    },
+    {
+        id: 4,
+        name: '白灰分厂',
+    },
+    {
+        id: 5,
+        name: '兰炭分厂',
+    },
+    {
+        id: 6,
+        name: '热电分厂',
+    },
+]
 
 onMounted(() => {
     connectWebSocket()
 })
 
 const socketInfo = branchInfo()
+const branchId = ref(0)
 
-
-function removeAlertItem(index) {
-    // this.sideItems[iwndex].visible = false;
+function getMsgs() {
+    if (branchId.value === 0) {
+        return socketInfo.socketInfo
+    }
+    return socketInfo.getBranchInfo_2(branchId.value).reverse()
 }
 
-// const sideItems = reactive([
-//   {
-//     info: '电石一分厂1#电石炉氧气浓度异常'
-//   },
-//   {
-//     info: '电石一分厂1#电石炉1号电极电流激增'
-//   },
-//   {
-//     info: '电石三分厂5#电石炉氢浓度异常'
-//   },
-// ])
+function onClearBtnClicked() {
+    if (branchId.value === 0) {
+        socketInfo.removeAll()
+    } else {
+        socketInfo.removeByBranchId(branchId.value)
+    }
+}
 
-const handleOpen = (key: string, keyPath: string[]) => {
-    console.log(key, keyPath)
+function removeAlertItem(index, msg) {
+    socketInfo.removeSocketInfo(msg)
 }
-const handleClose = (key: string, keyPath: string[]) => {
-    console.log(key, keyPath)
-}
+
 </script>
 
 <style scoped>
@@ -74,8 +119,8 @@ const handleClose = (key: string, keyPath: string[]) => {
     display: flex;
     justify-content: center;
     width: 100%;
-    height: 5%;
-    color: white;
+    height: 2%;
+    color: Red;
     font-size: large;
 }
 

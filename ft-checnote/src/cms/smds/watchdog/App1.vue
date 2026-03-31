@@ -1,28 +1,38 @@
 <script setup>
-import LeftSide from '../side/LeftSide.vue'
-import Content from '../content/content_navigator.vue'
+import Header from './components/header/Header.vue';
 </script>
 
 <template>
-    <div class="custom-content">
-        <el-container class="custom-content">
-            <el-aside class="layout-side">
-                <LeftSide/>
-            </el-aside>
-
-            <el-main class="layout-content">
-                <Content/>
-            </el-main>
+    <div class="common-layout custom-container">
+        <el-container class="custom-container">
+            <el-header class="custom-header">
+                <Header/>
+            </el-header>
+            <router-view/>
         </el-container>
     </div>
 </template>
 
 <style scoped>
+
 .layout-side {
     width: 300px;
     background-color: #545c64;
     border: 1px solid rgba(125, 123, 123, 0.946);
     border-radius: 5px;
+}
+
+.custom-container {
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    background-color: #303133;
+}
+
+.custom-header {
+    padding: 0;
+    height: 6%;
+    width: 100%;
 }
 
 .custom-content {
