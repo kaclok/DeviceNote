@@ -6,6 +6,7 @@ import com.jthx.x.cms.watchdog.pojo.Point;
 import com.jthx.x.cms.watchdog.pojo.response.IndicatorResponseInfo;
 import com.jthx.x.cms.watchdog.service.SMDSRequestService;
 import com.jthx.x.cms.watchdog.service.WebSocketPushService;
+import jakarta.websocket.EncodeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -56,17 +57,18 @@ public class Checker {
         return true;
     }
 
-    public void detect() {
+    public void detect() throws EncodeException {
         for (Point oneIndicator : pointList) {
             TrendJumpDetector dataHandler = dataHandlerMap.get(oneIndicator.getId());
 
             // 获取对应指标的实时值
             var av = responseInfo.getVByTag(oneIndicator.getTag());
             boolean isNormal = dataHandler.detect(av);
-            log.info("id:{} av:{} isNormal:{} isWindowFull:{}", oneIndicator.getId(), av, isNormal, dataHandler.isWindowFull());
 
             if (!isNormal) {
                 ExceptionDetail detail = new ExceptionDetail(dataHandler, oneIndicator, av);
+                var json = ExceptionDetailEncoder.toJson(detail);
+                log.error("id:{} av:{} json:{}", oneIndicator.getId(), av, json);
                 /*branchInfoMapper.insertSnap(detail);*/
                 WebSocketPushService.sendMsgToAll(detail);
             }
@@ -122,6 +124,8 @@ public class Checker {
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 break;
+            } catch (EncodeException e) {
+                throw new RuntimeException(e);
             }
         }
     }

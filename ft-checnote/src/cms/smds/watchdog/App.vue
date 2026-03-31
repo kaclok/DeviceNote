@@ -100,6 +100,7 @@ import {
     Delete
 } from '@element-plus/icons-vue'
 import axios from "axios"
+import { axiosInst as axiosR } from "@/framework/services/net/AxiosInst.js"
 
 // ==================== 异常消息队列 ====================
 const alertQueue = ref([])
@@ -134,13 +135,7 @@ const clearAlerts = () => {
 const wsUrl = "ws://10.8.54.24:8091/api/webSocket/029567"
 
 const reloadService = () => {
-    axios.get("http://10.8.54.24:8091/x/watchdog/reloadDB").then(res => {
-        ElMessage.success({
-            message: "已重启后端服务",
-            offset: 80,
-            duration: 3000
-        })
-    })
+    axiosR.get("apiWatchdog/x/watchdog/reloadDB");
 }
 
 let ws = null
