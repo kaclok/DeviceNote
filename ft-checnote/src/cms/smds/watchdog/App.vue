@@ -42,7 +42,7 @@
                     <div class="alert-list" v-if="alertQueue.length > 0">
                         <div v-for="alert in alertQueue" :key="alert.id" class="alert-item">
                             <div class="alert-content">
-                                <div class="alert-info">
+                                <div class="alert-info" @click="handleClickAlert(alert)">
                                     <span class="alert-factory">{{ getFactoryName(alert.factoryId) }}</span>
                                     <span class="alert-point">{{ alert.pointName }}</span>
                                 </div>
@@ -70,7 +70,7 @@
                             </div>
                             <div class="factory-points">
                                 <div v-for="point in getFactoryPoints(factory.id)" :key="point.id" class="point-row">
-                                    <div class="point-name">
+                                    <div class="point-name" @click="handleClickAlert(point)">
                                         {{ point.pointName }}
                                     </div>
                                     <div class="point-values">
@@ -106,7 +106,7 @@ import { axiosInst as axiosR } from "@/framework/services/net/AxiosInst.js"
 const alertQueue = ref([])
 let nextAlertId = 1
 
-const addAlert = (factoryId, pointName, pointId, av, dw, failReason) => {
+const addAlert = (factoryId, pointName, pointId, av, dw, failReason, detail) => {
     const newAlert = {
         id: nextAlertId++,
         factoryId,
@@ -115,7 +115,8 @@ const addAlert = (factoryId, pointName, pointId, av, dw, failReason) => {
         av,
         dw,
         failReason,
-        timestamp: new Date()
+        timestamp: new Date(),
+        detail: detail,
     }
     alertQueue.value.unshift(newAlert)
     if (alertQueue.value.length > 100) {
@@ -153,7 +154,7 @@ function connectWebSocket() {
     // 当收到来自服务端的消息时
     ws.onmessage = (event) => {
         let r = JSON.parse(event.data)
-        addAlert(r.point.branchId, r.point.indicatorName, r.point.id, r.av, r.point.dw, r.failReason)
+        addAlert(r.point.branchId, r.point.indicatorName, r.point.id, r.av, r.point.dw, r.failReason, r)
     };
 
     // 当WebSocket连接关闭时
@@ -203,6 +204,10 @@ const getFactoryPoints = (factoryId) => {
 // ==================== 辅助函数 ====================
 const getFactoryName = (id) => {
     return factories.value.find(f => f.id === id)?.name || "未知厂区"
+}
+
+const handleClickAlert = (alert) => {
+    console.log(alert)
 }
 
 const getTrendClass = (trend) => {
