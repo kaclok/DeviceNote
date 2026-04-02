@@ -22,6 +22,8 @@ public class TrendJumpDetector {
     private double cusumPosThreshold = 0.2;
     private double cusumNegThreshold = 0.2;
 
+    private double historicalAvg = 0;
+
     // 突变阈值
     private double spikeThreshold = 0.3;
 
@@ -133,6 +135,13 @@ public class TrendJumpDetector {
     }
 
     public boolean detect(double value) {
+        // 先用旧窗口计算基准
+        // 窗口内所有值的平均
+        historicalAvg = 0;
+        if (window.size() >= windowSize) {
+            historicalAvg = sum / window.size();  // 此时的 sum 不含当前 value
+        }
+
         // ---------- 更新滑动窗口 ----------
         updateWindow(value);
 
@@ -141,11 +150,6 @@ public class TrendJumpDetector {
             prevValue = value;
             return true;
         }
-
-        // 窗口满的情况
-
-        // 窗口内所有值的平均
-        double average = sum / window.size();
 
         // ---------- 突然跳变检测 ----------
         boolean spike = false;
@@ -157,15 +161,15 @@ public class TrendJumpDetector {
         // 持续统计“当前值比平均值高多少”
         boolean trend = false;
         if (useCUSUMDetect) {
-            trend = detectCUSUM(value, average);
+            trend = detectCUSUM(value, historicalAvg);
         }
 
         // ---------- ZScore ----------
         boolean zScore = false;
         if (useZScoreDetect) {
-            double variance = (sumSquare / window.size()) - average * average;
+            double variance = (sumSquare / window.size()) - historicalAvg * historicalAvg;
             double std = Math.sqrt(Math.max(variance, 0));
-            zScore = detectZScore(value, average, std);
+            zScore = detectZScore(value, historicalAvg, std);
         }
 
         boolean anomaly = false;

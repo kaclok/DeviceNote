@@ -65,6 +65,8 @@ public class Checker {
             var av = responseInfo.getVByTag(oneIndicator.getTag());
             boolean isNormal = dataHandler.detect(av);
 
+            System.out.println("isNormal:" + isNormal + "  av:" + av);
+
             if (!isNormal) {
                 ExceptionDetail detail = new ExceptionDetail(dataHandler, oneIndicator, av);
                 var json = ExceptionDetailEncoder.toJson(detail);

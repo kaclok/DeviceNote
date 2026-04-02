@@ -155,6 +155,7 @@ function connectWebSocket() {
     ws.onmessage = (event) => {
         let r = JSON.parse(event.data)
         addAlert(r.point.branchId, r.point.indicatorName, r.point.id, r.av, r.point.dw, r.failReason, r)
+        console.log(event.data)
     };
 
     // 当WebSocket连接关闭时
