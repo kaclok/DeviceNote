@@ -41,11 +41,13 @@ public class ExceptionDetail {
 
     private Point point;
     private double av;
+    private double average;
 
     public ExceptionDetail(TrendJumpDetector dataHandler, Point point, double av) {
         this.date = new Date();
         this.point = point;
         this.av = av;
+        this.average = dataHandler.getHistoricalAvg();
 
         this.failReason = dataHandler.getFailReason();
         this.isOverCount = dataHandler.isOverCount();
