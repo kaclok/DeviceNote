@@ -11,6 +11,10 @@ public class TrendJumpDetector {
     private int windowSize = 30;
     private Queue<Double> window = new LinkedList<>();
 
+    private int cusumSize = 20;
+    private Queue<Double> incrPosHistory = new LinkedList<>();
+    private Queue<Double> incrNegHistory = new LinkedList<>();
+
     private double sum = 0;
     private double sumSquare = 0;
     private double prevValue = Double.NaN;
@@ -72,6 +76,7 @@ public class TrendJumpDetector {
         this.spikeThreshold = point.getSpikeThreshold();
         this.k = point.getK();
         this.cusumNegThreshold = this.cusumPosThreshold = point.getCusumThreshold();
+        this.cusumSize = point.getCusumSize();
 
         this.zScoreThreshold = point.getZScoreThreshold();
 
@@ -107,16 +112,37 @@ public class TrendJumpDetector {
     private boolean detectCUSUM(double value, double average) {
         double diff = value - average;
 
+        // 当前增量
         // ---------- 上升趋势 ----------
-        cusumPos = Math.max(0, cusumPos + diff - k);
-
+        double posIncrement = Math.max(0, diff - k);
         // ---------- 下降趋势 ----------
-        cusumNeg = Math.max(0, cusumNeg - diff - k);
+        double negIncrement = Math.max(0, -diff - k);
 
+        // 入队
+        incrPosHistory.add(posIncrement);
+        incrNegHistory.add(negIncrement);
+
+        // 累加
+        cusumPos += posIncrement;
+        cusumNeg += negIncrement;
+
+        // 🔥 控制窗口（关键）
+        // 累加和-头部的incr
+        if (incrPosHistory.size() > cusumSize) {
+            cusumPos -= incrPosHistory.poll();
+        }
+        if (incrNegHistory.size() > cusumSize) {
+            cusumNeg -= incrNegHistory.poll();
+        }
+
+        // 检测
         if (cusumPos > cusumPosThreshold || cusumNeg > cusumNegThreshold) {
             // reset， 否则异常之后的全部都是异常
             cusumPos = 0;
             cusumNeg = 0;
+
+            incrPosHistory.clear();
+            incrNegHistory.clear();
 
             return true;
         }

@@ -34,6 +34,7 @@ public class Point {
     // CUSUM
     private double k = 0.01; // 容忍误差k
     private double cusumThreshold = 0.2;
+    private int cusumSize = 20;
 
     // 突变阈值
     private double spikeThreshold = 0.3;

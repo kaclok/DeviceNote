@@ -13,6 +13,8 @@ import java.util.Date;
 @Component
 public class ExceptionDetail {
     private ArrayList<Double> window = new ArrayList<>();
+    private ArrayList<Double> cusumPosHistory = new ArrayList<>();
+    private ArrayList<Double> cusumNegHistory = new ArrayList<>();
 
     private int failReason = -1;
     private boolean isOverCount;
@@ -35,5 +37,7 @@ public class ExceptionDetail {
         this.isOverCD = dataHandler.isOverCD();
 
         this.window.addAll(dataHandler.getWindow());
+        this.cusumPosHistory.addAll(dataHandler.getIncrPosHistory());
+        this.cusumNegHistory.addAll(dataHandler.getIncrNegHistory());
     }
 }
