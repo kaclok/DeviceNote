@@ -31,7 +31,7 @@ public class ExceptionDetail {
     // zScore
     private double zScoreThreshold = 3;
 
-    private boolean useCd = true;
+    private int useCd;
 
     private int failReason = -1;
     private boolean isOverCount;
@@ -60,7 +60,7 @@ public class ExceptionDetail {
         this.cusumNegThreshold = dataHandler.getCusumNegThreshold();
         this.spikeThreshold = dataHandler.getSpikeThreshold();
         this.zScoreThreshold = dataHandler.getZScoreThreshold();
-        this.useCd = dataHandler.isUseCd();
+        this.useCd = dataHandler.getUseCd();
 
         this.window.addAll(dataHandler.getWindow());
         this.windowSize = window.size();

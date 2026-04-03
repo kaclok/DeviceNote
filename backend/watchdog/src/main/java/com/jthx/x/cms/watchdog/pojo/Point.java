@@ -28,8 +28,8 @@ public class Point {
     // 滑动窗口大小
     private int windowSize;
 
-    private boolean useSpikeDetect = true;
-    private boolean useCUSUMDetect = true;
+    private int useSpikeDetect;
+    private int useCUSUMDetect;
 
     // CUSUM
     private double k = 0.01; // 容忍误差k
@@ -38,12 +38,12 @@ public class Point {
     // 突变阈值
     private double spikeThreshold = 0.3;
 
-    private boolean useCd;
+    private int useCd;
     private int cdMills;
 
     private String dw;
 
     // zScore
-    private boolean useZScoreDetect = false;
+    private int useZScoreDetect;
     private double zScoreThreshold = 3;
 }

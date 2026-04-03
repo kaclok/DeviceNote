@@ -38,10 +38,10 @@ public class TrendJumpDetector {
     private long cdMillis = 3 * 60 * 1000;  // 冷却时间（毫秒）
     private long lastAlarmTime = 0;  // 上次报警时间
 
-    private boolean useSpikeDetect = true;
-    private boolean useCUSUMDetect = true;
-    private boolean useZScoreDetect = false;
-    private boolean useCd = true;
+    private int useSpikeDetect;
+    private int useCUSUMDetect;
+    private int useZScoreDetect;
+    private int useCd;
 
     private int failReason = -1;
 
@@ -62,10 +62,10 @@ public class TrendJumpDetector {
     }
 
     public TrendJumpDetector(Point point) {
-        this.useSpikeDetect = point.isUseSpikeDetect();
-        this.useCUSUMDetect = point.isUseCUSUMDetect();
-        this.useZScoreDetect = point.isUseZScoreDetect();
-        this.useCd = point.isUseCd();
+        this.useSpikeDetect = point.getUseSpikeDetect();
+        this.useCUSUMDetect = point.getUseCUSUMDetect();
+        this.useZScoreDetect = point.getUseZScoreDetect();
+        this.useCd = point.getUseCd();
 
         this.windowSize = point.getWindowSize();
 
@@ -153,20 +153,20 @@ public class TrendJumpDetector {
 
         // ---------- 突然跳变检测 ----------
         boolean spike = false;
-        if (useSpikeDetect) {
+        if (useSpikeDetect != 0) {
             spike = detectSpike(value);
         }
 
         // ---------- CUSUM ----------
         // 持续统计“当前值比平均值高多少”
         boolean trend = false;
-        if (useCUSUMDetect) {
+        if (useCUSUMDetect != 0) {
             trend = detectCUSUM(value, historicalAvg);
         }
 
         // ---------- ZScore ----------
         boolean zScore = false;
-        if (useZScoreDetect) {
+        if (useZScoreDetect != 0) {
             double variance = (sumSquare / window.size()) - historicalAvg * historicalAvg;
             double std = Math.sqrt(Math.max(variance, 0));
             zScore = detectZScore(value, historicalAvg, std);
@@ -198,7 +198,7 @@ public class TrendJumpDetector {
         if (isOverCount()) {
             anomalyCounter = 0;
 
-            if (useCd) {
+            if (useCd != 0) {
                 if (!isOverCD()) {
                     return true;
                 }
