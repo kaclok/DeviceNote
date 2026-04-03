@@ -12,26 +12,7 @@ import java.util.Date;
 @Data
 @Component
 public class ExceptionDetail {
-    private int windowSize = 30;
     private ArrayList<Double> window = new ArrayList<>();
-
-    private double sum = 0;
-    private double sumSquare = 0;
-
-    // CUSUM
-    private double cusumPos = 0;
-    private double cusumNeg = 0;
-    private double k = 0.01; // 容忍误差k
-    private double cusumPosThreshold = 0.2;
-    private double cusumNegThreshold = 0.2;
-
-    // 突变阈值
-    private double spikeThreshold = 0.3;
-
-    // zScore
-    private double zScoreThreshold = 3;
-
-    private int useCd;
 
     private int failReason = -1;
     private boolean isOverCount;
@@ -47,24 +28,12 @@ public class ExceptionDetail {
         this.date = new Date();
         this.point = point;
         this.av = av;
-        this.average = dataHandler.getHistoricalAvg();
+        this.average = dataHandler.getWindowAverage();
 
         this.failReason = dataHandler.getFailReason();
         this.isOverCount = dataHandler.isOverCount();
         this.isOverCD = dataHandler.isOverCD();
 
-        this.sum = dataHandler.getSum();
-        this.sumSquare = dataHandler.getSumSquare();
-        this.cusumPos = dataHandler.getCusumPos();
-        this.cusumNeg = dataHandler.getCusumNeg();
-        this.k = dataHandler.getK();
-        this.cusumPosThreshold = dataHandler.getCusumPosThreshold();
-        this.cusumNegThreshold = dataHandler.getCusumNegThreshold();
-        this.spikeThreshold = dataHandler.getSpikeThreshold();
-        this.zScoreThreshold = dataHandler.getZScoreThreshold();
-        this.useCd = dataHandler.getUseCd();
-
         this.window.addAll(dataHandler.getWindow());
-        this.windowSize = window.size();
     }
 }

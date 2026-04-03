@@ -22,7 +22,7 @@ public class TrendJumpDetector {
     private double cusumPosThreshold = 0.2;
     private double cusumNegThreshold = 0.2;
 
-    private double historicalAvg = 0;
+    private double windowAverage = 0;
 
     // 突变阈值
     private double spikeThreshold = 0.3;
@@ -80,17 +80,17 @@ public class TrendJumpDetector {
     }
 
     // ---------- 更新窗口 ----------
-    private void updateWindow(double value) {
+    private void addTail(double value) {
         window.add(value);
         sum += value;
         sumSquare += value * value;
+    }
 
-        // 超过窗口，则去除首个元素
-        if (window.size() > windowSize) {
-            double removed = window.poll();
-            sum -= removed;
-            sumSquare -= removed * removed;
-        }
+    // 超过窗口，则去除首个元素
+    private void removeHead() {
+        double removed = window.poll();
+        sum -= removed;
+        sumSquare -= removed * removed;
     }
 
     // ---------- 突刺检测 ----------
@@ -135,63 +135,39 @@ public class TrendJumpDetector {
     }
 
     public boolean detect(double value) {
-        // 先用旧窗口计算基准
-        // 窗口内所有值的平均
-        historicalAvg = 0;
-        if (window.size() >= windowSize) {
-            historicalAvg = sum / window.size();  // 此时的 sum 不含当前 value
-        }
-
-        // ---------- 更新滑动窗口 ----------
-        updateWindow(value);
-
-        // 窗口不足则直接返回
+        // 窗口未满时，直接更新并返回
         if (window.size() < windowSize) {
+            addTail(value);
             prevValue = value;
             return true;
         }
 
-        // ---------- 突然跳变检测 ----------
-        boolean spike = false;
-        if (useSpikeDetect != 0) {
-            spike = detectSpike(value);
-        }
+        // 窗口已满
+        // 先用当前窗口数据检测
+        windowAverage = sum / window.size();  // 不含当前 value
+        double variance = (sumSquare / window.size()) - windowAverage * windowAverage;
+        double std = Math.sqrt(Math.max(variance, 0));
 
-        // ---------- CUSUM ----------
-        // 持续统计“当前值比平均值高多少”
-        boolean trend = false;
-        if (useCUSUMDetect != 0) {
-            trend = detectCUSUM(value, historicalAvg);
-        }
+        // 执行各种检测（使用 average 和 std）
+        boolean spike = (useSpikeDetect != 0) && detectSpike(value);
+        boolean trend = (useCUSUMDetect != 0) && detectCUSUM(value, windowAverage);
+        boolean zScore = (useZScoreDetect != 0) && detectZScore(value, windowAverage, std);
 
-        // ---------- ZScore ----------
-        boolean zScore = false;
-        if (useZScoreDetect != 0) {
-            double variance = (sumSquare / window.size()) - historicalAvg * historicalAvg;
-            double std = Math.sqrt(Math.max(variance, 0));
-            zScore = detectZScore(value, historicalAvg, std);
-        }
-
-        boolean anomaly = false;
-        if (spike) {
-            anomaly = true;
-            failReason = 1;
-        }
-        if (trend) {
-            anomaly = true;
-            failReason = 2;
-        }
-        if (zScore) {
-            anomaly = true;
-            failReason = 3;
-        }
-
-        // 必须连续 N 次异常才报警
+        boolean anomaly = spike || trend || zScore;
         if (anomaly) {
             anomalyCounter++;
+            if (spike) failReason = 1;
+            else if (trend) failReason = 2;
+            else if (zScore) failReason = 3;
         } else {
+            // 不连续则被认为趋势已经中断
+            // 如果数据偶尔正常一次，整个异常累积过程就重置
             anomalyCounter = 0;
         }
+
+        // 检测完成后，再更新窗口
+        removeHead();
+        addTail(value);
 
         prevValue = value;
 
