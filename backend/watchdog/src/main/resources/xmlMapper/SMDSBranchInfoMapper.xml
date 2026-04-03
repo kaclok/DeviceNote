@@ -44,7 +44,46 @@
         values(#{id}, #{value}, #{indicatorId}, #{indicatorName}, #{deviceId}, #{branchId}, #{date})
     </insert>
 
-    <insert id="insertSnap">
+    <update id="ClearPoints">
+        truncate smds_snapshot_point
+    </update>
 
+    <insert id="InsertBatch">
+        insert into smds_snapshot_point (
+        id ,
+        indicatorName ,
+        branchId ,
+        exceptionCount ,
+        namespace ,
+        tag,
+        windowSize,
+        useSpikeDetect,
+        useCUSUMDetect,
+        k,
+        cusumThreshold,
+        spikeThreshold,
+        useCd,
+        cdMills,
+        dw
+        ) values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (
+            #{item.id} ,
+            #{item.indicatorName} ,
+            #{item.branchId} ,
+            #{item.exceptionCount} ,
+            #{item.namespace} ,
+            #{item.tag},
+            #{item.windowSize},
+            #{item.useSpikeDetect},
+            #{item.useCUSUMDetect},
+            #{item.k},
+            #{item.cusumThreshold},
+            #{item.spikeThreshold},
+            #{item.useCd},
+            #{item.cdMills},
+            #{item.dw}
+            )
+        </foreach>
     </insert>
 </mapper>

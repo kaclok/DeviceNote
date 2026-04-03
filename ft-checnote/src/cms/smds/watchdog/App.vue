@@ -9,7 +9,12 @@
                 </div>
             </div>
             <div class="header-right">
+                <input type="file" ref="fileList" accept=".xlsx, .xls" @change="onFileChange"
+                    style="display: none;" />
                 <div class="control-buttons">
+                    <el-button size="small" @click="coverCfg" type="primary">
+                        更新点位配置
+                    </el-button>
                     <el-button size="small" @click="reloadService" type="primary">
                         重启后端服务
                     </el-button>
@@ -135,8 +140,36 @@ const clearAlerts = () => {
 
 const wsUrl = "ws://10.8.54.24:8091/api/webSocket/029567"
 
+const fileList = ref(null)
+
+const _reqCover = (fs) => {
+    const formData = new FormData()
+    formData.append('file', fs)
+
+    axiosR.post("apiWatchdog/x/watchdog/importExcel", formData).then(res => {
+        window.alert("导入成功")
+    }).catch(err => {
+        window.alert("导入失败")
+    })
+}
+
+function onFileChange() {
+    const fs = fileList.value.files[0]
+    _reqCover(fs)
+    // 解决第二次选择同样的文件时不调用的问题
+    fileList.value.value = null
+}
+
+const coverCfg = () => {
+    fileList.value.click();
+}
+
 const reloadService = () => {
-    axiosR.get("apiWatchdog/x/watchdog/reloadDB");
+    axiosR.get("apiWatchdog/x/watchdog/reloadDB").then(res => {
+        window.alert("刷新成功")
+    }).catch(err => {
+        window.alert("刷新失败")
+    })
 }
 
 let ws = null

@@ -2,6 +2,7 @@ package com.jthx.x.cms.watchdog.dao.mapper;
 
 import com.jthx.x.cms.watchdog.pojo.*;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,5 +19,7 @@ public interface SMDSBranchInfoMapper {
 
     public int insertExceptionInfo(ExceptionInfo exceptionInfo);
 
-    public int insertSnap(ExceptionDetail detail);
+    void ClearPoints();
+
+    public int InsertBatch(List<Point> list);
 }
