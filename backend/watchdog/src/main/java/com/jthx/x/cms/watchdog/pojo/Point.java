@@ -44,6 +44,8 @@ public class Point {
     private int useCd;
     private int cdMills;
 
+    private int group;
+
     // zScore
     private int useZScoreDetect;
     private double zScoreThreshold = 3;

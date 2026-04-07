@@ -181,6 +181,7 @@ public class TrendJumpDetector {
 
     public boolean detect(double value) {
         // 窗口未满时，直接更新并返回
+        // 在窗口未满期间（前30个点），即使数据明显异常也会被忽略。对于启动阶段就出现的故障，会延迟30个点才能检测到
         if (window.size() < windowSize) {
             addTail(value);
             prevValue = value;
