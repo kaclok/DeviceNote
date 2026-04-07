@@ -119,7 +119,7 @@ const addAlert = (factoryId, pointName, pointId, av, dw, failReason, detail) => 
         av,
         dw,
         failReason,
-        timestamp: new Date(),
+        timestamp: new Date(detail.date),
         detail: detail,
     }
     alertQueue.value.unshift(newAlert)
