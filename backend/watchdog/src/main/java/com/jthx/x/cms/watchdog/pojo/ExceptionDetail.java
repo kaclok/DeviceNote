@@ -15,9 +15,9 @@ public class ExceptionDetail {
     private ArrayList<Double> window = new ArrayList<>();
     private ArrayList<Double> cusumPosHistory = new ArrayList<>();
     private ArrayList<Double> cusumNegHistory = new ArrayList<>();
+    private ArrayList<Boolean> anomalyWindow = new ArrayList<>();
 
     private int failReason = -1;
-    private boolean isOverCount;
     private boolean isOverCD;
 
     private Date date;
@@ -33,11 +33,11 @@ public class ExceptionDetail {
         this.average = dataHandler.getWindowAverage();
 
         this.failReason = dataHandler.getFailReason();
-        this.isOverCount = dataHandler.isOverCount();
         this.isOverCD = dataHandler.isOverCD();
 
         this.window.addAll(dataHandler.getWindow());
         this.cusumPosHistory.addAll(dataHandler.getIncrPosHistory());
         this.cusumNegHistory.addAll(dataHandler.getIncrNegHistory());
+        this.anomalyWindow.addAll(dataHandler.getAnomalyWindow());
     }
 }

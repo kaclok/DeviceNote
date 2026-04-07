@@ -11,9 +11,13 @@ public class TrendJumpDetector {
     private int windowSize = 30;
     private Queue<Double> window = new LinkedList<>();
 
-    private int cusumSize = 20;
+    private int cusumWindowSize = 20;
     private Queue<Double> incrPosHistory = new LinkedList<>();
     private Queue<Double> incrNegHistory = new LinkedList<>();
+
+    // 10个点里6个异常
+    private Queue<Boolean> anomalyWindow = new LinkedList<>();
+    private int anomalyWindowSize = 10;
 
     private double sum = 0;
     private double sumSquare = 0;
@@ -22,7 +26,7 @@ public class TrendJumpDetector {
     // CUSUM
     private double cusumPos = 0;
     private double cusumNeg = 0;
-    private double k = 0.01; // 容忍误差k
+    private double cusumK = 0.01; // 容忍误差k
     private double cusumPosThreshold = 0.2;
     private double cusumNegThreshold = 0.2;
 
@@ -35,8 +39,7 @@ public class TrendJumpDetector {
     private double zScoreThreshold = 3;
 
     // ---------- 报警控制 ----------
-    private int anomalyCounter = 0;
-    private int alarmConfirmCount = 3;
+    private int anomalyCount = 3;
 
     // ---------- 每次报警间隔多久 ----------
     private long cdMillis = 3 * 60 * 1000;  // 冷却时间（毫秒）
@@ -53,10 +56,6 @@ public class TrendJumpDetector {
         return window.size() >= windowSize;
     }
 
-    public boolean isOverCount() {
-        return anomalyCounter >= alarmConfirmCount;
-    }
-
     public boolean isOverCD() {
         long now = System.currentTimeMillis();
         if (now - lastAlarmTime > cdMillis) {
@@ -66,21 +65,25 @@ public class TrendJumpDetector {
     }
 
     public TrendJumpDetector(Point point) {
-        this.useSpikeDetect = point.getUseSpikeDetect();
-        this.useCUSUMDetect = point.getUseCUSUMDetect();
-        this.useZScoreDetect = point.getUseZScoreDetect();
-        this.useCd = point.getUseCd();
+
 
         this.windowSize = point.getWindowSize();
 
+        this.useSpikeDetect = point.getUseSpikeDetect();
         this.spikeThreshold = point.getSpikeThreshold();
-        this.k = point.getK();
-        this.cusumNegThreshold = this.cusumPosThreshold = point.getCusumThreshold();
-        this.cusumSize = point.getCusumSize();
 
+        this.useCUSUMDetect = point.getUseCUSUMDetect();
+        this.cusumK = point.getCusumK();
+        this.cusumNegThreshold = this.cusumPosThreshold = point.getCusumThreshold();
+        this.cusumWindowSize = point.getCusumWindowSize();
+
+        this.anomalyWindowSize = point.getAnomalyWindowSize();
+        this.anomalyCount = point.getAnomalyCount();
+
+        this.useZScoreDetect = point.getUseZScoreDetect();
         this.zScoreThreshold = point.getZScoreThreshold();
 
-        this.alarmConfirmCount = point.getExceptionCount();
+        this.useCd = point.getUseCd();
         this.cdMillis = point.getCdMills();
     }
 
@@ -114,9 +117,9 @@ public class TrendJumpDetector {
 
         // 当前增量
         // ---------- 上升趋势 ----------
-        double posIncrement = Math.max(0, diff - k);
+        double posIncrement = Math.max(0, diff - cusumK);
         // ---------- 下降趋势 ----------
-        double negIncrement = Math.max(0, -diff - k);
+        double negIncrement = Math.max(0, -diff - cusumK);
 
         // 入队
         incrPosHistory.add(posIncrement);
@@ -128,10 +131,10 @@ public class TrendJumpDetector {
 
         // 🔥 控制窗口（关键）
         // 累加和-头部的incr
-        if (incrPosHistory.size() > cusumSize) {
+        if (incrPosHistory.size() > cusumWindowSize) {
             cusumPos -= incrPosHistory.poll();
         }
-        if (incrNegHistory.size() > cusumSize) {
+        if (incrNegHistory.size() > cusumWindowSize) {
             cusumNeg -= incrNegHistory.poll();
         }
 
@@ -160,6 +163,22 @@ public class TrendJumpDetector {
         return z > zScoreThreshold;
     }
 
+    private boolean detectAnomalyWindow(boolean anomaly) {
+        anomalyWindow.add(anomaly);
+        if (anomalyWindow.size() > anomalyWindowSize) {
+            anomalyWindow.poll();
+        }
+
+        int count = 0;
+        for (boolean a : anomalyWindow) {
+            if (a) {
+                count++;
+            }
+        }
+
+        return count >= anomalyCount;
+    }
+
     public boolean detect(double value) {
         // 窗口未满时，直接更新并返回
         if (window.size() < windowSize) {
@@ -181,14 +200,9 @@ public class TrendJumpDetector {
 
         boolean anomaly = spike || trend || zScore;
         if (anomaly) {
-            anomalyCounter++;
             if (spike) failReason = 1;
             else if (trend) failReason = 2;
             else if (zScore) failReason = 3;
-        } else {
-            // 不连续则被认为趋势已经中断
-            // 如果数据偶尔正常一次，整个异常累积过程就重置
-            anomalyCounter = 0;
         }
 
         // 检测完成后，再更新窗口
@@ -197,9 +211,8 @@ public class TrendJumpDetector {
 
         prevValue = value;
 
-        if (isOverCount()) {
-            anomalyCounter = 0;
-
+        // 超过异常上限
+        if (detectAnomalyWindow(anomaly)) {
             if (useCd != 0) {
                 if (!isOverCD()) {
                     return true;

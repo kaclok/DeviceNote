@@ -52,37 +52,41 @@
         insert into smds_snapshot_point (
         id ,
         indicatorName ,
+        dw,
         branchId ,
-        exceptionCount ,
+        anomalyWindowSize ,
+        anomalyCount ,
         namespace ,
         tag,
         windowSize,
         useSpikeDetect,
         useCUSUMDetect,
-        k,
+        cusumK,
         cusumThreshold,
+        cusumWindowSize,
         spikeThreshold,
         useCd,
-        cdMills,
-        dw
+        cdMills
         ) values
         <foreach collection="list" item="item" index="index" separator=",">
             (
             #{item.id} ,
             #{item.indicatorName} ,
+            #{item.dw} ,
             #{item.branchId} ,
-            #{item.exceptionCount} ,
+            #{item.anomalyWindowSize} ,
+            #{item.anomalyCount} ,
             #{item.namespace} ,
             #{item.tag},
             #{item.windowSize},
             #{item.useSpikeDetect},
             #{item.useCUSUMDetect},
-            #{item.k},
+            #{item.cusumK},
             #{item.cusumThreshold},
+            #{item.cusumWindowSize},
             #{item.spikeThreshold},
             #{item.useCd},
-            #{item.cdMills},
-            #{item.dw}
+            #{item.cdMills}
             )
         </foreach>
     </insert>

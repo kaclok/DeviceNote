@@ -9,8 +9,7 @@
                 </div>
             </div>
             <div class="header-right">
-                <input type="file" ref="fileList" accept=".xlsx, .xls" @change="onFileChange"
-                    style="display: none;" />
+                <input type="file" ref="fileList" accept=".xlsx, .xls" @change="onFileChange" style="display: none;" />
                 <div class="control-buttons">
                     <el-button size="small" @click="coverCfg" type="primary">
                         更新点位配置
@@ -49,7 +48,7 @@
                             <div class="alert-content">
                                 <div class="alert-info" @click="handleClickAlert(alert)">
                                     <span class="alert-factory">{{ getFactoryName(alert.factoryId) }}</span>
-                                    <span class="alert-point">{{ alert.pointName }}</span>
+                                    <span class="alert-point">{{ alert.pointName }} [{{alert.detail.point.namespace}} {{alert.detail.point.tag}}]</span>
                                 </div>
                                 <div class="alert-message">当前值:{{ alert.av }} {{ alert.dw }}</div>
                                 <div class="alert-time">{{ formatTime(alert.timestamp) }}</div>
@@ -76,7 +75,7 @@
                             <div class="factory-points">
                                 <div v-for="point in getFactoryPoints(factory.id)" :key="point.id" class="point-row">
                                     <div class="point-name" @click="handleClickAlert(point)">
-                                        {{ point.pointName }}
+                                        {{ point.pointName }} [{{point.detail.point.namespace}} {{point.detail.point.tag}}]
                                     </div>
                                     <div class="point-values">
                                         <span class="current-value">
@@ -147,9 +146,9 @@ const _reqCover = (fs) => {
     formData.append('file', fs)
 
     axiosR.post("apiWatchdog/x/watchdog/importExcel", formData).then(res => {
-        window.alert("导入成功")
+        window.alert("更新成功")
     }).catch(err => {
-        window.alert("导入失败")
+        window.alert("更新失败")
     })
 }
 
@@ -166,9 +165,9 @@ const coverCfg = () => {
 
 const reloadService = () => {
     axiosR.get("apiWatchdog/x/watchdog/reloadDB").then(res => {
-        window.alert("刷新成功")
+        window.alert("重启成功")
     }).catch(err => {
-        window.alert("刷新失败")
+        window.alert("重启失败")
     })
 }
 
@@ -506,7 +505,7 @@ const updateClock = () => {
 }
 
 .alert-point {
-    font-size: 0.75rem;
+    font-size: 0.70rem;
     color: #475569;
 }
 
