@@ -215,7 +215,7 @@ const appGridItems = ref([
     },
     {
         name: "作业票统计",
-        url: "http://10.8.54.162:8085/jobTicket?group=" + group,
+        url: "http://10.8.54.162:12305?group=" + group,
         image: logo_book,
         enabled: true,
     },
