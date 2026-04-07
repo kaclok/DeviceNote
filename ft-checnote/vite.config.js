@@ -148,7 +148,7 @@ export default defineConfig((env) => {
         build: {
             manifest: true,
             outDir: (curCfg.VITE_OUT_DIR || 'dist') + '-0.0.1-cors',
-            chunkSizeWarningLimit: 500,
+            chunkSizeWarningLimit: 1024,
             rollupOptions: {
                 input: mpaInput,
                 output: {
