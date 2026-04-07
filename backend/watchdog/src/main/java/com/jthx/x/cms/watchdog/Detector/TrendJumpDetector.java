@@ -215,11 +215,14 @@ public class TrendJumpDetector {
         if (detectAnomalyWindow(anomaly)) {
             if (useCd != 0) {
                 if (!isOverCD()) {
+                    // 冷却期内：清空异常窗口，避免累积
+                    anomalyWindow.clear();
                     return true;
                 }
                 lastAlarmTime = System.currentTimeMillis();
             }
 
+            anomalyWindow.clear();
             return false;
         }
 
