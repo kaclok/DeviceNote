@@ -50,7 +50,7 @@
                                     <span class="alert-factory">{{ getFactoryName(alert.factoryId) }}</span>
                                     <span class="alert-point">{{ alert.pointName }} [{{alert.detail.point.namespace}} {{alert.detail.point.tag}}]</span>
                                 </div>
-                                <div class="alert-message">当前值:{{ alert.av }} {{ alert.dw }}</div>
+                                <div class="alert-message">当前值:{{ alert.av }} {{ alert.dw }}  [{{ getTrendIcon(alert) }}]</div>
                                 <div class="alert-time">{{ formatTime(alert.timestamp) }}</div>
                             </div>
                         </div>
