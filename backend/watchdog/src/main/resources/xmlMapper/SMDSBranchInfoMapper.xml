@@ -67,7 +67,7 @@
         spikeThreshold,
         useCd,
         cdMills,
-        group
+        groupId
         ) values
         <foreach collection="list" item="item" index="index" separator=",">
             (
@@ -88,7 +88,7 @@
             #{item.spikeThreshold},
             #{item.useCd},
             #{item.cdMills},
-            #{item.group}
+            #{item.groupId}
             )
         </foreach>
     </insert>

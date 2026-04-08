@@ -11,6 +11,13 @@
             <div class="header-right">
                 <input type="file" ref="fileList" accept=".xlsx, .xls" @change="onFileChange" style="display: none;" />
                 <div class="control-buttons">
+                    <el-select v-model="selectedGroup" size="small" style="width: 120px;">
+                        <el-option v-for="option in groupOptions" 
+                        :key="option.value" 
+                        :label="option.label"
+                        :value="option.value"
+                        :disabled="option.disabled" />
+                    </el-select>
                     <el-button size="small" @click="coverCfg" type="primary">
                         更新点位配置
                     </el-button>
@@ -39,18 +46,24 @@
                                 <BellFilled />
                             </el-icon>
                             <span>实时异常消息流</span>
-                            <span class="alert-count">{{ alertQueue.length }}</span>
+                            <span class="alert-count">{{ selectedAlertQueue.length }}</span>
                         </div>
                         <el-button size="small" @click="clearAlerts" :icon="Delete">清空</el-button>
                     </div>
-                    <div class="alert-list" v-if="alertQueue.length > 0">
-                        <div v-for="alert in alertQueue" :key="alert.id" class="alert-item">
+                    <div class="alert-list" v-if="selectedAlertQueue.length > 0">
+                        <div v-for="alert in selectedAlertQueue" :key="alert.id" class="alert-item">
                             <div class="alert-content">
                                 <div class="alert-info" @click="handleClickAlert(alert)">
                                     <span class="alert-factory">{{ getFactoryName(alert.factoryId) }}</span>
-                                    <span class="alert-point">{{ alert.pointName }} [{{alert.detail.point.namespace}} {{alert.detail.point.tag}}]</span>
+                                    <span class="alert-point">{{ alert.pointName }} [{{ alert.detail.point.namespace }}
+                                        {{ alert.detail.point.tag }}]</span>
                                 </div>
-                                <div class="alert-message">当前值:{{ alert.av }} {{ alert.dw }}  [{{ getTrendIcon(alert) }}]</div>
+                                <div class="point-values">
+                                    <div class="alert-message">当前值:{{ alert.av }} {{ alert.dw }}</div>
+                                    <div class="trend-icon" :class="getTrendClass(alert)">
+                                        {{ getTrendIcon(alert) }}
+                                    </div>
+                                </div>
                                 <div class="alert-time">{{ formatTime(alert.timestamp) }}</div>
                             </div>
                         </div>
@@ -64,7 +77,7 @@
             <!-- 右侧6个子厂区域（两列三行布局，每个分厂6个点位） -->
             <div class="factories-section">
                 <div class="factories-grid">
-                    <div v-for="factory in factories" :key="factory.id" class="factory-card-wrapper">
+                    <div v-for="factory in filteredFactories" :key="factory.id" class="factory-card-wrapper">
                         <div class="factory-card">
                             <div class="factory-header">
                                 <div class="factory-name">
@@ -75,7 +88,8 @@
                             <div class="factory-points">
                                 <div v-for="point in getFactoryPoints(factory.id)" :key="point.id" class="point-row">
                                     <div class="point-name" @click="handleClickAlert(point)">
-                                        {{ point.pointName }} [{{point.detail.point.namespace}} {{point.detail.point.tag}}]
+                                        {{ point.pointName }} [{{ point.detail.point.namespace }}
+                                        {{ point.detail.point.tag }}]
                                     </div>
                                     <div class="point-values">
                                         <span class="current-value">
@@ -96,19 +110,34 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
     Clock,
     BellFilled,
     Delete
 } from '@element-plus/icons-vue'
-import axios from "axios"
+// import axios from "axios"
 import { axiosInst as axiosR } from "@/framework/services/net/AxiosInst.js"
 
 // ==================== 异常消息队列 ====================
-const alertQueue = ref([])
+const alertQueue = ref({
+    1: [],
+    2: [],
+    3: [],
+})
+const selectedAlertQueue = computed(() => {
+    return alertQueue.value[selectedGroup.value]
+})
 let nextAlertId = 1
+
+// ==================== 分组筛选 ====================
+const selectedGroup = ref(1) // 默认选中神木电石 (group=1)
+const groupOptions = [
+    { value: 1, label: '神木电石' },
+    { value: 2, label: '神木氯碱', disabled: true },
+    { value: 3, label: '金泰氯碱', disabled: true }
+]
 
 const addAlert = (factoryId, pointName, pointId, av, dw, failReason, detail) => {
     const newAlert = {
@@ -122,14 +151,19 @@ const addAlert = (factoryId, pointName, pointId, av, dw, failReason, detail) => 
         timestamp: new Date(detail.date),
         detail: detail,
     }
-    alertQueue.value.unshift(newAlert)
-    if (alertQueue.value.length > 100) {
-        alertQueue.value = alertQueue.value.slice(0, 100)
+
+    const groupId = detail.point.groupId
+    if (!alertQueue.value[groupId]) {
+        alertQueue.value[groupId] = []
+    }
+    alertQueue.value[groupId].unshift(newAlert)
+    if (alertQueue.value[groupId].length > 100) {
+        alertQueue.value[groupId] = alertQueue.value[groupId].slice(0, 100)
     }
 }
 
 const clearAlerts = () => {
-    alertQueue.value = []
+    alertQueue.value[selectedGroup.value] = []
     ElMessage.success({
         message: '已清空所有异常消息',
         offset: 80,
@@ -220,17 +254,28 @@ onUnmounted(() => {
 
 // ==================== 数据配置 - 每个分厂6个点位 ====================
 const factories = ref([
-    { id: 1, name: "电石一分厂", },
-    { id: 2, name: "电石二分厂", },
-    { id: 3, name: "电石三分厂", },
-    { id: 4, name: "白灰分厂", },
-    { id: 5, name: "兰炭分厂", },
-    { id: 6, name: "热电分厂", }
+    { id: 1, name: "电石一分厂", groupId: 1 },
+    { id: 2, name: "电石二分厂", groupId: 1 },
+    { id: 3, name: "电石三分厂", groupId: 1 },
+    { id: 4, name: "白灰分厂", groupId: 1 },
+    { id: 5, name: "兰炭分厂", groupId: 1 },
+    { id: 6, name: "热电分厂", groupId: 1 },
+    { id: 101, name: "烧碱装置", groupId: 2 },
+    { id: 102, name: "热动力装置", groupId: 2 },
+    { id: 103, name: "公辅装置", groupId: 2 },
+    { id: 104, name: "乙炔", groupId: 2 },
+    { id: 105, name: "VCM", groupId: 2 },
+    { id: 106, name: "聚合", groupId: 2 }
 ])
+
+// 根据选中的分组过滤factories
+const filteredFactories = computed(() => {
+    return factories.value.filter(factory => factory.groupId === selectedGroup.value)
+})
 
 // ==================== 点位数据管理 ====================
 const getFactoryPoints = (factoryId) => {
-    let ls = Object.values(alertQueue.value).filter(p => p.factoryId === factoryId)
+    let ls = Object.values(selectedAlertQueue.value).filter(p => p.factoryId === factoryId)
     return ls.slice(0, 6)
 }
 

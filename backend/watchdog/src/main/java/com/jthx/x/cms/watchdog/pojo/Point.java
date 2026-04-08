@@ -44,7 +44,7 @@ public class Point {
     private int useCd;
     private int cdMills;
 
-    private int group;
+    private int groupId;
 
     // zScore
     private int useZScoreDetect;
