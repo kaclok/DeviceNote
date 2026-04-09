@@ -91,6 +91,7 @@
                                         {{ point.pointName }} [{{ point.detail.point.namespace }}
                                         {{ point.detail.point.tag }}]
                                     </div>
+                                    <div class="alert-time">{{ formatTime(point.timestamp) }}</div>
                                     <div class="point-values">
                                         <span class="current-value">
                                             当前值:{{ point.av }} {{ point.dw }}
@@ -304,7 +305,9 @@ const getTrendIcon = (trend) => {
 
 const formatTime = (timestamp) => {
     const date = new Date(timestamp)
-    return date.toLocaleTimeString('zh-CN', { hour12: false })
+    let dateStr = date.toLocaleDateString('zh-CN');
+    let timeStr = date.toLocaleTimeString('zh-CN', { hour12: false })
+    return `${dateStr} ${timeStr}`
 }
 
 // ==================== 自动刷新控制 ====================
