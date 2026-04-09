@@ -46,6 +46,14 @@ public class CWatchDog {
     }
 
     @Transactional
+    @GetMapping("/mock")
+    public void mock(boolean toMock) {
+        if (checker != null) {
+            checker.mock(toMock);
+        }
+    }
+
+    @Transactional
     @GetMapping("/reloadDB")
     public Result<?> reloadDB() {
         if (checker != null) {

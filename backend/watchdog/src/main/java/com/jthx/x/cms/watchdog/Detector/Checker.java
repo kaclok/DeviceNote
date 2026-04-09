@@ -23,6 +23,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class Checker {
     private boolean canRuning = false;
+    private boolean toMock = false;
     private final SMDSRequestService smdsRequestService;
     private final SMDSRequestService requestService;
     private final SMDSBranchInfoMapper branchInfoMapper;
@@ -78,17 +79,22 @@ public class Checker {
     }
 
     public void start() {
-        log.info("start");
+        System.out.println("start");
         canRuning = true;
     }
 
     public void stop() {
-        log.info("stop");
+        System.out.println("stop");
         canRuning = false;
     }
 
+    public void mock(boolean toMock) {
+        this.toMock = toMock;
+        System.out.println("toMock:" + toMock);
+    }
+
     public boolean reloadDB() {
-        log.info("reloadDB");
+        System.out.println("reloadDB");
         stop();
 
         pointList.clear();
