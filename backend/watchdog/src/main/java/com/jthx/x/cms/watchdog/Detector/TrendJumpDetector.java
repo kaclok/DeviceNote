@@ -213,7 +213,7 @@ public class TrendJumpDetector {
         prevValue = value;
 
         // 超过异常上限
-        if (detectAnomalyWindow(anomaly)) {
+        if (spike || detectAnomalyWindow(anomaly)) {
             if (useCd != 0) {
                 if (!isOverCD()) {
                     // 冷却期内：清空异常窗口，避免累积

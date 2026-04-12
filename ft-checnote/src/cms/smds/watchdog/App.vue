@@ -11,7 +11,7 @@
             <div class="header-right">
                 <input type="file" ref="fileList" accept=".xlsx, .xls" @change="onFileChange" style="display: none;" />
                 <div class="control-buttons">
-                    <el-select v-model="selectedGroup" size="small" style="width: 120px;">
+                    <el-select v-model="selectedGroup" size="small" style="width: 90px;">
                         <el-option v-for="option in groupOptions" 
                         :key="option.value" 
                         :label="option.label"
@@ -48,7 +48,7 @@
                             <span>实时异常</span>
                             <span class="alert-count">{{ selectedAlertQueue.length }}</span>
                         </div>
-                        <el-select v-model="selectedFactory" multiple size="small" style="width: 180px;"
+                        <el-select v-model="selectedFactory" multiple size="small" style="width: 118px;"
                             placeholder="选择分厂">
                             <el-option v-for="option in filteredFactories" :key="option.id" :label="option.name"
                                 :value="option.id" />
@@ -486,7 +486,7 @@ const updateClock = () => {
 }
 
 .alert-header {
-    padding: 10px 16px;
+    padding: 3px 16px;
     background: #f8fafc;
     display: flex;
     justify-content: space-between;
