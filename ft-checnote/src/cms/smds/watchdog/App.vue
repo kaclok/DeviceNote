@@ -45,9 +45,14 @@
                             <el-icon>
                                 <BellFilled />
                             </el-icon>
-                            <span>实时异常消息流</span>
+                            <span>实时异常</span>
                             <span class="alert-count">{{ selectedAlertQueue.length }}</span>
                         </div>
+                        <el-select v-model="selectedFactory" multiple size="small" style="width: 180px;"
+                            placeholder="选择分厂">
+                            <el-option v-for="option in filteredFactories" :key="option.id" :label="option.name"
+                                :value="option.id" />
+                        </el-select>
                         <el-button size="small" @click="clearAlerts" :icon="Delete">清空</el-button>
                     </div>
                     <div class="alert-list" v-if="selectedAlertQueue.length > 0">
@@ -111,7 +116,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
     Clock,
@@ -128,7 +133,12 @@ const alertQueue = ref({
     3: [],
 })
 const selectedAlertQueue = computed(() => {
-    return alertQueue.value[selectedGroup.value]
+    const groupAlerts = alertQueue.value[selectedGroup.value] || []
+    // 如果selectedFactory有值（数组），则过滤出选中分厂的异常数据
+    if (selectedFactory.value && selectedFactory.value.length > 0) {
+        return groupAlerts.filter(alert => selectedFactory.value.includes(alert.factoryId))
+    }
+    return groupAlerts
 })
 let nextAlertId = 1
 
@@ -139,6 +149,39 @@ const groupOptions = [
     { value: 2, label: '神木氯碱', disabled: true },
     { value: 3, label: '金泰氯碱', disabled: true }
 ]
+
+const selectedFactory = ref([])
+
+// ==================== 数据配置 - 每个分厂6个点位 ====================
+const factories = ref([
+    { id: 1, name: "电石一分厂", groupId: 1 },
+    { id: 2, name: "电石二分厂", groupId: 1 },
+    { id: 3, name: "电石三分厂", groupId: 1 },
+    { id: 4, name: "白灰分厂", groupId: 1 },
+    { id: 5, name: "兰炭分厂", groupId: 1 },
+    { id: 6, name: "热电分厂", groupId: 1 },
+    { id: 101, name: "烧碱装置", groupId: 2 },
+    { id: 102, name: "热动力装置", groupId: 2 },
+    { id: 103, name: "公辅装置", groupId: 2 },
+    { id: 104, name: "乙炔", groupId: 2 },
+    { id: 105, name: "VCM", groupId: 2 },
+    { id: 106, name: "聚合", groupId: 2 }
+])
+
+// 监听selectedGroup变化，更新selectedFactory为该group下所有分厂
+watch(selectedGroup, (newGroup) => {
+    // 获取当前group下的所有分厂
+    const groupFactories = factories.value.filter(factory => factory.groupId === newGroup)
+    if (groupFactories.length > 0) {
+        // 选中该group下所有分厂的id
+        selectedFactory.value = groupFactories.map(factory => factory.id)
+    }
+}, { immediate: true })
+
+// 根据选中的分组过滤factories
+const filteredFactories = computed(() => {
+    return factories.value.filter(factory => factory.groupId === selectedGroup.value)
+})
 
 const addAlert = (factoryId, pointName, pointId, av, dw, failReason, detail) => {
     const newAlert = {
@@ -254,25 +297,7 @@ onUnmounted(() => {
 })
 
 // ==================== 数据配置 - 每个分厂6个点位 ====================
-const factories = ref([
-    { id: 1, name: "电石一分厂", groupId: 1 },
-    { id: 2, name: "电石二分厂", groupId: 1 },
-    { id: 3, name: "电石三分厂", groupId: 1 },
-    { id: 4, name: "白灰分厂", groupId: 1 },
-    { id: 5, name: "兰炭分厂", groupId: 1 },
-    { id: 6, name: "热电分厂", groupId: 1 },
-    { id: 101, name: "烧碱装置", groupId: 2 },
-    { id: 102, name: "热动力装置", groupId: 2 },
-    { id: 103, name: "公辅装置", groupId: 2 },
-    { id: 104, name: "乙炔", groupId: 2 },
-    { id: 105, name: "VCM", groupId: 2 },
-    { id: 106, name: "聚合", groupId: 2 }
-])
 
-// 根据选中的分组过滤factories
-const filteredFactories = computed(() => {
-    return factories.value.filter(factory => factory.groupId === selectedGroup.value)
-})
 
 // ==================== 点位数据管理 ====================
 const getFactoryPoints = (factoryId) => {
@@ -401,7 +426,7 @@ const updateClock = () => {
 
 /* 左侧面板（饼图 + 异常流） */
 .left-panel {
-    width: 260px;
+    width: 310px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -485,7 +510,7 @@ const updateClock = () => {
     padding: 1px 6px;
     border-radius: 10px;
     font-size: 0.65rem;
-    margin-left: 6px;
+    margin-left: 0px;
 }
 
 .alert-list {
@@ -837,5 +862,79 @@ const updateClock = () => {
     .factories-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* 下拉菜单美化样式 */
+.el-select {
+    --el-select-border-color-hover: #409eff;
+    --el-select-input-focus-border-color: #409eff;
+}
+
+.el-select .el-input__wrapper {
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px #dcdfe6 inset;
+    transition: all 0.2s ease;
+    padding: 2px 8px;
+}
+
+.el-select .el-input__wrapper:hover {
+    box-shadow: 0 0 0 1px #c0c4cc inset;
+}
+
+.el-select .el-input__wrapper.is-focus {
+    box-shadow: 0 0 0 1px #409eff inset;
+}
+
+.el-select .el-input__inner {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.el-select-dropdown {
+    border-radius: 8px;
+    border: 1px solid #e4e7ed;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.el-select-dropdown .el-select-dropdown__item {
+    font-size: 13px;
+    padding: 8px 16px;
+    transition: all 0.2s ease;
+}
+
+.el-select-dropdown .el-select-dropdown__item.hover,
+.el-select-dropdown .el-select-dropdown__item:hover {
+    background-color: #f5f7fa;
+}
+
+.el-select-dropdown .el-select-dropdown__item.selected {
+    color: #409eff;
+    font-weight: 600;
+    background-color: #ecf5ff;
+}
+
+.el-select-dropdown .el-select-dropdown__item.is-disabled {
+    color: #c0c4cc;
+    cursor: not-allowed;
+}
+
+/* 头部右侧下拉菜单特殊样式 */
+.header-right .el-select .el-input__wrapper {
+    background: #fff;
+}
+
+.header-right .el-select .el-input__inner {
+    color: #303133;
+}
+
+/* 异常流区域下拉菜单样式 */
+.alert-header .el-select .el-input__wrapper {
+    background: #f5f7fa;
+    border-radius: 6px;
+}
+
+.alert-header .el-select .el-input__inner {
+    color: #606266;
+    font-size: 12px;
 }
 </style>
