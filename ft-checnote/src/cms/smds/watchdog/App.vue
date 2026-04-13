@@ -311,7 +311,10 @@ const getFactoryName = (id) => {
 }
 
 const handleClickAlert = (alert) => {
-    console.log(alert)
+    const namespace = alert.detail.point.namespace
+    const tag = alert.detail.point.tag
+    const url = `http://10.8.54.110:8900/#/real_time?namespace=${namespace}&tag=${tag}&type=${tag}`
+    window.open(url, '_blank')
 }
 
 const getTrendClass = (trend) => {
