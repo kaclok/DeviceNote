@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -5,229 +8,230 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.edge.options import Options
+from selenium.webdriver.support.ui import Select
 import time
 import pandas as pd
 import random
 
 
 class SeleniumAutoSubmit:
-    def __init__(self, url, keep_browser_open=True, human_like=True, debugger_address="localhost:9222", use_debug_mode=True):
+    def __init__(self, url, keep_browser_open=True, use_debug_mode=True, debugger_address="localhost:9222", human_like=True, use_cursor=True):
         self.url = url
         self.keep_browser_open = keep_browser_open
-        self.human_like = human_like  # 是否模拟人工操作
+        self.human_like = human_like
+        self.use_cursor = use_cursor
 
         if use_debug_mode:
-            # 模式1：连接到已打开的调试模式浏览器
             print(f"🔗 正在连接到调试模式浏览器: {debugger_address}")
             edge_options = Options()
             edge_options.add_experimental_option("debuggerAddress", debugger_address)
-            self.driver = webdriver.Edge(options=edge_options)  # ✅ 使用Options
+            self.driver = webdriver.Edge(options=edge_options)
             print("✅ 已连接到现有浏览器窗口")
         else:
-            # 模式2：打开新浏览器
             print("🌐 正在打开新浏览器窗口")
             self.driver = webdriver.Edge()
             print("✅ 新浏览器已打开")
 
-        # 等待浏览器元素加载完毕
         self.wait = WebDriverWait(self.driver, 10)
 
-    def safe_refresh(self):
-        """安全地刷新页面"""
-        try:
-            self.driver.refresh()
-            print("  🔄 页面已刷新")
-            return True
-        except:
-            print("  ⚠️ 刷新失败，重新打开页面")
-            self.driver.get(self.url)
-            time.sleep(2)
-            return False
+    # ──────────────────────────────────────────────
+    #  基础工具
+    # ──────────────────────────────────────────────
 
     def human_delay(self, min_sec=0.3, max_sec=0.8):
         """模拟人工延迟"""
-        if self.human_like:
-            delay = random.uniform(min_sec, max_sec)
-            time.sleep(delay)
+        time.sleep(random.uniform(min_sec, max_sec))
 
-    def type_like_human(self, element, text):
-        """模拟人工打字效果"""
-        if not self.human_like:
-            element.send_keys(text)
-            return
+    def move_to(self, element, pre_delay=(0.1, 0.3), post_delay=(0.15, 0.35)):
+        """
+        将鼠标移动到目标元素。
+        use_cursor=True  → 通过 ActionChains 真实移动光标
+        use_cursor=False → 跳过移动，仅保留时间间隔
+        """
+        if self.use_cursor:
+            ActionChains(self.driver).move_to_element(element).perform()
+        if pre_delay:
+            self.human_delay(*pre_delay)
+        if post_delay:
+            self.human_delay(*post_delay)
 
-        # 逐字输入，带随机延迟
-        for char in text:
-            element.send_keys(char)
-            # 随机延迟 0.05-0.2 秒，模拟打字速度
-            time.sleep(random.uniform(0.05, 0.2))
+    def blur_focus(self):
+        """
+        点击页面空白处，让当前聚焦元素失焦。
+        用于下拉框选完后确保其视觉上完全关闭。
+        """
+        try:
+            self.driver.execute_script("document.activeElement.blur();")
+        except Exception:
+            pass
+        self.human_delay(0.15, 0.3)
 
-        # 输入完成后稍微停顿
-        time.sleep(random.uniform(0.2, 0.5))
+    # ──────────────────────────────────────────────
+    #  输入框：逐字输入
+    # ──────────────────────────────────────────────
 
     def fill_input(self, by, value, content):
-        """填充输入框 - 带人工效果"""
+        """填充输入框（human_like=True 时逐字符打入，并移动光标聚焦）"""
         try:
-            # 1. 等待元素出现
             element = self.wait.until(EC.presence_of_element_located((by, value)))
 
-            # 2. 滚动到可见区域
-            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-            self.human_delay(0.2, 0.5)
-
-            # 3. 模拟鼠标移动到输入框
-            if self.human_like:
-                action = ActionChains(self.driver)
-                action.move_to_element(element).perform()
-                self.human_delay(0.1, 0.3)
-
-            # 4. 点击输入框获得焦点
+            self.move_to(element, pre_delay=(0.2, 0.4), post_delay=None)
             element.click()
-            self.human_delay(0.1, 0.2)
-
-            # 5. 清空原有内容（模拟选中删除）
+            self.human_delay(0.1, 0.25)
             element.clear()
-            self.human_delay(0.1, 0.2)
 
-            # 6. 模拟人工输入
-            self.type_like_human(element, content)
-
-            print(f"  ✓ 填写: {content}")
-
-            # 7. 输入完成后按Tab键，模拟移出焦点
             if self.human_like:
-                element.send_keys(Keys.TAB)
-                self.human_delay(0.2, 0.4)
+                for char in content:
+                    element.send_keys(char)
+                    delay = random.uniform(0.06, 0.18) if random.random() > 0.15 else random.uniform(0.25, 0.45)
+                    time.sleep(delay)
+            else:
+                element.send_keys(content)
 
+            self.human_delay(0.2, 0.4)
+            print(f"  填充: {value} = {content}")
         except Exception as e:
-            print(f"  ✗ 填充失败: {e}")
+            print(f"  填充失败: {e}")
+
+    # ──────────────────────────────────────────────
+    #  下拉菜单：展开 → 方向键逐项高亮 → 确认 → 关闭
+    # ──────────────────────────────────────────────
+
+    def select_dropdown(self, by, value, target_value):
+        """
+        human_like=True 完整流程：
+          1. 光标移到 <select> 并点击展开
+          2. 用 ↓/↑ 方向键从当前项逐步移动到目标项
+             （每步之间有停顿，产生肉眼可见的逐项高亮效果）
+          3. 按 Enter 确认选中，下拉自动收起
+          4. 点击页面空白处彻底失焦，确保下拉框视觉关闭
+
+        注意：原生 <select> 的选项是操作系统级 UI，
+        ActionChains.move_to_element(<option>) 不会触发高亮，
+        键盘导航才是唯一有效的方式。
+        """
+        try:
+            select_el = self.wait.until(EC.presence_of_element_located((by, value)))
+
+            if not self.human_like:
+                Select(select_el).select_by_value(target_value)
+                return
+
+            # ① 光标移到下拉框
+            self.move_to(select_el, pre_delay=(0.2, 0.4), post_delay=(0.1, 0.2))
+
+            # ② 点击展开
+            select_el.click()
+            self.human_delay(0.3, 0.55)
+
+            # ③ 解析所有选项，定位当前项与目标项的索引
+            sel = Select(select_el)
+            all_options = sel.options
+            option_values = [o.get_attribute("value") for o in all_options]
+
+            current_index = next(
+                (i for i, o in enumerate(all_options) if o.is_selected()), 0
+            )
+            target_index = next(
+                (i for i, v in enumerate(option_values) if v == target_value), None
+            )
+
+            if target_index is None:
+                print(f"  未找到选项 value='{target_value}'，回退到 Select API")
+                sel.select_by_value(target_value)
+                # 回退路径同样需要关闭下拉框
+                select_el.send_keys(Keys.ESCAPE)
+                self.blur_focus()
+                return
+
+            # ④ 用方向键逐项移动，每步暂停产生高亮滚动效果
+            steps = target_index - current_index
+            nav_key = Keys.ARROW_DOWN if steps > 0 else Keys.ARROW_UP
+
+            for _ in range(abs(steps)):
+                select_el.send_keys(nav_key)
+                # 每步停顿 120–300 ms，让高亮效果肉眼可见
+                self.human_delay(0.12, 0.30)
+
+            # ⑤ 在目标项上额外停留，模拟"确认阅读"
+            self.human_delay(0.2, 0.45)
+
+            # ⑥ 按 Enter 确认选中，下拉框随之关闭
+            select_el.send_keys(Keys.RETURN)
+            self.human_delay(0.2, 0.35)
+
+            # ⑦ 点击空白处彻底失焦，确保下拉框视觉上完全关闭
+            self.blur_focus()
+
+            print(f"  选择: {value} = {target_value}")
+        except Exception as e:
+            print(f"  下拉选择失败: {e}")
+
+    # ──────────────────────────────────────────────
+    #  文件上传：直接赋值，无需真人效果
+    # ──────────────────────────────────────────────
 
     def upload_file(self, by, value, file_path):
-        """上传文件 - 带人工效果"""
+        """上传文件（直接 send_keys，跳过人工效果，浏览器自动预览）"""
         try:
-            # 1. 找到上传区域并点击（模拟人工点击上传）
-            upload_area = self.driver.find_element(By.CLASS_NAME, "photo-upload")
-
-            # 滚动到可见
-            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", upload_area)
-            self.human_delay(0.3, 0.6)
-
-            # 模拟鼠标移动到上传区域
-            if self.human_like:
-                action = ActionChains(self.driver)
-                action.move_to_element(upload_area).perform()
-                self.human_delay(0.2, 0.4)
-
-            # 点击上传区域（触发文件选择）
-            # upload_area.click()
-            # print("  📁 点击上传区域...")
-            # self.human_delay(0.5, 1.0)
-
-            # 2. 找到隐藏的file input并上传
             element = self.driver.find_element(by, value)
             element.send_keys(file_path)
-            print(f"  📤 上传文件: {file_path}")
-
-            # 3. 等待上传完成（模拟上传过程）
-            self.human_delay(1.0, 1.5)
-
-            # 4. 等待预览图出现
-            try:
-                self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".photo-preview img")))
-                print("  🖼️  照片预览已加载")
-                self.human_delay(0.5, 0.8)
-            except:
-                pass
-
+            print(f"  上传文件: {file_path}")
         except Exception as e:
-            print(f"  ✗ 上传失败: {e}")
+            print(f"  上传失败: {e}")
+
+    # ──────────────────────────────────────────────
+    #  按钮点击：光标移入 → 悬停 → 点击
+    # ──────────────────────────────────────────────
 
     def click_button(self, by, value):
-        """点击按钮 - 带人工效果"""
+        """点击按钮（human_like=True 时先移光标、短暂悬停再点击）"""
         try:
-            # 1. 等待按钮可点击
             element = self.wait.until(EC.element_to_be_clickable((by, value)))
 
-            # 2. 滚动到可见
-            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-            self.human_delay(0.2, 0.5)
-
-            # 3. 模拟鼠标移动到按钮
             if self.human_like:
-                action = ActionChains(self.driver)
-                action.move_to_element(element).perform()
-                self.human_delay(0.3, 0.6)
+                self.move_to(element, pre_delay=(0.2, 0.4), post_delay=(0.15, 0.35))
+                self.human_delay(0.1, 0.3)
 
-            # 4. 模拟人工点击（先按下，再释放）
-            if self.human_like:
-                action = ActionChains(self.driver)
-                action.click_and_hold(element).pause(0.1).release().perform()
-            else:
-                element.click()
-
-            print(f"  ✓ 点击按钮: 保存")
-
-            # 5. 点击后等待（模拟人工反应）
-            self.human_delay(0.5, 1.0)
-
+            element.click()
+            print(f"  点击: {value}")
+            time.sleep(3)
             return True
-
         except Exception as e:
-            print(f"  ✗ 点击失败: {e}")
+            print(f"  点击失败: {e}")
             return False
 
-    def wait_for_save_complete(self):
-        """等待保存完成"""
-        try:
-            # 等待成功消息出现
-            success_msg = self.wait.until(
-                EC.presence_of_element_located((By.CLASS_NAME, "message.success"))
-            )
-            print("  ✅ 保存成功！")
-
-            # 等待成功消息消失（可选）
-            if self.human_like:
-                time.sleep(random.uniform(1.0, 2.0))  # 模拟人工查看结果
-
-        except:
-            print("  ⚠️  未检测到成功消息")
-
-        # 等待2-3秒，模拟人工查看结果
-        self.human_delay(1.5, 2.5)
+    # ──────────────────────────────────────────────
+    #  提交单人
+    # ──────────────────────────────────────────────
 
     def submit_person(self, person_info):
-        """提交单个人 - 带人工操作感"""
         print("\n  👤 开始录入人员信息...")
 
-        # 1. 填写姓名（带打字效果）
         print("  ✏️  正在填写姓名...")
         self.fill_input(By.ID, "name", person_info['name'])
 
-        # 2. 上传照片（带点击和等待）
+        print("  ✏️  正在选择性别...")
+        self.select_dropdown(By.ID, "gender", str(person_info['gender']))
+        # select_dropdown 末尾已调用 blur_focus()，下拉框此时已完全关闭
+
         if person_info.get('photo'):
             print("  📸 正在上传照片...")
             self.upload_file(By.ID, "photoInput", person_info['photo'])
 
-        # 3. 等待一下再点击保存（模拟人工确认）
-        self.human_delay(0.5, 1.0)
-
-        # 4. 点击保存
         print("  💾 正在保存...")
         self.click_button(By.CLASS_NAME, "btn-save")
 
-        # 5. 等待保存完成
-        self.wait_for_save_complete()
+    # ──────────────────────────────────────────────
+    #  批量处理
+    # ──────────────────────────────────────────────
 
     def batch_submit_from_excel(self, excel_path):
-        """从Excel批量读取并提交"""
         df = pd.read_excel(excel_path)
-        print(f"📊 读取到 {len(df)} 条数据\n")
+        print(f"📊 读取到 {len(df)} 条Excel数据\n")
 
-        # 打开页面
         self.driver.get(self.url)
         print("🌐 页面已打开")
-
-        # 等待页面完全加载
         time.sleep(2)
 
         for index, row in df.iterrows():
@@ -237,20 +241,16 @@ class SeleniumAutoSubmit:
 
             person_info = {
                 'name': row['name'],
+                'gender': row['gender'],
                 'photo': row['photo']
             }
 
-            # 提交人员信息
             self.submit_person(person_info)
 
-            # 如果是最后一条，不刷新
             if index < len(df) - 1:
                 print("\n  🔄 准备录入下一条...")
-                # 模拟人工点击刷新或重新加载
-                self.human_delay(1.0, 1.5)
                 self.driver.refresh()
-                print("  🔄 页面已刷新")
-                self.human_delay(1.0, 1.5)
+                time.sleep(2)
 
         print(f"\n{'=' * 60}")
         print(f"✅ 全部完成！共处理 {len(df)} 人")
@@ -259,16 +259,22 @@ class SeleniumAutoSubmit:
     def close(self):
         if self.keep_browser_open:
             print("\n🌐 浏览器保持打开状态，请手动关闭")
-            # 不执行 self.driver.quit()
         else:
             self.driver.quit()
 
 
 if __name__ == "__main__":
-    url = "F:/Projects/Study/github/Pycharm/person.html"
+    url = "F:/Projects/Study/github/Pycharm/personWithGender.html"
     excel_file = "F:/Projects/Study/github/Pycharm/person.xlsx"
-    # 创建自动化实例
-    auto = SeleniumAutoSubmit(url, keep_browser_open=True, human_like=True, debugger_address="localhost:9222", use_debug_mode=True)
+
+    auto = SeleniumAutoSubmit(
+        url,
+        keep_browser_open=True,
+        use_debug_mode=False,
+        debugger_address="localhost:9222",
+        human_like=True,
+        use_cursor=True
+    )
 
     try:
         auto.batch_submit_from_excel(excel_file)

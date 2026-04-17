@@ -1,0 +1,161 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.edge.options import Options
+from selenium.webdriver.support.ui import Select
+import time
+import pandas as pd
+import random
+
+
+class SeleniumAutoSubmit:
+    def __init__(self, url, keep_browser_open=True, use_debug_mode=True, debugger_address="localhost:9222"):
+        self.url = url
+        self.keep_browser_open = keep_browser_open
+
+        if use_debug_mode:
+            # 模式1：连接到已打开的调试模式浏览器
+            print(f"🔗 正在连接到调试模式浏览器: {debugger_address}")
+            edge_options = Options()
+            edge_options.add_experimental_option("debuggerAddress", debugger_address)
+            self.driver = webdriver.Edge(options=edge_options)  # ✅ 使用Options
+            print("✅ 已连接到现有浏览器窗口")
+        else:
+            # 模式2：打开新浏览器
+            print("🌐 正在打开新浏览器窗口")
+            self.driver = webdriver.Edge()
+            print("✅ 新浏览器已打开")
+
+        # 等待浏览器元素加载完毕
+        self.wait = WebDriverWait(self.driver, 10)
+
+    def human_delay(self, min_sec=0.3, max_sec=0.8):
+        """模拟人工延迟"""
+        delay = random.uniform(min_sec, max_sec)
+        time.sleep(delay)
+
+    def select_dropdown(self, by, value, gender_value):
+        gender_select = self.wait.until(
+            EC.presence_of_element_located((by, value))
+        )
+        select = Select(gender_select)
+        select.select_by_value(gender_value)  # "男" 或 "女"
+
+    def fill_input(self, by, value, content):
+        """填充输入框"""
+        try:
+            element = self.wait.until(EC.presence_of_element_located((by, value)))
+            element.clear()
+            element.send_keys(content)
+            print(f"  填充: {value} = {content}")
+        except Exception as e:
+            print(f"  填充失败: {e}")
+
+    def upload_file(self, by, value, file_path):
+        """上传文件"""
+        try:
+            element = self.driver.find_element(by, value)
+            element.send_keys(file_path)
+            print(f"  上传文件: {file_path}")
+        except Exception as e:
+            print(f"  上传失败: {e}")
+
+    def click_button(self, by, value):
+        """点击按钮"""
+        try:
+            element = self.wait.until(EC.element_to_be_clickable((by, value)))
+            element.click()
+            print(f"  点击: {value}")
+            time.sleep(3)
+            return True
+        except Exception as e:
+            print(f"  点击失败: {e}")
+            return False
+
+    def submit_person(self, person_info):
+        """提交单个人 - 带人工操作感"""
+        print("\n  👤 开始录入人员信息...")
+
+        # 1. 填写姓名（带打字效果）
+        print("  ✏️  正在填写姓名...")
+        self.fill_input(By.ID, "name", person_info['name'])
+        self.human_delay(0.5, 1)
+
+        print("  ✏️  正在选择性别...")
+        self.select_dropdown(By.ID, "gender", str(person_info['gender']))
+        self.human_delay(0.5, 1)
+
+        # 2. 上传照片（带点击和等待）
+        if person_info.get('photo'):
+            print("  📸 正在上传照片...")
+            self.upload_file(By.ID, "photoInput", person_info['photo'])
+            self.human_delay(0.5, 1)
+
+        # 3. 点击保存
+        print("  💾 正在保存...")
+        self.click_button(By.CLASS_NAME, "btn-save")
+        self.human_delay(0.5, 1)
+
+    def batch_submit_from_excel(self, excel_path):
+        """从Excel批量读取并提交"""
+        df = pd.read_excel(excel_path)
+        print(f"📊 读取到 {len(df)} 条Excel数据\n")
+
+        print(df)
+
+        # 打开页面
+        self.driver.get(self.url)
+        print("🌐 页面已打开")
+
+        # 等待页面完全加载
+        time.sleep(2)
+
+        for index, row in df.iterrows():
+            print(f"\n{'=' * 60}")
+            print(f"📝 正在录入第 {index + 1}/{len(df)} 人: {row['name']}")
+            print(f"{'=' * 60}")
+
+            person_info = {
+                'name': row['name'],
+                'gender': row['gender'],
+                'photo': row['photo']
+            }
+
+            # 提交人员信息
+            self.submit_person(person_info)
+
+            # 如果是最后一条，不刷新
+            if index < len(df) - 1:
+                print("\n  🔄 准备录入下一条...")
+                # 模拟人工点击刷新或重新加载
+                self.driver.refresh()
+
+        print(f"\n{'=' * 60}")
+        print(f"✅ 全部完成！共处理 {len(df)} 人")
+        print(f"{'=' * 60}")
+
+    def close(self):
+        if self.keep_browser_open:
+            print("\n🌐 浏览器保持打开状态，请手动关闭")
+            # 不执行 self.driver.quit()
+        else:
+            self.driver.quit()
+
+
+if __name__ == "__main__":
+    url = "F:/Projects/Study/github/Pycharm/personWithGender.html"
+    excel_file = "F:/Projects/Study/github/Pycharm/person.xlsx"
+    # 创建自动化实例
+    auto = SeleniumAutoSubmit(url, keep_browser_open=True, use_debug_mode=False)
+
+    try:
+        auto.batch_submit_from_excel(excel_file)
+        input("\n按Enter键结束程序...")
+    finally:
+        auto.close()
