@@ -50,7 +50,7 @@ spring:
   profiles: # 测试、开发、部署环境切换
     # 切换Profiles的配置之后不生效：https://blog.csdn.net/qq_43377237/article/details/103869813
     # clean之后重新构建
-    active: @activated@
+    active: deploy
 
   jackson: # restful格式转换json的时候，null不转换
     default-property-inclusion: NON_EMPTY
@@ -105,16 +105,16 @@ spring:
       hibernate:
         format_sql: true
 
-#  data:
-#    redis:
-#      # host: host.docker.internal 不被识别
-#      database: 1 # 数据库索引 默认0
-#      timeout: 10S # 超时时间:秒
-#  cache:
-#    type: redis
-#    redis:
-#      # 缓存null值，防止缓存穿透
-#      cache-null-values: true
+  #  data:
+  #    redis:
+  #      # host: host.docker.internal 不被识别
+  #      database: 1 # 数据库索引 默认0
+  #      timeout: 10S # 超时时间:秒
+  #  cache:
+  #    type: redis
+  #    redis:
+  #      # 缓存null值，防止缓存穿透
+  #      cache-null-values: true
 
   security:
     user:

@@ -18,13 +18,18 @@ import org.springframework.stereotype.Component;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TlpCZPBase extends TlpBase {
-    private String czpz;
+    private String btx;
     private String gw;
+    private String bh;
     private String flr;
     private String slr;
-    private String flsj;
+    private String flrq;
+    private String czksrq;
     private String czkssj;
+    private String czjsrq;
     private String czjssj;
+    private String tjsp;
+    private String tjspr;
 
     private String czrw;
 }

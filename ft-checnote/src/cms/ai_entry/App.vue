@@ -127,6 +127,12 @@ const aiGridItems = ref([
         enabled: true,
     },
     {
+        name: "智谱清言",
+        url: "https://chatglm.cn/main/alltoolsdetail?lang=zh",
+        image: logo_kimi,
+        enabled: true,
+    },
+    {
         name: "Kimi",
         url: "https://kimi.moonshot.cn",
         image: logo_kimi,
@@ -262,8 +268,14 @@ const appGridItems = ref([
         enabled: true,
     },
     {
-        name: "两票系统",
+        name: "神木氯碱两票系统",
         url: "http://10.8.54.162:8087?group=" + group,
+        image: logo_book,
+        enabled: true,
+    },
+    {
+        name: "金泰氯碱两票系统",
+        url: "http://10.8.54.162:7050?group=" + group,
         image: logo_book,
         enabled: true,
     },
