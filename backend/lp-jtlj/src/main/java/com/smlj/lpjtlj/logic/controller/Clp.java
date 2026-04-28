@@ -176,7 +176,8 @@ public class Clp {
         private boolean hasSubmitTime;
         private boolean hasArchiveTime;
 
-        private TPCfg pCfg;
+        private TPCfg czpcfg;
+        private TPCfg gzpCfg;
     }
 
     @Transactional
@@ -196,7 +197,7 @@ public class Clp {
                 .setHasArchiveTime(hasArchiveTime);
 
         var cfg = tlpDao.getPCfg(workflowId);
-        tp.setPCfg(cfg);
+        tp.setCzpcfg(cfg);
         return Result.success(tp);
     }
 }

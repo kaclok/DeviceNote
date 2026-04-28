@@ -140,10 +140,15 @@ logging:
   level: # https://blog.csdn.net/oYinHeZhiGuang/article/details/120761368
     org:
       springframework:
+        data:
+          mongodb: DEBUG
+        boot:
+          autoconfigure:
+            mongo: DEBUG
         web:
           client:
             RestTemplate: OFF # 关闭SpringbootAdmin的client的日志
-          HttpLogging : OFF # 关闭SpringbootAdmin的client的日志
+          HttpLogging: OFF # 关闭SpringbootAdmin的client的日志
       apache:
         ibatis:
           DEBUG
