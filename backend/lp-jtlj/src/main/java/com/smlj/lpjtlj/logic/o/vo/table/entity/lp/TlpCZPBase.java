@@ -30,6 +30,7 @@ public class TlpCZPBase extends TlpBase {
     private String czjssj;
     private String tjsp;
     private String tjspr;
+    private String jhr;
 
     private String czrw;
 }
