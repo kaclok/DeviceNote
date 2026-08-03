@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NFC 巡检录入主界面
+    - 顶部: MaterialToolbar 显示巡检点信息
+    - 中部: NestedScrollView 包含 4 个巡检项卡片
+    - 底部: 居中"提交"按钮
+
+    每个卡片结构:
+        MaterialCardView
+        └─ LinearLayout (vertical)
+           ├─ LinearLayout (horizontal) — 勾选框 + 标签 + 提示 + 状态
+           ├─ View (1dp 分隔线)
+           └─ LinearLayout (vertical, visibility=gone) — 展开区域, 动态添加位号行
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:background="@color/insp_bg_tertiary"
+    tools:context=".logic.activity.InspectionActivity">
+
+    <!-- ==================== 顶部 App Bar ==================== -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/insp_surface"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/insp_surface"
+            app:subtitle="@string/insp_subtitle"
+            app:titleTextColor="@color/insp_text_primary"
+            app:subtitleTextColor="@color/insp_text_tertiary" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- ==================== 滚动内容区 ==================== -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/appBarLayout"
+        app:layout_constraintBottom_toTopOf="@id/btnSubmit">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="4dp"
+            android:paddingBottom="8dp">
+
+            <!-- ============ 卡片 1: 震动情况 ============ -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardVibration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginVertical="4dp"
+                app:cardBackgroundColor="@color/insp_surface"
+                app:cardCornerRadius="10dp"
+                app:strokeColor="@color/insp_border_tertiary"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- 头部: 勾选框 + 标签 + 提示 + 状态 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="14dp">
+
+                        <com.google.android.material.checkbox.MaterialCheckBox
+                            android:id="@+id/cbVibration"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:padding="0dp"
+                            app:buttonTint="@color/insp_teal_600" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/insp_vibration"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/insp_text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/insp_check_hint"
+                            android:textSize="11sp"
+                            android:textColor="@color/insp_text_tertiary"
+                            android:layout_marginEnd="8dp" />
+
+                        <TextView
+                            android:id="@+id/tvStatusVibration"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/insp_status_normal"
+                            android:textSize="10sp"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="2dp"
+                            android:background="@drawable/bg_status_normal"
+                            android:textColor="@color/insp_green_800" />
+
+                    </LinearLayout>
+
+                    <!-- 分隔线 -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/insp_border_light" />
+
+                    <!-- 展开区域: 动态添加位号行 -->
+                    <LinearLayout
+                        android:id="@+id/expandVibration"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="12dp"
+                        android:divider="@drawable/divider_light"
+                        android:showDividers="middle" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 卡片 2: 温度情况 ============ -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardTemperature"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginVertical="4dp"
+                app:cardBackgroundColor="@color/insp_surface"
+                app:cardCornerRadius="10dp"
+                app:strokeColor="@color/insp_border_tertiary"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="14dp">
+
+                        <com.google.android.material.checkbox.MaterialCheckBox
+                            android:id="@+id/cbTemperature"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:padding="0dp"
+                            app:buttonTint="@color/insp_teal_600" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/insp_temperature"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/insp_text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/insp_check_hint"
+                            android:textSize="11sp"
+                            android:textColor="@color/insp_text_tertiary"
+                            android:layout_marginEnd="8dp" />
+
+                        <TextView
+                            android:id="@+id/tvStatusTemperature"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/insp_status_normal"
+                            android:textSize="10sp"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="2dp"
+                            android:background="@drawable/bg_status_normal"
+                            android:textColor="@color/insp_green_800" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/insp_border_light" />
+
+                    <LinearLayout
+                        android:id="@+id/expandTemperature"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="12dp"
+                        android:divider="@drawable/divider_light"
+                        android:showDividers="middle" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 卡片 3: 油位情况 ============ -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardOilLevel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginVertical="4dp"
+                app:cardBackgroundColor="@color/insp_surface"
+                app:cardCornerRadius="10dp"
+                app:strokeColor="@color/insp_border_tertiary"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="14dp">
+
+                        <com.google.android.material.checkbox.MaterialCheckBox
+                            android:id="@+id/cbOilLevel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:padding="0dp"
+                            app:buttonTint="@color/insp_teal_600" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/insp_oil_level"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/insp_text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/insp_check_hint"
+                            android:textSize="11sp"
+                            android:textColor="@color/insp_text_tertiary"
+                            android:layout_marginEnd="8dp" />
+
+                        <TextView
+                            android:id="@+id/tvStatusOilLevel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/insp_status_normal"
+                            android:textSize="10sp"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="2dp"
+                            android:background="@drawable/bg_status_normal"
+                            android:textColor="@color/insp_green_800" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/insp_border_light" />
+
+                    <LinearLayout
+                        android:id="@+id/expandOilLevel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="12dp"
+                        android:divider="@drawable/divider_light"
+                        android:showDividers="middle" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ============ 卡片 4: 其他情况 ============ -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardOther"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginVertical="4dp"
+                app:cardBackgroundColor="@color/insp_surface"
+                app:cardCornerRadius="10dp"
+                app:strokeColor="@color/insp_border_tertiary"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="14dp">
+
+                        <com.google.android.material.checkbox.MaterialCheckBox
+                            android:id="@+id/cbOther"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:padding="0dp"
+                            app:buttonTint="@color/insp_teal_600" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/insp_other"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/insp_text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/insp_check_hint"
+                            android:textSize="11sp"
+                            android:textColor="@color/insp_text_tertiary"
+                            android:layout_marginEnd="8dp" />
+
+                        <TextView
+                            android:id="@+id/tvStatusOther"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/insp_status_normal"
+                            android:textSize="10sp"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="2dp"
+                            android:background="@drawable/bg_status_normal"
+                            android:textColor="@color/insp_green_800" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/insp_border_light" />
+
+                    <LinearLayout
+                        android:id="@+id/expandOther"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        android:paddingHorizontal="16dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="12dp"
+                        android:divider="@drawable/divider_light"
+                        android:showDividers="middle" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ==================== 底部提交按钮 ==================== -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSubmit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/insp_submit"
+        android:textSize="14sp"
+        android:paddingVertical="12dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="12dp"
+        app:backgroundTint="@color/insp_teal_600"
+        app:cornerRadius="8dp"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

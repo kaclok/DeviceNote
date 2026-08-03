@@ -5,6 +5,7 @@ import com.smlj.nfcpatrol.core.network.http.RetrofitProvider;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.RecordInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
+import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPosition;
 
 import java.util.ArrayList;
 
@@ -36,5 +37,9 @@ public class NFCPatrolDao {
 
     public Call<PageSerializable<TNFCPatrolPoint>> queryPoints(String rfid) {
         return api.queryPoints(rfid);
+    }
+
+    public Call<ArrayList<TNFCPatrolPosition>> queryPositions(String rfid) {
+        return api.queryPositions(rfid);
     }
 }

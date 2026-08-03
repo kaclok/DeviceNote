@@ -167,7 +167,7 @@ public class MainActivity extends AppCompatActivity implements LineAdapter.OnIte
                                 toast.setGravity(Gravity.CENTER, 0, 0);
                                 toast.show();
                             } else {
-                                Intent intent = new Intent(activity, SubmitActivity.class);
+                                Intent intent = new Intent(activity, InspectionActivity.class);
                                 intent.putExtra("point", point);
                                 intent.putExtra("person", getIntent().getStringExtra("person"));
                                 intent.putExtra("deptId", getIntent().getStringExtra("deptId"));

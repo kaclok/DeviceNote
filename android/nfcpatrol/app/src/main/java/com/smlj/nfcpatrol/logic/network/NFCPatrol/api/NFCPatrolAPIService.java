@@ -4,6 +4,7 @@ import com.smlj.nfcpatrol.core.network.PageSerializable;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.LineInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.RecordInfo;
 import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPoint;
+import com.smlj.nfcpatrol.logic.network.NFCPatrol.TNFCPatrolPosition;
 
 import java.util.ArrayList;
 
@@ -46,4 +47,9 @@ public interface NFCPatrolAPIService {
     @POST("nfcPatrol/queryPoints")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
     Call<PageSerializable<TNFCPatrolPoint>> queryPoints(@Field("queryByRfId") String queryByRfId);
+
+    @FormUrlEncoded
+    @POST("nfcPatrol/queryPositions")
+// Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
+    Call<ArrayList<TNFCPatrolPosition>> queryPositions(@Field("rfid") String rfid);
 }

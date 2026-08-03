@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Backgrounds -->
+    <color name="insp_bg_tertiary">#F1EFE8</color>
+    <color name="insp_surface">#FFFFFF</color>
+
+    <!-- Text -->
+    <color name="insp_text_primary">#2C2C2A</color>
+    <color name="insp_text_secondary">#444441</color>
+    <color name="insp_text_tertiary">#888780</color>
+
+    <!-- Borders -->
+    <color name="insp_border_tertiary">#D3D1C7</color>
+    <color name="insp_border_light">#F1EFE8</color>
+
+    <!-- Teal (checkbox / submit button) -->
+    <color name="insp_teal_600">#0F6E56</color>
+
+    <!-- Blue (vibration dot) -->
+    <color name="insp_blue_400">#378ADD</color>
+
+    <!-- Orange (temperature dot) -->
+    <color name="insp_orange_400">#D85A30</color>
+
+    <!-- Amber (oil level dot) -->
+    <color name="insp_amber_400">#EF9F27</color>
+
+    <!-- Gray (other dot) -->
+    <color name="insp_gray_600">#5F5E5A</color>
+
+    <!-- Green (status normal) -->
+    <color name="insp_green_50">#EAF3DE</color>
+    <color name="insp_green_800">#3B6D11</color>
+
+    <!-- Red (status abnormal) -->
+    <color name="insp_red_50">#FCEBEB</color>
+    <color name="insp_red_800">#A32D2D</color>
+
+</resources>

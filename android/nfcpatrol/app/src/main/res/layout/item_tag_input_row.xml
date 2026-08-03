@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    单行位号输入布局
+    动态 inflate 添加到各巡检项卡片的展开区域内
+    使用方式:
+        val rowView = layoutInflater.inflate(R.layout.item_tag_input_row, container, false)
+        rowView.findViewById<TextView>(R.id.tvTag).text = "V-01"
+        rowView.findViewById<View>(R.id.viewDot).backgroundTintList = ColorStateList.valueOf(Color.parseColor("#378ADD"))
+        container.addView(rowView)
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="top"
+    android:paddingVertical="2dp">
+
+    <!-- 位号标签（彩色圆点 + 位号文字） -->
+    <LinearLayout
+        android:layout_width="65dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="6dp">
+
+        <View
+            android:id="@+id/viewDot"
+            android:layout_width="5dp"
+            android:layout_height="5dp"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/bg_dot_circle" />
+
+        <TextView
+            android:id="@+id/tvTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="8sp"
+            android:textColor="@color/insp_text_secondary"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- 多行自适应输入框 -->
+    <EditText
+        android:id="@+id/etInput"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_input_outline"
+        android:padding="6dp"
+        android:textSize="8sp"
+        android:textColor="@color/insp_text_primary"
+        android:inputType="textMultiLine|textCapSentences"
+        android:minHeight="32dp"
+        android:gravity="top|start"
+        android:hint="@string/insp_input_hint"
+        android:textColorHint="@color/insp_text_tertiary"
+        android:scrollbars="none"
+        android:overScrollMode="never" />
+
+</LinearLayout>

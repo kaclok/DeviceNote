@@ -125,27 +125,38 @@ public class PointsActivity extends AppCompatActivity {
         });
     }
 
+    private boolean istest = false;
     private void handleNfcResult(ActivityResult result) {
-        if (result.getResultCode() == Activity.RESULT_OK) {
-            Intent data = result.getData();
-            if (data != null) {
-                String rfId = data.getStringExtra("rfId");
+        if(!istest) {
+            if (result.getResultCode() == Activity.RESULT_OK) {
+                Intent data = result.getData();
+                if (data != null) {
+                    String rfId = data.getStringExtra("rfId");
 
-                if (point != null) {
-                    if (!point.getRfid().equals(rfId)) {
-                        Toast toast = Toast.makeText(this, "请扫描选中巡检点的NFC标签", Toast.LENGTH_SHORT);
-                        toast.setGravity(Gravity.CENTER, 0, 0);
-                        toast.show();
-                    } else {
-                        Intent intent = new Intent(this, SubmitActivity.class);
-                        intent.putExtra("point", point);
-                        intent.putExtra("person", getIntent().getStringExtra("person"));
-                        intent.putExtra("deptId", getIntent().getStringExtra("deptId"));
-                        intent.putExtra("deptName", getIntent().getStringExtra("deptName"));
-                        startActivity(intent);
+                    if (point != null) {
+                        if (!point.getRfid().equals(rfId)) {
+                            Toast toast = Toast.makeText(this, "请扫描选中巡检点的NFC标签", Toast.LENGTH_SHORT);
+                            toast.setGravity(Gravity.CENTER, 0, 0);
+                            toast.show();
+                        } else {
+                            Intent intent = new Intent(this, InspectionActivity.class);
+                            intent.putExtra("point", point);
+                            intent.putExtra("person", getIntent().getStringExtra("person"));
+                            intent.putExtra("deptId", getIntent().getStringExtra("deptId"));
+                            intent.putExtra("deptName", getIntent().getStringExtra("deptName"));
+                            startActivity(intent);
+                        }
                     }
                 }
             }
+        }
+        else {
+            Intent intent = new Intent(this, InspectionActivity.class);
+            intent.putExtra("point", point);
+            intent.putExtra("person", getIntent().getStringExtra("person"));
+            intent.putExtra("deptId", getIntent().getStringExtra("deptId"));
+            intent.putExtra("deptName", getIntent().getStringExtra("deptName"));
+            startActivity(intent);
         }
     }
 }

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- App bar -->
+    <string name="insp_title">NFC巡检录入</string>
+    <string name="insp_subtitle">B区-2号离心压缩机</string>
+
+    <!-- Inspection categories -->
+    <string name="insp_vibration">震动情况</string>
+    <string name="insp_temperature">温度情况</string>
+    <string name="insp_oil_level">油位情况</string>
+    <string name="insp_other">其他情况</string>
+
+    <!-- Common -->
+    <string name="insp_check_hint">勾选表示存在异常</string>
+    <string name="insp_status_normal">正常</string>
+    <string name="insp_status_abnormal">异常</string>
+    <string name="insp_submit">提交</string>
+    <string name="insp_input_hint">输入...</string>
+
+</resources>
