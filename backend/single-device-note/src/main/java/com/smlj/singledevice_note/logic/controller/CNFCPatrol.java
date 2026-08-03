@@ -8,10 +8,7 @@ import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.dto.KV;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.*;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolDept;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolRecord;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -34,8 +31,10 @@ public class CNFCPatrol {
     private final TNFCPatrolPointDao pointDao;
     private final TNFCPatrolLineDao lineDao;
     private final TNFCPatrolRecordDao recordDao;
+    private final TNFCPatrolRecordsDao recordsDao;
     private final TNFCPatrolDeptDao deptDao;
     private final TNFCPatrolZzDao zzDao;
+    private final TNFCPatrolPositionDao positionDao;
 
     @Transactional
     @GetMapping(value = "/queryDepts")
@@ -314,6 +313,14 @@ public class CNFCPatrol {
         return Result.success(ls);
     }
 
+    // 查询某个巡检点位的pointnum查询所有位号
+    @Transactional
+    @PostMapping(value = "/queryPositions")
+    public Result<?> queryPositions(@RequestParam(name = "rfid") String rfid) {
+        var ls = positionDao.query(rfid);
+        return Result.success(ls);
+    }
+
     @Transactional
     @PostMapping(value = "/queryPointsInfoByLine")
     public Result<?> queryPointsInfoByLine(@RequestParam(name = "lineid") int lineid, @RequestParam(name = "queryBegin") String queryBegin) {
@@ -368,6 +375,23 @@ public class CNFCPatrol {
         record.setDeptid(deptid);
 
         int r = recordDao.insert(record);
+        return Result.sf(r > 0);
+    }
+
+    @Transactional
+    @PostMapping(value = "/addRecord2")
+    public Result<?> addRecord2(@RequestParam(name = "rfid") String rfid, @RequestParam(name = "person") String person, @RequestParam(name = "deptid") String deptid) {
+        if (pointDao.exist(rfid) <= 0) {
+            return Result.fail("添加失败，该巡检点id不存在");
+        }
+
+        TNFCPatrolRecords record = new TNFCPatrolRecords();
+        record.setRfid(rfid);
+        record.setPerson(person);
+        record.setDotime(new Date());
+        record.setDeptid(deptid);
+
+        int r = recordsDao.insert(record);
         return Result.sf(r > 0);
     }
 
@@ -444,7 +468,6 @@ public class CNFCPatrol {
             long total = recordDao.querySeriesCount(zzIds, idArray, queryByStatus, begin, end);
             kvList1.add(new KV<>(dept.getName(), total));
         }
-
 
         List<KV<Integer, String>> statusList = new ArrayList<>();
         statusList.add(new KV<>(2, "巡检中"));
