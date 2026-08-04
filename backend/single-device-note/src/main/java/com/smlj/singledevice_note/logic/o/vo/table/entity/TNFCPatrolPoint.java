@@ -23,5 +23,6 @@ public class TNFCPatrolPoint implements Serializable {
 
     // 冗余设计
     private Integer lineid; // 路线id
+    private String linenum;
 }
 

@@ -96,7 +96,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/insp_vibration"
-                            android:textSize="14sp"
+                            android:textSize="12sp"
                             android:textStyle="bold"
                             android:textColor="@color/insp_text_primary" />
 
@@ -182,7 +182,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/insp_temperature"
-                            android:textSize="14sp"
+                            android:textSize="12sp"
                             android:textStyle="bold"
                             android:textColor="@color/insp_text_primary" />
 
@@ -266,7 +266,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/insp_oil_level"
-                            android:textSize="14sp"
+                            android:textSize="12sp"
                             android:textStyle="bold"
                             android:textColor="@color/insp_text_primary" />
 
@@ -350,7 +350,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/insp_other"
-                            android:textSize="14sp"
+                            android:textSize="12sp"
                             android:textStyle="bold"
                             android:textColor="@color/insp_text_primary" />
 

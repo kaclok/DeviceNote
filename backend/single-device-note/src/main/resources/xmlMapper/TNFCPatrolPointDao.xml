@@ -4,7 +4,7 @@
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TNFCPatrolPointDao">
     <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
-        select * from nfcpatrol.t_nfcpatrol_point
+        select * from nfcpatrol.t_nfcpatrol_point_1
         where deleted = false
         <if test="queryByNum != null and queryByNum != ''">
             and pointnum LIKE CONCAT('%', #{queryByNum}, '%')
@@ -19,7 +19,7 @@
     </select>
 
     <select id="queryUnused" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
-        select * from nfcpatrol.t_nfcpatrol_point
+        select * from nfcpatrol.t_nfcpatrol_point_1
         where deleted = false and lineid is null
         <if test="queryByNum != null and queryByNum != ''">
             and pointnum LIKE CONCAT('%', #{queryByNum}, '%')
@@ -34,19 +34,19 @@
     </select>
 
     <select id="queryById" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
-        select * from nfcpatrol.t_nfcpatrol_point
+        select * from nfcpatrol.t_nfcpatrol_point_1
         where rfid = #{id} and deleted = FALSE
     </select>
 
     <update id="deleteFromLine">
-        UPDATE nfcpatrol.t_nfcpatrol_line
+        UPDATE nfcpatrol.t_nfcpatrol_line_1
         SET pointids = ARRAY_REMOVE (pointids, #{rfid})
         WHERE
-        id = (SELECT lineid FROM nfcpatrol.t_nfcpatrol_point WHERE rfid = #{rfid});
+        id = (SELECT lineid FROM nfcpatrol.t_nfcpatrol_point_1 WHERE rfid = #{rfid});
     </update>
 
     <update id="delete">
-        UPDATE nfcpatrol.t_nfcpatrol_point
+        UPDATE nfcpatrol.t_nfcpatrol_point_1
         SET deleted = TRUE,
         lineid = NULL
         WHERE
@@ -54,7 +54,7 @@
     </update>
 
     <select id="exist" resultType="java.lang.Integer">
-        SELECT COUNT(*) FROM nfcpatrol.t_nfcpatrol_point WHERE rfid = #{id}
+        SELECT COUNT(*) FROM nfcpatrol.t_nfcpatrol_point_1 WHERE rfid = #{id}
     </select>
 
     <!--
@@ -64,7 +64,7 @@
     >1	成功将多条记录标记为已删除（如果 rfId 不是主键或唯一约束）
     -->
     <update id="updateBase">
-        update nfcpatrol.t_nfcpatrol_point
+        update nfcpatrol.t_nfcpatrol_point_1
         SET
             pointname = #{item.pointname},
             pointnum = #{item.pointnum},
@@ -73,7 +73,7 @@
     </update>
 
     <update id="updateLineId">
-        update nfcpatrol.t_nfcpatrol_point
+        update nfcpatrol.t_nfcpatrol_point_1
         SET
             lineid = #{lineid}
         where rfid = #{rfid} and deleted = FALSE
@@ -85,7 +85,7 @@
     返回 0：插入失败（没有插入任何记录）
     -->
     <insert id="insert">
-        insert into nfcpatrol.t_nfcpatrol_point (rfid
+        insert into nfcpatrol.t_nfcpatrol_point_1 (rfid
             , pointname
             , pointnum
             , pointaddr

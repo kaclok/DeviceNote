@@ -61,7 +61,7 @@ public class InspectionActivity extends AppCompatActivity {
 
         // getIntent().getStringExtra("deptName");
         val toolbar = ((MaterialToolbar) findViewById(R.id.toolbar));
-        toolbar.setSubtitle(point.getPointname() +  " " + point.getPointnum());
+        toolbar.setSubtitle(point.getPointname() /*+  "点位：" + point.getPointnum()+  " 路线：" + point.getLinenum()*/);
 
         // 提交按钮
         findViewById(R.id.btnSubmit).setOnClickListener(v -> {
@@ -81,7 +81,7 @@ public class InspectionActivity extends AppCompatActivity {
             call.cancel();
         }
 
-        String rfid = "0463A51A647380";
+        String rfid = point.getRfid();
         call = NFCPatrolDao.instance().queryPositions(rfid);
         call.enqueue(new ActivitySafeCallback<ArrayList<TNFCPatrolPosition>>(this) {
             @Override

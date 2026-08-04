@@ -16,7 +16,7 @@
     </resultMap>
 
     <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine" resultMap="lineResultMap">
-        select * from nfcpatrol.t_nfcpatrol_line
+        select * from nfcpatrol.t_nfcpatrol_line_1
         where deleted = false
         <if test="queryByNum != null and queryByNum != ''">
             and linenum LIKE CONCAT('%', #{queryByNum}, '%')
@@ -34,43 +34,43 @@
     </select>
 
     <select id="queryPointsByLine" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
-        SELECT * FROM nfcpatrol.t_nfcpatrol_point
+        SELECT * FROM nfcpatrol.t_nfcpatrol_point_1
         WHERE
-            rfid in (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line WHERE id = ${id})
+            rfid in (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line_1 WHERE id = ${id})
         order by createtime
     </select>
 
     <select id="queryRelativedPoints" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolPoint">
-        (SELECT * FROM nfcpatrol.t_nfcpatrol_point WHERE rfid IN (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line WHERE id = ${id})) UNION
-        (SELECT * FROM nfcpatrol.t_nfcpatrol_point WHERE lineid IS NULL)
+        (SELECT * FROM nfcpatrol.t_nfcpatrol_point_1 WHERE rfid IN (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line_1 WHERE id = ${id})) UNION
+        (SELECT * FROM nfcpatrol.t_nfcpatrol_point_1 WHERE lineid IS NULL)
         ORDER BY createtime
     </select>
 
     <select id="queryById" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine" resultMap="lineResultMap">
-        select * from nfcpatrol.t_nfcpatrol_line
+        select * from nfcpatrol.t_nfcpatrol_line_1
         where id = ${id}
     </select>
 
     <select id="queryByZzId" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TNFCPatrolLine" resultMap="lineResultMap">
-        select * from nfcpatrol.t_nfcpatrol_line
+        select * from nfcpatrol.t_nfcpatrol_line_1
         where zzid = #{zzid} ORDER BY id
     </select>
 
     <update id="delete">
-        update nfcpatrol.t_nfcpatrol_line
+        update nfcpatrol.t_nfcpatrol_line_1
         SET deleted = TRUE,
             pointids = null
         where id = ${id};
     </update>
 
     <update id="nullLineId">
-        UPDATE nfcpatrol.t_nfcpatrol_point
+        UPDATE nfcpatrol.t_nfcpatrol_point_1
         SET lineid = NULL
-        WHERE rfid IN (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line WHERE id = ${id});
+        WHERE rfid IN (SELECT UNNEST(pointids) FROM nfcpatrol.t_nfcpatrol_line_1 WHERE id = ${id});
     </update>
 
     <update id="updateBase">
-        update nfcpatrol.t_nfcpatrol_line
+        update nfcpatrol.t_nfcpatrol_line_1
         SET
             linenum = #{item.linenum},
             linename = #{item.linename},
@@ -82,13 +82,13 @@
     </update>
 
     <update id="updatePoints">
-        update nfcpatrol.t_nfcpatrol_line
+        update nfcpatrol.t_nfcpatrol_line_1
         SET pointids = #{pointids, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
         where id = ${id} and deleted = FALSE
     </update>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into nfcpatrol.t_nfcpatrol_line (linenum
+        insert into nfcpatrol.t_nfcpatrol_line_1 (linenum
             , linename
             , zzid
             , cycle
