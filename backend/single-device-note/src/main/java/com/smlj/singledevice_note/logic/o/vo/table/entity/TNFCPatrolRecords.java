@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.Map;
 
 @Component
 @Data
@@ -20,10 +21,10 @@ public class TNFCPatrolRecords implements Serializable {
     private boolean zdnormal;
     private boolean wdnormal;
     private boolean ywnormal;
-    private boolean othernormal;
-    private String zddetail;
-    private String wddetail;
-    private String ywdetail;
-    private String otherdetial;
+    private boolean qtnormal;
+    private Map<String, String> zddetail;
+    private Map<String, String> wddetail;
+    private Map<String, String> ywdetail;
+    private Map<String, String> qtdetial;
 }
 

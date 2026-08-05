@@ -44,6 +44,11 @@ public interface NFCPatrolAPIService {
     Call<Void> addRecord(@Field("rfid") String rfid, @Field("person") String person, @Field("content") String content, @Field("errornum") int errornum, @Field("deptid") String deptid);
 
     @FormUrlEncoded
+    @POST("nfcPatrol/addRecord2")
+// Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
+    Call<Void> addRecord2(@Field("rfid") String rfid, @Field("person") String person, @Field("deptid") String deptid, @Field("json") String json);
+
+    @FormUrlEncoded
     @POST("nfcPatrol/queryPoints")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
     Call<PageSerializable<TNFCPatrolPoint>> queryPoints(@Field("queryByRfId") String queryByRfId);

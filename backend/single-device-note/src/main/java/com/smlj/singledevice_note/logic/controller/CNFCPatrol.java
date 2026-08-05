@@ -1,10 +1,14 @@
 package com.smlj.singledevice_note.logic.controller;
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.lang.TypeReference;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
+import com.smlj.singledevice_note.core.o.converter.StringTo;
 import com.smlj.singledevice_note.core.o.dto.KV;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.*;
@@ -378,9 +382,23 @@ public class CNFCPatrol {
         return Result.sf(r > 0);
     }
 
+    @Data
+    private static class CardTp {
+        private boolean checked = false;
+        private Map<String, String> positions = null;
+
+        public CardTp() {
+        }
+
+        public CardTp(boolean checked, Map<String, String> positions) {
+            this.checked = checked;
+            this.positions = positions;
+        }
+    }
+
     @Transactional
     @PostMapping(value = "/addRecord2")
-    public Result<?> addRecord2(@RequestParam(name = "rfid") String rfid, @RequestParam(name = "person") String person, @RequestParam(name = "deptid") String deptid) {
+    public Result<?> addRecord2(@RequestParam(name = "rfid") String rfid, @RequestParam(name = "person") String person, @RequestParam(name = "deptid") String deptid, @RequestParam(name = "json") String json) {
         if (pointDao.exist(rfid) <= 0) {
             return Result.fail("添加失败，该巡检点id不存在");
         }
@@ -390,6 +408,32 @@ public class CNFCPatrol {
         record.setPerson(person);
         record.setDotime(new Date());
         record.setDeptid(deptid);
+
+        JSONObject jsonObj = JSONUtil.parseObj(json);
+        Map<String, CardTp> map = new HashMap<>();
+        jsonObj.forEach((key, value) -> {
+            map.put(key, JSONUtil.toBean(value.toString(), CardTp.class));
+        });
+
+        var field = map.get("zd");
+        boolean checked = field.checked;
+        record.setZdnormal(!checked);
+        record.setZddetail(field.getPositions());
+
+        field = map.get("wd");
+        checked = field.checked;
+        record.setWdnormal(!checked);
+        record.setWddetail(field.getPositions());
+
+        field = map.get("yw");
+        checked = field.checked;
+        record.setYwnormal(!checked);
+        record.setYwdetail(field.getPositions());
+
+        field = map.get("qt");
+        checked = field.checked;
+        record.setQtnormal(!checked);
+        record.setQtdetial(field.getPositions());
 
         int r = recordsDao.insert(record);
         return Result.sf(r > 0);
