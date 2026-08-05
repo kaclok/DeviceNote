@@ -197,7 +197,7 @@ public class InspectionActivity extends AppCompatActivity {
         }
 
         String rfid = point.getRfid();
-        rfid = "044AA61A647380";
+        // rfid = "044AA61A647380";
         call = NFCPatrolDao.instance().queryPositions(rfid);
         call.enqueue(new ActivitySafeCallback<ArrayList<TNFCPatrolPosition>>(this) {
             @Override

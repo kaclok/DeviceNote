@@ -352,13 +352,17 @@ public class CNFCPatrol {
                 var begin = sdf.format(beginDt);
                 var end = sdf.format(endDt);
                 var records = recordsDao.queryAll(null, pointId, begin, end);
+                boolean hasExp = false;
                 if (records != null && !records.isEmpty()) {
                     record = records.get(0);
                     var deptid = record.getDeptid();
                     var deptName = deptDao.query(deptid) == null ? "/" : deptDao.query(deptid).getName();
                     record.setDeptname(deptName);
+
+                    hasExp = !(record.isZdnormal() && record.isWdnormal() && record.isYwnormal() && record.isQtnormal());
                 }
                 one.setRecord(record);
+                one.setHasExp(hasExp);
             }
         }
 
@@ -451,6 +455,13 @@ public class CNFCPatrol {
             return new Date(line.getBegintime().getTime() + cycleSegment * cycle * 3600 * 1000);
         }
         return null;
+    }
+
+    @Transactional
+    @PostMapping(value = "/queryExp")
+    public Result<?> queryExp(@RequestParam(name = "recordid") int recordid) {
+        var r = recordsDao.query(recordid);
+        return Result.success(r);
     }
 
     @Transactional

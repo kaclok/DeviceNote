@@ -15,6 +15,8 @@ import java.util.List;
 public interface TNFCPatrolRecordsDao {
     int insert(@Param("item") TNFCPatrolRecords item);
 
+    TNFCPatrolRecords query(@Param("id") int id);
+
     ArrayList<TNFCPatrolRecords> queryAll(@Param("queryByPerson") String queryByPerson,
                                          @Param("rfid") String rfid,
                                          @Param("queryBegin") String queryBegin,
