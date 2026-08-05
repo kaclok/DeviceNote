@@ -32,13 +32,14 @@ import java.util.stream.Collectors;
 @RequestMapping("/x/nfcPatrol")
 @Tag(name = "CNFCPatrol", description = "巡检系统")
 public class CNFCPatrol {
+    private final TNFCPatrolZzDao zzDao;
+    private final TNFCPatrolDeptDao deptDao;
+    private final TNFCPatrolPositionDao positionDao;
+
     private final TNFCPatrolPointDao pointDao;
     private final TNFCPatrolLineDao lineDao;
     private final TNFCPatrolRecordDao recordDao;
     private final TNFCPatrolRecordsDao recordsDao;
-    private final TNFCPatrolDeptDao deptDao;
-    private final TNFCPatrolZzDao zzDao;
-    private final TNFCPatrolPositionDao positionDao;
 
     @Transactional
     @GetMapping(value = "/queryDepts")
@@ -265,7 +266,7 @@ public class CNFCPatrol {
         }
 
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = recordDao.querySeries(ids, queryByDeptIdArray, queryByStatus, begin, end);
+        var ls = recordsDao.querySeries(ids, queryByDeptIdArray, queryByStatus, begin, end);
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -273,7 +274,8 @@ public class CNFCPatrol {
     @NoArgsConstructor
     public static class RecordInfo {
         private TNFCPatrolPoint point;
-        private TNFCPatrolRecord record;
+        private TNFCPatrolRecords record;
+        private boolean hasExp; // 是否存在异常
     }
 
     @EqualsAndHashCode(callSuper = false)
@@ -310,7 +312,7 @@ public class CNFCPatrol {
                 one.setTime(preDt);
                 var begin = sdf.format(preDt);
                 var end = sdf.format(aimDt);
-                one.setFinishCnt(recordDao.queryPointRecordCntOfLine(line.getId(), begin, end));
+                one.setFinishCnt(recordsDao.queryPointRecordCntOfLine(line.getId(), begin, end));
             }
         }
 
@@ -346,10 +348,10 @@ public class CNFCPatrol {
                 TNFCPatrolPoint point = pointDao.queryById(pointId);
                 one.setPoint(point);
 
-                TNFCPatrolRecord record = null;
+                TNFCPatrolRecords record = null;
                 var begin = sdf.format(beginDt);
                 var end = sdf.format(endDt);
-                var records = recordDao.queryAll(null, pointId, begin, end);
+                var records = recordsDao.queryAll(null, pointId, begin, end);
                 if (records != null && !records.isEmpty()) {
                     record = records.get(0);
                     var deptid = record.getDeptid();
@@ -509,7 +511,7 @@ public class CNFCPatrol {
             idArray.add(dept.getId());
             allIdArray.add(dept.getId());
 
-            long total = recordDao.querySeriesCount(zzIds, idArray, queryByStatus, begin, end);
+            long total = recordsDao.querySeriesCount(zzIds, idArray, queryByStatus, begin, end);
             kvList1.add(new KV<>(dept.getName(), total));
         }
 
@@ -521,7 +523,7 @@ public class CNFCPatrol {
 
         List<KV<String, Long>> kvList2 = new ArrayList<>();
         for (var st : statusList) {
-            long total = recordDao.querySeriesCount(zzIds, allIdArray, st.key, begin, end);
+            long total = recordsDao.querySeriesCount(zzIds, allIdArray, st.key, begin, end);
             kvList2.add(new KV<>(st.value, total));
         }
 

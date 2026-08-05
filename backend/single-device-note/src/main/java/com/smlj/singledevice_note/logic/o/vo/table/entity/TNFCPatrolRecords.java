@@ -18,6 +18,7 @@ public class TNFCPatrolRecords implements Serializable {
     private Date dotime; // 打卡时间
     private String person; // 巡检人员
     private String deptid;
+    private String deptname;
     private boolean zdnormal;
     private boolean wdnormal;
     private boolean ywnormal;

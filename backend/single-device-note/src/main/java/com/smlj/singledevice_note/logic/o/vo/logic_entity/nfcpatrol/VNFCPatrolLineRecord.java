@@ -20,4 +20,5 @@ public class VNFCPatrolLineRecord implements Serializable {
     private int total_cnt;
     private int status;
     private String deptid;
+    private boolean hasExp; // 是否存在异常
 }
