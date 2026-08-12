@@ -275,7 +275,7 @@ const appGridItems = ref([
     },
     {
         name: "金泰氯碱两票系统",
-        url: "http://10.8.54.162:7050?group=" + group,
+        url: "http://10.8.54.162:12306?group=" + group,
         image: logo_book,
         enabled: true,
     },
