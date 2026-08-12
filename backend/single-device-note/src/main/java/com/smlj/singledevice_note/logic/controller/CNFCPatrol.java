@@ -457,11 +457,51 @@ public class CNFCPatrol {
         return null;
     }
 
+    @Data
+    public static class VExp {
+        private TNFCPatrolRecords records;
+        private ArrayList<KV<String, String>> zddetail = new ArrayList<>();
+        private ArrayList<KV<String, String>> wddetail = new ArrayList<>();
+        private ArrayList<KV<String, String>> ywdetail = new ArrayList<>();
+        private ArrayList<KV<String, String>> qtdetial = new ArrayList<>();
+    }
+
     @Transactional
     @PostMapping(value = "/queryExp")
     public Result<?> queryExp(@RequestParam(name = "recordid") int recordid) {
         var r = recordsDao.query(recordid);
-        return Result.success(r);
+        VExp exp = new VExp();
+        exp.setRecords(r);
+        if (!r.isZdnormal() && !r.getZddetail().isEmpty()) {
+            for (Map.Entry<String, String> entry : r.getZddetail().entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                exp.getZddetail().add(new KV<>(key, value));
+            }
+        }
+        if (!r.isWdnormal() && !r.getWddetail().isEmpty()) {
+            for (Map.Entry<String, String> entry : r.getWddetail().entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                exp.getWddetail().add(new KV<>(key, value));
+            }
+        }
+        if (!r.isYwnormal() && !r.getYwdetail().isEmpty()) {
+            for (Map.Entry<String, String> entry : r.getYwdetail().entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                exp.getYwdetail().add(new KV<>(key, value));
+            }
+        }
+        if (!r.isQtnormal() && !r.getQtdetial().isEmpty()) {
+            for (Map.Entry<String, String> entry : r.getQtdetial().entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                exp.getQtdetial().add(new KV<>(key, value));
+            }
+        }
+
+        return Result.success(exp);
     }
 
     @Transactional
