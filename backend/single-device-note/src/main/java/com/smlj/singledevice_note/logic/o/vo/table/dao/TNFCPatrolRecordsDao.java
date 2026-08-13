@@ -25,6 +25,7 @@ public interface TNFCPatrolRecordsDao {
     ArrayList<VNFCPatrolLineRecord> querySeries(@Param("zzIds") List<String> zzIds,
                                                 @Param("queryByDeptIdArray") List<String> queryByDeptIdArray,
                                                 @Param("queryByStatus") Integer queryByStatus,
+                                                @Param("queryByExp") Boolean queryByExp,
                                                 @Param("queryBegin") String queryBegin,
                                                 @Param("queryEnd") String queryEnd);
 

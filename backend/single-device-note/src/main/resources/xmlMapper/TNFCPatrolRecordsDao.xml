@@ -333,7 +333,7 @@
         FROM abnormal_points ap
         WHERE ap.line_id = cps.line_id
         AND ap.cycle_index = cps.cycle_index
-        ) AS "hasExp",
+        ) AS hasExp,
         CASE
         WHEN CURRENT_TIMESTAMP BETWEEN cps.cycle_start_time AND cps.cycle_end_time THEN
         CASE
@@ -360,6 +360,9 @@
         <where>
             <if test="queryByStatus != null">
                 status = ${queryByStatus}
+            </if>
+            <if test="queryByExp != null">
+                hasExp = ${queryByExp}
             </if>
             <if test="queryByDeptIdArray != null and queryByDeptIdArray.size() > 0">
                 AND (deptid IN

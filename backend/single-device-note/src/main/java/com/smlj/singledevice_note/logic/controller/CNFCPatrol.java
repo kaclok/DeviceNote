@@ -19,6 +19,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -223,7 +224,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryRecords")
-    public Result<?> queryRecords(@RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray, @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus, @RequestParam(name = "queryBegin", required = false) String queryBegin, @RequestParam(name = "queryEnd", required = false) String queryEnd, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> queryRecords(@RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray, @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus,  @RequestParam(name = "queryByExp", required = false) Boolean queryByExp, @RequestParam(name = "queryBegin", required = false) String queryBegin, @RequestParam(name = "queryEnd", required = false) String queryEnd, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         Date beginDt, endDt;
         if (StrUtil.isEmpty(queryBegin)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
@@ -266,7 +267,7 @@ public class CNFCPatrol {
         }
 
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = recordsDao.querySeries(ids, queryByDeptIdArray, queryByStatus, begin, end);
+        var ls = recordsDao.querySeries(ids, queryByDeptIdArray, queryByStatus, queryByExp, begin, end);
         return Result.success(new PageSerializable<>(ls));
     }
 
