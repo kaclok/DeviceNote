@@ -13,12 +13,14 @@ const mpaInput = {
     watchdog: resolve(__dirname, './pages/smds/watchdog/index.html'),
     sbrhjy: resolve(__dirname, './pages/smlj/sbrhjy/index.html'),
     cggy: resolve(__dirname, './pages/smlj/cggy/index.html'),
+    cghtz: resolve(__dirname, './pages/smlj/cghtz/index.html'),
     downloads: resolve(__dirname, './pages/downloads/index.html'),
 }
 
 // https://blog.csdn.net/usernotdefined/article/details/129897995
 const mpaRewrites = [
     {from: /\/cggy/, to: '/pages/smlj/cggy/index.html'},
+    {from: /\/cghtz/, to: '/pages/smlj/cghtz/index.html'},
 ]
 
 const mpaPages= [

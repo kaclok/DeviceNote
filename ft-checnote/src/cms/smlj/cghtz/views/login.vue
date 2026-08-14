@@ -1,0 +1,172 @@
+<script setup lang="js">
+import {SysX} from "../system/SysX.js"
+import {Singleton} from "@/framework/services/Singleton.js";
+import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
+import {useRouter} from 'vue-router';
+
+// 获取路由实例
+const router = useRouter();
+
+let loginForm = ref({
+    account: 'xuesj',
+    pwd: '123456',
+})
+let loginRules = {
+    account: [{required: true, trigger: 'blur', message: '请输入登录账号'}],
+    pwd: [{required: true, trigger: 'blur', message: '请输入登录密码'}],
+}
+
+let loading = ref(false)
+
+let AC_loginList = new AbortController();
+
+onUnmounted(() => {
+    AC_loginList.abort();
+});
+
+function loginAction() {
+    Singleton.getInstance(SysX).login({account: loginForm.value.account, password: loginForm.value.pwd}, AC_loginList.signal, () => {
+        loading.value = true;
+    }, (r, data) => {
+        loading.value = false;
+        if (r && data.data?.success) {
+            // 保存登录信息与权限
+            LocalStorageService.setStore("cghtz_account", data.data.account)
+            LocalStorageService.setStore("cghtz_auth", data.data.auth)
+
+            ElMessage.success(`欢迎回来，${data.data.account.realName}`)
+            router.push({name: 'home'})
+        } else {
+            ElMessage.error(data?.data?.message || data?.msg || '登录失败')
+        }
+    });
+}
+
+// 快捷填充演示账号
+function fillAccount(account, pwd) {
+    loginForm.value.account = account
+    loginForm.value.pwd = pwd
+}
+</script>
+
+<template>
+    <div class="login-page">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo">📑</div>
+                <div class="title">合同台账管理系统</div>
+                <div class="subtitle">陕西金泰化学神木氯碱有限公司</div>
+            </div>
+
+            <el-form :model="loginForm" :rules="loginRules" class="login-form" @keyup.enter="loginAction">
+                <el-form-item prop="account">
+                    <el-input v-model="loginForm.account" placeholder="请输入账号" size="large" clearable>
+                        <template #prefix><span style="color:#94a3b8">👤</span></template>
+                    </el-input>
+                </el-form-item>
+                <el-form-item prop="pwd">
+                    <el-input v-model="loginForm.pwd" placeholder="请输入密码" show-password size="large" clearable>
+                        <template #prefix><span style="color:#94a3b8">🔒</span></template>
+                    </el-input>
+                </el-form-item>
+                <el-button type="primary" size="large" style="width:100%;height:44px;font-size:16px;font-weight:600"
+                           @click="loginAction" :loading="loading">
+                    {{ loading ? "登 录 中..." : "登 录" }}
+                </el-button>
+            </el-form>
+
+            <div class="demo-accounts">
+                <div class="demo-title">演示账号（点击填充）</div>
+                <div class="demo-btns">
+                    <el-tag type="primary" class="demo-tag" @click="fillAccount('admin','123456')">admin 管理员</el-tag>
+                    <el-tag class="demo-tag" @click="fillAccount('xuesj','123456')">xuesj 录入员</el-tag>
+                    <el-tag type="warning" class="demo-tag" @click="fillAccount('liting','123456')">liting 查看员</el-tag>
+                </div>
+                <div class="demo-hint">查看员 liting 无「新增/导入」权限，可对比体验权限控制</div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<style lang="scss" scoped>
+.login-page {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%);
+
+    .login-card {
+        width: 420px;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 36px 34px 24px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 28px;
+
+            .logo {
+                width: 60px;
+                height: 60px;
+                margin: 0 auto 12px;
+                border-radius: 15px;
+                background: linear-gradient(135deg, #2563eb, #60a5fa);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 30px;
+                box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+            }
+
+            .title {
+                font-size: 20px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                color: #0f172a;
+            }
+
+            .subtitle {
+                font-size: 12px;
+                color: #94a3b8;
+                margin-top: 6px;
+            }
+        }
+
+        .demo-accounts {
+            margin-top: 22px;
+            padding-top: 16px;
+            border-top: 1px dashed #e2e8f0;
+
+            .demo-title {
+                font-size: 12px;
+                color: #94a3b8;
+                margin-bottom: 10px;
+            }
+
+            .demo-btns {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+
+                .demo-tag {
+                    cursor: pointer;
+                    transition: transform .15s;
+
+                    &:hover {
+                        transform: translateY(-1px);
+                    }
+                }
+            }
+
+            .demo-hint {
+                font-size: 11px;
+                color: #cbd5e1;
+                margin-top: 10px;
+            }
+        }
+    }
+}
+</style>
