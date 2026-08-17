@@ -30,7 +30,6 @@ const activeMenu = computed(() => route.path)
 
 function logout() {
     ElMessageBox.confirm('确定退出登录吗？', '提示', {type: 'warning'}).then(() => {
-        // 框架 clearAccount 会清 ROLES / PERMS / HAS_LOGIN / token
         clearAccount()
         router.push({name: 'login'})
     }).catch(() => {
