@@ -1,3 +1,8 @@
+const StorageType = Object.freeze({
+    Local: 0,
+    Session: 1,
+})
+
 export class StorageService {
     constructor(type) {
         this.type = type;
@@ -12,9 +17,9 @@ export class StorageService {
             content = JSON.stringify(content);
         }
 
-        if (type === 'LocalStorage') {
+        if (this.type === StorageType.Local) {
             window.localStorage.setItem(name, content);
-        } else if (type === 'SessionStorage') {
+        } else if (this.type === StorageType.Session) {
             window.sessionStorage.setItem(name, content);
         }
 
@@ -25,10 +30,11 @@ export class StorageService {
         if (!name) {
             return null;
         }
+
         let v = null;
-        if (type === 'LocalStorage') {
+        if (this.type === StorageType.Local) {
             v = window.localStorage.getItem(name);
-        } else if (type === 'SessionStorage') {
+        } else if (this.type === StorageType.Session) {
             v = window.sessionStorage.getItem(name);
         }
         return v;
@@ -38,27 +44,29 @@ export class StorageService {
         if (!name) {
             return false;
         }
-        if (type === 'LocalStorage') {
+
+        if (this.type === StorageType.Local) {
             window.localStorage.removeItem(name);
-        } else if (type === 'SessionStorage') {
+        } else if (this.type === StorageType.Session) {
             window.sessionStorage.removeItem(name);
         }
         return true;
     }
 
     clearStore() {
-        if (type === 'LocalStorage') {
+        if (this.type === StorageType.Local) {
             window.localStorage.clear();
-        } else if (type === 'SessionStorage') {
+        } else if (this.type === StorageType.Session) {
             window.sessionStorage.clear();
         }
     }
 }
 
-const localStoreInstance = new StorageService("LocalStorage");
-const sessionStoreInstance = new StorageService("SessionStorage");
+const localStoreInstance = new StorageService(StorageType.Local);
+const sessionStoreInstance = new StorageService(StorageType.Session);
 
 export {
+    StorageType,
     localStoreInstance,
     sessionStoreInstance,
 }

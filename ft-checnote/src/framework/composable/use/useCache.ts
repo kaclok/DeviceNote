@@ -6,12 +6,16 @@ import WebStorageCache from 'web-storage-cache'
 
 type cacheType = 'localStorage' | 'sessionStorage'
 
-const ECacheType = {
+const ECacheType = Object.freeze({
     AUTH_CENTER_URL: "AUTH_CENTER_URL", // 授权服务器url
     RES_URL: "RES_URL", // 资源服务器url
 
     ACCOUNT: "ACCOUNT", // 账户
     USER_NAME: "USER_NAME", // 名字
+
+    ROLES: "ROLES",  // 角色（数组）
+    PERMS: "PERMS",  // 权限（数组）
+    HAS_LOGIN: "HAS_LOGIN", //是否登录
 
     ACCESS_TOKEN: "ACCESS_TOKEN",
     ACCESS_TOKEN_EXPIRE_AT: "ACCESS_TOKEN_EXPIRE_AT",
@@ -20,7 +24,7 @@ const ECacheType = {
     REFRESH_TOKEN: "REFRESH_TOKEN",
     REFRESH_TOKEN_EXPIRE_AT: "REFRESH_TOKEN_EXPIRE_AT",
     REFRESH_TOKEN_ISSUE_AT: "REFRESH_TOKEN_ISSUE_AT",
-}
+})
 
 const useCache = (type: cacheType = 'localStorage') => {
     const wsCache: WebStorageCache = new WebStorageCache({
