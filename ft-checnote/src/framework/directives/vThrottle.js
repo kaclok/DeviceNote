@@ -3,8 +3,6 @@
 // https://mp.weixin.qq.com/s/Ulo4HaPOq6cBD3om9Nkopg
 
 const directive = {
-    timer: null,
-
     mounted: (el, bindings) => {
         const cfg = bindings.value;
         const cb = cfg.cd

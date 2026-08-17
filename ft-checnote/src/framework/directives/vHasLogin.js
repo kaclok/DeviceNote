@@ -1,3 +1,5 @@
+// https://cn.vuejs.org/guide/reusability/custom-directives.html
+
 const directive = {
     mounted(el, binding, vnode) {
         let permTypes = vnode.context.$route.meta.permTypes;

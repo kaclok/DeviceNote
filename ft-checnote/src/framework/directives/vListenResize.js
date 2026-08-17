@@ -1,3 +1,5 @@
+// https://cn.vuejs.org/guide/reusability/custom-directives.html
+
 const map = new WeakMap();
 const ro = new ResizeObserver((entries) => {
     for (let entry of entries) {

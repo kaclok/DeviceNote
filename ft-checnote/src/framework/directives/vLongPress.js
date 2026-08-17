@@ -1,4 +1,5 @@
 // https://juejin.cn/post/6968996649515515917
+// https://cn.vuejs.org/guide/reusability/custom-directives.html
 
 const directive = {
     beforeMount(el, binding) {
