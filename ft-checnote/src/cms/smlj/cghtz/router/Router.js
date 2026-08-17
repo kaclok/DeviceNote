@@ -3,9 +3,10 @@ import CpNotFound from '@/framework/components/CpNotFound.vue'
 export const PREFIX = '/pages/smlj/cghtz/index.html'
 
 const _homeRouter = {
-    path: '/home', name: 'home', component: () => import('../views/home.vue'),
+    // redirect 直接写在父路由上：无论按 name（router.push({name:'home'})）还是按路径（/home）导航都会触发，
+    // 无需在守卫里做容器路由检测；children 中不再需要 path:'' 的 redirect 占位子路由
+    path: '/home', name: 'home', redirect: '/home/ledger', component: () => import('../views/home.vue'),
     children: [
-        {path: '', name: 'home_default', redirect: '/home/ledger',},
         // meta.perms：路由级权限控制，用户必须拥有其中任一权限码才能访问
         {path: 'ledger', name: 'home_ledger', component: () => import('../views/ledger.vue'), meta: {title: '合同台账', perms: ['contract.view']}},
         {path: 'import', name: 'home_import', component: () => import('../views/import.vue'), meta: {title: '批量导入', perms: ['contract.import']}},
