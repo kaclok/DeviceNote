@@ -84,32 +84,4 @@ export class ApiX {
             signal: signal,
         })
     }
-
-    /* ---------------- 提醒配置 & 推送日志 ---------------- */
-    static getNotifyConfig(paras, signal) {
-        return axiosR.get("cghtz/notify/config", {
-            params: paras,
-            signal: signal,
-        })
-    }
-
-    static saveNotifyConfig(paras, signal) {
-        return axiosR.post("cghtz/notify/config/save", paras, {
-            signal: signal,
-        })
-    }
-
-    static getNotifyLogs(paras, signal) {
-        return axiosR.get("cghtz/notify/logs", {
-            params: paras,
-            signal: signal,
-        })
-    }
-
-    static retryNotify(paras, signal) {
-        return axiosR.post("cghtz/notify/retry", null, {
-            params: paras,
-            signal: signal,
-        })
-    }
 }

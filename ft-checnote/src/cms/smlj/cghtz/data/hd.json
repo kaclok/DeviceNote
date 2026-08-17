@@ -1,0 +1,68 @@
+{
+  "accounts": [
+    {
+      "account": "admin",
+      "password": "123456",
+      "realName": "管理员",
+      "dept": "信息中心",
+      "role": "超级管理员",
+      "status": 1,
+      "lastLogin": "2026-08-13 08:12",
+      "auth": ["auth.login", "contract.view", "contract.create", "contract.update", "contract.delete", "contract.import", "contract.export", "account.manage", "permission.assign", "notify.config"]
+    },
+    {
+      "account": "xuesj",
+      "password": "123456",
+      "realName": "薛少军",
+      "dept": "采购部",
+      "role": "录入员",
+      "status": 1,
+      "lastLogin": "2026-08-13 09:01",
+      "auth": ["auth.login", "contract.view", "contract.create", "contract.update", "contract.delete", "contract.import", "contract.export"]
+    },
+    {
+      "account": "zhangwei",
+      "password": "123456",
+      "realName": "张伟",
+      "dept": "采购部",
+      "role": "录入员",
+      "status": 1,
+      "lastLogin": "2026-08-12 17:40",
+      "auth": ["auth.login", "contract.view", "contract.create", "contract.update", "contract.delete", "contract.import", "contract.export"]
+    },
+    {
+      "account": "liting",
+      "password": "123456",
+      "realName": "李婷",
+      "dept": "财务部",
+      "role": "查看员",
+      "status": 1,
+      "lastLogin": "2026-08-13 10:22",
+      "auth": ["auth.login", "contract.view", "contract.export"]
+    },
+    {
+      "account": "wanghao",
+      "password": "123456",
+      "realName": "王浩",
+      "dept": "采购部",
+      "role": "录入员",
+      "status": 0,
+      "lastLogin": "2026-07-30 15:11",
+      "auth": ["auth.login", "contract.view", "contract.create", "contract.update", "contract.import"]
+    }
+  ],
+  "contracts": [
+    { "id": 1, "no": "SMLJ-CG-CL-26200", "name": "螺栓", "signer": "薛少军", "method": "网络询比价", "supplier": "榆林景云五金机电设备有限公司", "amount": 3836.92, "signDate": "2026-04-02", "payMethod": "货到票到3个月付款", "payCycleMonths": 3, "plannedAmount": 3836.92, "stock": "已入库", "remark": "" },
+    { "id": 2, "no": "SMLJ-CG-CL-26218", "name": "SKF 轴承", "signer": "薛少军", "method": "网络询比价", "supplier": "西安科润工贸有限公司", "amount": 7494.00, "signDate": "2026-04-20", "payMethod": "货到票到3个月付款", "payCycleMonths": 3, "plannedAmount": 7494.00, "stock": "已入库", "remark": "" },
+    { "id": 3, "no": "SMLJ-CG-CL-26235", "name": "不锈钢阀门", "signer": "王浩", "method": "招标", "supplier": "陕西泵阀制造有限公司", "amount": 85600.00, "signDate": "2026-05-15", "payMethod": "货到票到3个月付款", "payCycleMonths": 3, "plannedAmount": 85600.00, "stock": "未入库", "remark": "" },
+    { "id": 4, "no": "SMLJ-CG-CL-26247", "name": "电缆一批", "signer": "李婷", "method": "网络询比价", "supplier": "西安电力物资有限公司", "amount": 126500.00, "signDate": "2026-06-10", "payMethod": "票到2个月付款", "payCycleMonths": 2, "plannedAmount": 126500.00, "stock": "部分入库", "remark": "" },
+    { "id": 5, "no": "SMLJ-CG-CL-26250", "name": "液碱", "signer": "张伟", "method": "谈判", "supplier": "陕西化工贸易有限公司", "amount": 320000.00, "signDate": "2026-05-28", "payMethod": "货到票到2个月付款", "payCycleMonths": 2, "plannedAmount": 320000.00, "stock": "已入库", "remark": "" },
+    { "id": 6, "no": "SMLJ-CG-CL-26255", "name": "SKF 轴承", "signer": "李婷", "method": "网络询比价", "supplier": "西安科润工贸有限公司", "amount": 22482.00, "signDate": "2026-03-12", "payMethod": "货到票到3个月付款", "payCycleMonths": 3, "plannedAmount": 22482.00, "stock": "已入库", "remark": "已付款" },
+    { "id": 7, "no": "SMLJ-CG-CL-26266", "name": "润滑油", "signer": "李婷", "method": "网络询比价", "supplier": "榆林华润油脂有限公司", "amount": 18900.00, "signDate": "2026-06-20", "payMethod": "货到票到1个月付款", "payCycleMonths": 1, "plannedAmount": 18900.00, "stock": "已入库", "remark": "" },
+    { "id": 8, "no": "SMLJ-CG-CL-26278", "name": "仪表配件", "signer": "王浩", "method": "单一来源", "supplier": "西安仪表厂", "amount": 45600.00, "signDate": "2026-07-05", "payMethod": "货到票到3个月付款", "payCycleMonths": 3, "plannedAmount": 45600.00, "stock": "未入库", "remark": "" },
+    { "id": 9, "no": "SMLJ-CG-CL-26290", "name": "减速机", "signer": "薛少军", "method": "招标", "supplier": "江苏国茂减速机股份有限公司", "amount": 158000.00, "signDate": "2026-07-18", "payMethod": "货到票到3个月付款", "payCycleMonths": 3, "plannedAmount": 158000.00, "stock": "未入库", "remark": "" },
+    { "id": 10, "no": "SMLJ-CG-CL-26301", "name": "密封垫片", "signer": "张伟", "method": "网络询比价", "supplier": "西安橡胶制品厂", "amount": 8200.00, "signDate": "2026-08-01", "payMethod": "票到1个月付款", "payCycleMonths": 1, "plannedAmount": 8200.00, "stock": "未入库", "remark": "" },
+    { "id": 11, "no": "SMLJ-CG-CL-26312", "name": "管件一批", "signer": "王浩", "method": "网络询比价", "supplier": "榆林景云五金机电设备有限公司", "amount": 15000.00, "signDate": "2026-08-08", "payMethod": "货到票到2个月付款", "payCycleMonths": 2, "plannedAmount": 15000.00, "stock": "未入库", "remark": "" },
+    { "id": 12, "no": "SMLJ-CG-CL-26320", "name": "电动机", "signer": "薛少军", "method": "招标", "supplier": "西安电机厂", "amount": 96000.00, "signDate": "2026-08-12", "payMethod": "货到票到3个月付款", "payCycleMonths": 3, "plannedAmount": 96000.00, "stock": "未入库", "remark": "" }
+  ]
+}

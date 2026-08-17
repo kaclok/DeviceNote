@@ -4,6 +4,7 @@ import {Singleton} from "@/framework/services/Singleton.js";
 import {exportContractExcel, downloadTemplate} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
 import ColumnHeader from "../components/ColumnHeader.vue";
+import {METHOD_OPTIONS, PAY_METHOD_OPTIONS} from "../system/MockX.js";
 import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
 
 const router = useRouter();
@@ -37,8 +38,9 @@ const colFilters = ref({
     amount: '', signDate: '', payMethod: '', planDate: '', payStatus: '', stock: '',
 })
 const signerOptions = ref([])
-const methodOptions = ['网络询比价', '招标', '谈判', '单一来源']
-const payMethodOptions = ['货到票到1个月付款', '货到票到2个月付款', '货到票到3个月付款', '票到1个月付款', '票到2个月付款', '预付款']
+// 签订方式 / 付款方式 枚举为固定数据，统一来自 gd.json（经 MockX 导出）
+const methodOptions = METHOD_OPTIONS
+const payMethodOptions = PAY_METHOD_OPTIONS
 
 // 排序（由表头组件触发，自管理）
 const sortKey = ref('')
