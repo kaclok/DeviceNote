@@ -5,12 +5,10 @@ import {MockX} from "./MockX.js";
  * 合同台账 - 业务层
  *
  * 设计说明：
- * 1. 优先调用后端 ApiX；
- * 2. 后端不可用（接口未开发 / 网络失败）时，自动兜底到本地 MockX，
- *    保证前端页面可独立演示；
+ * 1. USE_MOCK = true：全部走本地 MockX，用于前端独立演示；
+ * 2. USE_MOCK = false：全部走后端 ApiX，请求失败如实回调失败，
+ *    不做 Mock 兜底（避免后端出错时前端仍展示假数据，掩盖真实问题）；
  * 3. 所有方法遵循项目统一的 (paras, signal, onBefore, onAfter) 回调签名。
- *
- * 后端就绪后：将每个方法的 `_mock` 兜底去掉即可，或保留兜底作为离线容错。
  */
 
 /* 是否优先使用本地 Mock（演示模式）。后端联调时置为 false 即可全部走 ApiX */
@@ -43,8 +41,7 @@ class SysX {
         ApiX.getContractList(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            console.warn("[cghtz] 后端接口不可用，兜底 Mock 数据", fail);
-            onAfter?.(true, MockX.getContractList(paras || {}));
+            onAfter?.(false, fail);
         });
     }
 
@@ -57,7 +54,7 @@ class SysX {
         ApiX.getContract(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(true, MockX.getContract(paras.no));
+            onAfter?.(false, fail);
         });
     }
 
@@ -70,7 +67,7 @@ class SysX {
         ApiX.getContract({no: paras.no}, signal).then(succ => {
             onAfter?.(true, {code: __OK__, data: succ.data.data != null});
         }).catch(fail => {
-            onAfter?.(true, MockX.checkNoExists(paras.no));
+            onAfter?.(false, fail);
         });
     }
 
@@ -135,11 +132,19 @@ class SysX {
             onAfter?.(true, MockX.getStats());
             return;
         }
-        // 后端统计接口：cghtz/contract/stats
+        // 后端暂无独立统计接口，复用合同列表由前端聚合
         ApiX.getContractList({}, signal).then(succ => {
-            onAfter?.(true, MockX.getStats());
+            const rows = succ.data?.data || [];
+            const stats = {overdue: 0, soon: 0, normal: 0, paid: 0, total: rows.length};
+            rows.forEach(c => {
+                if (c.payStatus === "已超期") stats.overdue++;
+                else if (c.payStatus === "即将超期") stats.soon++;
+                else if (c.payStatus === "已付款") stats.paid++;
+                else stats.normal++;
+            });
+            onAfter?.(true, {code: __OK__, msg: "成功", data: stats});
         }).catch(fail => {
-            onAfter?.(true, MockX.getStats());
+            onAfter?.(false, fail);
         });
     }
 
@@ -153,7 +158,7 @@ class SysX {
         ApiX.getAccountList(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(true, MockX.getAccountList());
+            onAfter?.(false, fail);
         });
     }
 
