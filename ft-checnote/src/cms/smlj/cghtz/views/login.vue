@@ -1,8 +1,10 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
-import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
+import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
 import {useRouter} from 'vue-router';
+
+const {wsCache} = useCache()
 
 // 获取路由实例
 const router = useRouter();
@@ -30,9 +32,10 @@ function loginAction() {
     }, (r, data) => {
         loading.value = false;
         if (r && data.data?.success) {
-            // 保存登录信息与权限
-            LocalStorageService.setStore("cghtz_account", data.data.account)
-            LocalStorageService.setStore("cghtz_auth", data.data.auth)
+            // 保存登录信息与权限（wsCache 会自动序列化，直接存对象/数组）
+            wsCache.set(ECacheType.ACCOUNT, data.data.account.account);
+            wsCache.set(ECacheType.ROLES, data.data.account.role);
+            wsCache.set(ECacheType.PERMS, data.data.auth);
 
             ElMessage.success(`欢迎回来，${data.data.account.realName}`)
             router.push({name: 'home'})

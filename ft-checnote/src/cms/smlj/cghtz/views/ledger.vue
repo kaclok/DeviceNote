@@ -4,6 +4,7 @@ import {Singleton} from "@/framework/services/Singleton.js";
 import {exportContractExcel, downloadTemplate} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
 import ColumnHeader from "../components/ColumnHeader.vue";
+import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
 
 const router = useRouter();
 
@@ -12,6 +13,8 @@ const list = ref([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
+
+const {wsCache} = useCache()
 
 // 统计
 const stats = ref({overdue: 0, soon: 0, normal: 0, paid: 0, total: 0})
@@ -41,8 +44,8 @@ const payMethodOptions = ['货到票到1个月付款', '货到票到2个月付�
 const sortKey = ref('')
 const sortOrder = ref('')
 
-// 当前登录账号权限
-const auth = ref(JSON.parse(localStorage.getItem("cghtz_auth") || "[]"))
+// 当前登录账号权限（空值兜底）
+const auth = ref(wsCache.get(ECacheType.PERMS) || [])
 function hasPerm(code) {
     return auth.value.includes(code)
 }

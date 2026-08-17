@@ -7,7 +7,7 @@ const directive = {
     mounted(el, binding) {
         const {value} = binding
         // 从缓存中获取用户角色列表
-        const hasLogin = wsCache.get(ECacheType.HAS_LOGIN) || false
+        const hasLogin = !!wsCache.get(ECacheType.ACCOUNT)
 
         // ❌ 没有权限：从 DOM 中移除元素
         if (!hasLogin) {

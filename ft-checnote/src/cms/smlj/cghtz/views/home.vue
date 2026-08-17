@@ -1,12 +1,14 @@
 <script setup lang="js">
 import {useRouter, useRoute} from 'vue-router';
-import {LocalStorageService} from "@/framework/services/LocalStorageService.js";
+import {useCache, ECacheType, clearAccount} from "@/framework/composable/use/useCache.ts";
 
 const router = useRouter();
 const route = useRoute();
+const {wsCache} = useCache()
 
-const account = ref(LocalStorageService.getStore("cghtz_account") ? JSON.parse(LocalStorageService.getStore("cghtz_account")) : {})
-const auth = ref(LocalStorageService.getStore("cghtz_auth") ? JSON.parse(LocalStorageService.getStore("cghtz_auth")) : [])
+// 空值兜底：未登录或缓存被清时避免 .includes / .realName 报错
+const account = ref(wsCache.get(ECacheType.ACCOUNT) || {})
+const auth = ref(wsCache.get(ECacheType.PERMS) || [])
 
 // 权限判断
 function hasPerm(code) {
@@ -23,14 +25,13 @@ const menus = computed(() => {
     return list.filter(m => hasPerm(m.perm))
 })
 
-function getDefaultActive() {
-    return route.path
-}
+// 当前激活菜单：响应式绑定 route.path，路由变化时菜单高亮自动跟随
+const activeMenu = computed(() => route.path)
 
 function logout() {
     ElMessageBox.confirm('确定退出登录吗？', '提示', {type: 'warning'}).then(() => {
-        LocalStorageService.removeStore("cghtz_account")
-        LocalStorageService.removeStore("cghtz_auth")
+        // 框架 clearAccount 会清 ROLES / PERMS / HAS_LOGIN / token
+        clearAccount()
         router.push({name: 'login'})
     }).catch(() => {
     })
@@ -66,7 +67,7 @@ function logout() {
         <!-- 主体：侧边菜单 + 内容 -->
         <div class="page-body">
             <div class="sidebar">
-                <el-menu :default-active="getDefaultActive()" router background-color="#0f172a"
+                <el-menu :default-active="activeMenu" router background-color="#0f172a"
                          text-color="#94a3b8" active-text-color="#ffffff" :unique-opened="true">
                     <el-menu-item v-for="m in menus" :key="m.path" :index="m.path">
                         <span class="menu-icon">{{ m.icon }}</span>

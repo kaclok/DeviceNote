@@ -6,6 +6,9 @@ import WebStorageCache from 'web-storage-cache'
 
 type cacheType = 'localStorage' | 'sessionStorage'
 
+// 缓存数据分为2部分
+// 1、跟随用户的数据，随着用户登录登出而变化
+// 2、跟随app的数据，跟随app的安装卸载而变化
 const ECacheType = Object.freeze({
     AUTH_CENTER_URL: "AUTH_CENTER_URL", // 授权服务器url
     RES_URL: "RES_URL", // 资源服务器url
@@ -15,7 +18,6 @@ const ECacheType = Object.freeze({
 
     ROLES: "ROLES",  // 角色（数组）
     PERMS: "PERMS",  // 权限（数组）
-    HAS_LOGIN: "HAS_LOGIN", //是否登录
 
     ACCESS_TOKEN: "ACCESS_TOKEN",
     ACCESS_TOKEN_EXPIRE_AT: "ACCESS_TOKEN_EXPIRE_AT",
@@ -55,10 +57,20 @@ function clearToken() {
     wsCache.delete(ECacheType.REFRESH_TOKEN_ISSUE_AT)
 }
 
+// 账户登出清除数据
+function clearAccount() {
+    const {wsCache} = useCache()
+    wsCache.delete(ECacheType.ACCOUNT)
+    wsCache.delete(ECacheType.ROLES)
+    wsCache.delete(ECacheType.PERMS)
+    clearToken()
+}
+
 export {
     ECacheType,
     useCache,
 
     clearAll,
     clearToken,
+    clearAccount,
 }
