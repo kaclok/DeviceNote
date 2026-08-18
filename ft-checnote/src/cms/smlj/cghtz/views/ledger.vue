@@ -394,9 +394,9 @@ function gotoImport() {
         <!-- 工具栏 -->
         <div class="toolbar">
             <div class="toolbar-left">
-                <el-button v-if="hasPerm('contract.create')" type="primary" @click="openCreate">＋ 新增合同</el-button>
-                <el-button v-if="hasPerm('contract.import')" @click="gotoImport">📥 Excel 导入</el-button>
-                <el-button v-if="hasPerm('contract.export')" @click="doExport">📤 导出 Excel</el-button>
+                <el-button v-if="hasPerm('contract:create')" type="primary" @click="openCreate">＋ 新增合同</el-button>
+                <el-button v-if="hasPerm('contract:import')" @click="gotoImport">📥 Excel 导入</el-button>
+                <el-button v-if="hasPerm('contract:export')" @click="doExport">📤 导出 Excel</el-button>
                 <el-button @click="downloadTemplate">⬇️ 下载模板</el-button>
             </div>
             <div class="toolbar-right">
@@ -510,8 +510,8 @@ function gotoImport() {
                 </el-table-column>
                 <el-table-column label="操作" width="140" fixed="right" align="center">
                     <template #default="{row}">
-                        <el-button v-if="hasPerm('contract.update')" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-                        <el-button v-if="hasPerm('contract.delete')" link type="danger" size="small" @click="removeContract(row)">作废</el-button>
+                        <el-button v-if="hasPerm('contract:update')" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+                        <el-button v-if="hasPerm('contract:delete')" link type="danger" size="small" @click="removeContract(row)">作废</el-button>
                     </template>
                 </el-table-column>
             </el-table>
