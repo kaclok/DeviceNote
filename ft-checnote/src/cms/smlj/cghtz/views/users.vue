@@ -1,29 +1,45 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
-import {PERM_DEFS} from "../system/MockX.js"
 
 const loading = ref(false)
 const list = ref([])
 
-// 权限分组
+// 角色列表（动态数据，由后端下发；现走 MockX.getRoleList）
+const roles = ref([])
+// 权限码字典（动态数据，由后端下发；现走 MockX.getPermDefs）
+const permDefs = ref([])
+
+// 权限分组（基于动态 permDefs 计算）
 const permGroups = computed(() => {
     const groups = {}
-    PERM_DEFS.forEach(p => {
+    permDefs.value.forEach(p => {
         if (!groups[p.group]) groups[p.group] = []
         groups[p.group].push(p)
     })
     return Object.entries(groups).map(([name, items]) => ({name, items}))
 })
 
+// 当前所选角色的权限码集合（只读展示，由角色决定，不可手动勾选）
+const currentRolePerms = computed(() => {
+    const r = roles.value.find(x => x.role_code === form.value.role_code)
+    return new Set(r?.perms || [])
+})
+
 const AC_list = new AbortController()
+const AC_roles = new AbortController()
+const AC_perms = new AbortController()
 
 onMounted(() => {
     loadList()
+    loadRoles()
+    loadPermDefs()
 })
 
 onUnmounted(() => {
     AC_list.abort()
+    AC_roles.abort()
+    AC_perms.abort()
 })
 
 function loadList() {
@@ -35,17 +51,31 @@ function loadList() {
     })
 }
 
+function loadRoles() {
+    Singleton.getInstance(SysX).getRoleList({}, AC_roles.signal, () => {
+    }, (r, data) => {
+        if (r) roles.value = data.data || []
+    })
+}
+
+function loadPermDefs() {
+    Singleton.getInstance(SysX).getPermDefs({}, AC_perms.signal, () => {
+    }, (r, data) => {
+        if (r) permDefs.value = data.data || []
+    })
+}
+
 function statusTag(status) {
     return status === 1 ? {type: 'success', text: '启用'} : {type: 'info', text: '停用'}
 }
 
-function roleTag(role) {
+function roleTag(roleCode) {
     const map = {
-        '超级管理员': 'danger',
-        '录入员': 'primary',
-        '查看员': 'warning',
+        'ADMIN': 'danger',
+        'EDITOR': 'primary',
+        'VIEWER': 'warning',
     }
-    return map[role] || 'info'
+    return map[roleCode] || 'info'
 }
 
 /* ---------------- 新建账号 ---------------- */
@@ -53,34 +83,34 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 const saving = ref(false)
-const form = ref({account: '', realName: '', role: 'EDITOR', password: '', auth: []})
+const form = ref({account: '', realName: '', role_code: 'EDITOR', password: ''})
 
 const rules = {
     account: [{required: true, message: '请输入账号', trigger: 'blur'}],
     realName: [{required: true, message: '请输入姓名', trigger: 'blur'}],
-    dept: [{required: true, message: '请输入部门', trigger: 'blur'}],
+    role_code: [{required: true, message: '请选择角色', trigger: 'change'}],
 }
 
 function openCreate() {
     isEdit.value = false
-    form.value = {account: '', realName: '', role: 'EDITOR', password: '', auth: ['contract:view', 'contract:create', 'contract:update', 'contract:import']}
+    form.value = {account: '', realName: '', role_code: 'EDITOR', password: ''}
     dialogVisible.value = true
 }
 
 function openEdit(row) {
     isEdit.value = true
-    form.value = {...row, password: ''}
+    form.value = {
+        account: row.account,
+        realName: row.realName,
+        role_code: row.role?.role_code || '',
+        password: '',
+    }
     dialogVisible.value = true
 }
 
-function togglePerm(code) {
-    const idx = form.value.auth.indexOf(code)
-    if (idx >= 0) form.value.auth.splice(idx, 1)
-    else form.value.auth.push(code)
-}
-
+// 权限是否属于当前所选角色（只读展示，不可手动操作）
 function hasPermInForm(code) {
-    return form.value.auth.includes(code)
+    return currentRolePerms.value.has(code)
 }
 
 function saveAccount() {
@@ -131,7 +161,7 @@ function toggleStatus(row) {
     <div class="users-page">
         <div class="page-head">
             <div class="head-title">账号与权限管理</div>
-            <div class="head-desc">为每个账号分配独立权限：登录 / 查看 / 新增 / 导入 / 导出 / 账号管理等</div>
+            <div class="head-desc">为每个账号分配角色，权限由角色决定，不可手动调整</div>
         </div>
 
         <el-card shadow="never" class="table-card">
@@ -148,10 +178,9 @@ function toggleStatus(row) {
                     <template #default="{row}"><b style="color:#2563eb">{{ row.account }}</b></template>
                 </el-table-column>
                 <el-table-column prop="realName" label="姓名" width="110"/>
-                <el-table-column prop="dept" label="部门" width="120"/>
                 <el-table-column prop="role" label="角色" width="120" align="center">
                     <template #default="{row}">
-                        <el-tag :type="roleTag(row.role)" size="small" effect="light">{{ row.role }}</el-tag>
+                        <el-tag :type="roleTag(row.role.role_code)" size="small" effect="light">{{ row.role.role_name }}</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="status" label="状态" width="90" align="center">
@@ -172,7 +201,7 @@ function toggleStatus(row) {
             </el-table>
         </el-card>
 
-        <!-- 新建/编辑账号 + 权限分配弹窗 -->
+        <!-- 新建/编辑账号 + 权限预览弹窗 -->
         <el-dialog v-model="dialogVisible" :title="isEdit ? `编辑账号与权限：${form.account}` : '新建账号'" width="640px" destroy-on-close>
             <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
                 <el-row :gutter="16">
@@ -187,16 +216,9 @@ function toggleStatus(row) {
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="部门" prop="dept">
-                            <el-input v-model="form.dept" placeholder="如：采购部"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="角色">
-                            <el-select v-model="form.role" style="width:100%">
-                                <el-option label="录入员" value="录入员"/>
-                                <el-option label="查看员" value="查看员"/>
-                                <el-option label="超级管理员" value="超级管理员"/>
+                        <el-form-item label="角色" prop="role_code">
+                            <el-select v-model="form.role_code" placeholder="请选择角色" style="width:100%">
+                                <el-option v-for="r in roles" :key="r.role_code" :label="r.role_name" :value="r.role_code"/>
                             </el-select>
                         </el-form-item>
                     </el-col>
@@ -208,13 +230,18 @@ function toggleStatus(row) {
                 </el-row>
             </el-form>
 
-            <div class="perm-title">权限分配（勾选即授予）</div>
+            <div class="perm-title">
+                权限预览（由所选角色决定，不可手动调整）
+                <span v-if="form.role_code" class="perm-title-role">
+                    当前角色：<b>{{ roles.find(r => r.role_code === form.role_code)?.role_name }}</b>
+                </span>
+            </div>
             <div class="perm-tree">
                 <div v-for="g in permGroups" :key="g.name" class="perm-group">
                     <div class="perm-group-name">{{ g.name }}</div>
                     <div class="perm-items">
                         <div v-for="p in g.items" :key="p.code" class="perm-item"
-                             :class="{checked: hasPermInForm(p.code)}" @click="togglePerm(p.code)">
+                             :class="{checked: hasPermInForm(p.code)}">
                             <span class="checkbox" :class="{checked: hasPermInForm(p.code)}"></span>
                             <span>{{ p.name }}</span>
                             <span class="perm-code">{{ p.code }}</span>
@@ -260,6 +287,15 @@ function toggleStatus(row) {
         font-size: 14px;
         font-weight: 600;
         margin: 8px 0 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .perm-title-role {
+            font-size: 12px;
+            font-weight: 400;
+            color: #64748b;
+        }
     }
 
     .perm-tree {
@@ -292,17 +328,12 @@ function toggleStatus(row) {
                     align-items: center;
                     gap: 8px;
                     font-size: 13px;
-                    color: #475569;
+                    color: #94a3b8;
                     padding: 8px 10px;
                     border: 1px solid #e2e8f0;
                     border-radius: 8px;
-                    cursor: pointer;
+                    cursor: not-allowed;
                     transition: all .15s;
-
-                    &:hover {
-                        border-color: #2563eb;
-                        color: #2563eb;
-                    }
 
                     &.checked {
                         background: #eff6ff;

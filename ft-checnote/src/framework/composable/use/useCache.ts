@@ -15,6 +15,7 @@ const ECacheType = Object.freeze({
 
     ACCOUNT: "ACCOUNT", // 账户
     PERMS: "PERMS", // 权限码数组
+    APP: "APP", // app的存储数据
 
     ACCESS_TOKEN: "ACCESS_TOKEN",
     ACCESS_TOKEN_EXPIRE_AT: "ACCESS_TOKEN_EXPIRE_AT",
@@ -62,6 +63,12 @@ function clearAccount() {
     clearToken()
 }
 
+// app清除数据
+function clearApp() {
+    const {wsCache} = useCache()
+    wsCache.delete(ECacheType.APP)
+}
+
 export {
     ECacheType,
     useCache,
@@ -69,4 +76,5 @@ export {
     clearAll,
     clearToken,
     clearAccount,
+    clearApp,
 }

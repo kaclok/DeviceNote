@@ -84,4 +84,26 @@ export class ApiX {
             signal: signal,
         })
     }
+
+    /* ---------------- 角色与权限字典 ---------------- */
+    static getRoleList(paras, signal) {
+        return axiosR.get("cghtz/role/list", {
+            params: paras,
+            signal: signal,
+        })
+    }
+
+    static getPermDefs(paras, signal) {
+        return axiosR.get("cghtz/perm/defs", {
+            params: paras,
+            signal: signal,
+        })
+    }
+
+    static getSignerList(paras, signal) {
+        return axiosR.get("cghtz/signer/list", {
+            params: paras,
+            signal: signal,
+        })
+    }
 }

@@ -1,46 +1,4 @@
 {
-	"permDefs": [
-		{
-			"code": "perm:login",
-			"name": "登录权限",
-			"group": "基础权限"
-		},
-		{
-			"code": "contract:view",
-			"name": "查看合同",
-			"group": "基础权限"
-		},
-		{
-			"code": "contract:create",
-			"name": "新增合同",
-			"group": "合同操作"
-		},
-		{
-			"code": "contract:update",
-			"name": "修改合同",
-			"group": "合同操作"
-		},
-		{
-			"code": "contract:delete",
-			"name": "作废合同",
-			"group": "合同操作"
-		},
-		{
-			"code": "contract:import",
-			"name": "Excel 导入",
-			"group": "合同操作"
-		},
-		{
-			"code": "contract:export",
-			"name": "Excel 导出",
-			"group": "合同操作"
-		},
-		{
-			"code": "perm:assign",
-			"name": "权限分配",
-			"group": "系统管理"
-		}
-	],
 	"methodOptions": [
 		"询比价",
 		"竞争性谈判",
@@ -51,12 +9,8 @@
 		"框架协议采购",
 		"其他"
 	],
-	"payMethodOptions": [
-		"货到票到1个月付款",
-		"货到票到2个月付款",
-		"货到票到3个月付款",
-		"票到1个月付款",
-		"票到2个月付款",
-		"预付款"
+	"yesNoOptions": [
+		"是",
+		"否"
 	]
 }

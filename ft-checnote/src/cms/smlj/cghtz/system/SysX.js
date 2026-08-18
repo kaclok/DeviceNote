@@ -125,24 +125,15 @@ class SysX {
         });
     }
 
-    /* ---------------- 统计 ---------------- */
-    async getStats(paras, signal, onBefore, onAfter) {
+    /* ---------------- 签订人字典 ---------------- */
+    async getSignerList(paras, signal, onBefore, onAfter) {
         onBefore?.();
         if (USE_MOCK) {
-            onAfter?.(true, MockX.getStats());
+            onAfter?.(true, MockX.getSignerList());
             return;
         }
-        // 后端暂无独立统计接口，复用合同列表由前端聚合
-        ApiX.getContractList({}, signal).then(succ => {
-            const rows = succ.data?.data || [];
-            const stats = {overdue: 0, soon: 0, normal: 0, paid: 0, total: rows.length};
-            rows.forEach(c => {
-                if (c.payStatus === "已超期") stats.overdue++;
-                else if (c.payStatus === "即将超期") stats.soon++;
-                else if (c.payStatus === "已付款") stats.paid++;
-                else stats.normal++;
-            });
-            onAfter?.(true, {code: __OK__, msg: "成功", data: stats});
+        ApiX.getSignerList(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
         }).catch(fail => {
             onAfter?.(false, fail);
         });
@@ -195,6 +186,33 @@ class SysX {
             return;
         }
         ApiX.toggleAccountStatus(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, fail);
+        });
+    }
+
+    /* ---------------- 角色与权限字典 ---------------- */
+    async getRoleList(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        if (USE_MOCK) {
+            onAfter?.(true, MockX.getRoleList());
+            return;
+        }
+        ApiX.getRoleList(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, fail);
+        });
+    }
+
+    async getPermDefs(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        if (USE_MOCK) {
+            onAfter?.(true, MockX.getPermDefs());
+            return;
+        }
+        ApiX.getPermDefs(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
             onAfter?.(false, fail);
