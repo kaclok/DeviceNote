@@ -46,10 +46,12 @@ const payMethodOptions = PAY_METHOD_OPTIONS
 const sortKey = ref('')
 const sortOrder = ref('')
 
-// 当前登录账号权限（空值兜底）
-const auth = ref(wsCache.get(ECacheType.PERMS) || [])
+const acc = wsCache.get(ECacheType.ACCOUNT);
+const perms = ref(acc.role.perms)
+
+// 权限判断
 function hasPerm(code) {
-    return auth.value.includes(code)
+    return perms.value.includes(code)
 }
 
 const AC_list = new AbortController()

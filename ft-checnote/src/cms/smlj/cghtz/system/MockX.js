@@ -101,7 +101,7 @@ export class MockX {
         return ok({
             success: true,
             account: {account: user.account, realName: user.realName, dept: user.dept, role: user.role},
-            auth: user.auth,
+            auth: user.role.perms,
         });
     }
 

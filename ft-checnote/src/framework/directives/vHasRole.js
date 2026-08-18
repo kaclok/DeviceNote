@@ -1,19 +1,26 @@
 // https://cn.vuejs.org/guide/reusability/custom-directives.html
 
+// v-hasRole="['super_admin']" 或 v-hasRole="'inputter'"
+// 判断当前用户是否拥有任一指定角色（按 role_code 匹配），无则移除元素。
+//
+// 数据来源：ECacheType.ROLES，role 为数组，元素结构 { role_name, role_code, dataScope, perms }，
+
 import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
 
 const {wsCache} = useCache()
+
 const directive = {
     mounted(el, binding) {
         const {value} = binding
-        // 从缓存中获取用户角色列表
-        const roles = wsCache.get(ECacheType.ROLES) || []
-        // 检查用户是否有任一角色在允许列表中
-        const hasRole = roles.some(role => {
-            return value.includes(role)
-        })
+        if (value == null || (Array.isArray(value) && value.length === 0)) {
+            return
+        }
 
-        // ❌ 没有权限：从 DOM 中移除元素
+        const allowed = Array.isArray(value) ? value : [value]
+        const userRole = wsCache.get(ECacheType.ACCOUNT)?.role.role_code || 'EDITOR'
+        const hasRole = allowed.includes(userRole);
+
+        // ❌ 没有角色：从 DOM 中移除元素
         if (!hasRole) {
             el.remove() // 从父节点中移除el自己, 作用同el.parentNode?.removeChild(el)
         }

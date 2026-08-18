@@ -10,7 +10,7 @@ const _homeRouter = {
         // meta.perms：路由级权限控制，用户必须拥有其中任一权限码才能访问
         {path: 'ledger', name: 'home_ledger', component: () => import('../views/ledger.vue'), meta: {title: '合同台账'}},
         {path: 'import', name: 'home_import', component: () => import('../views/import.vue'), meta: {title: '批量导入'}},
-        {path: 'users', name: 'home_users', component: () => import('../views/users.vue'), meta: {title: '账号与权限', perms: ['perm.assign']}},
+        {path: 'users', name: 'home_users', component: () => import('../views/users.vue'), meta: {title: '账号与权限', perms: ['perm:assign']}},
     ],
 }
 

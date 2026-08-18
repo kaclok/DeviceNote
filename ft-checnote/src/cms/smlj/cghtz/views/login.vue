@@ -33,10 +33,7 @@ function loginAction() {
         loading.value = false;
         if (r && data.data?.success) {
             // 保存登录信息与权限（wsCache 会自动序列化，直接存对象/数组）
-            wsCache.set(ECacheType.ACCOUNT, data.data.account.account);
-            wsCache.set(ECacheType.ROLES, data.data.account.role);
-            wsCache.set(ECacheType.PERMS, data.data.auth);
-
+            wsCache.set(ECacheType.ACCOUNT, data.data.account);
             ElMessage.success(`欢迎回来，${data.data.account.realName}`)
             router.push({name: 'home'})
         } else {

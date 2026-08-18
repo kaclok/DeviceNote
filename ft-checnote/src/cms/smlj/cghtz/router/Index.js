@@ -35,7 +35,10 @@ function getPerms() {
  * 路由未声明 meta.perms 视为公开（如 login / 404）
  */
 function canAccess(to) {
-    const perms = to.meta?.perms;
+    if (!to.meta) {
+        return true;
+    }
+    const perms = to.meta.perms;
     if (!perms || perms.length === 0) {
         return true;
     }

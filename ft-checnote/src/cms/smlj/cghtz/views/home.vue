@@ -7,20 +7,21 @@ const route = useRoute();
 const {wsCache} = useCache()
 
 // 空值兜底：未登录或缓存被清时避免 .includes / .realName 报错
-const account = ref(wsCache.get(ECacheType.ACCOUNT) || {})
-const auth = ref(wsCache.get(ECacheType.PERMS) || [])
+const acc = wsCache.get(ECacheType.ACCOUNT);
+const account = ref(acc)
+const perms = ref(acc.role.perms)
 
 // 权限判断
 function hasPerm(code) {
-    return auth.value.includes(code)
+    return perms.value.includes(code)
 }
 
 // 侧边菜单（按权限过滤）
 const menus = computed(() => {
     const list = [
-        {path: '/home/ledger', title: '合同台账', icon: '📋', perm: 'contract.view'},
-        {path: '/home/import', title: '批量导入', icon: '📥', perm: 'contract.import'},
-        {path: '/home/users', title: '账号与权限', icon: '👥', perm: 'permission.assign'},
+        {path: '/home/ledger', title: '合同台账', icon: '📋', perm: 'contract:view'},
+        {path: '/home/import', title: '批量导入', icon: '📥', perm: 'contract:import'},
+        {path: '/home/users', title: '账号与权限', icon: '👥', perm: 'perm:assign'},
     ]
     return list.filter(m => hasPerm(m.perm))
 })
