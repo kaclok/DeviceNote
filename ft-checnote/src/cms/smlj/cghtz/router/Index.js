@@ -134,6 +134,7 @@ function clearLogin() {
 }
 
 router.beforeEach((to, current, next) => {
+    // 对于静态重定向的router定义不会触发beforeEach
     console.warn('current: ' + current.fullPath + ' -> to:', to.fullPath, ' 当前hash:', window.location.hash)
     const isLoggedIn = !!wsCache.get(ECacheType.ACCOUNT)
 

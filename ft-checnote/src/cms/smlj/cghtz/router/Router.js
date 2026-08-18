@@ -26,20 +26,6 @@ const _404Router = {
     path: '/:pathMatch(.*)*', name: 'notFound', component: CpNotFound,
 }
 
-export const pathToRouter = {
-    [_indexRouter.path]: _indexRouter,
-    [_loginRouter.path]: _loginRouter,
-    [_homeRouter.path]: _homeRouter,
-    [_404Router.path]: _404Router,
-}
-
-const currentPath = ref(window.location.hash)
-window.addEventListener('hashchange', () => {
-    currentPath.value = window.location.hash;
-
-    console.warn("hashchange currentRoutePath:" + currentPath.value)
-})
-
 // 定义的所有router全部在此注册
 export const routers = [
     _indexRouter,
