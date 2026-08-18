@@ -44,22 +44,83 @@ function canAccess(to) {
 }
 
 /**
- * 查找当前用户有权限访问的第一个 home 子路由（登录后的兜底页面）
+ * 查找目标路由 to 所在容器路由下，当前用户有权限访问的第一个子路由
+ * 实现：to.matched 从根到叶子，从后往前找最后一个带 children 的容器路由，
+ * 在其 children 中取第一个有权限的子页；该容器下没有则继续向外层容器回退。
+ * 不特化任何路由名（如 home），新增布局路由自动生效。
+ * @param to 目标路由对象（守卫 beforeEach 的 to）
  */
-function findFirstAccessibleRoute() {
-    const home = routers.find(r => r.path === '/home');
-    if (!home?.children) {
-        return null;
-    }
 
-    for (const child of home.children) {
-        if (!child.path || child.name === 'home_default') {
+/*
+const routes = [
+    {
+        path: '/',
+        component: Layout,
+        children: [
+            {
+                path: 'dashboard',
+                component: Dashboard,
+                children: [
+                    {
+                        path: 'overview',
+                        component: Overview  // 这是最终匹配到的路由
+                    }
+                ]
+            }
+        ]
+    }
+]
+
+to.matched为:
+[
+    {path: '/', component: Layout, children: [...]},     // index 0: 根路由
+    {path: 'dashboard', component: Dashboard, ...},      // index 1: 子路由
+    {path: 'overview', component: Overview, ...}         // index 2: 最终叶子路由
+]
+
+假设路由结构:
+/ (Layout容器)
+  ├── dashboard (有权限)
+  │   ├── overview (需要 'view' 权限)
+  │   └── settings (需要 'admin' 权限)
+  └── profile (公开)
+
+  用户访问 /dashboard/overview，但用户没有 'view' 权限：
+
+to.matched = [Layout, dashboard, overview]
+
+从后往前遍历：
+i=2：overview 没有 children，跳过
+i=1：dashboard 有 children，检查其子路由：
+overview：需要 'view' 权限，用户没有 ❌
+settings：需要 'admin' 权限，用户没有 ❌
+i=0：Layout 有 children，检查其子路由：
+dashboard：需要权限，但没有权限？跳过或继续检查
+profile：公开权限 ✅ 返回 profile
+*/
+
+function findFirstAccessibleRoute(to) {
+    const auth = getPerms();
+    // 从后往前遍历（从最深的叶子路由往上找）
+    for (let i = to.matched.length - 1; i >= 0; i--) {
+        const container = to.matched[i];
+        // 检查这个路由是否有 children
+        if (!container?.children?.length) {
+            // 没有 children，说明是叶子路由，跳过
             continue;
         }
-        const perms = child.meta?.perms || [];
-        const auth = getPerms();
-        if (perms.length === 0 || perms.some(p => auth.includes(p))) {
-            return child;
+
+        // 找到有 children 的容器路由，遍历其子路由
+        for (const child of container.children) {
+            // 跳过空 path 的占位路由
+            if (!child.path) {
+                continue;
+            }
+            // 如果子路由有权限，返回这个子路由
+            const perms = child.meta?.perms || [];
+            if (perms.length === 0 || perms.some(p => auth.includes(p))) {
+                return child;
+            }
         }
     }
     return null;
@@ -73,51 +134,36 @@ function clearLogin() {
 }
 
 router.beforeEach((to, current, next) => {
-    let hasLoggedIn = !!wsCache.get(ECacheType.ACCOUNT)
+    console.warn('current: ' + current.fullPath + ' -> to:', to.fullPath, ' 当前hash:', window.location.hash)
+    const isLoggedIn = !!wsCache.get(ECacheType.ACCOUNT)
 
-    // 如果用户已登录且尝试访问登录页，重定向到台账页
-    if (to.name === 'login' && hasLoggedIn) {
-        const fallback = findFirstAccessibleRoute();
-        next(fallback ? {name: fallback.name} : {name: 'login'});
-        return;
+    // 未登录：只允许进登录页
+    if (!isLoggedIn) {
+        next(to.name === 'login' ? undefined : {name: 'login'})
+        return
     }
 
-    // 未登录
-    if (!hasLoggedIn) {
-        // 未登录且尝试访问其他页面，重定向到登录页
-        if (to.name !== 'login') {
-            next({name: 'login'});
-        }
-        // 未登录并且准备登录，正常执行
-        else {
-            next();
-        }
+    // 下面是isLoggedIn===true的情况
+
+    // 已登录访问登录页：跳转首页（home 自带 redirect，会自动落到默认子页）
+    // redirect之后to不是login，类似于递归重新进来
+    if (to.name === 'login') {
+        next({name: 'home'})
+        return
     }
-    // 已登录
-    else {
-        // 在登录页准备继续登录
-        if (to.name === 'login') {
-            const fallback = findFirstAccessibleRoute();
-            next(fallback ? {name: fallback.name} : {name: 'login'});
-        }
-        // 已登录准备跳转其他页面
-        else {
-            // 路由级权限控制：无权限直接拦截，防止手动改 URL 绕过
-            if (canAccess(to)) {
-                next();
-            } else {
-                console.warn(`无权限访问路由: ${to.fullPath}, 所需权限: ${JSON.stringify(to.meta?.perms)}`);
-                const fallback = findFirstAccessibleRoute();
-                if (fallback) {
-                    // 重定向到当前用户有权限的第一个页面
-                    next({name: fallback.name});
-                } else {
-                    // 用户无任何页面权限，登出
-                    clearLogin();
-                    next({name: 'login'});
-                }
-            }
-        }
+
+    // 权限拦截：无权限时重定向到目标所在容器下第一个有权限的子页，全无权限则登出
+    if (canAccess(to)) {
+        next()
+        return
+    }
+    console.warn(`无权限访问路由: ${to.fullPath}, 所需权限: ${JSON.stringify(to.meta?.perms)}`);
+    const fallback = findFirstAccessibleRoute(to);
+    if (fallback) {
+        next({name: fallback.name})
+    } else {
+        clearLogin()
+        next({name: 'login'})
     }
 });
 

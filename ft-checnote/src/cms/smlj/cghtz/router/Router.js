@@ -37,10 +37,8 @@ const currentPath = ref(window.location.hash)
 window.addEventListener('hashchange', () => {
     currentPath.value = window.location.hash;
 
-    console.log("hashchange currentRoutePath:" + currentPath.value)
+    console.warn("hashchange currentRoutePath:" + currentPath.value)
 })
-
-console.log("currentRoutePath:" + currentPath.value)
 
 // 定义的所有router全部在此注册
 export const routers = [
