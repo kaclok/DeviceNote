@@ -7,7 +7,7 @@ const directive = {
     mounted(el, binding) {
         const {value} = binding
         // 从缓存中获取用户角色列表
-        const perms = wsCache.get(ECacheType.PERMS) || []
+        const perms = wsCache.get(ECacheType.ACCOUNT).role.perms || [];
         // 检查用户是否有任一角色在允许列表中
         const hasPerm = perms.some(perm => {
             return value.includes(perm)

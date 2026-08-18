@@ -23,7 +23,7 @@ const router = createRouter({
  * 存进去的是数组，取出来直接就是数组，不要再做 JSON.parse！
  */
 function getPerms() {
-    const perms = wsCache.get(ECacheType.PERMS);
+    const perms = wsCache.get(ECacheType.ACCOUNT).role.perms;
     if (!perms) {
         return [];
     }

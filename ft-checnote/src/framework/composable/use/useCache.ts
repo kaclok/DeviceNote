@@ -14,6 +14,7 @@ const ECacheType = Object.freeze({
     RES_URL: "RES_URL", // 资源服务器url
 
     ACCOUNT: "ACCOUNT", // 账户
+    PERMS: "PERMS", // 权限码数组
 
     ACCESS_TOKEN: "ACCESS_TOKEN",
     ACCESS_TOKEN_EXPIRE_AT: "ACCESS_TOKEN_EXPIRE_AT",
@@ -57,6 +58,7 @@ function clearToken() {
 function clearAccount() {
     const {wsCache} = useCache()
     wsCache.delete(ECacheType.ACCOUNT)
+    wsCache.delete(ECacheType.PERMS)
     clearToken()
 }
 
