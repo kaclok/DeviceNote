@@ -53,7 +53,7 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 const saving = ref(false)
-const form = ref({account: '', realName: '', dept: '', role: '录入员', password: '', auth: []})
+const form = ref({account: '', realName: '', role: 'EDITOR', password: '', auth: []})
 
 const rules = {
     account: [{required: true, message: '请输入账号', trigger: 'blur'}],
@@ -63,7 +63,7 @@ const rules = {
 
 function openCreate() {
     isEdit.value = false
-    form.value = {account: '', realName: '', dept: '', role: '录入员', password: '', auth: ['auth.login', 'contract.view', 'contract.create', 'contract.update', 'contract.import']}
+    form.value = {account: '', realName: '', role: 'EDITOR', password: '', auth: ['contract:view', 'contract:create', 'contract:update', 'contract:import']}
     dialogVisible.value = true
 }
 
@@ -131,7 +131,7 @@ function toggleStatus(row) {
     <div class="users-page">
         <div class="page-head">
             <div class="head-title">账号与权限管理</div>
-            <div class="head-desc">为每个账号分配独立权限：登录 / 查看 / 新增 / 导入 / 导出 / 账号管理 / 提醒设置等</div>
+            <div class="head-desc">为每个账号分配独立权限：登录 / 查看 / 新增 / 导入 / 导出 / 账号管理等</div>
         </div>
 
         <el-card shadow="never" class="table-card">

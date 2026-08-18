@@ -17,7 +17,7 @@ const directive = {
         }
 
         const allowed = Array.isArray(value) ? value : [value]
-        const userRole = wsCache.get(ECacheType.ACCOUNT)?.role.role_code || 'EDITOR'
+        const userRole = wsCache.get(ECacheType.ACCOUNT)?.role.role_code
         const hasRole = allowed.includes(userRole);
 
         // ❌ 没有角色：从 DOM 中移除元素
