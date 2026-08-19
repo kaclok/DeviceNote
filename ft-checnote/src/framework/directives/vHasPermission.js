@@ -6,11 +6,16 @@ const {wsCache} = useCache()
 const directive = {
     mounted(el, binding) {
         const {value} = binding
+        if (value == null || (Array.isArray(value) && value.length === 0)) {
+            return
+        }
+
+        const allowed = Array.isArray(value) ? value : [value]
         // 从缓存中获取用户角色列表
-        const perms = wsCache.get(ECacheType.ALL_PERMS) || [];
-        // 检查用户是否有任一角色在允许列表中
-        const hasPerm = perms.some(perm => {
-            return value.includes(perm)
+        const userPerms = wsCache.get(ECacheType.ALL_PERMS) || [];
+        // 确保allowed是userPerms的子集
+        const hasPerm = allowed.every(perm => {
+            return userPerms.includes(perm)
         })
 
         // ❌ 没有权限：从 DOM 中移除元素
