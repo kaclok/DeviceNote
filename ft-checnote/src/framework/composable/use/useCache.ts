@@ -14,7 +14,7 @@ const ECacheType = Object.freeze({
     RES_URL: "RES_URL", // 资源服务器url
 
     ACCOUNT: "ACCOUNT", // 账户
-    PERMS: "PERMS", // 权限码数组
+    ALL_PERMS: "ALL_PERMS", // 合并的权限码数组
     APP: "APP", // app的存储数据
 
     ACCESS_TOKEN: "ACCESS_TOKEN",
@@ -59,7 +59,7 @@ function clearToken() {
 function clearAccount() {
     const {wsCache} = useCache()
     wsCache.delete(ECacheType.ACCOUNT)
-    wsCache.delete(ECacheType.PERMS)
+    wsCache.delete(ECacheType.ALL_PERMS)
     clearToken()
 }
 
