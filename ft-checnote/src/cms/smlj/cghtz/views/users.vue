@@ -1,9 +1,23 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
+import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
+
+const {wsCache} = useCache()
 
 const loading = ref(false)
 const list = ref([])
+
+// 搜索关键字（按账号 / 姓名模糊匹配）
+const keyword = ref('')
+const filteredList = computed(() => {
+    const kw = keyword.value.trim().toLowerCase()
+    if (!kw) return list.value
+    return list.value.filter(row =>
+        (row.account || '').toLowerCase().includes(kw) ||
+        (row.realName || '').toLowerCase().includes(kw)
+    )
+})
 
 // 角色列表（动态数据，由后端下发；现走 MockX.getRoleList）
 const roles = ref([])
@@ -168,12 +182,12 @@ function toggleStatus(row) {
             <div class="toolbar">
                 <el-button type="primary" @click="openCreate">＋ 新建账号</el-button>
                 <div class="spacer"></div>
-                <el-input placeholder="搜索账号 / 姓名" clearable style="width:220px">
+                <el-input v-model="keyword" placeholder="搜索账号 / 姓名" clearable style="width:220px">
                     <template #prefix><span style="color:#94a3b8">🔍</span></template>
                 </el-input>
             </div>
 
-            <el-table :data="list" v-loading="loading" border stripe>
+            <el-table :data="filteredList" v-loading="loading" border stripe>
                 <el-table-column prop="account" label="账号" width="120">
                     <template #default="{row}"><b style="color:#2563eb">{{ row.account }}</b></template>
                 </el-table-column>
@@ -191,9 +205,9 @@ function toggleStatus(row) {
                 <el-table-column prop="lastLogin" label="最近登录" width="160"/>
                 <el-table-column label="操作" min-width="180" fixed="right" align="center">
                     <template #default="{row}">
-                        <el-button link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
+                        <el-button v-notSelf.readonly="row.account" link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
                         <el-button link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
-                        <el-button link :type="row.status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
+                        <el-button v-notSelf.readonly="row.account" link :type="row.status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
                             {{ row.status === 1 ? '停用' : '启用' }}
                         </el-button>
                     </template>
@@ -280,7 +294,14 @@ function toggleStatus(row) {
         align-items: center;
         margin-bottom: 14px;
 
-        .spacer {flex: 1}
+        .spacer {
+            flex: 1
+        }
+    }
+
+    .self-tip {
+        font-size: 12px;
+        color: #94a3b8;
     }
 
     .perm-title {
@@ -308,7 +329,9 @@ function toggleStatus(row) {
         .perm-group {
             border-bottom: 1px solid #e2e8f0;
 
-            &:last-child {border-bottom: none}
+            &:last-child {
+                border-bottom: none
+            }
 
             .perm-group-name {
                 padding: 10px 14px;

@@ -10,6 +10,8 @@ import vDebounce from "@/framework/directives/vDebounce.js";
 import VLongPress from "@/framework/directives/vLongPress.js";
 import vHasLogin from "@/framework/directives/vHasLogin.js";
 import vZIndex from "@/framework/directives/vZIndex.js";
+import vNotSelf from "@/framework/directives/vNotSelf.js";
+import vNotSelfRole from "@/framework/directives/vNotSelfRole.js";
 
 const list = [
     {
@@ -55,6 +57,13 @@ const list = [
     {
         name: "zIndex",
         directive: vZIndex.directive,
+    },
+    {
+        name: "notSelf",
+        directive: vNotSelf.directive,
+    }, {
+        name: "notSelfRole",
+        directive: vNotSelfRole.directive,
     },
 ]
 

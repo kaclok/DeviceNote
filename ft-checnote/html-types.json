@@ -23,6 +23,12 @@
 					"name": "v-hasRole"
 				},
 				{
+					"name": "v-notSelf"
+				},
+				{
+					"name": "v-notSelfRole"
+				},
+				{
 					"name": "v-draggableFloat"
 				},
 				{
