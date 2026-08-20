@@ -1,9 +1,6 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
-import {useCache} from "@/framework/composable/use/useCache.ts";
-
-const {wsCache} = useCache()
 
 const loading = ref(false)
 const list = ref([])
@@ -15,7 +12,7 @@ const filteredList = computed(() => {
     if (!kw) return list.value
     return list.value.filter(row =>
         (row.account || '').toLowerCase().includes(kw) ||
-        (row.realName || '').toLowerCase().includes(kw)
+        (row.username || '').toLowerCase().includes(kw)
     )
 })
 
@@ -57,30 +54,33 @@ onUnmounted(() => {
 })
 
 function loadList() {
-    loading.value = true
-    Singleton.getInstance(SysX).getAccountList({}, AC_list.signal, () => {
-    }, (r, data) => {
-        loading.value = false
-        if (r) list.value = data.data || []
+    Singleton.getInstance(SysX).getAccountList({}, AC_list.signal, null, (r, data) => {
+        if (r) {
+            list.value = data.data.list || []
+        }
     })
 }
 
 function loadRoles() {
     Singleton.getInstance(SysX).getRoleList({}, AC_roles.signal, () => {
     }, (r, data) => {
-        if (r) roles.value = data.data || []
+        if (r) {
+            roles.value = data.data || []
+        }
     })
 }
 
 function loadPermDefs() {
     Singleton.getInstance(SysX).getPermDefs({}, AC_perms.signal, () => {
     }, (r, data) => {
-        if (r) permDefs.value = data.data || []
+        if (r) {
+            permDefs.value = data.data || []
+        }
     })
 }
 
 function statusTag(status) {
-    return status === 1 ? {type: 'success', text: '启用'} : {type: 'info', text: '停用'}
+    return status ? {type: 'success', text: '启用'} : {type: 'info', text: '停用'}
 }
 
 function roleTag(roleCode) {
@@ -97,17 +97,17 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 const saving = ref(false)
-const form = ref({account: '', realName: '', role_code: 'EDITOR', password: ''})
+const form = ref({account: '', username: '', role_code: 'EDITOR', password: ''})
 
 const rules = {
     account: [{required: true, message: '请输入账号', trigger: 'blur'}],
-    realName: [{required: true, message: '请输入姓名', trigger: 'blur'}],
+    username: [{required: true, message: '请输入姓名', trigger: 'blur'}],
     role_code: [{required: true, message: '请选择角色', trigger: 'change'}],
 }
 
 function openCreate() {
     isEdit.value = false
-    form.value = {account: '', realName: '', role_code: 'EDITOR', password: ''}
+    form.value = {account: '', username: '', role_code: 'EDITOR', password: ''}
     dialogVisible.value = true
 }
 
@@ -115,7 +115,7 @@ function openEdit(row) {
     isEdit.value = true
     form.value = {
         account: row.account,
-        realName: row.realName,
+        username: row.username,
         role_code: row.role?.role_code || '',
         password: '',
     }
@@ -147,7 +147,7 @@ function saveAccount() {
 
 /* ---------------- 其他操作 ---------------- */
 function resetPwd(row) {
-    ElMessageBox.confirm(`确定将 ${row.account}（${row.realName}）的密码重置为 123456 吗？`, '重置密码', {type: 'warning'}).then(() => {
+    ElMessageBox.confirm(`确定将 ${row.account}（${row.username}）的密码重置为 123456 吗？`, '重置密码', {type: 'warning'}).then(() => {
         Singleton.getInstance(SysX).resetPassword({account: row.account}, new AbortController().signal, () => {
         }, (r, data) => {
             if (r) ElMessage.success('已重置为 123456')
@@ -157,7 +157,7 @@ function resetPwd(row) {
 }
 
 function toggleStatus(row) {
-    const tip = row.status === 1 ? '停用' : '启用'
+    const tip = row.open_status ? '启用' : '停用'
     ElMessageBox.confirm(`确定${tip}账号 ${row.account} 吗？`, '提示', {type: 'warning'}).then(() => {
         Singleton.getInstance(SysX).toggleAccountStatus({account: row.account}, new AbortController().signal, () => {
         }, (r, data) => {
@@ -199,7 +199,7 @@ function toggleStatus(row) {
                 </el-table-column>
                 <el-table-column prop="status" label="状态" width="90" align="center">
                     <template #default="{row}">
-                        <el-tag :type="statusTag(row.status).type" size="small">{{ statusTag(row.status).text }}</el-tag>
+                        <el-tag :type="statusTag(row.open_status).type" size="small">{{ statusTag(row.open_status).text }}</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="lastLogin" label="最近登录" width="160"/>
@@ -207,8 +207,8 @@ function toggleStatus(row) {
                     <template #default="{row}">
                         <el-button v-notSelf.readonly="row.account" link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
                         <el-button link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
-                        <el-button v-notSelf.readonly="row.account" link :type="row.status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
-                            {{ row.status === 1 ? '停用' : '启用' }}
+                        <el-button v-notSelf.readonly="row.account" link :type="row.open_status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
+                            {{ row.open_status ? '启用' : '停用' }}
                         </el-button>
                     </template>
                 </el-table-column>
@@ -225,8 +225,8 @@ function toggleStatus(row) {
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="姓名" prop="realName">
-                            <el-input v-model="form.realName" placeholder="真实姓名"/>
+                        <el-form-item label="姓名" prop="username">
+                            <el-input v-model="form.username" placeholder="真实姓名"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">

@@ -76,6 +76,9 @@ public class CCGHT {
                                  @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = userDao.queryAll(true);
+        for (var i : ls) {
+            i.setRole(roleDao.query(i.getRole_code()));
+        }
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -94,7 +97,7 @@ public class CCGHT {
     @Transactional
     @PostMapping(value = "/account/toggle")
     public Result<?> accountToggle() {
-        return null;
+        return Result.success();
     }
 
     @Transactional

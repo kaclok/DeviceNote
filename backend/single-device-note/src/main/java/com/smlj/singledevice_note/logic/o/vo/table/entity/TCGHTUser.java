@@ -17,6 +17,7 @@ public class TCGHTUser implements Serializable {
     private String username;
     private String pwd;
     private String role_code;
+    private boolean open_status;
     private TCGHTRole role;
 }
 
