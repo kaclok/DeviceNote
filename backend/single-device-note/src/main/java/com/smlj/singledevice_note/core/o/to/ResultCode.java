@@ -20,9 +20,10 @@ public enum ResultCode {
     RC500(500, "系统异常"),
     RC501(501, "功能未实现/未开启"),
     RC502(502, "错误的配置项"),
-    RC503(503, "token过期"),
-    RC504(504, "token不正确"),
 
+    RC10000(10000, "access token过期"),
+    RC10001(10001, "refresh token过期"),
+    RC10002(10002, "access token不存在(未登录)"),
     RC10005(10005, "token校验不正确"),
 
     // 文件

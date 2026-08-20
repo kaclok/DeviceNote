@@ -57,17 +57,32 @@ public class AccessInterceptor implements HandlerInterceptor {
             String at = request.getHeader(JwtUtil.AT_HEADER);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("utf-8");
+
+            // token缺失：视为未登录
+            if (at == null || at.isBlank()) {
+                String json = Result.fail(ResultCode.RC10002).toJson();
+                response.getWriter().write(json);
+                return false;
+            }
+
             var jwt = JwtUtil.getJWTByToken(at);
             if (!JwtUtil.verifyOnly(jwt)) {
+                // 签名校验失败：不触发刷新，直接拒绝
                 String json = Result.fail(ResultCode.RC10005).toJson();
                 response.getWriter().write(json);
                 return false;
             }
 
-            Map<String, Object> accessMap = JwtUtil.parseToken(jwt);
+            if (JwtUtil.isExpired(jwt)) {
+                // 签名有效但已过期：前端凭refresh token无感刷新
+                String json = Result.fail(ResultCode.RC10000).toJson();
+                response.getWriter().write(json);
+                return false;
+            }
+
+            // Map<String, Object> accessMap = JwtUtil.parseToken(jwt);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
             log.error(e.getMessage());
             return false;
         } finally {

@@ -1,6 +1,7 @@
 // https://cn.vuejs.org/guide/reusability/custom-directives.html
 
-import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
+import {ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
+
 const {wsCache} = useCache()
 
 const directive = {

@@ -46,3 +46,13 @@ backend/lp-jtlj/.logs/log.txt
 /android/nfcpatrol/app/release
 /android/NFCScan/.idea
 /backend/lp-jtlj/.logs
+/ft-checnote/.workbuddy
+/backend/mongo/mongo/.gitignore
+/backend/mongo/mongo/pom.xml
+/backend/mongo/mongo/src/main/java/com/smlj/mongo/LifeCycle.java
+/backend/mongo/mongo/src/main/java/com/smlj/mongo/MongoApplication.java
+/backend/mongo/mongo/src/main/java/com/smlj/mongo/entity/User.java
+/backend/mongo/mongo/src/main/java/com/smlj/mongo/mongoSetting.java
+/backend/mongo/mongo/src/main/java/com/smlj/mongo/service/QueryService.java
+/backend/mongo/mongo/src/main/resources/application.yml
+/ft-checnote/dist-json-verify

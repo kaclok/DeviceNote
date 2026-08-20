@@ -15,12 +15,14 @@ const {wsCache} = useCache()
 // https://www.axios-http.cn/docs/config_defaults
 const springBootURL = import.meta.env.VITE_BASE_API;
 let baseURL = config.base_url;
-const url = wsCache.get(ECacheType.RES_URL);
-if (url) {
-    baseURL = url;
-}
+// const url = wsCache.get(ECacheType.RES_URL);
+// if (url) {
+//     baseURL = url;
+// }
 
-const axiosInst = axios.create({baseURL: baseURL, timeout: 60000});
+const axiosInst = axios.create({
+    baseURL: baseURL, timeout: 60000
+});
 
 function changeResBaseURL(targetBaseURL) {
     baseURL = targetBaseURL;
@@ -44,36 +46,25 @@ function _setToken(resp) {
     const at = resp.headers.at
     if (at) { // 尝试保存at
         TokenService.setAT(at)
-        TokenService.setATIssueAt(resp.headers.atIssueAt)
-        TokenService.setATExpireAt(resp.headers.atExpireAt)
+        TokenService.setATIssueAt(resp.headers.at_issue_at)
+        TokenService.setATExpireAt(resp.headers.at_expire_at)
 
         // 给axios设置默认的at,
         // ? 能否不设置，因为在request的拦截器中，有对于at的赋值
-        axiosInst.defaults.headers.at = at
+        // 之后所有通过 axiosInst 发送的请求，都会自动在请求头中携带 rt: <token值>
+        // axiosInst.defaults.headers.at = at
     }
 
     const rt = resp.headers.rt
     if (rt) {  // 尝试保存rt
         TokenService.setRT(rt)
-        TokenService.setRTIssueAt(resp.headers.rtIssueAt)
-        TokenService.setRTExpireAt(resp.headers.rtExpireAt)
+        TokenService.setRTIssueAt(resp.headers.rt_issue_at)
+        TokenService.setRTExpireAt(resp.headers.rt_expire_at)
 
         // 给axios设置默认的rt
         // 因为访问资源服务仅仅使用at, 所有一般不设置rt, 因为会导致网络协议传输过大
-        // axiosInstance.defaults.headers.rt = rt
+        // axiosInst.defaults.headers.rt = rt
     }
-}
-
-function _getToken(config) {
-    // https://www.bilibili.com/video/BV1DKDMYBETU?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
-    const isRT = TokenService.isRT(config)
-    if (!isRT) {
-        config.headers.at = TokenService.getAT();
-    } else {
-        config.headers.rt = TokenService.getRT();
-    }
-    console.log("__isRT: ", isRT);
-    return config
 }
 
 // https://mp.weixin.qq.com/s/sWDnhq6MCUusQ0-aUpfNPw
@@ -93,8 +84,6 @@ function _getToken(config) {
 // 此时await其实等待的是then或者catch内部包装之后新的Promise对象，而不是原来的Promise对象。
 // 建议要么用await配合try catch，要么就then catch不用await, 不要混用
 axiosInst.interceptors.response.use(success => {
-    console.table(success);
-
     _setToken(success);
     // 如果是文件下载等情况，直接返回
     if ((success.data instanceof Blob) || (success.data instanceof ArrayBuffer)) {
@@ -126,7 +115,17 @@ axiosInst.interceptors.response.use(success => {
 // https://www.axios-http.cn/docs/interceptors
 // 添加响应拦截器，其实是把异步成功回调、失败回调给统一封装
 axiosInst.interceptors.request.use(config => {
-    return _getToken(config);
+    console.error("-----------------request url: ", config.url);
+
+    // https://www.bilibili.com/video/BV1DKDMYBETU?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
+    const isRT = TokenService.isRT(config)
+    config.headers.at = TokenService.getAT();
+    if (isRT) {
+        config.headers.rt = TokenService.getRT();
+    }
+    console.log("__isRT: ", isRT);
+
+    return config;
 }, fail => {
     console.error(fail);
     // 异步状态转换为失败状态，走到catch分支

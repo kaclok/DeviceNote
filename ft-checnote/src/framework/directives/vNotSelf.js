@@ -7,7 +7,7 @@
 //
 // 场景：账号管理页中 admin 不能编辑/重置密码/停用自己的账号
 
-import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
+import {ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
 
 const {wsCache} = useCache()
 

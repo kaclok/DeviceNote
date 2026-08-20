@@ -1,7 +1,7 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
-import {exportContractExcel, downloadTemplate} from "../utils/ExcelX.js"
+import {downloadTemplate, exportContractExcel} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
 import ColumnHeader from "../components/ColumnHeader.vue";
 import {METHOD_OPTIONS, YES_NO_OPTIONS} from "../system/MockX.js";
@@ -50,19 +50,19 @@ onUnmounted(() => {
 })
 
 function loadList() {
-    loading.value = true
-    const paras = {...filters.value, pageNum: page.value, pageSize: pageSize.value}
-    Singleton.getInstance(SysX).getContractList(paras, AC_list.signal, () => {
-    }, (r, data) => {
-        loading.value = false
-        if (r) {
-            let rows = data.data || []
-            // 排序（前端排序，与筛选叠加）
-            rows = sortRows(rows)
-            list.value = rows
-            total.value = rows.length
-        }
-    })
+    // loading.value = true
+    // const paras = {...filters.value, pageNum: page.value, pageSize: pageSize.value}
+    // Singleton.getInstance(SysX).getContractList(paras, AC_list.signal, () => {
+    // }, (r, data) => {
+    //     loading.value = false
+    //     if (r) {
+    //         let rows = data.data || []
+    //         // 排序（前端排序，与筛选叠加）
+    //         rows = sortRows(rows)
+    //         list.value = rows
+    //         total.value = rows.length
+    //     }
+    // })
 }
 
 function loadSigners() {

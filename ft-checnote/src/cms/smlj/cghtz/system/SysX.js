@@ -1,5 +1,6 @@
 import {ApiX} from "../api/ApiX.js";
 import {MockX} from "./MockX.js";
+import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
 
 /**
  * 合同台账 - 业务层
@@ -15,30 +16,6 @@ import {MockX} from "./MockX.js";
 const USE_MOCK = false
 
 class SysX {
-    /* ---------------- 认证 ---------------- */
-    async login(paras, signal, onBefore, onAfter) {
-        onBefore?.();
-        if (USE_MOCK) {
-            const r = MockX.login(paras.account, paras.password);
-            setTimeout(() => onAfter?.(r.data.success, r), 300);
-            return;
-        }
-        ApiX.login(paras, signal).then(succ => {
-            onAfter?.(true, succ.data);
-        }).catch(fail => {
-            onAfter?.(false, fail);
-        });
-    }
-
-    async logout(paras, signal, onBefore, onAfter) {
-        onBefore?.();
-        ApiX.logout(paras, signal).then(succ => {
-            onAfter?.(true, succ.data);
-        }).catch(fail => {
-            onAfter?.(false, fail);
-        });
-    }
-
     /* ---------------- 合同台账 ---------------- */
     async getContractList(paras, signal, onBefore, onAfter) {
         onBefore?.();

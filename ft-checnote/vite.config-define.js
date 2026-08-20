@@ -16,6 +16,8 @@ export default {
 
     __AT_EXPIRE_CODE__: 10000,
     __RT_EXPIRE_CODE__: 10001,
+    __AT_EMPTY__: 10002, // 未登录
+    __AT_EXPIRE_INVALID__: 10005,
     __HEART_BEAT_CODE__: 10003,
     __CHUNK_SIZE__: 2 * 1024 * 1024 // 2M
 }

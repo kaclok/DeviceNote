@@ -1,7 +1,7 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
-import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
+import {useCache} from "@/framework/composable/use/useCache.ts";
 
 const {wsCache} = useCache()
 

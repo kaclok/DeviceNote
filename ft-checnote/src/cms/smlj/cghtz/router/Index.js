@@ -1,6 +1,6 @@
 import {createRouter, createWebHashHistory} from 'vue-router'
 import {PREFIX, routers} from './Router.js'
-import {useCache, ECacheType, clearAccount} from "@/framework/composable/use/useCache.ts";
+import {clearAccount, ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
 
 const {wsCache} = useCache()
 

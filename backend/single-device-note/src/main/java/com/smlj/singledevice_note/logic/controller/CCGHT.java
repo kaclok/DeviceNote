@@ -10,8 +10,11 @@ import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTRoleDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTUserDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,7 +37,8 @@ public class CCGHT {
     @Transactional
     @PostMapping(value = "/account/login")
     public Result<?> accountLogin(@RequestParam(name = "account") String account,
-                                  @RequestParam(name = "pwd") String pwd) {
+                                  @RequestParam(name = "pwd") String pwd,
+                                  HttpServletResponse response) {
         var user = userDao.query(account);
         if (user == null) {
             return Result.fail(ResultCode.RC10301);
@@ -50,8 +54,7 @@ public class CCGHT {
         HashMap<String, Object> claims = new HashMap<>();
         claims.put("user", user);
 
-        claims.put(JwtUtil.ACCESS_TOKEN, JwtUtil.getToken(claims, JwtUtil.ACCESS_EXPIRE));
-        claims.put(JwtUtil.REFRESH_TOKEN, JwtUtil.getToken(claims, JwtUtil.RRFRESH_EXPIRE));
+        JwtUtil.setResponseHeader(response, claims);
 
         return Result.success(claims);
     }
@@ -64,7 +67,7 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10301);
         }
 
-        return Result.success();
+        return Result.success(user);
     }
 
     @Transactional

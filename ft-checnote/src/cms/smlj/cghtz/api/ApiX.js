@@ -7,34 +7,16 @@ import {axiosInst as axiosR} from "@/framework/services/net/AxiosInst.js"
  * 后端就绪后，只需保持下面 URL 与后端路由一致即可无缝切换。
  */
 export class ApiX {
-
-    /* ---------------- 认证 ---------------- */
-    static login(paras, signal) {
-        return axiosR.post("cghtz/account/login", null, {
-            params: paras,
-            signal: signal,
-        })
-    }
-
-    static logout(paras, signal) {
-        return axiosR.post("cghtz/account/logout", null, {
-            params: paras,
-            signal: signal,
-        })
-    }
-
     /* ---------------- 合同台账 CRUD ---------------- */
     static getContractList(paras, signal) {
         return axiosR.get("cghtz/contract/list", {
-            params: paras,
-            signal: signal,
+            params: paras, signal: signal,
         })
     }
 
     static getContract(paras, signal) {
         return axiosR.get("cghtz/contract/get", {
-            params: paras,
-            signal: signal,
+            params: paras, signal: signal,
         })
     }
 
@@ -52,8 +34,7 @@ export class ApiX {
 
     static deleteContract(paras, signal) {
         return axiosR.post("cghtz/contract/delete", null, {
-            params: paras,
-            signal: signal,
+            params: paras, signal: signal,
         })
     }
 
@@ -67,8 +48,7 @@ export class ApiX {
     /* ---------------- 账号与权限 ---------------- */
     static getAccountList(paras, signal) {
         return axiosR.get("cghtz/account/list", {
-            params: paras,
-            signal: signal,
+            params: paras, signal: signal,
         })
     }
 
@@ -80,37 +60,32 @@ export class ApiX {
 
     static resetPassword(paras, signal) {
         return axiosR.post("cghtz/account/resetPwd", null, {
-            params: paras,
-            signal: signal,
+            params: paras, signal: signal,
         })
     }
 
     static toggleAccountStatus(paras, signal) {
         return axiosR.post("cghtz/account/toggle", null, {
-            params: paras,
-            signal: signal,
+            params: paras, signal: signal,
         })
     }
 
     /* ---------------- 角色与权限字典 ---------------- */
     static getRoleList(paras, signal) {
         return axiosR.post("cghtz/role/list", {
-            params: paras,
-            signal: signal,
+            params: paras, signal: signal,
         })
     }
 
     static getPermDefs(paras, signal) {
         return axiosR.post("cghtz/perm/defs", {
-            params: paras,
-            signal: signal,
+            params: paras, signal: signal,
         })
     }
 
     static getSignerList(paras, signal) {
         return axiosR.post("cghtz/signer/list", {
-            params: paras,
-            signal: signal,
+            params: paras, signal: signal,
         })
     }
 }

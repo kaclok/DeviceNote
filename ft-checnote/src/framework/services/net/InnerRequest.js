@@ -4,16 +4,18 @@ import {config} from './Config.js'
 const {default_headers} = config
 
 function _request(option) {
-    const {url, method, params, data, headersType, responseType, ...config} = option
+    // ...configs其实是将option中其他所有属性归并到configs中
+    const {url, method, params, data, headersType, responseType, headers, ...configs} = option
     return axiosR({
-        url: url,
-        method,
+        url,
+        method, //（key 和 value 同名时），否则一般是url: url
         params,
         data,
-        ...config,
+        ...configs, // 如果configs中有headers,会被下面的headers覆盖
         responseType: responseType,
         headers: {
             'Content-Type': headersType || default_headers,
+            ...headers,
         },
     })
 }

@@ -1,8 +1,8 @@
 <script setup lang="js">
-import {useRouter, useRoute} from 'vue-router';
-import {useCache, ECacheType, clearAccount} from "@/framework/composable/use/useCache.ts";
-import {Singleton} from "@/framework/services/Singleton.js";
-import {SysX} from "@/cms/smlj/cghtz/system/SysX.js";
+import {useRoute, useRouter} from 'vue-router';
+import {clearAccount, ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
+import {ElMessage, ElMessageBox} from "element-plus";
+import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -47,7 +47,7 @@ function logout() {
 }
 
 function trueLogout() {
-    Singleton.getInstance(SysX).logout({account: account.value}, AC_logoutList.signal, () => {
+    ApiLogin.logout({account: account.value}, AC_logoutList.signal, () => {
         loadingLogout.value = true;
     }, (r, data) => {
         loadingLogout.value = false;

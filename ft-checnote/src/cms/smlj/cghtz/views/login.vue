@@ -1,9 +1,8 @@
 <script setup lang="js">
-import {SysX} from "../system/SysX.js"
-import {Singleton} from "@/framework/services/Singleton.js";
-import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
-import {TokenService} from '@/framework/services/TokenService.js'
+import {ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
 import {useRouter} from 'vue-router';
+import {ElMessage} from "element-plus";
+import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
 
 const {wsCache} = useCache()
 
@@ -28,7 +27,7 @@ onUnmounted(() => {
 });
 
 function loginAction() {
-    Singleton.getInstance(SysX).login({account: loginForm.value.account, pwd: loginForm.value.pwd}, AC_loginList.signal, () => {
+    ApiLogin.login({account: loginForm.value.account, pwd: loginForm.value.pwd}, AC_loginList.signal, () => {
         loading.value = true;
     }, (r, data) => {
         loading.value = false;
