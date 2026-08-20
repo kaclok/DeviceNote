@@ -42,6 +42,61 @@ function changeHttpCodeMap(targetHttpCodeMap) {
     httpCodeMap = targetHttpCodeMap;
 }
 
+// 鉴权失败(RT过期/未登录/AT被篡改)时的处理函数，由应用层(main.js)注册：
+// 一般是清登录态并跳转登录页。框架层不直接耦合路由与具体登出接口。
+let authFailureHandler = null;
+
+function changeAuthFailureHandler(fn) {
+    authFailureHandler = fn;
+}
+
+function triggerAuthFailure(needLogout = false) {
+    authFailureHandler?.(needLogout);
+}
+
+// ============ access token 无感刷新 ============
+// 解决并发刷新风暴：页面同时发出多个请求，AT一起过期，若各自刷新会触发N次refresh。
+// 方案：首个失败请求发起刷新，其余请求复用同一个refreshPromise，刷新成功后再各自重试。
+// (防死循环逻辑暂未加入，待理解刷新风暴后再补)
+let isRefreshing = false;
+let refreshPromise = null;
+
+// 处理AT过期(业务码__AT_EXPIRE_CODE__)：刷新AT后重试原请求
+async function handleATExpired(failedResponse) {
+    const originalConfig = failedResponse.config;
+
+    // 并发刷新风暴：已有刷新在进行，当前请求排队等待同一份刷新结果
+    if (isRefreshing && refreshPromise) {
+        try {
+            await refreshPromise;
+        } catch {
+            // 刷新失败，原请求也无法恢复(登出由发起刷新的那个请求负责)
+            throw failedResponse;
+        }
+        // 刷新成功，用新AT重试原请求
+        originalConfig.headers.at = TokenService.getAT();
+        return axiosInst.request(originalConfig);
+    }
+
+    // 首个触发刷新的请求：发起refresh，期间其它并发请求会复用此promise
+    isRefreshing = true;
+    refreshPromise = TokenService.getRemoteAT();
+    try {
+        await refreshPromise;
+    } catch {
+        // 仅当refresh本身失败(RT过期/无效)才触发登出
+        triggerAuthFailure();
+        throw failedResponse;
+    } finally {
+        isRefreshing = false;
+        refreshPromise = null;
+    }
+    // 刷新成功(新AT已由响应拦截器_setToken写入存储)，用新AT重试原请求
+    // 注意：重试失败不在此处catch，错误原样向上抛，避免误触发登出
+    originalConfig.headers.at = TokenService.getAT();
+    return axiosInst.request(originalConfig);
+}
+
 function _setToken(resp) {
     const at = resp.headers.at
     if (at) { // 尝试保存at
@@ -83,21 +138,32 @@ function _setToken(resp) {
 // await 会等待 syncFunction(x, y).then(...).catch(...) 这个链式调用最终返回的 Promise 对象解决（fulfilled 或 rejected），然后将结果赋值给 r。
 // 此时await其实等待的是then或者catch内部包装之后新的Promise对象，而不是原来的Promise对象。
 // 建议要么用await配合try catch，要么就then catch不用await, 不要混用
-axiosInst.interceptors.response.use(success => {
+axiosInst.interceptors.response.use(async (success) => {
     _setToken(success);
     // 如果是文件下载等情况，直接返回
     if ((success.data instanceof Blob) || (success.data instanceof ArrayBuffer)) {
         return success.data;
     }
 
-    const {code} = success.data;
+    const code = success.data?.code;
     if (code === __OK__) {
         // 成功处理，走then分支
         return success;
     }
 
+    // AT过期：刷新AT后重试原请求(含并发刷新风暴防护与防死循环)
+    if (code === __AT_EXPIRE_CODE__) {
+        return handleATExpired(success);
+    }
+
+    // RT过期 / 未登录 / AT被篡改：触发登出(清登录态+跳登录页)
+    if (code === __RT_EXPIRE_CODE__ || code === __AT_EMPTY__ || code === __AT_EXPIRE_INVALID__) {
+        triggerAuthFailure();
+        return Promise.reject(success);
+    }
+
     // https://www.bilibili.com/video/BV1DKDMYBETU?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
-    // 处理错误码情况
+    // 处理其它错误码情况
     nwCodeMap?.[code]?.(success);
     // 也当做失败处理，让走catch分支
     return Promise.reject(success);
@@ -131,5 +197,5 @@ axiosInst.interceptors.request.use(config => {
 })
 
 export {
-    axiosInst, changeResBaseURL, changeNwCodeMap, changeHttpCodeMap,
+    axiosInst, changeResBaseURL, changeNwCodeMap, changeHttpCodeMap, changeAuthFailureHandler,
 }

@@ -11,7 +11,19 @@ import {RegisterDirective} from "@/framework/directives/DirectiveList.js";
 import {Switch} from "@/framework/services/LocaleService.js";
 
 import "@/framework/services/net/Init.js";
+import {changeAuthFailureHandler} from "@/framework/services/net/AxiosInst.js";
+import {clearAccount} from "@/framework/composable/use/useCache.ts";
 import {router} from "./router/Index.js";
+
+// 注册鉴权失败处理(RT过期/未登录/AT被篡改)：清登录态并跳登录页
+// 不在此处调用服务端logout：RT已过期、服务端会话已失效，
+// 且logout请求会因AT缺失再次触发鉴权失败导致递归
+changeAuthFailureHandler((needLogout) => {
+    clearAccount();
+    if (router.currentRoute.value.name !== 'login') {
+        router.push({name: 'login'});
+    }
+});
 
 // 创建实例
 const app = createApp(App)

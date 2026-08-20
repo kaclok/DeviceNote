@@ -1,42 +1,11 @@
 // https://www.bilibili.com/video/BV1DKDMYBETU?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
-import {useRouter} from 'vue-router';
-import {axiosInst} from "@/framework/services/net/AxiosInst.js";
-import {TokenService} from "@/framework/services/TokenService.js";
-import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
-import {ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
-
-const {wsCache} = useCache()
-
-// 获取路由实例
-const router = useRouter();
-
+// AT过期(10000)、RT过期(10001)、未登录(10002)、AT被篡改(10005)
+// 已在 AxiosInst.js 响应拦截器中统一处理(含并发刷新风暴防护、防死循环、登出跳转)：
+//  - 10000: handleATExpired 刷新AT后重试原请求(共享refreshPromise防风暴、__retried防死循环)
+//  - 10001/10002/10005: triggerAuthFailure 清登录态+跳登录页(由main.js注册)
+// 此处不再重复，避免一处逻辑两处维护导致刷新/登出被触发两次。
+// 原先这里用 useRouter() 在模块顶层调用会拿到 undefined(不在setup上下文)，router.push 会崩，已移除。
 const NwCodeMap = {
-    [__RT_EXPIRE_CODE__]: async (resp) => {
-        // rt过期，登出 并且 跳转到登录页面
-        const currentAccount = wsCache.get(ECacheType.ACCOUNT).account
-        ApiLogin.logout(currentAccount);
-        await router.push({name: 'login'})
-    },
-    [__AT_EMPTY__]: async (resp) => {
-        // 未登录，登出 并且 跳转到登录页面
-        await router.push({name: 'login'})
-    },
-    [__AT_EXPIRE_INVALID__]: async (resp) => {
-        // at被篡改，登出 并且 跳转到登录页面
-        const currentAccount = wsCache.get(ECacheType.ACCOUNT).account
-        ApiLogin.logout(currentAccount);
-        await router.push({name: 'login'})
-    },
-    [__AT_EXPIRE_CODE__]: async (resp) => {
-        // at过期,无感刷新
-        // 上次失败的请求
-        let originalRequest = resp.config
-        TokenService.getRemoteAT().then(res => {
-            // 防止重复请求，设置originalRequest
-            originalRequest.headers.at = TokenService.getAT()
-            axiosInst.request(originalRequest)
-        })
-    },
     [__HEART_BEAT_CODE__]: (resp) => {
 
     },
