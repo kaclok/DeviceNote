@@ -26,7 +26,7 @@ const filters = ref({
     dateFrom: '',
     dateTo: '',
 })
-// 签订人列表（动态数据，由后端下发；现走 MockX.getSignerList）
+// 签订人列表（动态数据，由后端下发；）
 const signerOptions = ref([])
 // 签订方式 / 是否 枚举为固定数据，统一来自 gd.json（经 MockX 导出）
 const methodOptions = METHOD_OPTIONS
@@ -51,7 +51,7 @@ onUnmounted(() => {
 
 function loadList() {
     loading.value = true
-    const paras = {...filters.value, page: page.value, pageSize: pageSize.value}
+    const paras = {...filters.value, pageNum: page.value, pageSize: pageSize.value}
     Singleton.getInstance(SysX).getContractList(paras, AC_list.signal, () => {
     }, (r, data) => {
         loading.value = false
@@ -66,9 +66,11 @@ function loadList() {
 }
 
 function loadSigners() {
-    Singleton.getInstance(SysX).getSignerList({}, AC_signers.signal, () => {
+    Singleton.getInstance(SysX).getSignerList(null, AC_signers.signal, () => {
     }, (r, data) => {
-        if (r) signerOptions.value = data.data || []
+        if (r) {
+            signerOptions.value = data.data || []
+        }
     })
 }
 
@@ -81,7 +83,10 @@ function sortRows(rows) {
     const numericKeys = ['amount', 'deliveryPayCycle', 'warrantyPayCycle', 'settlementAmount', 'deliveryDays']
     return [...rows].sort((a, b) => {
         let va = a[sortKey.value], vb = b[sortKey.value]
-        if (numericKeys.includes(sortKey.value)) { va = Number(va); vb = Number(vb) }
+        if (numericKeys.includes(sortKey.value)) {
+            va = Number(va);
+            vb = Number(vb)
+        }
         if (va == null) return 1
         if (vb == null) return -1
         return (va < vb ? -1 : va > vb ? 1 : 0) * (asc ? 1 : -1)
@@ -158,6 +163,7 @@ const rules = {
 
 // 编号唯一性实时校验
 let AC_checkNo = new AbortController()
+
 function checkNoDup() {
     const no = form.value.no.trim()
     dupWarning.value = ''
@@ -253,7 +259,7 @@ function gotoImport() {
                 </el-form-item>
                 <el-form-item label="签订人">
                     <el-select v-model="filters.signer" placeholder="全部" clearable style="width:110px">
-                        <el-option v-for="s in signerOptions" :key="s.id" :label="s.name" :value="s.name"/>
+                        <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.account"/>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="签订方式">
@@ -408,7 +414,7 @@ function gotoImport() {
                     <el-col :span="12">
                         <el-form-item label="签订人" prop="signer">
                             <el-select v-model="form.signer" placeholder="请选择签订人" filterable style="width:100%">
-                                <el-option v-for="s in signerOptions" :key="s.id" :label="s.name" :value="s.name"/>
+                                <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.account"/>
                             </el-select>
                         </el-form-item>
                     </el-col>

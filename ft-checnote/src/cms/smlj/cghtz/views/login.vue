@@ -2,6 +2,7 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {useCache, ECacheType} from "@/framework/composable/use/useCache.ts";
+import {TokenService} from '@/framework/services/TokenService.js'
 import {useRouter} from 'vue-router';
 
 const {wsCache} = useCache()
@@ -10,8 +11,8 @@ const {wsCache} = useCache()
 const router = useRouter();
 
 let loginForm = ref({
-    account: 'xuesj',
-    pwd: '123456',
+    account: '',
+    pwd: '',
 })
 let loginRules = {
     account: [{required: true, trigger: 'blur', message: '请输入登录账号'}],
@@ -27,19 +28,20 @@ onUnmounted(() => {
 });
 
 function loginAction() {
-    Singleton.getInstance(SysX).login({account: loginForm.value.account, password: loginForm.value.pwd}, AC_loginList.signal, () => {
+    Singleton.getInstance(SysX).login({account: loginForm.value.account, pwd: loginForm.value.pwd}, AC_loginList.signal, () => {
         loading.value = true;
     }, (r, data) => {
         loading.value = false;
-        if (r && data.data?.success) {
+        if (r && data.data) {
             // 保存登录信息与权限（wsCache 会自动序列化，直接存对象/数组）
-            const acc = data.data.account;
+            const acc = data.data.user;
             wsCache.set(ECacheType.ACCOUNT, acc);
 
             const roles = Array.isArray(acc.role) ? acc.role : [acc.role]
             const allPerms = roles.flatMap(role => role.perms);
             wsCache.set(ECacheType.ALL_PERMS, [...new Set(allPerms)]);
-            ElMessage.success(`欢迎回来，${data.data.account.realName}`)
+
+            ElMessage.success(`欢迎回来，${acc.account}`)
             router.push({name: 'home'})
         } else {
             ElMessage.error(data?.data?.message || data?.msg || '登录失败')
@@ -79,16 +81,6 @@ function fillAccount(account, pwd) {
                     {{ loading ? "登 录 中..." : "登 录" }}
                 </el-button>
             </el-form>
-
-            <div class="demo-accounts">
-                <div class="demo-title">演示账号（点击填充）</div>
-                <div class="demo-btns">
-                    <el-tag type="primary" class="demo-tag" @click="fillAccount('admin','123456')">admin 管理员</el-tag>
-                    <el-tag class="demo-tag" @click="fillAccount('xuesj','123456')">xuesj 录入员</el-tag>
-                    <el-tag type="warning" class="demo-tag" @click="fillAccount('liting','123456')">liting 查看员</el-tag>
-                </div>
-                <div class="demo-hint">查看员 liting 无「新增/导入」权限，可对比体验权限控制</div>
-            </div>
         </div>
     </div>
 </template>

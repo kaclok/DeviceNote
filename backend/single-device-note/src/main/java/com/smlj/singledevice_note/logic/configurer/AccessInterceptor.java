@@ -15,6 +15,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -53,16 +54,17 @@ public class AccessInterceptor implements HandlerInterceptor {
             }
 
             // 从请求头获取token
-            String token = request.getHeader(JwtUtil.AT_HEADER);
+            String at = request.getHeader(JwtUtil.AT_HEADER);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("utf-8");
-            var jwt = JwtUtil.getJWTByToken(token);
+            var jwt = JwtUtil.getJWTByToken(at);
             if (!JwtUtil.verifyOnly(jwt)) {
                 String json = Result.fail(ResultCode.RC10005).toJson();
                 response.getWriter().write(json);
                 return false;
             }
 
+            Map<String, Object> accessMap = JwtUtil.parseToken(jwt);
             return true;
         } catch (Exception e) {
             e.printStackTrace();

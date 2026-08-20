@@ -1,6 +1,8 @@
 <script setup lang="js">
 import {useRouter, useRoute} from 'vue-router';
 import {useCache, ECacheType, clearAccount} from "@/framework/composable/use/useCache.ts";
+import {Singleton} from "@/framework/services/Singleton.js";
+import {SysX} from "@/cms/smlj/cghtz/system/SysX.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -10,6 +12,14 @@ const {wsCache} = useCache()
 const acc = wsCache.get(ECacheType.ACCOUNT);
 const account = ref(acc)
 const perms = ref(acc.role.perms)
+
+let loadingLogout = ref(false)
+
+let AC_logoutList = new AbortController();
+
+onUnmounted(() => {
+    AC_logoutList.abort();
+});
 
 // 权限判断
 function hasPerm(code) {
@@ -31,10 +41,23 @@ const activeMenu = computed(() => route.path)
 
 function logout() {
     ElMessageBox.confirm('确定退出登录吗？', '提示', {type: 'warning'}).then(() => {
-        clearAccount()
-        router.push({name: 'login'})
+        trueLogout()
     }).catch(() => {
     })
+}
+
+function trueLogout() {
+    Singleton.getInstance(SysX).logout({account: account.value}, AC_logoutList.signal, () => {
+        loadingLogout.value = true;
+    }, (r, data) => {
+        loadingLogout.value = false;
+        if (r && data.data) {
+            clearAccount()
+            router.push({name: 'login'})
+        } else {
+            ElMessage.error(data?.data?.message || data?.msg || '登出失败')
+        }
+    });
 }
 </script>
 
@@ -53,7 +76,7 @@ function logout() {
                         <el-avatar :size="30" style="background:#6366f1;font-size:13px">
                             {{ (account.realName || '?').slice(0, 1) }}
                         </el-avatar>
-                        <span class="user-name">{{ account.realName || account.account }}</span>
+                        <span class="user-name">{{ account.account }}</span>
                     </div>
                     <template #dropdown>
                         <el-dropdown-menu>

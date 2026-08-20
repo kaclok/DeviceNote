@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTRoleDao">
+    <resultMap id="resultMap" type="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole">
+        <id property="id" column="id"/>
+        <result property="role_name" column="role_name"/>
+        <result property="role_code" column="role_code"/>
+        <result property="data_scope" column="data_scope"/>
+        <!-- 关键：为数组字段指定 TypeHandler -->
+        <result property="perms" column="perms" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+        <result property="description" column="description"/>
+    </resultMap>
+
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole" resultMap="resultMap">
+        select * from cght.t_role
+    </select>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole" resultMap="resultMap">
+        select * from cght.t_role
+        where role_code = #{role_code}
+    </select>
+
+    <select id="exist" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM cght.t_role WHERE role_code = #{role_code}
+    </select>
+</mapper>

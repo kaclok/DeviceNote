@@ -10,7 +10,14 @@ export class ApiX {
 
     /* ---------------- 认证 ---------------- */
     static login(paras, signal) {
-        return axiosR.post("cghtz/login", null, {
+        return axiosR.post("cghtz/account/login", null, {
+            params: paras,
+            signal: signal,
+        })
+    }
+
+    static logout(paras, signal) {
+        return axiosR.post("cghtz/account/logout", null, {
             params: paras,
             signal: signal,
         })
@@ -87,21 +94,21 @@ export class ApiX {
 
     /* ---------------- 角色与权限字典 ---------------- */
     static getRoleList(paras, signal) {
-        return axiosR.get("cghtz/role/list", {
+        return axiosR.post("cghtz/role/list", {
             params: paras,
             signal: signal,
         })
     }
 
     static getPermDefs(paras, signal) {
-        return axiosR.get("cghtz/perm/defs", {
+        return axiosR.post("cghtz/perm/defs", {
             params: paras,
             signal: signal,
         })
     }
 
     static getSignerList(paras, signal) {
-        return axiosR.get("cghtz/signer/list", {
+        return axiosR.post("cghtz/signer/list", {
             params: paras,
             signal: signal,
         })

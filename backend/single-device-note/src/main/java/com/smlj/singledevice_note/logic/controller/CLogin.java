@@ -65,8 +65,8 @@ public class CLogin {
         claims.put("dept_name", org.getDept_name());
         claims.put("dept_all_name", org.getDept_all_name());
 
-        String token = JwtUtil.getToken(claims, JwtUtil.EXPIRE).getRight();
-        claims.put(JwtUtil.TOKEN, token);
+        String token = JwtUtil.getToken(claims, JwtUtil.ACCESS_EXPIRE).getRight();
+        claims.put(JwtUtil.ACCESS_TOKEN, token);
 
         HashMap<String, Object> r = new HashMap<>();
         r.put("result", 0);

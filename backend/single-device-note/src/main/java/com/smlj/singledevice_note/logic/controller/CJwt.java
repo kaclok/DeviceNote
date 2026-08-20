@@ -1,6 +1,5 @@
 package com.smlj.singledevice_note.logic.controller;
 
-import com.smlj.singledevice_note.core.annotation.JwtIgnore;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -17,9 +16,13 @@ import java.util.Map;
 @RequestMapping("/x")
 @Tag(name = "CJwt", description = "jwt相关操作")
 public class CJwt {
-    @JwtIgnore
-    @GetMapping("/getToken")
-    public Triple<Date, Date, String> getToken(boolean recordInRedis, Map<String, Object> claims) {
-        return JwtUtil.getToken(claims, JwtUtil.EXPIRE);
+    @GetMapping("/getAccessToken")
+    public Triple<Date, Date, String> getAccessToken(Map<String, Object> claims) {
+        return JwtUtil.getToken(claims, JwtUtil.ACCESS_EXPIRE);
+    }
+
+    @GetMapping("/getRefreshToken")
+    public Triple<Date, Date, String> getRefreshToken(Map<String, Object> claims) {
+        return JwtUtil.getToken(claims, JwtUtil.RRFRESH_EXPIRE);
     }
 }

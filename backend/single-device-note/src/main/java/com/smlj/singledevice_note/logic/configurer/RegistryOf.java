@@ -1,5 +1,8 @@
 package com.smlj.singledevice_note.logic.configurer;
 
+import com.smlj.singledevice_note.core.annotation.Acc;
+import com.smlj.singledevice_note.core.annotation.AccProfile;
+import com.smlj.singledevice_note.core.o.converter.StringToKV;
 import com.smlj.singledevice_note.logic.o.vo.converter.StringToTDeviceRecord;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +36,11 @@ public class RegistryOf implements WebMvcConfigurer {
         //registry.addConverter(new StringTo<KV>(KV.class));
 
         registry.addConverter(new StringToTDeviceRecord());
+        registry.addConverter(new StringToKV<Long, Float>());
+        registry.addConverter(new StringToKV<Long, String>());
+        registry.addConverter(new StringToKV<Integer, String>());
+        registry.addConverter(new StringToKV<Integer, Float>());
+        registry.addConverter(new StringToKV<Integer, Integer>());
     }
 
     // 拦截器针对方法，HandlerMethodArgumentResolver针对参数
@@ -47,14 +55,11 @@ public class RegistryOf implements WebMvcConfigurer {
         /*var i = registry.addInterceptor(signInterceptor);
         i.addPathPatterns("/train/**");*/
 
-        /*var i = registry.addInterceptor(accessInterceptor);
+        var i = registry.addInterceptor(accessInterceptor);
         // 对train开头的进行处理，不对swagger-ui等进行拦截
-        i.addPathPatterns("/x/**");
+        i.addPathPatterns("/cghtz/**");
         // 不对以下接口进行拦截， 登录和注册
-        i.excludePathPatterns(
-                "/x/login",
-                "/swagger-ui/*"
-        );*/
+        i.excludePathPatterns("/cghtz/account/login", "/swagger-ui/*");
     }
 
     // 用于处理接收消息 和 发送消息，比如将接收的消息转换为json, 侧重于处理消息
@@ -68,8 +73,8 @@ public class RegistryOf implements WebMvcConfigurer {
         // 解决每个接口都需要AccountUserName.Get()的尴尬
         // https://blog.csdn.net/u013078871/article/details/124196337
 
-        /*resolvers.add(new AnnoArgResolver<AccProfile>(AccProfile.class));
-        resolvers.add(new AnnoArgResolver<Acc>(Acc.class));*/
+        resolvers.add(new AnnoArgResolver<AccProfile>(AccProfile.class));
+        resolvers.add(new AnnoArgResolver<Acc>(Acc.class));
     }
 
     /*@Override

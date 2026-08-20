@@ -9,15 +9,18 @@ import java.util.Map;
 
 public class JwtUtil {
     public static final String AT_HEADER = "at";
+    public static final String RT_HEADER = "rt";
     public static final String KEY = "smlj";
     public static final String AUTHORIZE = "Authorize";
-    public static final String TOKEN = "Token";
+    public static final String ACCESS_TOKEN = "Access_Token";
+    public static final String REFRESH_TOKEN = "Refresh_Token";
     public static final byte[] KEY_BYTES = KEY.getBytes();
     // 动态延长token过期时间
     // https://mp.weixin.qq.com/s/juSk00SEKhYKb2IkG1NhSQ
     // https://mp.weixin.qq.com/s/fnmGRvE8JFPR5ZG6RfWbIg
     // https://mp.weixin.qq.com/s/bQnoeS1ZwROoaPGIR8oCKg
-    public static final long EXPIRE = 4 * 3600 * 1000;
+    public static final long RRFRESH_EXPIRE = 4 * 3600 * 1000;
+    public static final long ACCESS_EXPIRE = 1 * 20 * 1000;
 
     //接收业务数据,生成token并返回
     public static Triple<Date, Date, String> getToken(Map<String, Object> claims, long expire) {

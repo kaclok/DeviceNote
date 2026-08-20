@@ -12,7 +12,7 @@ import {MockX} from "./MockX.js";
  */
 
 /* 是否优先使用本地 Mock（演示模式）。后端联调时置为 false 即可全部走 ApiX */
-const USE_MOCK = true
+const USE_MOCK = false
 
 class SysX {
     /* ---------------- 认证 ---------------- */
@@ -24,6 +24,15 @@ class SysX {
             return;
         }
         ApiX.login(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, fail);
+        });
+    }
+
+    async logout(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        ApiX.logout(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
             onAfter?.(false, fail);

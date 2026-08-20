@@ -1,14 +1,11 @@
 package com.smlj.singledevice_note.logic.controller;
 
 import cn.hutool.core.date.DateUtil;
-import cn.hutool.core.lang.TypeReference;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
-import com.smlj.singledevice_note.core.o.converter.StringTo;
 import com.smlj.singledevice_note.core.o.dto.KV;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.*;
@@ -19,13 +16,11 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.annotations.Param;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestController

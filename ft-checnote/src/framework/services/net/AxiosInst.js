@@ -93,6 +93,8 @@ function _getToken(config) {
 // 此时await其实等待的是then或者catch内部包装之后新的Promise对象，而不是原来的Promise对象。
 // 建议要么用await配合try catch，要么就then catch不用await, 不要混用
 axiosInst.interceptors.response.use(success => {
+    console.table(success);
+
     _setToken(success);
     // 如果是文件下载等情况，直接返回
     if ((success.data instanceof Blob) || (success.data instanceof ArrayBuffer)) {
