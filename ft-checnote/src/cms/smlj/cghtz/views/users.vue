@@ -9,11 +9,28 @@ const list = ref([])
 const keyword = ref('')
 const filteredList = computed(() => {
     const kw = keyword.value.trim().toLowerCase()
-    if (!kw) return list.value
+    if (!kw) {
+        return list.value
+    }
+
+    // 模糊查找
     return list.value.filter(row =>
         (row.account || '').toLowerCase().includes(kw) ||
         (row.username || '').toLowerCase().includes(kw)
     )
+})
+
+// 客户端分页：账号是小体量字典数据，整表加载后本地分页即可，
+// 这样可保留上方"账号/姓名"关键字搜索跨全部数据生效，无需后端支持搜索
+const page = ref(1)
+const pageSize = ref(2)
+const pagedList = computed(() => {
+    const start = (page.value - 1) * pageSize.value
+    return filteredList.value.slice(start, start + pageSize.value)
+})
+// 关键字变化时回到第一页，避免停留在超出范围的页码
+watch(keyword, () => {
+    page.value = 1
 })
 
 // 角色列表（动态数据，由后端下发；现走 MockX.getRoleList）
@@ -54,15 +71,16 @@ onUnmounted(() => {
 })
 
 function loadList() {
-    Singleton.getInstance(SysX).getAccountList({}, AC_list.signal, null, (r, data) => {
+    Singleton.getInstance(SysX).getAccountList({pageNum: page.value, pageSize: pageSize.value}, AC_list.signal, null, (r, data) => {
         if (r) {
-            list.value = data.data.list || []
+            list.value = data.data?.list || []
+            page.value = 1
         }
     })
 }
 
 function loadRoles() {
-    Singleton.getInstance(SysX).getRoleList({}, AC_roles.signal, () => {
+    Singleton.getInstance(SysX).getRoleList(null, AC_roles.signal, () => {
     }, (r, data) => {
         if (r) {
             roles.value = data.data || []
@@ -71,7 +89,7 @@ function loadRoles() {
 }
 
 function loadPermDefs() {
-    Singleton.getInstance(SysX).getPermDefs({}, AC_perms.signal, () => {
+    Singleton.getInstance(SysX).getPermDefs(null, AC_perms.signal, () => {
     }, (r, data) => {
         if (r) {
             permDefs.value = data.data || []
@@ -187,11 +205,11 @@ function toggleStatus(row) {
                 </el-input>
             </div>
 
-            <el-table :data="filteredList" v-loading="loading" border stripe>
-                <el-table-column prop="account" label="账号" width="120">
+            <el-table :data="pagedList" v-loading="loading" border stripe>
+                <el-table-column prop="account" label="账号" width="140">
                     <template #default="{row}"><b style="color:#2563eb">{{ row.account }}</b></template>
                 </el-table-column>
-                <el-table-column prop="realName" label="姓名" width="110"/>
+                <el-table-column prop="username" label="姓名" width="130"/>
                 <el-table-column prop="role" label="角色" width="120" align="center">
                     <template #default="{row}">
                         <el-tag :type="roleTag(row.role.role_code)" size="small" effect="light">{{ row.role.role_name }}</el-tag>
@@ -202,17 +220,27 @@ function toggleStatus(row) {
                         <el-tag :type="statusTag(row.open_status).type" size="small">{{ statusTag(row.open_status).text }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="lastLogin" label="最近登录" width="160"/>
-                <el-table-column label="操作" min-width="180" fixed="right" align="center">
+                <el-table-column label="操作" min-width="130" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-notSelf.readonly="row.account" link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
-                        <el-button link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
+                        <el-button v-notSelf.readonly="row.account" link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
                         <el-button v-notSelf.readonly="row.account" link :type="row.open_status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
                             {{ row.open_status ? '启用' : '停用' }}
                         </el-button>
                     </template>
                 </el-table-column>
             </el-table>
+
+            <div class="pager">
+                <el-pagination
+                    v-model:current-page="page"
+                    v-model:page-size="pageSize"
+                    :page-sizes="[10, 20, 50, 100]"
+                    :total="filteredList.length"
+                    layout="total, sizes, prev, pager, next, jumper"
+                    background
+                />
+            </div>
         </el-card>
 
         <!-- 新建/编辑账号 + 权限预览弹窗 -->
@@ -297,6 +325,12 @@ function toggleStatus(row) {
         .spacer {
             flex: 1
         }
+    }
+
+    .pager {
+        margin-top: 14px;
+        display: flex;
+        justify-content: flex-end;
     }
 
     .self-tip {

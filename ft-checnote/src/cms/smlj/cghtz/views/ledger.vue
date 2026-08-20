@@ -36,7 +36,8 @@ const yesNoOptions = YES_NO_OPTIONS
 const sortKey = ref('')
 const sortOrder = ref('')
 
-const AC_list = new AbortController()
+// 用 let：服务端分页每次翻页都要发请求，需取消上一次未完成的请求，避免旧响应覆盖新响应
+let AC_list = new AbortController()
 const AC_signers = new AbortController()
 
 onMounted(() => {
@@ -50,19 +51,47 @@ onUnmounted(() => {
 })
 
 function loadList() {
-    // loading.value = true
-    // const paras = {...filters.value, pageNum: page.value, pageSize: pageSize.value}
-    // Singleton.getInstance(SysX).getContractList(paras, AC_list.signal, () => {
-    // }, (r, data) => {
-    //     loading.value = false
-    //     if (r) {
-    //         let rows = data.data || []
-    //         // 排序（前端排序，与筛选叠加）
-    //         rows = sortRows(rows)
-    //         list.value = rows
-    //         total.value = rows.length
-    //     }
-    // })
+    // 取消上一次未完成的请求，避免快速翻页时旧响应覆盖新响应
+    AC_list.abort()
+    AC_list = new AbortController()
+
+    loading.value = true
+    // 筛选条件映射到后端 contractList 的 @RequestParam 名：
+    //   no→id, name→title, method→signe_type, dateFrom/To→queryBegin/End
+    //   supplier/stock/completed 后端暂未声明参数，先一并带上(后端忽略未知query参数)，便于后续补全
+    const paras = {pageNum: page.value, pageSize: pageSize.value}
+    const filterMap = {
+        id: filters.value.no, title: filters.value.name, signer: filters.value.signer,
+        signe_type: filters.value.method, supplier: filters.value.supplier,
+        stock: filters.value.stock, completed: filters.value.completed,
+        queryBegin: filters.value.dateFrom, queryEnd: filters.value.dateTo,
+    }
+    for (const k in filterMap) {
+        const v = filterMap[k]
+        if (v !== '' && v != null) paras[k] = v
+    }
+    Singleton.getInstance(SysX).getContractList(paras, AC_list.signal, () => {
+    }, (r, data) => {
+        loading.value = false
+        if (r) {
+            // 后端返回 PageSerializable {list, total, ...}；contractList 未实现时 data.data 为 null
+            // 排序为前端排序(后端未支持排序)，仅对当前页生效
+            list.value = sortRows(data.data?.list || [])
+            total.value = data.data?.total || 0
+        }
+    })
+}
+
+// 服务端分页：页码/每页条数变化需重新发请求
+function onPageChange(p) {
+    page.value = p
+    loadList()
+}
+
+function onSizeChange(s) {
+    pageSize.value = s
+    page.value = 1
+    loadList()
 }
 
 function loadSigners() {
@@ -394,6 +423,19 @@ function gotoImport() {
                     </template>
                 </el-table-column>
             </el-table>
+
+            <div class="pager">
+                <el-pagination
+                    :current-page="page"
+                    :page-size="pageSize"
+                    :page-sizes="[10, 20, 50, 100]"
+                    :total="total"
+                    layout="total, sizes, prev, pager, next, jumper"
+                    background
+                    @current-change="onPageChange"
+                    @size-change="onSizeChange"
+                />
+            </div>
         </el-card>
 
         <!-- 新增/编辑弹窗 -->
@@ -590,6 +632,12 @@ function gotoImport() {
         .money {
             font-weight: 600;
             font-variant-numeric: tabular-nums;
+        }
+
+        .pager {
+            margin-top: 14px;
+            display: flex;
+            justify-content: flex-end;
         }
     }
 }
