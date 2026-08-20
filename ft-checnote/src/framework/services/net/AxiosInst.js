@@ -115,16 +115,14 @@ axiosInst.interceptors.response.use(success => {
 // https://www.axios-http.cn/docs/interceptors
 // 添加响应拦截器，其实是把异步成功回调、失败回调给统一封装
 axiosInst.interceptors.request.use(config => {
-    console.error("-----------------request url: ", config.url);
-
     // https://www.bilibili.com/video/BV1DKDMYBETU?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
     const isRT = TokenService.isRT(config)
     config.headers.at = TokenService.getAT();
     if (isRT) {
         config.headers.rt = TokenService.getRT();
     }
-    console.log("__isRT: ", isRT);
 
+    console.error("-----------------request url: %s, isRT: %s", config.url, isRT);
     return config;
 }, fail => {
     console.error(fail);

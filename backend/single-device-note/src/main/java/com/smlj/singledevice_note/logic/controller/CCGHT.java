@@ -132,8 +132,20 @@ public class CCGHT {
     }
 
     @Transactional
+    @PostMapping(value = "/contract/create")
+    public Result<?> contractCreate() {
+        return null;
+    }
+
+    @Transactional
     @PostMapping(value = "/contract/edit")
     public Result<?> contractEdit(@RequestParam(name = "id", required = false) String id) {
+        return null;
+    }
+
+    @Transactional
+    @PostMapping(value = "/contract/update")
+    public Result<?> contractUpdate(@RequestParam(name = "id", required = false) String id) {
         return null;
     }
 
@@ -144,8 +156,14 @@ public class CCGHT {
     }
 
     @Transactional
-    @PostMapping(value = "/contract/RK")
-    public Result<?> contractRK(@RequestParam(name = "id", required = false) String id) {
+    @PostMapping(value = "/contract/get")
+    public Result<?> contractGet(@RequestParam(name = "id", required = false) String id) {
+        return null;
+    }
+
+    @Transactional
+    @PostMapping(value = "/contract/import")
+    public Result<?> contractImport() {
         return null;
     }
 }

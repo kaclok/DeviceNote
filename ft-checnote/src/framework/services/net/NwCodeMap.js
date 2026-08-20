@@ -14,7 +14,7 @@ const NwCodeMap = {
     [__RT_EXPIRE_CODE__]: async (resp) => {
         // rt过期，登出 并且 跳转到登录页面
         const currentAccount = wsCache.get(ECacheType.ACCOUNT).account
-        await ApiLogin.logout(currentAccount);
+        ApiLogin.logout(currentAccount);
         await router.push({name: 'login'})
     },
     [__AT_EMPTY__]: async (resp) => {
@@ -24,7 +24,7 @@ const NwCodeMap = {
     [__AT_EXPIRE_INVALID__]: async (resp) => {
         // at被篡改，登出 并且 跳转到登录页面
         const currentAccount = wsCache.get(ECacheType.ACCOUNT).account
-        await ApiLogin.logout(currentAccount);
+        ApiLogin.logout(currentAccount);
         await router.push({name: 'login'})
     },
     [__AT_EXPIRE_CODE__]: async (resp) => {

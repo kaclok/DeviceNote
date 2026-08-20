@@ -92,8 +92,8 @@ public class JwtUtil {
 
         // 将 Token 放入响应头（不改变返回体结构）
         response.setHeader(JwtUtil.AT_HEADER, at.getRight());
-        response.setHeader(JwtUtil.AT_ISSUE_HEADER, at.getLeft().toString());
-        response.setHeader(JwtUtil.AT_EXPIRE_HEADER, at.getMiddle().toString());
+        response.setHeader(JwtUtil.AT_ISSUE_HEADER, String.valueOf(at.getLeft().getTime()));
+        response.setHeader(JwtUtil.AT_EXPIRE_HEADER, String.valueOf(at.getMiddle().getTime()));
     }
 
     public static void setRefreshTokenHeader(HttpServletResponse response, Map<String, Object> claims) {
@@ -101,7 +101,7 @@ public class JwtUtil {
 
         // 将 Token 放入响应头（不改变返回体结构）
         response.setHeader(JwtUtil.RT_HEADER, rt.getRight());
-        response.setHeader(JwtUtil.RT_ISSUE_HEADER, rt.getLeft().toString());
-        response.setHeader(JwtUtil.RT_EXPIRE_HEADER, rt.getMiddle().toString());
+        response.setHeader(JwtUtil.RT_ISSUE_HEADER, String.valueOf(rt.getLeft().getTime()));
+        response.setHeader(JwtUtil.RT_EXPIRE_HEADER, String.valueOf(rt.getMiddle().getTime()));
     }
 }

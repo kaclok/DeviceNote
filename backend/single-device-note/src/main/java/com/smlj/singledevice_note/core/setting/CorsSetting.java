@@ -1,5 +1,6 @@
 package com.smlj.singledevice_note.core.setting;
 
+import com.smlj.singledevice_note.core.utils.JwtUtil;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -56,12 +57,23 @@ public class CorsSetting {
         config.addAllowedHeader("*");
         // 1.4 允许携带证书
         config.setAllowCredentials(true);
+
+        // 1.5 暴露给前端的响应头：跨域时浏览器默认只让JS读到几个安全头，
+        //     JWT的at/rt等自定义头必须显式expose，否则前端 resp.headers.at 永远是 undefined。
+        //     直接引用JwtUtil常量，避免和后端设置的头名不一致。
+        config.addExposedHeader(JwtUtil.AT_HEADER);
+        config.addExposedHeader(JwtUtil.AT_ISSUE_HEADER);
+        config.addExposedHeader(JwtUtil.AT_EXPIRE_HEADER);
+        config.addExposedHeader(JwtUtil.RT_HEADER);
+        config.addExposedHeader(JwtUtil.RT_ISSUE_HEADER);
+        config.addExposedHeader(JwtUtil.RT_EXPIRE_HEADER);
         // config.setMaxAge(1800L); // 有效期 1800 秒，2 小时
 
         // 2. 创建 UrlBasedCorsConfigurationSource 对象
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         // 3. 为特定的 URL 路径注册 CORS 配置
-        source.registerCorsConfiguration("/x/**", config);
+        //    用 /** 覆盖所有路径，否则只配 /x/** 会导致 /cghtz/** (登录/刷新等) 跨域时直接被浏览器拦截
+        source.registerCorsConfiguration("/**", config);
 
         // 4. 返回 CorsFilter
         return new org.springframework.web.filter.CorsFilter(source);

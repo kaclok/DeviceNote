@@ -9,13 +9,13 @@ import {axiosInst as axiosR} from "@/framework/services/net/AxiosInst.js"
 export class ApiX {
     /* ---------------- 合同台账 CRUD ---------------- */
     static getContractList(paras, signal) {
-        return axiosR.get("cghtz/contract/list", {
+        return axiosR.post("cghtz/contract/list", {
             params: paras, signal: signal,
         })
     }
 
     static getContract(paras, signal) {
-        return axiosR.get("cghtz/contract/get", {
+        return axiosR.post("cghtz/contract/get", {
             params: paras, signal: signal,
         })
     }
@@ -47,7 +47,7 @@ export class ApiX {
 
     /* ---------------- 账号与权限 ---------------- */
     static getAccountList(paras, signal) {
-        return axiosR.get("cghtz/account/list", {
+        return axiosR.post("cghtz/account/list", {
             params: paras, signal: signal,
         })
     }
@@ -78,7 +78,7 @@ export class ApiX {
     }
 
     static getPermDefs(paras, signal) {
-        return axiosR.post("cghtz/perm/defs", {
+        return axiosR.post("cghtz/perm/list", {
             params: paras, signal: signal,
         })
     }
