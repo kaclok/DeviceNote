@@ -11,25 +11,22 @@ import hd from "../data/hd.json"
  * 后端就绪后，SysX 改为只走 ApiX，本模块可整体移除。
  *
  * 数据动静分离：
- * - data/gd.json：固定数据（签订方式 / 是否 枚举等前端固定配置）
+ * - data/gd.json：固定数据（签订方式枚举等前端固定配置）
  * - data/hd.json：将来后端下发的数据（角色、权限码字典、账号、合同）
  *
- * 合同字段（v2 - 2026-08-18 重构）：
- *   基本：no / name / signer / method / supplier / amount / signDate
- *   付款：payMethod / deliveryPayCycle / warrantyPayCycle
- *         prepayRatio / deliveryPayRatio / warrantyPayRatio
- *         prepayDate / deliveryPayDate / warrantyPayDate
- *   状态：stock(是/否) / completed(是/否) / settlementAmount / deliveryDays
- *   移交：contractTransferDate / invoiceTransferDate / accountDate
- *         actualDeliveryDate / materialTransferDate
+ * 合同字段（v3 - 对齐后端 TCGHTContract 24 字段）：
+ *   基本：id / title / amount / date_sign / sign_person / sign_type / supplier
+ *   付款：pay_type / paycycle_dh / paycycle_zb
+ *         rate_yfk / rate_dhk / rate_zbj
+ *         date_yfk / date_dhk / date_zbj / date_rk
+ *   其他：bz / settle_amount / hq
+ *   移交：date_htyj / date_fpyj / date_actual_dh / date_ruzlyj
  */
 
-const KEY = "cghtz_mock_db_v3"
+const KEY = "cghtz_mock_db_v4"
 
 /* ---------------- 固定数据（来自 gd.json） ---------------- */
-/* 前端固定枚举（不来自后端）：签订方式 / 是否 */
 export const METHOD_OPTIONS = gd.methodOptions
-export const YES_NO_OPTIONS = gd.yesNoOptions
 
 /* ---------------- 后端下发数据（来自 hd.json，将来由后端接口返回） ---------------- */
 const ROLES = hd.roles
@@ -40,26 +37,22 @@ const CONTRACTS = hd.contracts
 
 /* ---------------- 合同字段白名单（用于 create/update/import 接收合法字段） ---------------- */
 const CONTRACT_FIELDS = [
-    "no", "name", "signer", "method", "supplier",
-    "amount", "signDate",
-    "payMethod", "deliveryPayCycle", "warrantyPayCycle",
-    "prepayRatio", "deliveryPayRatio", "warrantyPayRatio",
-    "prepayDate", "deliveryPayDate", "warrantyPayDate",
-    "stock", "completed", "settlementAmount", "deliveryDays",
-    "contractTransferDate", "invoiceTransferDate", "accountDate",
-    "actualDeliveryDate", "materialTransferDate",
+    "id", "title", "amount", "date_sign", "sign_person", "sign_type", "supplier",
+    "pay_type", "paycycle_dh", "paycycle_zb",
+    "rate_yfk", "rate_dhk", "rate_zbj",
+    "date_yfk", "date_dhk", "date_zbj", "date_rk",
+    "bz", "settle_amount", "hq",
+    "date_htyj", "date_fpyj", "date_actual_dh", "date_ruzlyj",
 ]
 
 /* 浮点字段（导入/创建时统一转 Number） */
 const FLOAT_FIELDS = [
-    "amount", "deliveryPayCycle", "warrantyPayCycle",
-    "prepayRatio", "deliveryPayRatio", "warrantyPayRatio",
-    "settlementAmount",
+    "amount", "paycycle_dh", "paycycle_zb",
+    "rate_yfk", "rate_dhk", "rate_zbj",
+    "settle_amount",
 ]
 /* 整数字段 */
-const INT_FIELDS = ["deliveryDays"]
-/* 是/否 枚举字段 */
-const YES_NO_FIELDS = ["stock", "completed"]
+const INT_FIELDS = ["hq", "sign_type"]
 
 /**
  * 将外部传入的合同对象按字段白名单清洗并强制类型转换
@@ -68,9 +61,7 @@ function normalizeContract(raw = {}) {
     const out = {}
     CONTRACT_FIELDS.forEach(k => {
         if (raw[k] === undefined || raw[k] === null || raw[k] === "") {
-            // 日期/字符串字段允许空串；数字字段空值置 0；是/否 默认"否"
             if (FLOAT_FIELDS.includes(k) || INT_FIELDS.includes(k)) out[k] = 0
-            else if (YES_NO_FIELDS.includes(k)) out[k] = raw[k] || "否"
             else out[k] = ""
             return
         }
@@ -96,7 +87,6 @@ function loadDB() {
         signers: SIGNERS.map(s => ({...s})),
         contracts: CONTRACTS.map(c => normalizeContract(c)),
         accounts: ACCOUNTS.map(a => ({...a})),
-        seq: 100,
     }
     saveDB(db)
     return db
@@ -108,10 +98,6 @@ function saveDB(db) {
 
 function ok(data) {
     return {code: __OK__, msg: "成功", data: data};
-}
-
-function makeId(db) {
-    return ++db.seq;
 }
 
 export class MockX {
@@ -129,7 +115,7 @@ export class MockX {
         saveDB(db);
         return ok({
             success: true,
-            account: {account: user.account, realName: user.realName, dept: user.dept, role},
+            account: {account: user.account, username: user.username, role},
             auth: role.perms,
         });
     }
@@ -138,37 +124,34 @@ export class MockX {
     static getContractList(filters = {}) {
         const db = loadDB();
         let list = db.contracts.map(c => ({...c}));
-        // 筛选
-        if (filters.no) list = list.filter(c => c.no.toLowerCase().includes(filters.no.toLowerCase()));
-        if (filters.name) list = list.filter(c => c.name.includes(filters.name));
-        if (filters.signer) list = list.filter(c => c.signer === filters.signer);
-        if (filters.method) list = list.filter(c => c.method === filters.method);
+        if (filters.id) list = list.filter(c => c.id.toLowerCase().includes(filters.id.toLowerCase()));
+        if (filters.title) list = list.filter(c => c.title.includes(filters.title));
+        if (filters.sign_person) list = list.filter(c => c.sign_person === filters.sign_person);
+        if (filters.sign_type) list = list.filter(c => c.sign_type === filters.sign_type);
         if (filters.supplier) list = list.filter(c => c.supplier.includes(filters.supplier));
-        if (filters.stock) list = list.filter(c => c.stock === filters.stock);
-        if (filters.completed) list = list.filter(c => c.completed === filters.completed);
-        if (filters.dateFrom) list = list.filter(c => c.signDate >= filters.dateFrom);
-        if (filters.dateTo) list = list.filter(c => c.signDate <= filters.dateTo);
+        if (filters.dateFrom) list = list.filter(c => c.date_sign >= filters.dateFrom);
+        if (filters.dateTo) list = list.filter(c => c.date_sign <= filters.dateTo);
         return ok(list);
     }
 
-    static getContract(no) {
+    static getContract(id) {
         const db = loadDB();
-        const c = db.contracts.find(x => x.no === no);
+        const c = db.contracts.find(x => x.id === id);
         if (!c) return ok(null);
         return ok({...c});
     }
 
-    static checkNoExists(no) {
+    static checkIdExists(id) {
         const db = loadDB();
-        return ok(!!db.contracts.find(c => c.no.toLowerCase() === no.toLowerCase()));
+        return ok(!!db.contracts.find(c => c.id.toLowerCase() === id.toLowerCase()));
     }
 
     static createContract(paras) {
         const db = loadDB();
-        if (db.contracts.find(c => c.no.toLowerCase() === paras.no.toLowerCase())) {
-            return {code: __OK__, msg: `合同编号 ${paras.no} 已存在，禁止重复录入`, data: {duplicate: true}};
+        if (db.contracts.find(c => c.id.toLowerCase() === paras.id.toLowerCase())) {
+            return {code: __OK__, msg: `合同编号 ${paras.id} 已存在，禁止重复录入`, data: {duplicate: true}};
         }
-        const c = {id: makeId(db), ...normalizeContract(paras)};
+        const c = normalizeContract(paras);
         db.contracts.push(c);
         saveDB(db);
         return ok(c);
@@ -176,17 +159,17 @@ export class MockX {
 
     static updateContract(paras) {
         const db = loadDB();
-        const idx = db.contracts.findIndex(c => c.no === paras.no);
+        const idx = db.contracts.findIndex(c => c.id === paras.id);
         if (idx < 0) return {code: __OK__, msg: "合同不存在", data: {}};
         const old = db.contracts[idx];
-        db.contracts[idx] = {id: old.id, ...normalizeContract({...old, ...paras})};
+        db.contracts[idx] = normalizeContract({...old, ...paras});
         saveDB(db);
         return ok(db.contracts[idx]);
     }
 
-    static deleteContract(no) {
+    static deleteContract(id) {
         const db = loadDB();
-        db.contracts = db.contracts.filter(c => c.no !== no);
+        db.contracts = db.contracts.filter(c => c.id !== id);
         saveDB(db);
         return ok(true);
     }
@@ -196,20 +179,19 @@ export class MockX {
         const failRows = [];
         let okCnt = 0;
         rows.forEach((r, i) => {
-            const no = String(r.no || "").trim();
+            const id = String(r.id || "").trim();
             const reasons = [];
-            if (!no) reasons.push("合同编号为空");
-            else if (db.contracts.find(c => c.no.toLowerCase() === no.toLowerCase())) reasons.push("合同编号重复");
-            if (!r.name) reasons.push("合同名称必填");
+            if (!id) reasons.push("合同编号为空");
+            else if (db.contracts.find(c => c.id.toLowerCase() === id.toLowerCase())) reasons.push("合同编号重复");
+            if (!r.title) reasons.push("合同名称必填");
             if (!r.supplier) reasons.push("供应商必填");
             if (isNaN(Number(r.amount))) reasons.push("合同金额格式错误");
-            if (!r.signDate) reasons.push("签订时间必填");
+            if (!r.date_sign) reasons.push("签订时间必填");
             if (reasons.length > 0) {
-                failRows.push({row: i + 2, no: no || "-", name: r.name || "", reason: reasons.join("；")});
+                failRows.push({row: i + 2, id: id || "-", title: r.title || "", reason: reasons.join("；")});
                 return;
             }
-            const c = {id: makeId(db), ...normalizeContract(r)};
-            db.contracts.push(c);
+            db.contracts.push(normalizeContract(r));
             okCnt++;
         });
         saveDB(db);

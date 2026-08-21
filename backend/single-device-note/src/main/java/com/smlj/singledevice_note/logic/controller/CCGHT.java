@@ -21,8 +21,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -274,7 +276,37 @@ public class CCGHT {
 
     @Transactional
     @PostMapping(value = "/contract/import")
-    public Result<?> contractImport() {
-        return Result.fail(ResultCode.RC501, "contract/import 后端批量入库暂未实现，请走 MockX 或前端导入本地");
+    public Result<?> contractImport(@RequestBody List<TCGHTContract> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return Result.fail(ResultCode.RC10101, "导入数据为空");
+        }
+        int okCnt = 0;
+        List<Map<String, Object>> failRows = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            TCGHTContract c = rows.get(i);
+            List<String> reasons = new ArrayList<>();
+            String id = c.getId();
+            if (id == null || id.isBlank()) reasons.add("合同编号为空");
+            else if (contractDao.exist(id) > 0) reasons.add("合同编号重复");
+            if (c.getTitle() == null || c.getTitle().isBlank()) reasons.add("合同名称必填");
+            if (c.getSupplier() == null || c.getSupplier().isBlank()) reasons.add("供应商必填");
+            if (c.getDate_sign() == null) reasons.add("签订时间必填");
+            if (reasons.isEmpty()) {
+                contractDao.insert(c);
+                okCnt++;
+            } else {
+                Map<String, Object> fail = new HashMap<>();
+                fail.put("row", i + 2);
+                fail.put("id", id == null ? "-" : id);
+                fail.put("title", c.getTitle() == null ? "" : c.getTitle());
+                fail.put("reason", String.join("；", reasons));
+                failRows.add(fail);
+            }
+        }
+        Map<String, Object> data = new HashMap<>();
+        data.put("success", okCnt);
+        data.put("fail", failRows.size());
+        data.put("failRows", failRows);
+        return Result.success(data);
     }
 }

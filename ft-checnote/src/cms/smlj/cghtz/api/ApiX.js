@@ -46,9 +46,7 @@ export class ApiX {
 
     /* ---------------- Excel 导入 / 导出 ---------------- */
     static importContractExcel(paras, signal) {
-        return axiosR.post("cghtz/contract/import", null, {
-            params: paras, signal: signal,
-        })
+        return axiosR.post("cghtz/contract/import", paras, { signal })
     }
 
     /* ---------------- 账号与权限 ---------------- */

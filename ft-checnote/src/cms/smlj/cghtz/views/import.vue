@@ -7,8 +7,26 @@ import {useRouter} from 'vue-router';
 const router = useRouter();
 
 const importing = ref(false)
-const result = ref(null)          // {success, fail, failRows:[{row,no,name,reason}]}
+const result = ref(null)          // {success, fail, failRows:[{row,id,title,reason}]}
 const file = ref(null)
+const signers = ref([])          // 签订人字典，用于 Excel 中"姓名→account"转码
+
+const AC_signers = new AbortController()
+
+onMounted(() => {
+    loadSigners()
+})
+
+onUnmounted(() => {
+    AC_signers.abort()
+})
+
+function loadSigners() {
+    Singleton.getInstance(SysX).getSignerList(null, AC_signers.signal, () => {
+    }, (r, data) => {
+        if (r) signers.value = data.data || []
+    })
+}
 
 // 拖拽/选择上传
 const fileInput = ref()
@@ -31,7 +49,7 @@ async function handleFile(f) {
     file.value = f
     importing.value = true
     try {
-        const rows = await parseContractExcel(f)
+        const rows = await parseContractExcel(f, signers.value)
         if (rows.length === 0) {
             ElMessage.warning('文件中没有可导入的数据')
             importing.value = false
@@ -108,8 +126,8 @@ function goLedger() {
                       style="margin-bottom:14px"/>
             <el-table v-if="result.failRows && result.failRows.length" :data="result.failRows" border size="small" max-height="320">
                 <el-table-column prop="row" label="Excel 行号" width="90" align="center"/>
-                <el-table-column prop="no" label="合同编号" width="180"/>
-                <el-table-column prop="name" label="合同名称" min-width="120"/>
+                <el-table-column prop="id" label="合同编号" width="180"/>
+                <el-table-column prop="title" label="合同名称" min-width="120"/>
                 <el-table-column prop="reason" label="失败原因" min-width="220">
                     <template #default="{row}"><span style="color:#dc2626">{{ row.reason }}</span></template>
                 </el-table-column>

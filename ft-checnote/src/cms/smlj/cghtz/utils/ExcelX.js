@@ -16,12 +16,12 @@ import {METHOD_OPTIONS} from "../system/MockX.js"
 
 /* 签订方式 string → int 编码（sign_type）互转，与 gd.json METHOD_OPTIONS 下标一致 */
 const SIGN_STR_TO_CODE = (s) => {
-    const i = METHOD_OPTIONS.indexOf(String(s || ''))
+    const i = METHOD_OPTIONS.findIndex(m => m.desc === String(s || ''))
     return i < 0 ? 0 : i
 }
 const SIGN_CODE_TO_STR = (i) => {
     const n = Number(i)
-    return Number.isInteger(n) && METHOD_OPTIONS[n] ? METHOD_OPTIONS[n] : ''
+    return Number.isInteger(n) && METHOD_OPTIONS[n] ? METHOD_OPTIONS[n].desc : ''
 }
 // 签订人 account → username，导入用；导入填写中文名，匹配到对应 account
 const ACCOUNT_FROM_USERNAME = (username, signers) => {
@@ -162,15 +162,15 @@ export function parseContractExcel(file, signers = []) {
                         if (type === 'date') v = formatDate(v)
                         else if (v !== '') v = String(v).trim()
                         // sign_type：收中文，转成 int code
-                        if (field === 'sign_type' && v !== '') v = SIGN_STR_TO_CODE(v)
+                        if (field === 'sign_type') v = v !== '' ? SIGN_STR_TO_CODE(v) : null
                         // sign_person：收中文姓名，转成 account（若 signers 字典能匹配）
                         if (field === 'sign_person' && v !== '' && signers.length > 0) {
                             v = ACCOUNT_FROM_USERNAME(v, signers)
                         }
-                        // 数字列：导入的“”归一化为空串，交给 MockX normalizeContract 转 0
-                        if ((type === 'float' || type === 'int') && (v === '')) v = ''
-                        if (type === 'float' && v !== '') v = Number(v) || 0
-                        if (type === 'int' && v !== '') v = parseInt(v, 10) || 0
+                        // 数字列：空值归一化为 0（后端 float/int 是基本类型，不接受空串）
+                        if ((type === 'float' || type === 'int') && (v === '')) v = 0
+                        if (type === 'float' && v !== 0) v = Number(v) || 0
+                        if (type === 'int' && v !== 0) v = parseInt(v, 10) || 0
                         row[field] = v
                     })
                     return row
@@ -186,7 +186,7 @@ export function parseContractExcel(file, signers = []) {
 }
 
 function formatDate(v) {
-    if (!v && v !== 0) return ''
+    if (!v && v !== 0) return null
     // Excel 序列号日期
     if (typeof v === 'number') {
         const d = new Date(Math.round((v - 25569) * 86400 * 1000))
@@ -195,5 +195,5 @@ function formatDate(v) {
     const s = String(v)
     const m = s.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/)
     if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
-    return s.trim()
+    return s.trim() || null
 }
