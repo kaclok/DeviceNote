@@ -376,7 +376,6 @@ function gotoImport() {
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="pay_type" label="付款方式" min-width="170" show-overflow-tooltip/>
-                <el-table-column prop="date_rk" label="入库日期" width="115"/>
                 <el-table-column label="操作" width="140" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-hasPermission="['contract:update']" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
@@ -421,7 +420,7 @@ function gotoImport() {
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="签订时间" prop="date_sign">
-                            <el-date-picker v-model="form.date_sign" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-date-picker v-model="form.date_sign" type="date" format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
@@ -450,36 +449,35 @@ function gotoImport() {
                     </el-col>
                 </el-row>
 
-                <el-divider content-position="left">付款周期与比例</el-divider>
+                <el-divider content-position="left">付款周期</el-divider>
                 <el-row :gutter="16">
                     <el-col :span="8">
-                        <el-form-item label="到货付款周期(月)">
+                        <el-form-item label="到货付款周期(月)" prop="paycycle_dh">
                             <el-input-number v-model="form.paycycle_dh" :min="0" :precision="1" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
-                        <el-form-item label="质保付款周期(月)">
+                        <el-form-item label="质保付款周期(月)" prop="paycycle_zb">
                             <el-input-number v-model="form.paycycle_zb" :min="0" :precision="1" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
+                </el-row>
+
+                <el-divider content-position="left">付款比例</el-divider>
+                <el-row :gutter="16">
                     <el-col :span="8">
-                        <el-form-item label="结算金额(元)">
-                            <el-input-number v-model="form.settle_amount" :min="0" :precision="2" :controls="false" style="width:100%"/>
+                        <el-form-item label="预付款比例(%)" prop="rate_yfk">
+                            <el-input-number v-model="form.rate_yfk" :min="0" :max="100" :precision="2" :controls="false" @change="onRateChange('yfk')" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
-                        <el-form-item label="预付款比例(%)">
-                            <el-input-number v-model="form.rate_yfk" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
+                        <el-form-item label="到货款比例(%)" prop="rate_dhk">
+                            <el-input-number v-model="form.rate_dhk" :min="0" :max="100" :precision="2" :controls="false" @change="onRateChange('dhk')" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
-                        <el-form-item label="到货款比例(%)">
-                            <el-input-number v-model="form.rate_dhk" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item label="质保金比例(%)">
-                            <el-input-number v-model="form.rate_zbj" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
+                        <el-form-item label="质保金比例(%)" prop="rate_zbj">
+                            <el-input-number v-model="form.rate_zbj" :min="0" :max="100" :precision="2" :controls="false" @change="onRateChange('zbj')" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                 </el-row>
@@ -488,28 +486,28 @@ function gotoImport() {
                 <el-row :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="预付款日期">
-                            <el-date-picker v-model="form.date_yfk" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-date-picker v-model="form.date_yfk" type="date" format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="到货款日期">
-                            <el-date-picker v-model="form.date_dhk" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-date-picker v-model="form.date_dhk" type="date" format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="质保金付款日期">
-                            <el-date-picker v-model="form.date_zbj" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="入库日期">
-                            <el-date-picker v-model="form.date_rk" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-date-picker v-model="form.date_zbj" type="date" format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                 </el-row>
 
                 <el-divider content-position="left">货期、移交与备注</el-divider>
                 <el-row :gutter="16">
+                    <el-col :span="12">
+                        <el-form-item label="结算金额(元)">
+                            <el-input-number v-model="form.settle_amount" :min="0" :precision="2" :controls="false" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
                     <el-col :span="12">
                         <el-form-item label="货期(天)">
                             <el-input-number v-model="form.hq" :min="0" :step="1" :controls="false" style="width:100%"/>
@@ -533,6 +531,11 @@ function gotoImport() {
                     <el-col :span="12">
                         <el-form-item label="入库资料移交物资日期">
                             <el-input v-model="form.date_ruzlyj" placeholder="文字/日期均可"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="挂账日期">
+                            <el-date-picker v-model="form.date_rk" type="date" format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="24">
