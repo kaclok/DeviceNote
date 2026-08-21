@@ -157,8 +157,9 @@ axiosInst.interceptors.response.use(async (success) => {
     }
 
     // RT过期 / 未登录 / AT被篡改：触发登出(清登录态+跳登录页)
-    if (code === __RT_EXPIRE_CODE__ || code === __AT_EMPTY__ || code === __AT_EXPIRE_INVALID__) {
-        triggerAuthFailure();
+    const needLogout = (code === __RT_EXPIRE_CODE__ || code === __AT_EXPIRE_INVALID__)
+    if (needLogout || code === __AT_EMPTY__) {
+        triggerAuthFailure(needLogout);
         return Promise.reject(success);
     }
 
@@ -188,7 +189,7 @@ axiosInst.interceptors.request.use(config => {
         config.headers.rt = TokenService.getRT();
     }
 
-    console.error("-----------------request url: %s, isRT: %s", config.url, isRT);
+    // console.error("-----------------request url: %s, isRT: %s", config.url, isRT);
     return config;
 }, fail => {
     console.error(fail);
@@ -197,5 +198,5 @@ axiosInst.interceptors.request.use(config => {
 })
 
 export {
-    axiosInst, changeResBaseURL, changeNwCodeMap, changeHttpCodeMap, changeAuthFailureHandler,
+    axiosInst, changeResBaseURL, changeNwCodeMap, changeHttpCodeMap, changeAuthFailureHandler, triggerAuthFailure
 }

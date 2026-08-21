@@ -1,6 +1,7 @@
 import {createRouter, createWebHashHistory} from 'vue-router'
 import {PREFIX, routers} from './Router.js'
 import {clearAccount, ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
+import {triggerAuthFailure} from "@/framework/services/net/AxiosInst.js";
 
 const {wsCache} = useCache()
 
@@ -129,13 +130,6 @@ function findFirstAccessibleRoute(to) {
     return null;
 }
 
-/**
- * 清除登录态
- */
-function clearLogin() {
-    clearAccount()
-}
-
 router.beforeEach((to, current, next) => {
     // 对于静态重定向的router定义不会触发beforeEach
     console.warn('current: ' + current.fullPath + ' -> to:', to.fullPath, ' 当前hash:', window.location.hash)
@@ -166,7 +160,7 @@ router.beforeEach((to, current, next) => {
     if (fallback) {
         next({name: fallback.name})
     } else {
-        clearLogin()
+        triggerAuthFailure(true);
         next({name: 'login'})
     }
 });

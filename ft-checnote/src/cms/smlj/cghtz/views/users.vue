@@ -23,19 +23,19 @@ const filteredList = computed(() => {
 // 客户端分页：账号是小体量字典数据，整表加载后本地分页即可，
 // 这样可保留上方"账号/姓名"关键字搜索跨全部数据生效，无需后端支持搜索
 const page = ref(1)
-const pageSize = ref(2)
+const pageSize = ref(10)
 const pagedList = computed(() => {
     const start = (page.value - 1) * pageSize.value
     return filteredList.value.slice(start, start + pageSize.value)
 })
-// 关键字变化时回到第一页，避免停留在超出范围的页码
+// 关键字/列表变化时回到第一页，避免停留在超出范围的页码
 watch(keyword, () => {
     page.value = 1
 })
 
-// 角色列表（动态数据，由后端下发；现走 MockX.getRoleList）
+// 角色列表（动态数据，由后端下发
 const roles = ref([])
-// 权限码字典（动态数据，由后端下发；现走 MockX.getPermDefs）
+// 权限码字典（动态数据，由后端下发
 const permDefs = ref([])
 
 // 权限分组（基于动态 permDefs 计算）
@@ -54,6 +54,7 @@ const currentRolePerms = computed(() => {
     return new Set(r?.perms || [])
 })
 
+// 字典级单例共享 AbortController（避免多次重复请求；但账号/角色/权限字典的刷新仍应可重复）
 const AC_list = new AbortController()
 const AC_roles = new AbortController()
 const AC_perms = new AbortController()
@@ -71,9 +72,9 @@ onUnmounted(() => {
 })
 
 function loadList() {
-    Singleton.getInstance(SysX).getAccountList({pageNum: page.value, pageSize: pageSize.value}, AC_list.signal, null, (r, data) => {
+    Singleton.getInstance(SysX).getAccountList({pageNum: page.value, pageSize: 200}, AC_list.signal, null, (r, data) => {
         if (r) {
-            list.value = data.data?.list || []
+            list.value = data.data.list || []
             page.value = 1
         }
     })
@@ -149,15 +150,24 @@ function saveAccount() {
     formRef.value.validate(valid => {
         if (!valid) return
         saving.value = true
-        Singleton.getInstance(SysX).saveAccount({...form.value}, new AbortController().signal, () => {
+        // 提交体：与后端 accountSave @RequestParam 一致：account/username/role_code/password(新增用)
+        const paras = {
+            account: String(form.value.account || '').trim(),
+            username: String(form.value.username || '').trim(),
+            role_code: form.value.role_code,
+        }
+        if (!isEdit.value) {
+            paras.password = String(form.value.password || '').trim()
+        }
+        Singleton.getInstance(SysX).saveAccount(paras, new AbortController().signal, () => {
         }, (r, data) => {
             saving.value = false
             if (r) {
-                ElMessage.success(isEdit.value ? '保存成功' : '账号创建成功，初始密码 123456')
+                ElMessage.success(isEdit.value ? '保存成功' : `账号${paras.account}创建成功，初始密码：${paras.password || '123456'}`)
                 dialogVisible.value = false
                 loadList()
             } else {
-                ElMessage.error(data?.msg || '保存失败')
+                ElMessage.error('保存失败')
             }
         })
     })
@@ -165,17 +175,21 @@ function saveAccount() {
 
 /* ---------------- 其他操作 ---------------- */
 function resetPwd(row) {
-    ElMessageBox.confirm(`确定将 ${row.account}（${row.username}）的密码重置为 123456 吗？`, '重置密码', {type: 'warning'}).then(() => {
+    ElMessageBox.confirm(`确定将 ${row.account}（${row.username || ''}）的密码重置为 123456 吗？`, '重置密码', {type: 'warning'}).then(() => {
         Singleton.getInstance(SysX).resetPassword({account: row.account}, new AbortController().signal, () => {
         }, (r, data) => {
-            if (r) ElMessage.success('已重置为 123456')
+            if (r) {
+                ElMessage.success(`密码已重置`)
+            } else {
+                ElMessage.error('密码重置失败')
+            }
         })
     }).catch(() => {
     })
 }
 
 function toggleStatus(row) {
-    const tip = row.open_status ? '启用' : '停用'
+    const tip = row.open_status ? '停用' : '启用'
     ElMessageBox.confirm(`确定${tip}账号 ${row.account} 吗？`, '提示', {type: 'warning'}).then(() => {
         Singleton.getInstance(SysX).toggleAccountStatus({account: row.account}, new AbortController().signal, () => {
         }, (r, data) => {
@@ -198,14 +212,15 @@ function toggleStatus(row) {
 
         <el-card shadow="never" class="table-card">
             <div class="toolbar">
-                <el-button type="primary" @click="openCreate">＋ 新建账号</el-button>
+                <el-button v-hasPermission="['perm:assign']" type="primary" @click="openCreate">＋ 新建账号</el-button>
                 <div class="spacer"></div>
-                <el-input v-model="keyword" placeholder="搜索账号 / 姓名" clearable style="width:220px">
+                <el-input v-model="keyword" placeholder="搜索账号 / 姓名" clearable style="width:260px">
                     <template #prefix><span style="color:#94a3b8">🔍</span></template>
                 </el-input>
             </div>
 
-            <el-table :data="pagedList" v-loading="loading" border stripe>
+            <el-table :data="pagedList" v-loading="loading" border stripe style="width:100%">
+                <el-table-column type="index" label="序号" width="64" align="center"/>
                 <el-table-column prop="account" label="账号" width="140">
                     <template #default="{row}"><b style="color:#2563eb">{{ row.account }}</b></template>
                 </el-table-column>
@@ -220,12 +235,12 @@ function toggleStatus(row) {
                         <el-tag :type="statusTag(row.open_status).type" size="small">{{ statusTag(row.open_status).text }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" min-width="130" fixed="right" align="center">
+                <el-table-column label="操作" width="260" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-notSelf.readonly="row.account" link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
                         <el-button v-notSelf.readonly="row.account" link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
                         <el-button v-notSelf.readonly="row.account" link :type="row.open_status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
-                            {{ row.open_status ? '启用' : '停用' }}
+                            {{ row.open_status ? '停用' : '启用' }}
                         </el-button>
                     </template>
                 </el-table-column>
@@ -235,7 +250,7 @@ function toggleStatus(row) {
                 <el-pagination
                     v-model:current-page="page"
                     v-model:page-size="pageSize"
-                    :page-sizes="[10, 20, 50, 100]"
+                    :page-sizes="[2, 10, 20, 50, 100]"
                     :total="filteredList.length"
                     layout="total, sizes, prev, pager, next, jumper"
                     background
@@ -282,11 +297,11 @@ function toggleStatus(row) {
                 <div v-for="g in permGroups" :key="g.name" class="perm-group">
                     <div class="perm-group-name">{{ g.name }}</div>
                     <div class="perm-items">
-                        <div v-for="p in g.items" :key="p.code" class="perm-item"
-                             :class="{checked: hasPermInForm(p.code)}">
-                            <span class="checkbox" :class="{checked: hasPermInForm(p.code)}"></span>
-                            <span>{{ p.name }}</span>
-                            <span class="perm-code">{{ p.code }}</span>
+                        <div v-for="p in g.items" :key="p.perm_code" class="perm-item"
+                             :class="{checked: hasPermInForm(p.perm_code)}">
+                            <span class="checkbox" :class="{checked: hasPermInForm(p.perm_code)}"></span>
+                            <span>{{ p.perm_name }}</span>
+                            <span class="perm-code">{{ p.perm_code }}</span>
                         </div>
                     </div>
                 </div>
@@ -331,11 +346,6 @@ function toggleStatus(row) {
         margin-top: 14px;
         display: flex;
         justify-content: flex-end;
-    }
-
-    .self-tip {
-        font-size: 12px;
-        color: #94a3b8;
     }
 
     .perm-title {

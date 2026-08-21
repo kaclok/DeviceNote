@@ -27,14 +27,14 @@ export class ApiX {
     }
 
     static createContract(paras, signal) {
-        return axiosR.post("cghtz/contract/create", null, {
-            params: paras, signal: signal,
+        return axiosR.post("cghtz/contract/create", paras, {
+            signal: signal,
         })
     }
 
     static updateContract(paras, signal) {
-        return axiosR.post("cghtz/contract/update", null, {
-            params: paras, signal: signal,
+        return axiosR.post("cghtz/contract/update", paras, {
+            signal: signal,
         })
     }
 

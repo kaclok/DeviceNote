@@ -59,7 +59,7 @@ class TokenService {
     static async getRemoteAT() {
         // 发起refresh请求：rt由请求拦截器根据__isRT自动注入到请求头
         // 响应拦截器中的_setToken会自动把新AT/RT写入本地存储
-        console.error("-----------------refreshAccessToken-----------------")
+        // console.error("-----------------refreshAccessToken-----------------")
         await post({
             url: 'x/refreshAccessToken',
             // 标识是否为RT请求, 用于在前端发送请求的时候判断哪些请求需要填充refresh-token

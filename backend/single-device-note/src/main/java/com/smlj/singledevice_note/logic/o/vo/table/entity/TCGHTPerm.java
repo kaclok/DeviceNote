@@ -16,5 +16,6 @@ public class TCGHTPerm implements Serializable {
     private String perm_name;
     private String perm_code;
     private String bz;
+    private String group;
 }
 

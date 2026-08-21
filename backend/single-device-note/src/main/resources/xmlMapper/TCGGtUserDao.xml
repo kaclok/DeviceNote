@@ -1,22 +1,71 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- mapper namespace作用是：代码和xml进行关联 -->
-<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTUserDao">
+
+    <!-- 查询全量：返回全部基础账号字段 + lastLogin -->
     <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser">
-        select * from cght.t_user
-        where open_status = true
-        <if test="includeAdmin == false">
-            and role_code != 'ADMIN'
-        </if>
+        select
+            account,
+            username,
+            pwd,
+            role_code,
+            open_status
+        from cght.t_user
+       <where>
+           <if test="filterOpenStatus == true">
+               and open_status = true
+           </if>
+           <if test="includeAdmin == false">
+               and role_code != 'ADMIN'
+           </if>
+       </where>
+
+        order by account asc
     </select>
 
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser">
-        select * from cght.t_user
+        select
+            account,
+            username,
+            pwd,
+            role_code,
+            open_status
+        from cght.t_user
         where account = #{account}
     </select>
 
     <select id="exist" resultType="java.lang.Integer">
         SELECT COUNT(*) FROM cght.t_user WHERE account = #{account}
     </select>
+
+    <!-- 新增账号：account/username/pwd/role_code 为核心必填；lastLogin 可选 -->
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser">
+        insert into cght.t_user (
+            account, username, pwd, role_code, open_status
+        ) values (
+            #{u.account},
+            #{u.username},
+            #{u.pwd},
+            #{u.role_code},
+            #{u.open_status}
+        )
+    </insert>
+
+    <!-- 更新账号：username / role_code / lastLogin -->
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser">
+        update cght.t_user
+        <set>
+            username = #{u.username},
+            role_code = #{u.role_code},
+        </set>
+        where account = #{u.account}
+    </update>
+
+    <update id="resetPwd">
+        update cght.t_user set pwd = #{pwd} where account = #{account}
+    </update>
+
+    <update id="toggleStatus">
+        update cght.t_user set open_status = #{open_status} where account = #{account}
+    </update>
 </mapper>

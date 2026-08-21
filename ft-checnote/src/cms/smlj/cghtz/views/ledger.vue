@@ -3,8 +3,8 @@ import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {downloadTemplate, exportContractExcel} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
-import ColumnHeader from "../components/ColumnHeader.vue";
-import {METHOD_OPTIONS, YES_NO_OPTIONS} from "../system/MockX.js";
+import gd from "../data/gd.json"
+import hd from "../data/hd.json"
 
 const router = useRouter();
 
@@ -14,27 +14,20 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 
-// 筛选条件（顶部筛选栏）
+// 筛选条件（顶部筛选栏）— 与后端 contractList 的 @RequestParam 保持一致
 const filters = ref({
-    no: '',
-    name: '',
-    signer: '',
-    method: '',
+    id: '',
+    title: '',
+    sign_person: '',
+    sign_type: '',
     supplier: '',
-    stock: '',
-    completed: '',
-    dateFrom: '',
-    dateTo: '',
+    dateFrom: null,
+    dateTo: null,
 })
 // 签订人列表（动态数据，由后端下发；）
 const signerOptions = ref([])
-// 签订方式 / 是否 枚举为固定数据，统一来自 gd.json（经 MockX 导出）
-const methodOptions = METHOD_OPTIONS
-const yesNoOptions = YES_NO_OPTIONS
-
-// 排序（由表头组件触发，自管理）
-const sortKey = ref('')
-const sortOrder = ref('')
+// 签订方式枚举为固定数据，统一来自 gd.json（经 MockX 导出）
+const methodOptions = gd.methodOptions
 
 // 用 let：服务端分页每次翻页都要发请求，需取消上一次未完成的请求，避免旧响应覆盖新响应
 let AC_list = new AbortController()
@@ -56,28 +49,31 @@ function loadList() {
     AC_list = new AbortController()
 
     loading.value = true
-    // 筛选条件映射到后端 contractList 的 @RequestParam 名：
-    //   no→id, name→title, method→signe_type, dateFrom/To→queryBegin/End
-    //   supplier/stock/completed 后端暂未声明参数，先一并带上(后端忽略未知query参数)，便于后续补全
+    // 筛选条件 -> 后端 contractList @RequestParam：id/title/sign_person/sign_type/supplier + date_sign 范围（queryBegin/queryEnd）
     const paras = {pageNum: page.value, pageSize: pageSize.value}
-    const filterMap = {
-        id: filters.value.no, title: filters.value.name, signer: filters.value.signer,
-        signe_type: filters.value.method, supplier: filters.value.supplier,
-        stock: filters.value.stock, completed: filters.value.completed,
-        queryBegin: filters.value.dateFrom, queryEnd: filters.value.dateTo,
+    const fm = {
+        id: filters.value.id,
+        title: filters.value.title,
+        sign_person: filters.value.sign_person,
+        sign_type: filters.value.sign_type,
+        supplier: filters.value.supplier,
+        queryBegin: filters.value.dateFrom,
+        queryEnd: filters.value.dateTo,
     }
-    for (const k in filterMap) {
-        const v = filterMap[k]
-        if (v !== '' && v != null) paras[k] = v
+
+    // 过滤对象中的空值， 和...fm不一样
+    for (const k in fm) {
+        const v = fm[k]
+        if (v !== '' && v != null) {
+            paras[k] = v
+        }
     }
     Singleton.getInstance(SysX).getContractList(paras, AC_list.signal, () => {
     }, (r, data) => {
         loading.value = false
         if (r) {
-            // 后端返回 PageSerializable {list, total, ...}；contractList 未实现时 data.data 为 null
-            // 排序为前端排序(后端未支持排序)，仅对当前页生效
-            list.value = sortRows(data.data?.list || [])
-            total.value = data.data?.total || 0
+            list.value = data.data.list
+            total.value = data.data.list.length
         }
     })
 }
@@ -98,41 +94,9 @@ function loadSigners() {
     Singleton.getInstance(SysX).getSignerList(null, AC_signers.signal, () => {
     }, (r, data) => {
         if (r) {
-            signerOptions.value = data.data || []
+            signerOptions.value = data.data
         }
     })
-}
-
-/**
- * 排序：根据 sortKey / sortOrder 对行排序
- */
-function sortRows(rows) {
-    if (!sortKey.value || sortOrder.value === 'none' || sortOrder.value === '') return rows
-    const asc = sortOrder.value === 'ascending'
-    const numericKeys = ['amount', 'deliveryPayCycle', 'warrantyPayCycle', 'settlementAmount', 'deliveryDays']
-    return [...rows].sort((a, b) => {
-        let va = a[sortKey.value], vb = b[sortKey.value]
-        if (numericKeys.includes(sortKey.value)) {
-            va = Number(va);
-            vb = Number(vb)
-        }
-        if (va == null) return 1
-        if (vb == null) return -1
-        return (va < vb ? -1 : va > vb ? 1 : 0) * (asc ? 1 : -1)
-    })
-}
-
-// 表头排序点击（来自 ColumnHeader）
-function handleHeaderSort(prop) {
-    if (sortKey.value === prop) {
-        // 升序 -> 降序 -> 取消
-        sortOrder.value = sortOrder.value === 'ascending' ? 'descending' : (sortOrder.value === 'descending' ? '' : 'ascending')
-        if (sortOrder.value === '') sortKey.value = ''
-    } else {
-        sortKey.value = prop
-        sortOrder.value = 'ascending'
-    }
-    loadList()
 }
 
 function applyFilters() {
@@ -142,17 +106,10 @@ function applyFilters() {
 
 function resetFilters() {
     filters.value = {
-        no: '', name: '', signer: '', method: '', supplier: '',
-        stock: '', completed: '', dateFrom: '', dateTo: '',
+        id: '', title: '', sign_person: '', sign_type: '', supplier: '',
+        dateFrom: null, dateTo: null,
     }
     applyFilters()
-}
-
-// 是否 标签：是=success / 否=info
-function yesNoTag(val) {
-    return val === '是'
-        ? {type: 'success', text: '是'}
-        : {type: 'info', text: '否'}
 }
 
 function formatMoney(v) {
@@ -165,44 +122,71 @@ const isEdit = ref(false)
 const formRef = ref()
 const saving = ref(false)
 const dupWarning = ref('')
+// 编辑模式：缓存原始合同数据，保存时 merge 避免空值覆盖未展示字段（Experience 718922）
+const originalContract = ref({})
 
 function emptyForm() {
     return {
-        no: '', name: '', signer: '', method: '询比价', supplier: '',
-        amount: null, signDate: '',
-        payMethod: '', deliveryPayCycle: 3, warrantyPayCycle: 12,
-        prepayRatio: 0, deliveryPayRatio: 90, warrantyPayRatio: 10,
-        prepayDate: '', deliveryPayDate: '', warrantyPayDate: '',
-        stock: '否', completed: '否', settlementAmount: 0, deliveryDays: 30,
-        contractTransferDate: '', invoiceTransferDate: '', accountDate: '',
-        actualDeliveryDate: '', materialTransferDate: '',
+        id: '',
+        title: '',
+        amount: null,
+        date_sign: '',
+        sign_person: '',
+        sign_type: 0,
+        supplier: '',
+        pay_type: '',
+        paycycle_dh: 0,
+        paycycle_zb: 0,
+        rate_yfk: 0,
+        rate_dhk: 0,
+        rate_zbj: 0,
+        date_yfk: '',
+        date_dhk: '',
+        date_zbj: '',
+        date_rk: '',
+        bz: '',
+        settle_amount: 0,
+        hq: 0,
+        date_htyj: '',
+        date_fpyj: '',
+        date_actual_dh: '',
+        date_ruzlyj: '',
     }
 }
 
 const form = ref(emptyForm())
 
 const rules = {
-    no: [{required: true, message: '请输入合同编号', trigger: 'blur'}],
-    name: [{required: true, message: '请输入合同名称', trigger: 'blur'}],
-    signer: [{required: true, message: '请输入签订人', trigger: 'blur'}],
+    id: [{required: true, message: '请输入合同编号', trigger: 'blur'}],
+    title: [{required: true, message: '请输入合同名称', trigger: 'blur'}],
+    sign_person: [{required: true, message: '请选择签订人', trigger: 'change'}],
+    sign_type: [{required: true, message: '请选择签订方式', trigger: 'change'}],
     supplier: [{required: true, message: '请输入供应商', trigger: 'blur'}],
     amount: [{required: true, message: '请输入合同金额', trigger: 'blur'}],
-    signDate: [{required: true, message: '请选择签订时间', trigger: 'change'}],
+    date_sign: [{required: true, message: '请选择签订时间', trigger: 'change'}],
+    paycycle_dh: [{required: true, message: '请输入到货周期', trigger: 'change'}],
+    paycycle_zb: [{required: true, message: '请输入质保周期', trigger: 'change'}],
+    rate_yfk: [{required: true, message: '请输入预付款比例', trigger: 'change'}],
+    rate_dhk: [{required: true, message: '请输入到货款比例', trigger: 'change'}],
+    rate_zbj: [{required: true, message: '请输入质保金比例', trigger: 'change'}],
 }
 
 // 编号唯一性实时校验
-let AC_checkNo = new AbortController()
+let AC_checkId = new AbortController()
 
-function checkNoDup() {
-    const no = form.value.no.trim()
+function checkIdDup() {
+    const id = String(form.value.id || '').trim()
     dupWarning.value = ''
-    if (!no || isEdit.value) return
-    AC_checkNo.abort()
-    AC_checkNo = new AbortController()
-    Singleton.getInstance(SysX).checkNoExists({no}, AC_checkNo.signal, () => {
+    if (!id || isEdit.value) return
+    AC_checkId.abort()
+    AC_checkId = new AbortController()
+    Singleton.getInstance(SysX).checkNoExists({id}, AC_checkId.signal, () => {
     }, (r, data) => {
-        if (r && data.data?.data) {
-            dupWarning.value = `合同编号 ${no} 已存在，禁止重复录入！`
+        if (r) {
+            // MockX.checkNoExists 返回 {code,msg,data: true/false}
+            // 后端兜底也返回 {code,msg,data: succ.data.data != null}
+            const exists = data?.data?.data === true || data?.data === true
+            if (exists) dupWarning.value = `合同编号 ${id} 已存在，禁止重复录入！`
         }
     })
 }
@@ -210,6 +194,7 @@ function checkNoDup() {
 function openCreate() {
     isEdit.value = false
     dupWarning.value = ''
+    originalContract.value = {}
     form.value = emptyForm()
     dialogVisible.value = true
 }
@@ -217,7 +202,24 @@ function openCreate() {
 function openEdit(row) {
     isEdit.value = true
     dupWarning.value = ''
-    form.value = {...emptyForm(), ...row}
+    // 缓存原始数据（merge 用），避免对话框中未展示/未编辑字段保存为 null
+    originalContract.value = {...(row || {})}
+    const base = emptyForm()
+    // sign_type 可能是字符串形式，统一切换到下拉选项对应的 index(int)
+    const src = {...row}
+    if (src.sign_type !== undefined && src.sign_type !== null && src.sign_type !== '') {
+        if (typeof src.sign_type === 'number') {
+            // 已是 int
+        } else if (/^-?\d+$/.test(String(src.sign_type))) {
+            src.sign_type = parseInt(src.sign_type, 10)
+        } else {
+            // 字符串文字 -> int 索引
+            src.sign_type = STR_TO_SIGN_TYPE(String(src.sign_type))
+        }
+    } else {
+        src.sign_type = 0
+    }
+    form.value = {...base, ...src}
     dialogVisible.value = true
 }
 
@@ -229,13 +231,32 @@ function saveContract() {
             return
         }
         saving.value = true
-        const paras = {...form.value}
-        const fn = isEdit.value ? Singleton.getInstance(SysX).updateContract : Singleton.getInstance(SysX).createContract
+        // 提交体：合并原数据（编辑）+ 当前表单字段；类型归一化：sign_type 为 int，数字字段为 Number
+        const edited = {...form.value}
+        // sign_type 强转 int（下拉 value 是 0-7 int）
+        edited.sign_type = Number.isFinite(+edited.sign_type) ? parseInt(edited.sign_type, 10) : 0
+        // 数字字段归一化
+        const floatKeys = ['amount', 'paycycle_dh', 'paycycle_zb', 'rate_yfk', 'rate_dhk', 'rate_zbj', 'settle_amount']
+        floatKeys.forEach(k => {
+            const n = Number(edited[k])
+            edited[k] = Number.isNaN(n) ? 0 : n
+        })
+        const intKeys = ['hq']
+        intKeys.forEach(k => {
+            const n = Number(edited[k])
+            edited[k] = Number.isNaN(n) ? 0 : parseInt(n, 10)
+        })
+        // Experience 718922：编辑模式 merge original，避免空覆盖
+        const paras = isEdit.value ? {...originalContract.value, ...edited} : {...edited}
+
+        const fn = isEdit.value
+            ? Singleton.getInstance(SysX).updateContract
+            : Singleton.getInstance(SysX).createContract
         fn(paras, new AbortController().signal, () => {
         }, (r, data) => {
             saving.value = false
             if (r) {
-                if (data.data?.duplicate) {
+                if (data?.data?.duplicate) {
                     ElMessage.error(data.msg)
                     return
                 }
@@ -251,12 +272,14 @@ function saveContract() {
 
 /* ---------------- 作废 ---------------- */
 function removeContract(row) {
-    ElMessageBox.confirm(`确定作废合同 ${row.no} 吗？作废后不可恢复。`, '作废确认', {type: 'warning'}).then(() => {
-        Singleton.getInstance(SysX).deleteContract({no: row.no}, new AbortController().signal, () => {
+    ElMessageBox.confirm(`确定作废合同 ${row.id} 吗？作废后不可恢复。`, '作废确认', {type: 'warning'}).then(() => {
+        Singleton.getInstance(SysX).deleteContract({id: row.id}, new AbortController().signal, () => {
         }, (r, data) => {
             if (r) {
                 ElMessage.success('已作废')
                 loadList()
+            } else {
+                ElMessage.error(data?.msg || '作废失败')
             }
         })
     }).catch(() => {
@@ -265,7 +288,7 @@ function removeContract(row) {
 
 /* ---------------- 导出 ---------------- */
 function doExport() {
-    exportContractExcel(list.value)
+    exportContractExcel(list.value, '合同台账_导出', signerOptions.value)
     ElMessage.success(`已导出 ${list.value.length} 条合同`)
 }
 
@@ -281,33 +304,23 @@ function gotoImport() {
         <el-card shadow="never" class="filter-card">
             <el-form :inline="true" class="filter-form">
                 <el-form-item label="合同编号">
-                    <el-input v-model="filters.no" placeholder="如 SMLJ-CG-CL" clearable style="width:150px" @keyup.enter="applyFilters"/>
+                    <el-input v-model="filters.id" placeholder="如 SMLJ-CG-CL" clearable style="width:160px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="合同名称">
-                    <el-input v-model="filters.name" placeholder="模糊搜索" clearable style="width:130px" @keyup.enter="applyFilters"/>
+                    <el-input v-model="filters.title" placeholder="模糊搜索" clearable style="width:150px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="签订人">
-                    <el-select v-model="filters.signer" placeholder="全部" clearable style="width:110px">
-                        <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.account"/>
+                    <el-select v-model="filters.sign_person" placeholder="全部" clearable filterable style="width:130px">
+                        <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.username"/>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="签订方式">
-                    <el-select v-model="filters.method" placeholder="全部" clearable style="width:130px">
-                        <el-option v-for="m in methodOptions" :key="m" :label="m" :value="m"/>
+                    <el-select v-model="filters.sign_type" placeholder="全部" clearable style="width:130px">
+                        <el-option v-for="(m, index) in methodOptions" :key="m.id" :label="m.desc" :value="m.id"/>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="供应商">
-                    <el-input v-model="filters.supplier" placeholder="模糊搜索" clearable style="width:130px" @keyup.enter="applyFilters"/>
-                </el-form-item>
-                <el-form-item label="是否已入库">
-                    <el-select v-model="filters.stock" placeholder="全部" clearable style="width:110px">
-                        <el-option v-for="o in yesNoOptions" :key="o" :label="o" :value="o"/>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="是否完结">
-                    <el-select v-model="filters.completed" placeholder="全部" clearable style="width:110px">
-                        <el-option v-for="o in yesNoOptions" :key="o" :label="o" :value="o"/>
-                    </el-select>
+                    <el-input v-model="filters.supplier" placeholder="模糊搜索" clearable style="width:160px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="签订时间">
                     <el-date-picker v-model="filters.dateFrom" type="date" placeholder="开始" value-format="YYYY-MM-DD" style="width:130px"/>
@@ -334,88 +347,36 @@ function gotoImport() {
             </div>
         </div>
 
-        <!-- 表格 -->
+        <!-- 表格：只读 9 列 -->
         <el-card shadow="never" class="table-card">
             <el-table :data="list" v-loading="loading" border stripe style="width:100%">
-                <el-table-column type="index" label="序号" width="60" align="center" fixed="left"/>
-                <el-table-column prop="no" width="180" :sortable="false" fixed="left">
-                    <template #header>
-                        <ColumnHeader label="合同编号" sortable :order="sortKey === 'no' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('no')"/>
-                    </template>
-                    <template #default="{row}"><b style="color:#2563eb">{{ row.no }}</b></template>
+                <el-table-column prop="id" label="合同编号" width="130" fixed="left">
+                    <template #default="{row}"><b style="color:#2563eb">{{ row.id }}</b></template>
                 </el-table-column>
-                <el-table-column prop="name" min-width="120" :sortable="false" show-overflow-tooltip>
-                    <template #header>
-                        <ColumnHeader label="合同名称" sortable :order="sortKey === 'name' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('name')"/>
-                    </template>
-                    <template #default="{row}">{{ row.name }}</template>
-                </el-table-column>
-                <el-table-column prop="signer" width="95" :sortable="false">
-                    <template #header>
-                        <ColumnHeader label="签订人" sortable :order="sortKey === 'signer' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('signer')"/>
-                    </template>
-                    <template #default="{row}">{{ row.signer }}</template>
-                </el-table-column>
-                <el-table-column prop="method" width="115" :sortable="false">
-                    <template #header>
-                        <ColumnHeader label="签订方式" sortable :order="sortKey === 'method' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('method')"/>
-                    </template>
-                    <template #default="{row}">{{ row.method }}</template>
-                </el-table-column>
-                <el-table-column prop="supplier" min-width="180" :sortable="false" show-overflow-tooltip>
-                    <template #header>
-                        <ColumnHeader label="供应商" sortable :order="sortKey === 'supplier' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('supplier')"/>
-                    </template>
-                    <template #default="{row}">{{ row.supplier }}</template>
-                </el-table-column>
-                <el-table-column prop="amount" width="130" :sortable="false" align="right">
-                    <template #header>
-                        <ColumnHeader label="合同金额(元)" sortable :order="sortKey === 'amount' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('amount')"/>
-                    </template>
+                <el-table-column prop="title" label="合同名称" min-width="150" show-overflow-tooltip/>
+                <el-table-column prop="amount" label="合同金额(元)" width="110" align="right">
                     <template #default="{row}"><span class="money">{{ formatMoney(row.amount) }}</span></template>
                 </el-table-column>
-                <el-table-column prop="signDate" width="115" :sortable="false">
-                    <template #header>
-                        <ColumnHeader label="签订时间" sortable :order="sortKey === 'signDate' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('signDate')"/>
-                    </template>
-                    <template #default="{row}">{{ row.signDate }}</template>
-                </el-table-column>
-                <el-table-column prop="stock" width="105" :sortable="false" align="center">
-                    <template #header>
-                        <ColumnHeader label="是否已入库" sortable :order="sortKey === 'stock' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('stock')"/>
-                    </template>
+                <el-table-column prop="date_sign" label="签订时间" width="140">
                     <template #default="{row}">
-                        <el-tag :type="yesNoTag(row.stock).type" size="small" effect="plain">
-                            {{ yesNoTag(row.stock).text }}
-                        </el-tag>
+                        <el-date-picker
+                            format="YYYY-MM-DD"
+                            :disabled="true"
+                            type="date"
+                            class="item"
+                            v-model="row.date_sign"
+                            style="width: 115px;">
+                        </el-date-picker>
                     </template>
                 </el-table-column>
-                <el-table-column prop="completed" width="105" :sortable="false" align="center">
-                    <template #header>
-                        <ColumnHeader label="是否完结" sortable :order="sortKey === 'completed' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('completed')"/>
-                    </template>
-                    <template #default="{row}">
-                        <el-tag :type="yesNoTag(row.completed).type" size="small" effect="light">
-                            {{ yesNoTag(row.completed).text }}
-                        </el-tag>
-                    </template>
+                <el-table-column prop="sign_person" label="签订人" width="100">
                 </el-table-column>
-                <el-table-column prop="settlementAmount" width="130" :sortable="false" align="right">
-                    <template #header>
-                        <ColumnHeader label="结算金额(元)" sortable :order="sortKey === 'settlementAmount' ? sortOrder : ''"
-                                      @sort="handleHeaderSort('settlementAmount')"/>
-                    </template>
-                    <template #default="{row}"><span class="money">{{ formatMoney(row.settlementAmount) }}</span></template>
+                <el-table-column prop="sign_type" label="签订方式" width="115">
+                    <template #default="{row}">{{ methodOptions.find(item => item.id === row.sign_type).desc }}</template>
                 </el-table-column>
+                <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
+                <el-table-column prop="pay_type" label="付款方式" min-width="170" show-overflow-tooltip/>
+                <el-table-column prop="date_rk" label="入库日期" width="115"/>
                 <el-table-column label="操作" width="140" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-hasPermission="['contract:update']" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
@@ -438,38 +399,19 @@ function gotoImport() {
             </div>
         </el-card>
 
-        <!-- 新增/编辑弹窗 -->
-        <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑合同' : '新增合同'" width="960px" destroy-on-close>
-            <el-form ref="formRef" :model="form" :rules="rules" label-width="160px">
+        <!-- 新增/编辑弹窗：全部 24 字段 -->
+        <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑合同' : '新增合同'" width="1080px" destroy-on-close>
+            <el-form ref="formRef" :model="form" :rules="rules" label-width="170px">
                 <el-divider content-position="left">基本信息</el-divider>
                 <el-row :gutter="16">
                     <el-col :span="12">
-                        <el-form-item label="合同编号" prop="no">
-                            <el-input v-model="form.no" placeholder="例：SMLJ-CG-CL-26330" :disabled="isEdit" @input="checkNoDup"/>
+                        <el-form-item label="合同编号" prop="id">
+                            <el-input v-model="form.id" placeholder="例：SMLJ-CG-CL-26330" :disabled="isEdit" @input="checkIdDup"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="合同名称" prop="name">
-                            <el-input v-model="form.name" placeholder="例：螺栓"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="签订人" prop="signer">
-                            <el-select v-model="form.signer" placeholder="请选择签订人" filterable style="width:100%">
-                                <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.account"/>
-                            </el-select>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="合同签订方式" prop="method">
-                            <el-select v-model="form.method" placeholder="请选择" style="width:100%">
-                                <el-option v-for="m in methodOptions" :key="m" :label="m" :value="m"/>
-                            </el-select>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="24">
-                        <el-form-item label="供应商" prop="supplier">
-                            <el-input v-model="form.supplier" placeholder="供应商全称"/>
+                        <el-form-item label="合同名称" prop="title">
+                            <el-input v-model="form.title" placeholder="例：螺栓"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
@@ -478,114 +420,124 @@ function gotoImport() {
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="签订时间" prop="signDate">
-                            <el-date-picker v-model="form.signDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                        <el-form-item label="签订时间" prop="date_sign">
+                            <el-date-picker v-model="form.date_sign" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="签订人" prop="sign_person">
+                            <el-select v-model="form.sign_person" placeholder="请选择签订人" filterable style="width:100%">
+                                <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.account"/>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="合同签订方式" prop="sign_type">
+                            <el-select v-model="form.sign_type" placeholder="请选择" style="width:100%">
+                                <el-option v-for="(m, i) in methodOptions" :key="i" :label="m.desc" :value="i"/>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="供应商" prop="supplier">
+                            <el-input v-model="form.supplier" placeholder="供应商全称"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="付款方式">
+                            <el-input v-model="form.pay_type" placeholder="例：货到票到3个月付款"/>
                         </el-form-item>
                     </el-col>
                 </el-row>
 
-                <el-divider content-position="left">付款信息</el-divider>
+                <el-divider content-position="left">付款周期与比例</el-divider>
                 <el-row :gutter="16">
-                    <el-col :span="24">
-                        <el-form-item label="付款方式">
-                            <el-input v-model="form.payMethod" placeholder="文字描述，例：货到票到3个月付款"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
+                    <el-col :span="8">
                         <el-form-item label="到货付款周期(月)">
-                            <el-input-number v-model="form.deliveryPayCycle" :min="0" :precision="1" :controls="false" style="width:100%"/>
+                            <el-input-number v-model="form.paycycle_dh" :min="0" :precision="1" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
-                    <el-col :span="12">
+                    <el-col :span="8">
                         <el-form-item label="质保付款周期(月)">
-                            <el-input-number v-model="form.warrantyPayCycle" :min="0" :precision="1" :controls="false" style="width:100%"/>
+                            <el-input-number v-model="form.paycycle_zb" :min="0" :precision="1" :controls="false" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="结算金额(元)">
+                            <el-input-number v-model="form.settle_amount" :min="0" :precision="2" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
                         <el-form-item label="预付款比例(%)">
-                            <el-input-number v-model="form.prepayRatio" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
+                            <el-input-number v-model="form.rate_yfk" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
                         <el-form-item label="到货款比例(%)">
-                            <el-input-number v-model="form.deliveryPayRatio" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
+                            <el-input-number v-model="form.rate_dhk" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
                         <el-form-item label="质保金比例(%)">
-                            <el-input-number v-model="form.warrantyPayRatio" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item label="预付款日期">
-                            <el-date-picker v-model="form.prepayDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item label="到货款日期">
-                            <el-date-picker v-model="form.deliveryPayDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item label="质保金付款日期">
-                            <el-date-picker v-model="form.warrantyPayDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-input-number v-model="form.rate_zbj" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                 </el-row>
 
-                <el-divider content-position="left">入库与完结</el-divider>
+                <el-divider content-position="left">付款与入库日期</el-divider>
                 <el-row :gutter="16">
                     <el-col :span="12">
-                        <el-form-item label="是否已入库">
-                            <el-select v-model="form.stock" style="width:100%">
-                                <el-option v-for="o in yesNoOptions" :key="o" :label="o" :value="o"/>
-                            </el-select>
+                        <el-form-item label="预付款日期">
+                            <el-date-picker v-model="form.date_yfk" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="是否完结">
-                            <el-select v-model="form.completed" style="width:100%">
-                                <el-option v-for="o in yesNoOptions" :key="o" :label="o" :value="o"/>
-                            </el-select>
+                        <el-form-item label="到货款日期">
+                            <el-date-picker v-model="form.date_dhk" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="结算金额(元)">
-                            <el-input-number v-model="form.settlementAmount" :min="0" :precision="2" :controls="false" style="width:100%"/>
+                        <el-form-item label="质保金付款日期">
+                            <el-date-picker v-model="form.date_zbj" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="入库日期">
+                            <el-date-picker v-model="form.date_rk" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-divider content-position="left">货期、移交与备注</el-divider>
+                <el-row :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="货期(天)">
-                            <el-input-number v-model="form.deliveryDays" :min="0" :step="1" :controls="false" style="width:100%"/>
+                            <el-input-number v-model="form.hq" :min="0" :step="1" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
-                </el-row>
-
-                <el-divider content-position="left">移交信息</el-divider>
-                <el-row :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="合同移交日期">
-                            <el-date-picker v-model="form.contractTransferDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-input v-model="form.date_htyj" placeholder="文字/日期均可"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="发票移交日期">
-                            <el-date-picker v-model="form.invoiceTransferDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="挂账日期">
-                            <el-date-picker v-model="form.accountDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-input v-model="form.date_fpyj" placeholder="文字/日期均可"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="实际到货时间">
-                            <el-date-picker v-model="form.actualDeliveryDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-input v-model="form.date_actual_dh" placeholder="文字/日期均可"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="入库资料移交物资日期">
-                            <el-date-picker v-model="form.materialTransferDate" type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-input v-model="form.date_ruzlyj" placeholder="文字/日期均可"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                        <el-form-item label="备注">
+                            <el-input v-model="form.bz" type="textarea" :rows="3" placeholder="可填写补充说明、技术要求等"/>
                         </el-form-item>
                     </el-col>
                 </el-row>

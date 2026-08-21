@@ -3,16 +3,113 @@
 <!-- mapper namespace作用是：代码和xml进行关联 -->
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractDao">
+
+    <!-- ============ 公共字段集合 ============ -->
+    <sql id="base_cols">
+        id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type,
+        paycycle_dh, paycycle_zb, rate_yfk, rate_dhk, rate_zbj,
+        date_yfk, date_dhk, date_zbj, date_rk,
+        bz, settle_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
+        open_status
+    </sql>
+
+    <!-- ============ 列表查询：动态 where ============ -->
     <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
-        select * from cght.t_contract where open_status = true
+        select
+        <include refid="base_cols"/>
+        from cght.t_contract
+        where open_status = true
+        <if test="id != null and id != ''">
+            and id like concat('%', #{id}, '%')
+        </if>
+        <if test="title != null and title != ''">
+            and title like concat('%', #{title}, '%')
+        </if>
+        <if test="sign_person != null and sign_person != ''">
+            and sign_person like concat('%', #{sign_person}, '%')
+        </if>
+        <if test="sign_type != null">
+            and sign_type = #{sign_type}
+        </if>
+        <if test="supplier != null and supplier != ''">
+            and supplier like concat('%', #{supplier}, '%')
+        </if>
+        <if test="queryBegin != null">
+            AND date_sign &gt;= #{queryBegin}
+        </if>
+        <if test="queryEnd != null">
+            AND date_sign &lt;= #{queryEnd}
+        </if>
+
+        order by id asc
     </select>
 
+    <!-- ============ 单条查询 ============ -->
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
-        select * from cght.t_contract
+        select
+        <include refid="base_cols"/>
+        from cght.t_contract
         where id = #{id}
     </select>
 
+    <!-- ============ 存在校验 ============ -->
     <select id="exist" resultType="java.lang.Integer">
         SELECT COUNT(*) FROM cght.t_contract WHERE id = #{id}
     </select>
+
+    <!-- ============ 新增 ============ -->
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
+        insert into cght.t_contract (
+        id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type,
+        paycycle_dh, paycycle_zb, rate_yfk, rate_dhk, rate_zbj,
+        date_yfk, date_dhk, date_zbj, date_rk,
+        bz, settle_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
+        open_status
+        ) values (
+        #{c.id}, #{c.title}, #{c.amount}, #{c.date_sign}, #{c.sign_person}, #{c.sign_type},
+        #{c.supplier}, #{c.pay_type},
+        #{c.paycycle_dh}, #{c.paycycle_zb}, #{c.rate_yfk}, #{c.rate_dhk}, #{c.rate_zbj},
+        #{c.date_yfk}, #{c.date_dhk}, #{c.date_zbj}, #{c.date_rk},
+        #{c.bz}, #{c.settle_amount}, #{c.hq},
+        #{c.date_htyj}, #{c.date_fpyj}, #{c.date_actual_dh}, #{c.date_ruzlyj},
+        true
+        )
+    </insert>
+
+    <!-- ============ 更新（全量）：按 id 更新所有业务字段 ============ -->
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
+        update cght.t_contract
+        <set>
+            title = #{c.title},
+            amount = #{c.amount},
+            date_sign = #{c.date_sign},
+            sign_person = #{c.sign_person},
+            sign_type = #{c.sign_type},
+            supplier = #{c.supplier},
+            pay_type = #{c.pay_type},
+            paycycle_dh = #{c.paycycle_dh},
+            paycycle_zb = #{c.paycycle_zb},
+            rate_yfk = #{c.rate_yfk},
+            rate_dhk = #{c.rate_dhk},
+            rate_zbj = #{c.rate_zbj},
+            date_yfk = #{c.date_yfk},
+            date_dhk = #{c.date_dhk},
+            date_zbj = #{c.date_zbj},
+            date_rk = #{c.date_rk},
+            bz = #{c.bz},
+            settle_amount = #{c.settle_amount},
+            hq = #{c.hq},
+            date_htyj = #{c.date_htyj},
+            date_fpyj = #{c.date_fpyj},
+            date_actual_dh = #{c.date_actual_dh},
+            date_ruzlyj = #{c.date_ruzlyj}
+        </set>
+        where id = #{c.id}
+    </update>
+
+    <!-- ============ 逻辑作废（不物理删除） ============ -->
+    <update id="markInvalid">
+        update cght.t_contract set open_status = false where id = #{id}
+    </update>
+
 </mapper>

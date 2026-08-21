@@ -19,7 +19,7 @@ public class TCGHTContract implements Serializable {
     private float amount;
     private Date date_sign;
     private String sign_person;
-    private int sign_type;
+    private Integer sign_type;
     private String supplier;
     private float paycycle_dh;
     private float paycycle_zb;
@@ -39,6 +39,5 @@ public class TCGHTContract implements Serializable {
     private String date_fpyj;
     private String date_actual_dh;
     private String date_ruzlyj;
-
 }
 

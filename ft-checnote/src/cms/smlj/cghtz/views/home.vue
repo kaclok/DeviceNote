@@ -8,7 +8,7 @@ const router = useRouter();
 const route = useRoute();
 const {wsCache} = useCache()
 
-// 空值兜底：未登录或缓存被清时避免 .includes / .realName 报错
+// 空值兜底：未登录或缓存被清时避免 .includes / .username 报错
 const acc = wsCache.get(ECacheType.ACCOUNT);
 const account = ref(acc)
 const perms = ref(acc.role.perms)
@@ -74,7 +74,7 @@ function trueLogout() {
                 <el-dropdown @command="logout">
                     <div class="user-info">
                         <el-avatar :size="30" style="background:#6366f1;font-size:13px">
-                            {{ (account.realName || '?').slice(0, 1) }}
+                            {{ (account.username || account.account || '?').slice(0, 1) }}
                         </el-avatar>
                         <span class="user-name">{{ account.account }}</span>
                     </div>
