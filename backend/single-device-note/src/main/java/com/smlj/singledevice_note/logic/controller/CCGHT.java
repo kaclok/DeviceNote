@@ -24,8 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.format.annotation.DateTimeFormat;
 
@@ -282,12 +284,15 @@ public class CCGHT {
         }
         int okCnt = 0;
         List<Map<String, Object>> failRows = new ArrayList<>();
+        Set<String> batchIds = new HashSet<>();
         for (int i = 0; i < rows.size(); i++) {
             TCGHTContract c = rows.get(i);
             List<String> reasons = new ArrayList<>();
             String id = c.getId();
             if (id == null || id.isBlank()) reasons.add("合同编号为空");
-            else if (contractDao.exist(id) > 0) reasons.add("合同编号重复");
+            else if (contractDao.exist(id) > 0) reasons.add("合同编号已存在");
+            else if (batchIds.contains(id)) reasons.add("合同编号在本批次中重复");
+            else batchIds.add(id);
             if (c.getTitle() == null || c.getTitle().isBlank()) reasons.add("合同名称必填");
             if (c.getSupplier() == null || c.getSupplier().isBlank()) reasons.add("供应商必填");
             if (c.getDate_sign() == null) reasons.add("签订时间必填");
