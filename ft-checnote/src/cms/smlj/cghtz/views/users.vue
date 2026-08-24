@@ -250,7 +250,7 @@ function toggleStatus(row) {
                 <el-pagination
                     v-model:current-page="page"
                     v-model:page-size="pageSize"
-                    :page-sizes="[2, 10, 20, 50, 100]"
+                    :page-sizes="[10, 20, 50, 100]"
                     :total="filteredList.length"
                     layout="total, sizes, prev, pager, next, jumper"
                     background
