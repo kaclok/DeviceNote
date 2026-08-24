@@ -111,12 +111,14 @@ function trueLogout() {
 .page-container {
     width: 100%;
     height: 100%;
+    box-sizing: border-box;
     background-color: #f1f5f9;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 
     .page-title {
-        width: 100%;
+        box-sizing: border-box;
         height: 56px;
         flex-shrink: 0;
         display: flex;
@@ -183,10 +185,13 @@ function trueLogout() {
         flex: 1;
         display: flex;
         overflow: hidden;
+        box-sizing: border-box;
+        min-height: 0;
 
         .sidebar {
-            width: 200px;
+            width: 140px;
             flex-shrink: 0;
+            box-sizing: border-box;
             background-color: #0f172a;
             display: flex;
             flex-direction: column;
@@ -221,7 +226,9 @@ function trueLogout() {
 
         .page-content {
             flex: 1;
+            box-sizing: border-box;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 20px 24px 40px;
         }
     }
