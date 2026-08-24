@@ -12,6 +12,7 @@ const file = ref(null)
 const signers = ref([])          // 签订人字典，用于 Excel 中"姓名→account"转码
 
 const AC_signers = new AbortController()
+const AC_import = new AbortController()
 
 onMounted(() => {
     loadSigners()
@@ -19,6 +20,7 @@ onMounted(() => {
 
 onUnmounted(() => {
     AC_signers.abort()
+    AC_import.abort()
 })
 
 function loadSigners() {
@@ -55,7 +57,7 @@ async function handleFile(f) {
             importing.value = false
             return
         }
-        Singleton.getInstance(SysX).importContractExcel(rows, new AbortController().signal, () => {
+        Singleton.getInstance(SysX).importContractExcel(rows, AC_import.signal, () => {
         }, (r, data) => {
             importing.value = false
             if (r) {

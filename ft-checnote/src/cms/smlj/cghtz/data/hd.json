@@ -183,7 +183,9 @@
 			"date_htyj": "2026-04-09",
 			"date_fpyj": "2026-05-02",
 			"date_actual_dh": "2026-05-02",
-			"date_ruzlyj": "2026-05-07"
+			"date_ruzlyj": "2026-05-07",
+			"has_finished": true,
+			"has_rk": true
 		},
 		{
 			"id": "SMLJ-CG-CL-26218",
@@ -209,7 +211,9 @@
 			"date_htyj": "2026-04-27",
 			"date_fpyj": "2026-05-20",
 			"date_actual_dh": "2026-05-20",
-			"date_ruzlyj": "2026-05-25"
+			"date_ruzlyj": "2026-05-25",
+			"has_finished": true,
+			"has_rk": true
 		},
 		{
 			"id": "SMLJ-CG-CL-26235",
@@ -235,7 +239,9 @@
 			"date_htyj": "2026-05-22",
 			"date_fpyj": "",
 			"date_actual_dh": "",
-			"date_ruzlyj": ""
+			"date_ruzlyj": "",
+			"has_finished": false,
+			"has_rk": false
 		},
 		{
 			"id": "SMLJ-CG-CL-26247",
@@ -261,7 +267,9 @@
 			"date_htyj": "2026-06-17",
 			"date_fpyj": "",
 			"date_actual_dh": "",
-			"date_ruzlyj": ""
+			"date_ruzlyj": "",
+			"has_finished": false,
+			"has_rk": false
 		},
 		{
 			"id": "SMLJ-CG-CL-26250",
@@ -287,7 +295,9 @@
 			"date_htyj": "2026-06-04",
 			"date_fpyj": "2026-06-28",
 			"date_actual_dh": "2026-06-12",
-			"date_ruzlyj": "2026-06-17"
+			"date_ruzlyj": "2026-06-17",
+			"has_finished": true,
+			"has_rk": true
 		},
 		{
 			"id": "SMLJ-CG-CL-26255",
@@ -313,7 +323,9 @@
 			"date_htyj": "2026-03-19",
 			"date_fpyj": "2026-04-12",
 			"date_actual_dh": "2026-04-12",
-			"date_ruzlyj": "2026-04-17"
+			"date_ruzlyj": "2026-04-17",
+			"has_finished": true,
+			"has_rk": true
 		},
 		{
 			"id": "SMLJ-CG-CL-26266",
@@ -339,7 +351,9 @@
 			"date_htyj": "2026-06-27",
 			"date_fpyj": "2026-07-20",
 			"date_actual_dh": "2026-07-10",
-			"date_ruzlyj": "2026-07-15"
+			"date_ruzlyj": "2026-07-15",
+			"has_finished": true,
+			"has_rk": true
 		},
 		{
 			"id": "SMLJ-CG-CL-26278",
@@ -365,7 +379,9 @@
 			"date_htyj": "2026-07-12",
 			"date_fpyj": "",
 			"date_actual_dh": "",
-			"date_ruzlyj": ""
+			"date_ruzlyj": "",
+			"has_finished": false,
+			"has_rk": false
 		},
 		{
 			"id": "SMLJ-CG-CL-26290",
@@ -391,7 +407,9 @@
 			"date_htyj": "2026-07-25",
 			"date_fpyj": "",
 			"date_actual_dh": "",
-			"date_ruzlyj": ""
+			"date_ruzlyj": "",
+			"has_finished": false,
+			"has_rk": false
 		},
 		{
 			"id": "SMLJ-CG-CL-26301",
@@ -417,7 +435,9 @@
 			"date_htyj": "2026-08-08",
 			"date_fpyj": "",
 			"date_actual_dh": "",
-			"date_ruzlyj": ""
+			"date_ruzlyj": "",
+			"has_finished": false,
+			"has_rk": false
 		},
 		{
 			"id": "SMLJ-CG-CL-26312",
@@ -443,7 +463,9 @@
 			"date_htyj": "2026-08-15",
 			"date_fpyj": "",
 			"date_actual_dh": "",
-			"date_ruzlyj": ""
+			"date_ruzlyj": "",
+			"has_finished": false,
+			"has_rk": false
 		},
 		{
 			"id": "SMLJ-CG-CL-26320",
@@ -469,7 +491,9 @@
 			"date_htyj": "2026-08-19",
 			"date_fpyj": "",
 			"date_actual_dh": "",
-			"date_ruzlyj": ""
+			"date_ruzlyj": "",
+			"has_finished": false,
+			"has_rk": false
 		}
 	]
 }

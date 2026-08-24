@@ -23,6 +23,8 @@ const filters = ref({
     supplier: '',
     dateFrom: null,
     dateTo: null,
+    has_finished: '',
+    has_rk: '',
 })
 // 签订人列表（动态数据，由后端下发；）
 const signerOptions = ref([])
@@ -59,6 +61,8 @@ function loadList() {
         supplier: filters.value.supplier,
         queryBegin: filters.value.dateFrom,
         queryEnd: filters.value.dateTo,
+        has_finished: filters.value.has_finished,
+        has_rk: filters.value.has_rk,
     }
 
     // 过滤对象中的空值， 和...fm不一样
@@ -108,6 +112,7 @@ function resetFilters() {
     filters.value = {
         id: '', title: '', sign_person: '', sign_type: '', supplier: '',
         dateFrom: null, dateTo: null,
+        has_finished: '', has_rk: '',
     }
     applyFilters()
 }
@@ -151,6 +156,8 @@ function emptyForm() {
         date_fpyj: '',
         date_actual_dh: '',
         date_ruzlyj: '',
+        has_finished: false,
+        has_rk: false,
     }
 }
 
@@ -246,6 +253,9 @@ function saveContract() {
             const n = Number(edited[k])
             edited[k] = Number.isNaN(n) ? 0 : parseInt(n, 10)
         })
+        // 布尔字段归一化
+        edited.has_finished = edited.has_finished === true || edited.has_finished === 'true'
+        edited.has_rk = edited.has_rk === true || edited.has_rk === 'true'
         // Experience 718922：编辑模式 merge original，避免空覆盖
         const paras = isEdit.value ? {...originalContract.value, ...edited} : {...edited}
 
@@ -322,6 +332,16 @@ function gotoImport() {
                 <el-form-item label="供应商">
                     <el-input v-model="filters.supplier" placeholder="模糊搜索" clearable style="width:160px" @keyup.enter="applyFilters"/>
                 </el-form-item>
+                <el-form-item label="财务完结">
+                    <el-select v-model="filters.has_finished" placeholder="全部" clearable style="width:100px">
+                        <el-option v-for="(label, idx) in gd.yesNoOptions" :key="idx" :label="label" :value="idx === 0"/>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="已入库">
+                    <el-select v-model="filters.has_rk" placeholder="全部" clearable style="width:100px">
+                        <el-option v-for="(label, idx) in gd.yesNoOptions" :key="idx" :label="label" :value="idx === 0"/>
+                    </el-select>
+                </el-form-item>
                 <el-form-item label="签订时间">
                     <el-date-picker v-model="filters.dateFrom" type="date" placeholder="开始" value-format="YYYY-MM-DD" style="width:130px"/>
                     <span style="margin:0 6px;color:#94a3b8">至</span>
@@ -376,6 +396,16 @@ function gotoImport() {
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="pay_type" label="付款方式" min-width="170" show-overflow-tooltip/>
+                <el-table-column prop="has_finished" label="财务完结" width="90" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.has_finished ? 'success' : 'info'" size="small">{{ row.has_finished ? '是' : '否' }}</el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="has_rk" label="已入库" width="80" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.has_rk ? 'success' : 'info'" size="small">{{ row.has_rk ? '是' : '否' }}</el-tag>
+                    </template>
+                </el-table-column>
                 <el-table-column label="操作" width="140" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-hasPermission="['contract:update']" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
@@ -536,6 +566,16 @@ function gotoImport() {
                     <el-col :span="12">
                         <el-form-item label="挂账日期">
                             <el-date-picker v-model="form.date_rk" type="date" format="YYYY-MM-DD" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="是否财务完结">
+                            <el-switch v-model="form.has_finished" active-text="是" inactive-text="否"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="是否已入库">
+                            <el-switch v-model="form.has_rk" active-text="是" inactive-text="否"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="24">

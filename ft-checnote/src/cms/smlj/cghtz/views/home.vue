@@ -47,7 +47,7 @@ function logout() {
 }
 
 function trueLogout() {
-    ApiLogin.logout({account: account.value}, AC_logoutList.signal, () => {
+    ApiLogin.logout({account: account.value.account}, AC_logoutList.signal, () => {
         loadingLogout.value = true;
     }, (r, data) => {
         loadingLogout.value = false;

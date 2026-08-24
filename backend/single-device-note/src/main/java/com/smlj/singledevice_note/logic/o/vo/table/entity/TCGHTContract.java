@@ -34,7 +34,8 @@ public class TCGHTContract implements Serializable {
     private Date date_dhk;
     @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_zbj;
-    private String date_rk;
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    private Date date_rk;
     private String bz;
 
     private String pay_type;

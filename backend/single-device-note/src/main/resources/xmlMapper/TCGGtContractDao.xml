@@ -10,7 +10,7 @@
         paycycle_dh, paycycle_zb, rate_yfk, rate_dhk, rate_zbj,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        open_status
+        has_finished, has_rk, open_status
     </sql>
 
     <!-- ============ 列表查询：动态 where ============ -->
@@ -40,6 +40,12 @@
         <if test="queryEnd != null">
             AND date_sign &lt;= #{queryEnd}
         </if>
+        <if test="has_finished != null">
+            and has_finished = #{has_finished}
+        </if>
+        <if test="has_rk != null">
+            and has_rk = #{has_rk}
+        </if>
 
         order by id asc
     </select>
@@ -64,7 +70,7 @@
         paycycle_dh, paycycle_zb, rate_yfk, rate_dhk, rate_zbj,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        open_status
+        has_finished, has_rk, open_status
         ) values (
         #{c.id}, #{c.title}, #{c.amount}, #{c.date_sign}, #{c.sign_person}, #{c.sign_type},
         #{c.supplier}, #{c.pay_type},
@@ -72,7 +78,7 @@
         #{c.date_yfk}, #{c.date_dhk}, #{c.date_zbj}, #{c.date_rk},
         #{c.bz}, #{c.settle_amount}, #{c.hq},
         #{c.date_htyj}, #{c.date_fpyj}, #{c.date_actual_dh}, #{c.date_ruzlyj},
-        true
+        #{c.has_finished}, #{c.has_rk}, true
         )
     </insert>
 
@@ -102,7 +108,9 @@
             date_htyj = #{c.date_htyj},
             date_fpyj = #{c.date_fpyj},
             date_actual_dh = #{c.date_actual_dh},
-            date_ruzlyj = #{c.date_ruzlyj}
+            date_ruzlyj = #{c.date_ruzlyj},
+            has_finished = #{c.has_finished},
+            has_rk = #{c.has_rk}
         </set>
         where id = #{c.id}
     </update>

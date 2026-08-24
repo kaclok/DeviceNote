@@ -222,11 +222,12 @@ public class CCGHT {
             @RequestParam(name = "supplier", required = false) String supplier,
             @RequestParam(name = "queryBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryBegin,
             @RequestParam(name = "queryEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryEnd,
+            @RequestParam(name = "has_finished", required = false) Boolean has_finished,
+            @RequestParam(name = "has_rk", required = false) Boolean has_rk,
             @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
             @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
-        // pageSizeZero=true：pageSize=0 返回全部（兼容前端不分页的旧调用）
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = contractDao.queryAll(id, title, sign_person, sign_type, supplier, queryBegin, queryEnd);
+        var ls = contractDao.queryAll(id, title, sign_person, sign_type, supplier, queryBegin, queryEnd, has_finished, has_rk);
         return Result.success(new PageSerializable<>(ls));
     }
 
