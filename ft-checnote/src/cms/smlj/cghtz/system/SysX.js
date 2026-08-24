@@ -4,11 +4,37 @@ import {ApiX} from "../api/ApiX.js";
  * 合同台账 - 业务层
  *
  * 设计说明：
- * 1. USE_MOCK = true：全部走本地 MockX，用于前端独立演示；
- * 2. USE_MOCK = false：全部走后端 ApiX，请求失败如实回调失败，
- *    不做 Mock 兜底（避免后端出错时前端仍展示假数据，掩盖真实问题）；
+ * 1. signer/perm 字典在登录后预加载并缓存，后续直接读缓存，不再请求后端；
+ * 2. 登出时调用 clearDictCache() 清空缓存；
  * 3. 所有方法遵循项目统一的 (paras, signal, onBefore, onAfter) 回调签名。
  */
+
+// 字典缓存
+let _signerCache = null  // 签订人列表
+let _permCache = null     // 权限定义列表
+
+/** 登录成功后预加载字典缓存 */
+export function preloadDictCache(signal, onAfter) {
+    let done = 0
+    const total = 2
+    const check = () => {
+        done++
+        if (done >= total) onAfter?.()
+    }
+    ApiX.getSignerList(null, signal).then(succ => {
+        _signerCache = succ.data
+    }).catch(() => {}).finally(check)
+    ApiX.getPermDefs(null, signal).then(succ => {
+        _permCache = succ.data
+    }).catch(() => {}).finally(check)
+}
+
+/** 登出时清空缓存 */
+export function clearDictCache() {
+    _signerCache = null
+    _permCache = null
+}
+
 class SysX {
     /* ---------------- 合同台账 ---------------- */
     async getContractList(paras, signal, onBefore, onAfter) {
@@ -74,10 +100,15 @@ class SysX {
         });
     }
 
-    /* ---------------- 签订人字典 ---------------- */
+    /* ---------------- 签订人字典（缓存） ---------------- */
     async getSignerList(paras, signal, onBefore, onAfter) {
+        if (_signerCache) {
+            onAfter?.(true, _signerCache)
+            return
+        }
         onBefore?.();
         ApiX.getSignerList(paras, signal).then(succ => {
+            _signerCache = succ.data
             onAfter?.(true, succ.data);
         }).catch(fail => {
             onAfter?.(false, fail);
@@ -132,8 +163,13 @@ class SysX {
     }
 
     async getPermDefs(paras, signal, onBefore, onAfter) {
+        if (_permCache) {
+            onAfter?.(true, _permCache)
+            return
+        }
         onBefore?.();
         ApiX.getPermDefs(paras, signal).then(succ => {
+            _permCache = succ.data
             onAfter?.(true, succ.data);
         }).catch(fail => {
             onAfter?.(false, fail);

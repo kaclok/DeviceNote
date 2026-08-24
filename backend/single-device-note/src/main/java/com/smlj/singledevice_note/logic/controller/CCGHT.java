@@ -196,7 +196,7 @@ public class CCGHT {
     @PostMapping(value = "/signer/list")
     public Result<?> signerList() {
         // signer 下拉用：只返回启用的非管理员，且仅需 account/username（合同 sign_person 关联）
-        var ls = userDao.queryAll(false, false);
+        var ls = userDao.queryAll(true, false);
         return Result.success(ls);
     }
 

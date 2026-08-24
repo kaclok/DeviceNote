@@ -3,6 +3,7 @@ import {useRoute, useRouter} from 'vue-router';
 import {clearAccount, ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
 import {ElMessage, ElMessageBox} from "element-plus";
 import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
+import {clearDictCache} from "@/cms/smlj/cghtz/system/SysX.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -52,6 +53,7 @@ function trueLogout() {
     }, (r, data) => {
         loadingLogout.value = false;
         if (r && data.data) {
+            clearDictCache()
             clearAccount()
             router.push({name: 'login'})
         } else {
@@ -189,7 +191,7 @@ function trueLogout() {
         min-height: 0;
 
         .sidebar {
-            width: 140px;
+            width: 145px;
             flex-shrink: 0;
             box-sizing: border-box;
             background-color: #0f172a;

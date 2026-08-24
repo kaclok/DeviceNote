@@ -406,7 +406,7 @@ function gotoImport() {
                         <el-tag :type="row.has_rk ? 'success' : 'info'" size="small">{{ row.has_rk ? '是' : '否' }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" width="140" fixed="right" align="center">
+                <el-table-column label="操作" width="100" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-hasPermission="['contract:update']" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
                         <el-button v-hasPermission="['contract:delete']" link type="danger" size="small" @click="removeContract(row)">作废</el-button>
@@ -568,6 +568,15 @@ function gotoImport() {
                             <el-date-picker v-model="form.date_rk" type="date" format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
+                    <el-col :span="24">
+                        <el-form-item label="备注">
+                            <el-input v-model="form.bz" type="textarea" :rows="3" placeholder="可填写补充说明、技术要求等"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-divider v-hasRole="'ADMIN'" content-position="left">入库、财务</el-divider>
+                <el-row v-hasRole="'ADMIN'" :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="是否财务完结">
                             <el-switch v-model="form.has_finished" active-text="是" inactive-text="否"/>
@@ -576,11 +585,6 @@ function gotoImport() {
                     <el-col :span="12">
                         <el-form-item label="是否已入库">
                             <el-switch v-model="form.has_rk" active-text="是" inactive-text="否"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="24">
-                        <el-form-item label="备注">
-                            <el-input v-model="form.bz" type="textarea" :rows="3" placeholder="可填写补充说明、技术要求等"/>
                         </el-form-item>
                     </el-col>
                 </el-row>

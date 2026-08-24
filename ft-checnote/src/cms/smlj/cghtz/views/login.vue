@@ -3,6 +3,7 @@ import {ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
 import {useRouter} from 'vue-router';
 import {ElMessage} from "element-plus";
 import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
+import {preloadDictCache} from "@/cms/smlj/cghtz/system/SysX.js";
 
 const {wsCache} = useCache()
 
@@ -41,6 +42,8 @@ function loginAction() {
             wsCache.set(ECacheType.ALL_PERMS, [...new Set(allPerms)]);
 
             ElMessage.success(`欢迎回来，${acc.account}`)
+            // 预加载签订人/权限字典缓存，不传 login 页的 signal，避免页面卸载 abort 掉请求
+            preloadDictCache()
             router.push({name: 'home'})
         } else {
             ElMessage.error(data?.data?.message || data?.msg || '登录失败')
