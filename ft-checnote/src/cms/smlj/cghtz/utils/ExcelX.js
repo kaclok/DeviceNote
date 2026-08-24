@@ -39,14 +39,16 @@ const ACCOUNT_FROM_USERNAME = (username, signers) => {
     return s ? s.account : String(username || '')
 }
 
-/* 是/否 → boolean */
+/* 是/否 → boolean，空值默认 false */
 const YES_NO_TO_BOOL = (v) => {
     if (v === true || v === 1) return true
     if (v === false || v === 0) return false
-    const s = String(v || '').trim()
-    if (s === '是' || s === 'Y' || s === 'y' || s === 'true') return true
-    if (s === '否' || s === 'N' || s === 'n' || s === 'false') return false
-    return null
+    const s = String(v ?? '').trim()
+    if (!s) return false
+    const low = s.toLowerCase()
+    if (s === '是' || low === 'y' || low === 'true' || s === '√' || s === '✓') return true
+    if (s === '否' || low === 'n' || low === 'false' || s === '×' || s === '✗') return false
+    return false  // 无法识别时默认 false
 }
 const BOOL_TO_YES_NO = (b) => {
     if (b === true) return '是'

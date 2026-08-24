@@ -370,7 +370,7 @@ function gotoImport() {
         <!-- 表格：只读 9 列 -->
         <el-card shadow="never" class="table-card">
             <el-table :data="list" v-loading="loading" border stripe style="width:100%">
-                <el-table-column prop="id" label="合同编号" width="130" fixed="left">
+                <el-table-column prop="id" label="合同编号" width="160" fixed="left">
                     <template #default="{row}"><b style="color:#2563eb">{{ row.id }}</b></template>
                 </el-table-column>
                 <el-table-column prop="title" label="合同名称" min-width="150" show-overflow-tooltip/>
@@ -389,19 +389,19 @@ function gotoImport() {
                         </el-date-picker>
                     </template>
                 </el-table-column>
-                <el-table-column prop="sign_person" label="签订人" width="100">
+                <el-table-column prop="sign_person" label="签订人" width="68">
                 </el-table-column>
-                <el-table-column prop="sign_type" label="签订方式" width="115">
+                <el-table-column prop="sign_type" label="签订方式" width="85">
                     <template #default="{row}">{{ methodOptions.find(item => item.id === row.sign_type).desc }}</template>
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="pay_type" label="付款方式" min-width="170" show-overflow-tooltip/>
-                <el-table-column prop="has_finished" label="财务完结" width="90" align="center">
+                <el-table-column prop="has_finished" label="财务完结" width="85" align="center">
                     <template #default="{row}">
                         <el-tag :type="row.has_finished ? 'success' : 'info'" size="small">{{ row.has_finished ? '是' : '否' }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="has_rk" label="已入库" width="80" align="center">
+                <el-table-column prop="has_rk" label="已入库" width="70" align="center">
                     <template #default="{row}">
                         <el-tag :type="row.has_rk ? 'success' : 'info'" size="small">{{ row.has_rk ? '是' : '否' }}</el-tag>
                     </template>
