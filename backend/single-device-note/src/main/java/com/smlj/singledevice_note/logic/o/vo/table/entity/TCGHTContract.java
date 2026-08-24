@@ -2,6 +2,7 @@ package com.smlj.singledevice_note.logic.o.vo.table.entity;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
@@ -17,6 +18,7 @@ public class TCGHTContract implements Serializable {
     private String id;
     private String title;
     private float amount;
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_sign;
     private String sign_person;
     private Integer sign_type;
@@ -26,10 +28,13 @@ public class TCGHTContract implements Serializable {
     private float rate_yfk;
     private float rate_dhk;
     private float rate_zbj;
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_yfk;
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_dhk;
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_zbj;
-    private Date date_rk;
+    private String date_rk;
     private String bz;
 
     private String pay_type;
@@ -39,5 +44,8 @@ public class TCGHTContract implements Serializable {
     private String date_fpyj;
     private String date_actual_dh;
     private String date_ruzlyj;
+
+    private boolean has_finished;
+    private boolean has_rk;
 }
 

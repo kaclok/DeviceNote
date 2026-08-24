@@ -26,7 +26,7 @@ public class JwtUtil {
     // https://mp.weixin.qq.com/s/fnmGRvE8JFPR5ZG6RfWbIg
     // https://mp.weixin.qq.com/s/bQnoeS1ZwROoaPGIR8oCKg
     public static final long RRFRESH_EXPIRE = 4 * 3600 * 1000;
-    public static final long ACCESS_EXPIRE = 1 * 20 * 1000;
+    public static final long ACCESS_EXPIRE = 1 * 120 * 1000;
 
     //接收业务数据,生成token并返回
     public static Triple<Date, Date, String> getToken(Map<String, Object> claims, long expire) {

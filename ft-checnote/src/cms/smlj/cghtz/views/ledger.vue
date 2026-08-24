@@ -467,17 +467,17 @@ function gotoImport() {
                 <el-row :gutter="16">
                     <el-col :span="8">
                         <el-form-item label="预付款比例(%)" prop="rate_yfk">
-                            <el-input-number v-model="form.rate_yfk" :min="0" :max="100" :precision="2" :controls="false" @change="onRateChange('yfk')" style="width:100%"/>
+                            <el-input-number v-model="form.rate_yfk" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
                         <el-form-item label="到货款比例(%)" prop="rate_dhk">
-                            <el-input-number v-model="form.rate_dhk" :min="0" :max="100" :precision="2" :controls="false" @change="onRateChange('dhk')" style="width:100%"/>
+                            <el-input-number v-model="form.rate_dhk" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
                         <el-form-item label="质保金比例(%)" prop="rate_zbj">
-                            <el-input-number v-model="form.rate_zbj" :min="0" :max="100" :precision="2" :controls="false" @change="onRateChange('zbj')" style="width:100%"/>
+                            <el-input-number v-model="form.rate_zbj" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                 </el-row>
