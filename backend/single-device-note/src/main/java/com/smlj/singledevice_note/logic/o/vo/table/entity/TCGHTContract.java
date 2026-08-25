@@ -46,7 +46,8 @@ public class TCGHTContract implements Serializable {
     private String date_actual_dh;
     private String date_ruzlyj;
 
-    private boolean has_finished;
+    /** 财务环节进度：0-未完结 1-预付款 2-到货款 3-质保款(完结) */
+    private Integer finish_step;
     private boolean has_rk;
 }
 

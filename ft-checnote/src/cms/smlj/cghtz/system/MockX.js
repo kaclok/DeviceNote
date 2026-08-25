@@ -43,7 +43,7 @@ const CONTRACT_FIELDS = [
     "date_yfk", "date_dhk", "date_zbj", "date_rk",
     "bz", "settle_amount", "hq",
     "date_htyj", "date_fpyj", "date_actual_dh", "date_ruzlyj",
-    "has_finished", "has_rk",
+    "finish_step", "has_rk",
 ]
 
 /* 浮点字段（导入/创建时统一转 Number） */
@@ -53,9 +53,9 @@ const FLOAT_FIELDS = [
     "settle_amount",
 ]
 /* 整数字段 */
-const INT_FIELDS = ["hq", "sign_type"]
+const INT_FIELDS = ["hq", "sign_type", "finish_step"]
 /* 布尔字段 */
-const BOOL_FIELDS = ["has_finished", "has_rk"]
+const BOOL_FIELDS = ["has_rk"]
 
 /**
  * 将外部传入的合同对象按字段白名单清洗并强制类型转换
@@ -138,8 +138,9 @@ export class MockX {
         if (filters.supplier) list = list.filter(c => c.supplier.includes(filters.supplier));
         if (filters.dateFrom) list = list.filter(c => c.date_sign >= filters.dateFrom);
         if (filters.dateTo) list = list.filter(c => c.date_sign <= filters.dateTo);
-        if (filters.has_finished !== undefined && filters.has_finished !== '' && filters.has_finished !== null) {
-            list = list.filter(c => c.has_finished === (filters.has_finished === true || filters.has_finished === 'true' || filters.has_finished === 1));
+        if (filters.finish_step !== undefined && filters.finish_step !== '' && filters.finish_step !== null) {
+            const fv = Number(filters.finish_step) || 0
+            list = list.filter(c => Number(c.finish_step) === fv)
         }
         if (filters.has_rk !== undefined && filters.has_rk !== '' && filters.has_rk !== null) {
             list = list.filter(c => c.has_rk === (filters.has_rk === true || filters.has_rk === 'true' || filters.has_rk === 1));

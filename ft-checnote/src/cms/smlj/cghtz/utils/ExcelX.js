@@ -55,6 +55,27 @@ const BOOL_TO_YES_NO = (b) => {
     if (b === false) return '否'
     return ''
 }
+/* 财务环节 finish_step int ↔ 文本：0未开始 1预付款 2到货款 3质保款 */
+const FINISHED_INT_TO_STR = (n) => {
+    const v = Number(n) || 0
+    if (v === 1) return '预付款'
+    if (v === 2) return '到货款'
+    if (v === 3) return '质保款'
+    return '未开始'
+}
+const FINISHED_STR_TO_INT = (v) => {
+    const num = Number(v)
+    if (!Number.isNaN(num) && Number.isFinite(num)) {
+        const n = parseInt(num, 10)
+        if (n >= 0 && n <= 3) return n
+    }
+    const s = String(v ?? '').trim()
+    if (!s) return 0
+    if (s.includes('预付款') || s === '1' || s.includes('预付')) return 1
+    if (s.includes('到货款') || s === '2' || s.includes('到货')) return 2
+    if (s.includes('质保') || s === '3' || s.includes('完结')) return 3
+    return 0
+}
 
 /**
  * 字段定义表：field（后端字段名/英文字段名）、header（中文表头）、type
@@ -86,7 +107,7 @@ const FIELD_DEFS = [
     {field: 'date_dhk', header: '到货款日期', type: 'date'},
     {field: 'date_zbj', header: '质保金付款日期', type: 'date'},
     {field: 'bz', header: '备注'},
-    {field: 'has_finished', header: '是否财务完结', type: 'bool'},
+    {field: 'finish_step', header: '财务环节'},
     {field: 'has_rk', header: '是否已入库', type: 'bool'},
 ]
 
@@ -111,7 +132,8 @@ export function exportContractExcel(rows, filename = '合同台账_导出', sign
             if (v === undefined || v === null) v = ''
             if (field === 'sign_type') v = SIGN_CODE_TO_STR(v)
             else if (field === 'sign_person') v = USERNAME_FROM_ACCOUNT(v, signers)
-            else if (field === 'has_finished' || field === 'has_rk') v = BOOL_TO_YES_NO(v)
+            else if (field === 'finish_step') v = FINISHED_INT_TO_STR(v)
+            else if (field === 'has_rk') v = BOOL_TO_YES_NO(v)
             else if (type === 'date') v = formatExportDate(v)
             return v
         })
@@ -139,7 +161,8 @@ export function downloadTemplate() {
         const ex = EXAMPLE_ROW[field]
         if (ex === undefined) return ''
         if (field === 'sign_type') return SIGN_CODE_TO_STR(ex)
-        if (field === 'has_finished' || field === 'has_rk') return BOOL_TO_YES_NO(ex)
+        if (field === 'finish_step') return FINISHED_INT_TO_STR(ex)
+        if (field === 'has_rk') return BOOL_TO_YES_NO(ex)
         if (type === 'date') return formatExportDate(ex)
         return ex
     })
@@ -181,7 +204,7 @@ const EXAMPLE_ROW = {
     date_fpyj: '',
     date_actual_dh: '',
     date_ruzlyj: '',
-    has_finished: false,
+    finish_step: 0,
     has_rk: false,
 }
 
@@ -286,6 +309,8 @@ export function parseContractExcel(file, signers = []) {
 
                         // sign_type：收中文，转成 int code
                         if (field === 'sign_type') v = v !== '' && v !== null ? SIGN_STR_TO_CODE(v) : null
+                        // finish_step：收中文/数字，转成 int 进度
+                        if (field === 'finish_step') v = FINISHED_STR_TO_INT(v)
                         // sign_person：收中文姓名，转成 account
                         // if (field === 'sign_person' && v !== '' && signers.length > 0) {
                         //     v = ACCOUNT_FROM_USERNAME(v, signers)

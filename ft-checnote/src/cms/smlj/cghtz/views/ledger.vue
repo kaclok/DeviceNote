@@ -23,7 +23,7 @@ const filters = ref({
     supplier: '',
     dateFrom: null,
     dateTo: null,
-    has_finished: '',
+    finish_step: '',
     has_rk: '',
 })
 // 签订人列表（动态数据，由后端下发；）
@@ -61,7 +61,7 @@ function loadList() {
         supplier: filters.value.supplier,
         queryBegin: filters.value.dateFrom,
         queryEnd: filters.value.dateTo,
-        has_finished: filters.value.has_finished,
+        finish_step: filters.value.finish_step,
         has_rk: filters.value.has_rk,
     }
 
@@ -112,7 +112,7 @@ function resetFilters() {
     filters.value = {
         id: '', title: '', sign_person: '', sign_type: '', supplier: '',
         dateFrom: null, dateTo: null,
-        has_finished: '', has_rk: '',
+        finish_step: '', has_rk: '',
     }
     applyFilters()
 }
@@ -156,7 +156,7 @@ function emptyForm() {
         date_fpyj: '',
         date_actual_dh: '',
         date_ruzlyj: '',
-        has_finished: false,
+        finish_step: 0,
         has_rk: false,
     }
 }
@@ -253,8 +253,9 @@ function saveContract() {
             const n = Number(edited[k])
             edited[k] = Number.isNaN(n) ? 0 : parseInt(n, 10)
         })
-        // 布尔字段归一化
-        edited.has_finished = edited.has_finished === true || edited.has_finished === 'true'
+        // 布尔字段归一化；finish_step 为 int：0-未开始，1-预付款，2-到货款，3-质保款
+        const fNum = Number(edited.finish_step)
+        edited.finish_step = Number.isNaN(fNum) ? 0 : parseInt(fNum, 10)
         edited.has_rk = edited.has_rk === true || edited.has_rk === 'true'
         // Experience 718922：编辑模式 merge original，避免空覆盖
         const paras = isEdit.value ? {...originalContract.value, ...edited} : {...edited}
@@ -333,8 +334,8 @@ function gotoImport() {
                     <el-input v-model="filters.supplier" placeholder="模糊搜索" clearable style="width:160px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="财务完结">
-                    <el-select v-model="filters.has_finished" placeholder="全部" clearable style="width:100px">
-                        <el-option v-for="(label, idx) in gd.yesNoOptions" :key="idx" :label="label" :value="idx === 0"/>
+                    <el-select v-model="filters.finish_step" placeholder="全部" clearable style="width:110px">
+                        <el-option v-for="(label, idx) in gd.finishedOptions" :key="idx" :label="label" :value="idx + 1"/>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="已入库">
@@ -396,9 +397,12 @@ function gotoImport() {
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="pay_type" label="付款方式" min-width="170" show-overflow-tooltip/>
-                <el-table-column prop="has_finished" label="财务完结" width="85" align="center">
+                <el-table-column prop="finish_step" label="财务完结" width="92" align="center">
                     <template #default="{row}">
-                        <el-tag :type="row.has_finished ? 'success' : 'info'" size="small">{{ row.has_finished ? '是' : '否' }}</el-tag>
+                        <el-tag v-if="!row.finish_step" type="info" size="small">未开始</el-tag>
+                        <el-tag v-else-if="row.finish_step === 1" type="warning" size="small">预付款</el-tag>
+                        <el-tag v-else-if="row.finish_step === 2" type="primary" size="small">到货款</el-tag>
+                        <el-tag v-else type="success" size="small">质保款</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="has_rk" label="已入库" width="70" align="center">
@@ -578,13 +582,20 @@ function gotoImport() {
                 <el-divider v-hasRole="'ADMIN'" content-position="left">入库、财务</el-divider>
                 <el-row v-hasRole="'ADMIN'" :gutter="16">
                     <el-col :span="12">
-                        <el-form-item label="是否财务完结">
-                            <el-switch v-model="form.has_finished" active-text="是" inactive-text="否"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
                         <el-form-item label="是否已入库">
                             <el-switch v-model="form.has_rk" active-text="是" inactive-text="否"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row v-hasRole="'ADMIN'" :gutter="16">
+                    <el-col :span="24">
+                        <el-form-item label="财务环节">
+                            <el-steps :active="form.finish_step" finish-status="success" align-center @select="(idx) => form.finish_step = idx" style="max-width:480px">
+                                <el-step title="预付款" description="已付预付款" :style="{cursor: 'pointer'}"/>
+                                <el-step title="到货款" description="已付到货款" :style="{cursor: 'pointer'}"/>
+                                <el-step title="质保款" description="已付质保款/完结" :style="{cursor: 'pointer'}"/>
+                            </el-steps>
+                            <div style="font-size:12px;color:#94a3b8;margin-top:4px;padding-left:0">点击对应步骤选中；0=未完结，1=预付款，2=到货款，3=质保款</div>
                         </el-form-item>
                     </el-col>
                 </el-row>

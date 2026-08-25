@@ -184,7 +184,7 @@
 			"date_fpyj": "2026-05-02",
 			"date_actual_dh": "2026-05-02",
 			"date_ruzlyj": "2026-05-07",
-			"has_finished": true,
+			"finish_step": 3,
 			"has_rk": true
 		},
 		{
@@ -212,7 +212,7 @@
 			"date_fpyj": "2026-05-20",
 			"date_actual_dh": "2026-05-20",
 			"date_ruzlyj": "2026-05-25",
-			"has_finished": true,
+			"finish_step": 3,
 			"has_rk": true
 		},
 		{
@@ -240,7 +240,7 @@
 			"date_fpyj": "",
 			"date_actual_dh": "",
 			"date_ruzlyj": "",
-			"has_finished": false,
+			"finish_step": 0,
 			"has_rk": false
 		},
 		{
@@ -268,7 +268,7 @@
 			"date_fpyj": "",
 			"date_actual_dh": "",
 			"date_ruzlyj": "",
-			"has_finished": false,
+			"finish_step": 0,
 			"has_rk": false
 		},
 		{
@@ -296,7 +296,7 @@
 			"date_fpyj": "2026-06-28",
 			"date_actual_dh": "2026-06-12",
 			"date_ruzlyj": "2026-06-17",
-			"has_finished": true,
+			"finish_step": 3,
 			"has_rk": true
 		},
 		{
@@ -324,7 +324,7 @@
 			"date_fpyj": "2026-04-12",
 			"date_actual_dh": "2026-04-12",
 			"date_ruzlyj": "2026-04-17",
-			"has_finished": true,
+			"finish_step": 3,
 			"has_rk": true
 		},
 		{
@@ -352,7 +352,7 @@
 			"date_fpyj": "2026-07-20",
 			"date_actual_dh": "2026-07-10",
 			"date_ruzlyj": "2026-07-15",
-			"has_finished": true,
+			"finish_step": 3,
 			"has_rk": true
 		},
 		{
@@ -380,7 +380,7 @@
 			"date_fpyj": "",
 			"date_actual_dh": "",
 			"date_ruzlyj": "",
-			"has_finished": false,
+			"finish_step": 0,
 			"has_rk": false
 		},
 		{
@@ -408,7 +408,7 @@
 			"date_fpyj": "",
 			"date_actual_dh": "",
 			"date_ruzlyj": "",
-			"has_finished": false,
+			"finish_step": 0,
 			"has_rk": false
 		},
 		{
@@ -436,7 +436,7 @@
 			"date_fpyj": "",
 			"date_actual_dh": "",
 			"date_ruzlyj": "",
-			"has_finished": false,
+			"finish_step": 0,
 			"has_rk": false
 		},
 		{
@@ -464,7 +464,7 @@
 			"date_fpyj": "",
 			"date_actual_dh": "",
 			"date_ruzlyj": "",
-			"has_finished": false,
+			"finish_step": 0,
 			"has_rk": false
 		},
 		{
@@ -492,7 +492,7 @@
 			"date_fpyj": "",
 			"date_actual_dh": "",
 			"date_ruzlyj": "",
-			"has_finished": false,
+			"finish_step": 0,
 			"has_rk": false
 		}
 	]

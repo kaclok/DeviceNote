@@ -23,7 +23,7 @@ public interface TCGHTContractDao {
             , @Param("supplier") String supplier
             , @Param("queryBegin") Date queryBegin
             , @Param("queryEnd") Date queryEnd
-            , @Param("has_finished") Boolean has_finished
+            , @Param("finish_step") Integer finish_step
             , @Param("has_rk") Boolean has_rk);
 
     TCGHTContract query(@Param("id") String id);

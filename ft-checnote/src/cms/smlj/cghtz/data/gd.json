@@ -36,5 +36,10 @@
 	"yesNoOptions": [
 		"是",
 		"否"
+	],
+	"finishedOptions": [
+		"预付款",
+		"到货款",
+		"质保款"
 	]
 }
