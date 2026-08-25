@@ -2,6 +2,7 @@ package com.smlj.singledevice_note.logic.controller;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
+import com.smlj.singledevice_note.core.annotation.RequirePermission;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
@@ -87,6 +88,7 @@ public class CCGHT {
         return Result.success(user);
     }
 
+    @RequirePermission("perm:assign")
     @Transactional
     @PostMapping(value = "/account/list")
     public Result<?> accountList(@RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
@@ -104,6 +106,7 @@ public class CCGHT {
      * 前端 users.vue 不区分新建/编辑，一律调用同一接口；后端根据 account 是否存在做 insert / update。
      * 密码只在“新增”且前端提交了 password 时写入；否则使用默认 123456。编辑不改密码（密码另走 resetPwd）。
      */
+    @RequirePermission("perm:assign")
     @Transactional
     @PostMapping(value = "/account/save")
     public Result<?> accountSave(
@@ -153,6 +156,7 @@ public class CCGHT {
         return Result.success(old);
     }
 
+    @RequirePermission("perm:assign")
     @Transactional
     @PostMapping(value = "/account/resetPwd")
     public Result<?> accountResetPwd(@RequestParam(name = "account") String account,
@@ -168,6 +172,7 @@ public class CCGHT {
         return Result.success();
     }
 
+    @RequirePermission("perm:assign")
     @Transactional
     @PostMapping(value = "/account/toggle")
     public Result<?> accountToggle(@RequestParam(name = "account") String account) {
@@ -240,6 +245,7 @@ public class CCGHT {
         return Result.success(c);
     }
 
+    @RequirePermission("contract:create")
     @Transactional
     @PostMapping(value = "/contract/create")
     public Result<?> contractCreate(@RequestBody TCGHTContract c) {
@@ -255,6 +261,7 @@ public class CCGHT {
         return Result.success(contractDao.query(c.getId()));
     }
 
+    @RequirePermission("contract:update")
     @Transactional
     @PostMapping(value = "/contract/update")
     public Result<?> contractUpdate(@RequestBody TCGHTContract c) {
@@ -268,6 +275,7 @@ public class CCGHT {
         return Result.success(contractDao.query(c.getId()));
     }
 
+    @RequirePermission("contract:delete")
     @Transactional
     @PostMapping(value = "/contract/delete")
     public Result<?> contractDelete(@RequestParam(name = "id", required = false) String id) {
@@ -277,6 +285,7 @@ public class CCGHT {
         return Result.success();
     }
 
+    @RequirePermission("contract:import")
     @Transactional
     @PostMapping(value = "/contract/import")
     public Result<?> contractImport(@RequestBody List<TCGHTContract> rows) {

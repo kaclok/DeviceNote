@@ -7,6 +7,7 @@ import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 public final class DateTimeUtil {
@@ -64,5 +65,33 @@ public final class DateTimeUtil {
             return System.currentTimeMillis() / 1000;
         }
         return System.currentTimeMillis();
+    }
+
+    /**
+     * 在 begin 和 end 之间随机取一个时间（包含边界）
+     *
+     * @param begin 开始时间
+     * @param end   结束时间
+     * @return 随机时间
+     */
+    public static Date randomDateBetween(Date begin, Date end, boolean includeBegin, boolean includeEnd) {
+        if (begin == null || end == null) {
+            throw new IllegalArgumentException("begin 和 end 不能为空");
+        }
+        if (begin.after(end)) {
+            throw new IllegalArgumentException("begin 不能晚于 end");
+        }
+
+        long beginMillis = begin.getTime();
+        long endMillis = end.getTime();
+
+        // 如果时间相同，直接返回
+        if (beginMillis == endMillis) {
+            return new Date(beginMillis);
+        }
+
+        // 生成随机毫秒数
+        long randomMillis = ThreadLocalRandom.current().nextLong(includeBegin ? beginMillis : beginMillis + 1, includeEnd ? endMillis + 1 : endMillis);
+        return new Date(randomMillis);
     }
 }

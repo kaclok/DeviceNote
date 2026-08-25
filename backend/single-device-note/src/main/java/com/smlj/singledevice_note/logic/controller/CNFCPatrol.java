@@ -8,6 +8,7 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.o.dto.KV;
 import com.smlj.singledevice_note.core.o.to.Result;
+import com.smlj.singledevice_note.core.utils.DateTimeUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.*;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +17,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -219,7 +221,7 @@ public class CNFCPatrol {
 
     @Transactional
     @PostMapping(value = "/queryRecords")
-    public Result<?> queryRecords(@RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray, @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus,  @RequestParam(name = "queryByExp", required = false) Boolean queryByExp, @RequestParam(name = "queryBegin", required = false) String queryBegin, @RequestParam(name = "queryEnd", required = false) String queryEnd, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
+    public Result<?> queryRecords(@RequestParam(name = "queryByDeptIdArray", required = false) ArrayList<String> queryByDeptIdArray, @RequestParam(name = "queryByStatus", required = false) Integer queryByStatus, @RequestParam(name = "queryByExp", required = false) Boolean queryByExp, @RequestParam(name = "queryBegin", required = false) String queryBegin, @RequestParam(name = "queryEnd", required = false) String queryEnd, @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum, @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         Date beginDt, endDt;
         if (StrUtil.isEmpty(queryBegin)) {
             Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
@@ -451,6 +453,25 @@ public class CNFCPatrol {
             return new Date(line.getBegintime().getTime() + cycleSegment * cycle * 3600 * 1000);
         }
         return null;
+    }
+
+    // 将某选中的巡检点全部打卡
+    @Transactional
+    @PostMapping(value = "/addRecord3")
+    public Result<?> addRecord3(@RequestParam(name = "rfids") ArrayList<String> rfids, @RequestParam(name = "person") String person, @RequestParam(name = "deptid") String deptid, @RequestParam(name = "queryBegin") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date queryBegin, @RequestParam(name = "queryEnd") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date queryEnd) {
+        for (var id : rfids) {
+            if (pointDao.exist(id) <= 0) {
+                break;
+            }
+            TNFCPatrolRecords record = new TNFCPatrolRecords();
+            record.setRfid(id);
+            record.setPerson(person);
+            record.setDotime(DateTimeUtil.randomDateBetween(queryBegin, queryEnd, false, false));
+            record.setDeptid(deptid);
+
+            recordsDao.insert(record);
+        }
+        return Result.success();
     }
 
     @Data

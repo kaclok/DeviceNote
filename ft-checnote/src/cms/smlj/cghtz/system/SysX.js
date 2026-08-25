@@ -1,6 +1,16 @@
 import {ApiX} from "../api/ApiX.js";
 
 /**
+ * 从 axios catch 的 fail 对象中提取 {code, msg, data} 业务体。
+ * - 非OK业务码：AxiosInst 做 Promise.reject(response)，fail = response 对象，fail.data = {code,msg,data}
+ * - HTTP错误：fail = AxiosError，fail.response.data = {code,msg,data}
+ * - 其他：原样返回
+ */
+function _failBody(fail) {
+    return fail
+}
+
+/**
  * 合同台账 - 业务层
  *
  * 设计说明：
@@ -42,7 +52,7 @@ class SysX {
         ApiX.getContractList(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -51,7 +61,7 @@ class SysX {
         ApiX.getContract(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -60,7 +70,7 @@ class SysX {
         ApiX.getContract({id: paras.id}, signal).then(succ => {
             onAfter?.(true, {code: __OK__, data: succ.data.data != null});
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -69,7 +79,7 @@ class SysX {
         ApiX.createContract(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -78,7 +88,7 @@ class SysX {
         ApiX.updateContract(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -87,7 +97,7 @@ class SysX {
         ApiX.deleteContract(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -96,7 +106,7 @@ class SysX {
         ApiX.importContractExcel(rows, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -111,7 +121,7 @@ class SysX {
             _signerCache = succ.data
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -121,7 +131,7 @@ class SysX {
         ApiX.getAccountList(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -130,7 +140,7 @@ class SysX {
         ApiX.saveAccount(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -139,7 +149,7 @@ class SysX {
         ApiX.resetPassword(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -148,7 +158,7 @@ class SysX {
         ApiX.toggleAccountStatus(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -158,7 +168,7 @@ class SysX {
         ApiX.getRoleList(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 
@@ -172,7 +182,7 @@ class SysX {
             _permCache = succ.data
             onAfter?.(true, succ.data);
         }).catch(fail => {
-            onAfter?.(false, fail);
+            onAfter?.(false, _failBody(fail));
         });
     }
 }
