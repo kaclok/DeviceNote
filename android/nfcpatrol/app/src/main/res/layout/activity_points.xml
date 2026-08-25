@@ -32,6 +32,17 @@
             android:layout_weight="1" />
 
         <Button
+            android:id="@+id/btn_batch_checkin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="一键打卡"
+            android:textSize="12sp"
+            android:padding="8dp"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:layout_marginStart="8dp"/>
+
+        <Button
             android:id="@+id/btn_webview"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

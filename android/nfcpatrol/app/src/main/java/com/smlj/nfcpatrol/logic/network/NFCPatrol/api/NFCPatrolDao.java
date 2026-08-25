@@ -46,4 +46,8 @@ public class NFCPatrolDao {
     public Call<ArrayList<TNFCPatrolPosition>> queryPositions(String rfid) {
         return api.queryPositions(rfid);
     }
+
+    public Call<Void> addRecord3(ArrayList<String> rfids, String person, String deptId, String queryBegin, String queryEnd) {
+        return api.addRecord3(rfids, person, deptId, queryBegin, queryEnd);
+    }
 }

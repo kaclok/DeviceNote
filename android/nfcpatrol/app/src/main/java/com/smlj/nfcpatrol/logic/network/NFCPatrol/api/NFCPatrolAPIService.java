@@ -57,4 +57,13 @@ public interface NFCPatrolAPIService {
     @POST("nfcPatrol/queryPositions")
 // Retrofit 接口方法的参数，必须有注解（@Body / @Query / @Field / @Path 等）
     Call<ArrayList<TNFCPatrolPosition>> queryPositions(@Field("rfid") String rfid);
+
+    @FormUrlEncoded
+    @POST("nfcPatrol/addRecord3")
+// Retrofit @Field List 会自动展开为重复的 rfids=a&rfids=b 字段名，Spring @RequestParam("rfids") ArrayList<String> 可直接接收
+    Call<Void> addRecord3(@Field("rfids") ArrayList<String> rfids,
+                          @Field("person") String person,
+                          @Field("deptid") String deptid,
+                          @Field("queryBegin") String queryBegin,
+                          @Field("queryEnd") String queryEnd);
 }
