@@ -598,14 +598,15 @@ function gotoImport() {
                     <el-col :span="24">
                         <el-form-item label="财务环节">
                             <el-steps :active="form.finish_step" finish-status="success" align-center style="max-width:640px">
-                                <el-step v-for="(label, idx) in gd.finishedOptions" :key="label" :description="stepDescriptions[idx]">
-                                    <template #title>
-                                        <span style="cursor:pointer;user-select:none"
-                                              @click.stop="form.finish_step = idx">{{ label }}</span>
+                                <el-step v-for="(label, idx) in gd.finishedOptions" :key="label" :title="label" :description="stepDescriptions[idx]">
+                                    <template #icon>
+                                        <span class="step-num"
+                                              :class="{wait: form.finish_step < idx, active: form.finish_step === idx, done: form.finish_step > idx}"
+                                              @click.stop="form.finish_step = idx">{{ idx + 1 }}</span>
                                     </template>
                                 </el-step>
                             </el-steps>
-                            <div style="font-size:12px;color:#94a3b8;margin-top:4px;padding-left:0">点击步骤标题直接选中：0=预付款待付 1=到货款待付 2=质保款待付 3=全付</div>
+                            <div style="font-size:12px;color:#94a3b8;margin-top:4px;padding-left:0">点击数字圆圈切换步骤：0=预付款待付 1=到货款待付 2=质保款待付 3=全付</div>
                         </el-form-item>
                     </el-col>
                 </el-row>
@@ -622,6 +623,31 @@ function gotoImport() {
 </template>
 
 <style lang="scss" scoped>
+/* Element Plus el-step 自定义图标：点击数字圆圈切换步骤 */
+:deep(.el-step__icon) {
+    padding: 0;
+    background: transparent !important;
+    width: auto;
+    height: auto;
+}
+.step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    transition: all .18s ease;
+    &.wait   { color:#909399; background:#f4f4f5; border-color:#dcdfe6; }
+    &.active { color:#ffffff; background:#409eff; border-color:#409eff; font-weight:600; }
+    &.done   { color:#ffffff; background:#67c23a; border-color:#67c23a; font-weight:600; }
+    &:hover  { filter: brightness(1.05); transform: translateY(-1px); }
+}
+
 .ledger-page {
     .filter-card {
         margin-bottom: 14px;
