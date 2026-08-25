@@ -30,6 +30,13 @@ const filters = ref({
 const signerOptions = ref([])
 // 签订方式枚举为固定数据，统一来自 gd.json（经 MockX 导出）
 const methodOptions = gd.methodOptions
+// 财务环节步骤的 description（对应 finishedOptions 4 项）
+const stepDescriptions = [
+    '待付预付款',
+    '预付款已付，待到货款',
+    '到货款已付，待质保款',
+    '三笔款项全部结清',
+]
 
 // 用 let：服务端分页每次翻页都要发请求，需取消上一次未完成的请求，避免旧响应覆盖新响应
 let AC_list = new AbortController()
@@ -333,9 +340,9 @@ function gotoImport() {
                 <el-form-item label="供应商">
                     <el-input v-model="filters.supplier" placeholder="模糊搜索" clearable style="width:160px" @keyup.enter="applyFilters"/>
                 </el-form-item>
-                <el-form-item label="财务完结">
+                <el-form-item label="财务环节">
                     <el-select v-model="filters.finish_step" placeholder="全部" clearable style="width:110px">
-                        <el-option v-for="(label, idx) in gd.finishedOptions" :key="idx" :label="label" :value="idx + 1"/>
+                        <el-option v-for="(label, idx) in gd.finishedOptions" :key="idx" :label="label" :value="idx"/>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="已入库">
@@ -397,12 +404,12 @@ function gotoImport() {
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="pay_type" label="付款方式" min-width="170" show-overflow-tooltip/>
-                <el-table-column prop="finish_step" label="财务完结" width="92" align="center">
+                <el-table-column prop="finish_step" label="财务环节" width="105" align="center">
                     <template #default="{row}">
-                        <el-tag v-if="!row.finish_step" type="info" size="small">未开始</el-tag>
-                        <el-tag v-else-if="row.finish_step === 1" type="warning" size="small">预付款</el-tag>
-                        <el-tag v-else-if="row.finish_step === 2" type="primary" size="small">到货款</el-tag>
-                        <el-tag v-else type="success" size="small">质保款</el-tag>
+                        <el-tag v-if="!row.finish_step" type="info" size="small">预付款待付</el-tag>
+                        <el-tag v-else-if="row.finish_step === 1" type="warning" size="small">到货款待付</el-tag>
+                        <el-tag v-else-if="row.finish_step === 2" type="primary" size="small">质保款待付</el-tag>
+                        <el-tag v-else type="success" size="small">全付</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="has_rk" label="已入库" width="70" align="center">
@@ -590,12 +597,15 @@ function gotoImport() {
                 <el-row v-hasRole="'ADMIN'" :gutter="16">
                     <el-col :span="24">
                         <el-form-item label="财务环节">
-                            <el-steps :active="form.finish_step" finish-status="success" align-center @select="(idx) => form.finish_step = idx" style="max-width:480px">
-                                <el-step title="预付款" description="已付预付款" :style="{cursor: 'pointer'}"/>
-                                <el-step title="到货款" description="已付到货款" :style="{cursor: 'pointer'}"/>
-                                <el-step title="质保款" description="已付质保款/完结" :style="{cursor: 'pointer'}"/>
+                            <el-steps :active="form.finish_step" finish-status="success" align-center style="max-width:640px">
+                                <el-step v-for="(label, idx) in gd.finishedOptions" :key="label" :description="stepDescriptions[idx]">
+                                    <template #title>
+                                        <span style="cursor:pointer;user-select:none"
+                                              @click.stop="form.finish_step = idx">{{ label }}</span>
+                                    </template>
+                                </el-step>
                             </el-steps>
-                            <div style="font-size:12px;color:#94a3b8;margin-top:4px;padding-left:0">点击对应步骤选中；0=未完结，1=预付款，2=到货款，3=质保款</div>
+                            <div style="font-size:12px;color:#94a3b8;margin-top:4px;padding-left:0">点击步骤标题直接选中：0=预付款待付 1=到货款待付 2=质保款待付 3=全付</div>
                         </el-form-item>
                     </el-col>
                 </el-row>

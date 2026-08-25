@@ -55,13 +55,13 @@ const BOOL_TO_YES_NO = (b) => {
     if (b === false) return '否'
     return ''
 }
-/* 财务环节 finish_step int ↔ 文本：0未开始 1预付款 2到货款 3质保款 */
+/* 财务环节 finish_step int ↔ 文本：0预付款待付 1到货款待付 2质保款待付 3全付 */
 const FINISHED_INT_TO_STR = (n) => {
     const v = Number(n) || 0
-    if (v === 1) return '预付款'
-    if (v === 2) return '到货款'
-    if (v === 3) return '质保款'
-    return '未开始'
+    if (v === 0) return '预付款待付'
+    if (v === 1) return '到货款待付'
+    if (v === 2) return '质保款待付'
+    return '全付'
 }
 const FINISHED_STR_TO_INT = (v) => {
     const num = Number(v)
@@ -71,9 +71,10 @@ const FINISHED_STR_TO_INT = (v) => {
     }
     const s = String(v ?? '').trim()
     if (!s) return 0
-    if (s.includes('预付款') || s === '1' || s.includes('预付')) return 1
-    if (s.includes('到货款') || s === '2' || s.includes('到货')) return 2
-    if (s.includes('质保') || s === '3' || s.includes('完结')) return 3
+    if (s === '0' || s.includes('预付款待付') || s.includes('预付') && s.includes('待')) return 0
+    if (s === '1' || s.includes('到货款待付') || s.includes('到货') && s.includes('待')) return 1
+    if (s === '2' || s.includes('质保款待付') || s.includes('质保') && s.includes('待')) return 2
+    if (s === '3' || s.includes('全付') || s.includes('已付完') || s.includes('完结') || s.includes('未开始')) return 3
     return 0
 }
 
