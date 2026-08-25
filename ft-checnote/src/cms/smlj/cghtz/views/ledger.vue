@@ -83,8 +83,8 @@ function loadList() {
     }, (r, data) => {
         loading.value = false
         if (r) {
-            list.value = data.data.list
-            total.value = data.data.list.length
+            list.value = Array.isArray(data.data?.list) ? data.data.list : []
+            total.value = Number(data.data?.total ?? list.value.length)
         }
     })
 }

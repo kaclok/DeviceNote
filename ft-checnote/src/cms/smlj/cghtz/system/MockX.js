@@ -145,7 +145,15 @@ export class MockX {
         if (filters.has_rk !== undefined && filters.has_rk !== '' && filters.has_rk !== null) {
             list = list.filter(c => c.has_rk === (filters.has_rk === true || filters.has_rk === 'true' || filters.has_rk === 1));
         }
-        return ok(list);
+        const total = list.length;
+        // 分页（pageNum 1-based；pageSize <= 0 或 pageNum <= 0 视为不分页，对齐后端 PageHelper reasonable + pageSizeZero）
+        const pageNum = Number(filters.pageNum) || 0;
+        const pageSize = Number(filters.pageSize) || 0;
+        if (pageNum > 0 && pageSize > 0) {
+            const start = (pageNum - 1) * pageSize;
+            list = list.slice(start, start + pageSize);
+        }
+        return ok({list, total});
     }
 
     static getContract(id) {
