@@ -1,11 +1,11 @@
 <script setup lang="js">
-import {ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
+import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts";
 import {useRouter} from 'vue-router';
 import {ElMessage} from "element-plus";
 import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
 import {preloadDictCache} from "@/cms/smlj/cghtz/system/SysX.js";
 
-const {wsCache} = useCache()
+const {wsCache} = useSessionCache()
 
 // 获取路由实例
 const router = useRouter();

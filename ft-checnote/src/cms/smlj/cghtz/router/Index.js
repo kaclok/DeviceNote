@@ -1,9 +1,9 @@
 import {createRouter, createWebHashHistory} from 'vue-router'
 import {PREFIX, routers} from './Router.js'
-import {clearAccount, ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
+import {clearAccount, ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts";
 import {triggerAuthFailure} from "@/framework/services/net/AxiosInst.js";
 
-const {wsCache} = useCache()
+const {wsCache} = useSessionCache()
 
 let base = import.meta.env.VITE_BASE;
 base = PREFIX;

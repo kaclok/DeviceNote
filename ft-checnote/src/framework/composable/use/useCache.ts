@@ -26,7 +26,17 @@ const ECacheType = Object.freeze({
     REFRESH_TOKEN_ISSUE_AT: "REFRESH_TOKEN_ISSUE_AT",
 })
 
-const useCache = (type: cacheType = 'localStorage') => {
+const useSessionCache = (type: cacheType = 'sessionStorage') => {
+    const wsCache: WebStorageCache = new WebStorageCache({
+        storage: type
+    })
+
+    return {
+        wsCache
+    }
+}
+
+const useLocalCache = (type: cacheType = 'localStorage') => {
     const wsCache: WebStorageCache = new WebStorageCache({
         storage: type
     })
@@ -37,7 +47,7 @@ const useCache = (type: cacheType = 'localStorage') => {
 }
 
 function clearAll() {
-    const {wsCache} = useCache()
+    const {wsCache} = useSessionCache()
     // todo for in是否使用正确？
     for (const t in ECacheType) {
         wsCache.delete(t)
@@ -45,7 +55,7 @@ function clearAll() {
 }
 
 function clearToken() {
-    const {wsCache} = useCache()
+    const {wsCache} = useSessionCache()
     wsCache.delete(ECacheType.ACCESS_TOKEN)
     wsCache.delete(ECacheType.ACCESS_TOKEN_EXPIRE_AT)
     wsCache.delete(ECacheType.ACCESS_TOKEN_ISSUE_AT)
@@ -57,7 +67,7 @@ function clearToken() {
 
 // 账户登出清除数据
 function clearAccount() {
-    const {wsCache} = useCache()
+    const {wsCache} = useSessionCache()
     wsCache.delete(ECacheType.ACCOUNT)
     wsCache.delete(ECacheType.ALL_PERMS)
     clearToken()
@@ -65,13 +75,14 @@ function clearAccount() {
 
 // app清除数据
 function clearApp() {
-    const {wsCache} = useCache()
+    const {wsCache} = useSessionCache()
     wsCache.delete(ECacheType.APP)
 }
 
 export {
     ECacheType,
-    useCache,
+    useSessionCache,
+    useLocalCache,
 
     clearAll,
     clearToken,

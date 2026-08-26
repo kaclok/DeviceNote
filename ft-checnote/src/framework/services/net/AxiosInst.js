@@ -1,10 +1,10 @@
 import axios from "axios"
 import {config} from './Config.js'
 
-import {ECacheType, useCache} from '@/framework/composable/use/useCache.ts'
+import {ECacheType, useLocalCache} from '@/framework/composable/use/useCache.ts'
 import {TokenService} from "@/framework/services/TokenService.js";
 
-const {wsCache} = useCache()
+const {wsCache} = useLocalCache()
 
 // https://www.axios-http.cn/docs/urlencoded 默认情况下，axios将 JavaScript 对象序列化为 JSON 。 要以application/x-www-form-urlencoded格式发送数据，您可以使用以下选项之一。
 // 当请求头中的 content-type 是 application/x-www-form-urlencoded 时，Axios 将自动地将普通对象序列化成 urlencoded 的格式。

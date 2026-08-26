@@ -1,13 +1,13 @@
 <script setup lang="js">
 import {useRoute, useRouter} from 'vue-router';
-import {clearAccount, ECacheType, useCache} from "@/framework/composable/use/useCache.ts";
+import {clearAccount, ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts";
 import {ElMessage, ElMessageBox} from "element-plus";
 import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
 import {clearDictCache} from "@/cms/smlj/cghtz/system/SysX.js";
 
 const router = useRouter();
 const route = useRoute();
-const {wsCache} = useCache()
+const {wsCache} = useSessionCache()
 
 // 空值兜底：未登录或缓存被清时避免 .includes / .username 报错
 const acc = wsCache.get(ECacheType.ACCOUNT);

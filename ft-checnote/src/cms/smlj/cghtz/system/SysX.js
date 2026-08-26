@@ -14,25 +14,29 @@ function _failBody(fail) {
  * 合同台账 - 业务层
  *
  * 设计说明：
- * 1. signer/perm 字典在登录后预加载并缓存，后续直接读缓存，不再请求后端；
+ * 1. signer/role/perm 字典在登录后预加载并缓存，后续直接读缓存，不再请求后端；
  * 2. 登出时调用 clearDictCache() 清空缓存；
  * 3. 所有方法遵循项目统一的 (paras, signal, onBefore, onAfter) 回调签名。
  */
 
 // 字典缓存
 let _signerCache = null  // 签订人列表
-let _permCache = null     // 权限定义列表
+let _roleCache = null    // 角色列表
+let _permCache = null    // 权限定义列表
 
 /** 登录成功后预加载字典缓存 */
 export function preloadDictCache(signal, onAfter) {
     let done = 0
-    const total = 2
+    const total = 3
     const check = () => {
         done++
         if (done >= total) onAfter?.()
     }
     ApiX.getSignerList(null, signal).then(succ => {
         _signerCache = succ.data
+    }).catch(() => {}).finally(check)
+    ApiX.getRoleList(null, signal).then(succ => {
+        _roleCache = succ.data
     }).catch(() => {}).finally(check)
     ApiX.getPermDefs(null, signal).then(succ => {
         _permCache = succ.data
@@ -42,6 +46,7 @@ export function preloadDictCache(signal, onAfter) {
 /** 登出时清空缓存 */
 export function clearDictCache() {
     _signerCache = null
+    _roleCache = null
     _permCache = null
 }
 
@@ -164,8 +169,13 @@ class SysX {
 
     /* ---------------- 角色与权限字典 ---------------- */
     async getRoleList(paras, signal, onBefore, onAfter) {
+        if (_roleCache) {
+            onAfter?.(true, _roleCache)
+            return
+        }
         onBefore?.();
         ApiX.getRoleList(paras, signal).then(succ => {
+            _roleCache = succ.data
             onAfter?.(true, succ.data);
         }).catch(fail => {
             onAfter?.(false, _failBody(fail));

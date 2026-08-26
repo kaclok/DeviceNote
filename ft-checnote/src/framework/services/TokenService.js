@@ -1,7 +1,7 @@
-import {ECacheType, useCache} from '@/framework/composable/use/useCache.ts'
+import {ECacheType, useLocalCache} from '@/framework/composable/use/useCache.ts'
 import {post} from './net/InnerRequest.js'
 
-const {wsCache} = useCache()
+const {wsCache} = useLocalCache()
 
 class TokenService {
     static getAT() {
