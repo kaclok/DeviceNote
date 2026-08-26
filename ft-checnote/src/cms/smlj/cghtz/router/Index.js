@@ -131,8 +131,8 @@ function findFirstAccessibleRoute(to) {
 }
 
 router.beforeEach((to, current, next) => {
-    // 对于静态重定向的router定义不会触发beforeEach
-    console.warn('current: ' + current.fullPath + ' -> to:', to.fullPath, ' 当前hash:', window.location.hash)
+    // 对于静态重定向的router定义不会触发beforeEach,只能redirect中打日志
+    console.warn('goto ------ current: ' + current.fullPath + ' -> to:', to.fullPath/*, ' 当前hash:', window.location.hash*/)
     const isLoggedIn = !!wsCache.get(ECacheType.ACCOUNT)
 
     // 未登录：只允许进登录页
