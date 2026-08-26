@@ -274,6 +274,16 @@ function onDateRkChange() {
     form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
 }
 
+/** 勾选入库前校验：挂账日期未设置则阻止，提示"存在挂账日期才能入库" */
+function beforeRkChange() {
+    // before-change 不传参数，当前 has_rk=false 表示即将勾选为 true
+    if (!form.value.has_rk && !form.value.date_rk) {
+        ElMessage.warning('存在挂账日期才能入库')
+        return false
+    }
+    return true
+}
+
 function saveContract() {
     formRef.value.validate(valid => {
         if (!valid) return
@@ -634,7 +644,7 @@ function mills2DateStr(mills) {
                 <el-row v-hasRole="'ADMIN'" :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="是否入库">
-                            <el-switch v-model="form.has_rk" active-text="是" inactive-text="否"/>
+                            <el-switch v-model="form.has_rk" active-text="是" inactive-text="否" :before-change="beforeRkChange"/>
                         </el-form-item>
                     </el-col>
                 </el-row>
