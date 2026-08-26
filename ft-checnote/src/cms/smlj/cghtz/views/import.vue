@@ -32,6 +32,7 @@ function loadSigners() {
 
 // 拖拽/选择上传
 const fileInput = ref()
+
 function onFileChange(e) {
     const f = e.target.files[0]
     if (!f) return
@@ -100,7 +101,7 @@ function goLedger() {
             <div class="block-title">① 下载模板</div>
             <div class="block-body">
                 <el-button @click="downloadTemplate">⬇️ 下载导入模板</el-button>
-                <el-button @click="downloadTemplate">📄 查看填写说明</el-button>
+                <!--                <el-button @click="downloadTemplate">📄 查看填写说明</el-button>-->
                 <div class="tip-text">模板包含全部字段与示例行，带 * 的为必填项；合同编号重复将整行拦截</div>
             </div>
         </el-card>
@@ -116,7 +117,10 @@ function goLedger() {
                     <div class="u-sub">支持 .xlsx / .xls，单次最多 1000 行；导入前将进行必填、格式、编号唯一性校验</div>
                     <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileChange"/>
                 </div>
-                <div v-if="importing" class="importing-tip"><el-icon class="is-loading" style="margin-right:6px"><i class="el-icon-loading"/></el-icon>正在解析并校验...</div>
+                <div v-if="importing" class="importing-tip">
+                    <el-icon class="is-loading" style="margin-right:6px"><i class="el-icon-loading"/></el-icon>
+                    正在解析并校验...
+                </div>
             </div>
         </el-card>
 
@@ -190,7 +194,9 @@ function goLedger() {
                 background: #eff6ff;
                 color: #2563eb;
 
-                .uic {transform: scale(1.1)}
+                .uic {
+                    transform: scale(1.1)
+                }
             }
 
             .uic {
@@ -202,7 +208,9 @@ function goLedger() {
             .u-main {
                 font-size: 15px;
 
-                b {color: #2563eb}
+                b {
+                    color: #2563eb
+                }
             }
 
             .u-sub {
