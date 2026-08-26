@@ -138,6 +138,9 @@ export class MockX {
         if (filters.supplier) list = list.filter(c => c.supplier.includes(filters.supplier));
         if (filters.dateFrom) list = list.filter(c => c.date_sign >= filters.dateFrom);
         if (filters.dateTo) list = list.filter(c => c.date_sign <= filters.dateTo);
+        // 挂账日期(date_rk)范围：date_rk 可能为 null/''，按范围筛选时自动排除无挂账日期的记录
+        if (filters.rkDateFrom) list = list.filter(c => c.date_rk && c.date_rk >= filters.rkDateFrom);
+        if (filters.rkDateTo) list = list.filter(c => c.date_rk && c.date_rk <= filters.rkDateTo);
         if (filters.finish_step !== undefined && filters.finish_step !== '' && filters.finish_step !== null) {
             const fv = Number(filters.finish_step) || 0
             list = list.filter(c => Number(c.finish_step) === fv)

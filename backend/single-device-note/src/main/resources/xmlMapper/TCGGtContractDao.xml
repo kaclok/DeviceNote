@@ -40,6 +40,12 @@
         <if test="queryEnd != null">
             AND date_sign &lt;= #{queryEnd}
         </if>
+        <if test="rkBegin != null">
+            AND date_rk &gt;= #{rkBegin}
+        </if>
+        <if test="rkEnd != null">
+            AND date_rk &lt;= #{rkEnd}
+        </if>
         <if test="finish_step != null">
             and finish_step = #{finish_step}
         </if>

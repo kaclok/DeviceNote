@@ -12,8 +12,9 @@ import java.util.Date;
 @Repository
 public interface TCGHTContractDao {
     /**
-     * 列表查询（带筛选 + date_sign 日期区间）。
-     * 筛选参数空值视为不筛选。queryBegin/queryEnd 对应 date_sign 范围。
+     * 列表查询（带筛选 + date_sign 日期区间 + date_rk 挂账日期区间）。
+     * 筛选参数空值视为不筛选。queryBegin/queryEnd 对应 date_sign 范围，rkBegin/rkEnd 对应 date_rk 范围。
+     * date_rk 可能为 null：填了挂账区间时，null 的记录自然不命中范围条件，符合"按挂账日期筛选"语义。
      */
     ArrayList<TCGHTContract> queryAll(
             @Param("id") String id
@@ -24,7 +25,9 @@ public interface TCGHTContractDao {
             , @Param("queryBegin") Date queryBegin
             , @Param("queryEnd") Date queryEnd
             , @Param("finish_step") Integer finish_step
-            , @Param("has_rk") Boolean has_rk);
+            , @Param("has_rk") Boolean has_rk
+            , @Param("rkBegin") Date rkBegin
+            , @Param("rkEnd") Date rkEnd);
 
     TCGHTContract query(@Param("id") String id);
 

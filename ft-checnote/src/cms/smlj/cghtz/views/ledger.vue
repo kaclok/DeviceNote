@@ -3,6 +3,7 @@ import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {downloadTemplate, exportContractExcel} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
+import dayjs from 'dayjs';
 import gd from "../data/gd.json"
 import hd from "../data/hd.json"
 
@@ -23,6 +24,8 @@ const filters = ref({
     supplier: '',
     dateFrom: null,
     dateTo: null,
+    rkDateFrom: null,
+    rkDateTo: null,
     finish_step: '',
     has_rk: '',
 })
@@ -68,6 +71,8 @@ function loadList() {
         supplier: filters.value.supplier,
         queryBegin: filters.value.dateFrom,
         queryEnd: filters.value.dateTo,
+        rkBegin: filters.value.rkDateFrom,
+        rkEnd: filters.value.rkDateTo,
         finish_step: filters.value.finish_step,
         has_rk: filters.value.has_rk,
     }
@@ -119,6 +124,7 @@ function resetFilters() {
     filters.value = {
         id: '', title: '', sign_person: '', sign_type: '', supplier: '',
         dateFrom: null, dateTo: null,
+        rkDateFrom: null, rkDateTo: null,
         finish_step: '', has_rk: '',
     }
     applyFilters()
@@ -234,7 +240,14 @@ function openEdit(row) {
         src.sign_type = 0
     }
     form.value = {...base, ...src}
+    // date_rk 有值时自动勾选已入库，为 null/'' 则取消勾选
+    form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
     dialogVisible.value = true
+}
+
+/** date_rk 变化时联动 has_rk：有值则勾选，清空则取消 */
+function onDateRkChange() {
+    form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
 }
 
 function saveContract() {
@@ -314,6 +327,13 @@ function doExport() {
 function gotoImport() {
     router.push({name: 'home_import'})
 }
+
+function mills2DateStr(mills) {
+    if (mills) {
+        return dayjs(new Date(mills)).format('YYYY-MM-DD')
+    }
+    return null
+}
 </script>
 
 <template>
@@ -350,10 +370,16 @@ function gotoImport() {
                         <el-option v-for="(label, idx) in gd.yesNoOptions" :key="idx" :label="label" :value="idx === 0"/>
                     </el-select>
                 </el-form-item>
-                <el-form-item label="签订时间">
+                <div class="filter-line-break"></div>
+                <el-form-item label="签订日期">
                     <el-date-picker v-model="filters.dateFrom" type="date" placeholder="开始" value-format="YYYY-MM-DD" style="width:130px"/>
                     <span style="margin:0 6px;color:#94a3b8">至</span>
                     <el-date-picker v-model="filters.dateTo" type="date" placeholder="结束" value-format="YYYY-MM-DD" style="width:130px"/>
+                </el-form-item>
+                <el-form-item label="挂账日期">
+                    <el-date-picker v-model="filters.rkDateFrom" type="date" placeholder="开始" value-format="YYYY-MM-DD" style="width:130px"/>
+                    <span style="margin:0 6px;color:#94a3b8">至</span>
+                    <el-date-picker v-model="filters.rkDateTo" type="date" placeholder="结束" value-format="YYYY-MM-DD" style="width:130px"/>
                 </el-form-item>
                 <el-form-item>
                     <el-button type="primary" @click="applyFilters">查询</el-button>
@@ -385,17 +411,11 @@ function gotoImport() {
                 <el-table-column prop="amount" label="合同金额(元)" width="110" align="right">
                     <template #default="{row}"><span class="money">{{ formatMoney(row.amount) }}</span></template>
                 </el-table-column>
-                <el-table-column prop="date_sign" label="签订时间" width="140">
-                    <template #default="{row}">
-                        <el-date-picker
-                            format="YYYY-MM-DD"
-                            :disabled="true"
-                            type="date"
-                            class="item"
-                            v-model="row.date_sign"
-                            style="width: 115px;">
-                        </el-date-picker>
-                    </template>
+                <el-table-column prop="date_sign" label="签订日期" width="100">
+                    <template #default="{row}">{{ mills2DateStr(row.date_sign) }}</template>
+                </el-table-column>
+                <el-table-column prop="date_rk" label="挂账日期" width="100">
+                    <template #default="{row}">{{ mills2DateStr(row.date_rk) }}</template>
                 </el-table-column>
                 <el-table-column prop="sign_person" label="签订人" width="68">
                 </el-table-column>
@@ -460,7 +480,7 @@ function gotoImport() {
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="签订时间" prop="date_sign">
+                        <el-form-item label="签订日期" prop="date_sign">
                             <el-date-picker v-model="form.date_sign" type="date" format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
@@ -504,7 +524,7 @@ function gotoImport() {
                     </el-col>
                 </el-row>
 
-                <el-divider content-position="left">付款比例</el-divider>
+                <el-divider content-position="left">付款比例(总和保持为100)</el-divider>
                 <el-row :gutter="16">
                     <el-col :span="8">
                         <el-form-item label="预付款比例(%)" prop="rate_yfk">
@@ -519,25 +539,6 @@ function gotoImport() {
                     <el-col :span="8">
                         <el-form-item label="质保金比例(%)" prop="rate_zbj">
                             <el-input-number v-model="form.rate_zbj" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-
-                <el-divider content-position="left">付款与入库日期</el-divider>
-                <el-row :gutter="16">
-                    <el-col :span="12">
-                        <el-form-item label="预付款日期">
-                            <el-date-picker v-model="form.date_yfk" type="date" format="YYYY-MM-DD" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="到货款日期">
-                            <el-date-picker v-model="form.date_dhk" type="date" format="YYYY-MM-DD" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="质保金付款日期">
-                            <el-date-picker v-model="form.date_zbj" type="date" format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                 </el-row>
@@ -565,18 +566,13 @@ function gotoImport() {
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="实际到货时间">
+                        <el-form-item label="实际到货日期">
                             <el-input v-model="form.date_actual_dh" placeholder="文字/日期均可"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="入库资料移交物资日期">
                             <el-input v-model="form.date_ruzlyj" placeholder="文字/日期均可"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="挂账日期">
-                            <el-date-picker v-model="form.date_rk" type="date" format="YYYY-MM-DD" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="24">
@@ -586,7 +582,31 @@ function gotoImport() {
                     </el-col>
                 </el-row>
 
+                <el-divider content-position="left">付款日期</el-divider>
+                <el-row :gutter="16">
+                    <el-col :span="12">
+                        <el-form-item label="预付款日期">
+                            <el-date-picker v-model="form.date_yfk" type="date" format="YYYY-MM-DD" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="到货款日期">
+                            <el-date-picker v-model="form.date_dhk" type="date" format="YYYY-MM-DD" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="质保金付款日期">
+                            <el-date-picker v-model="form.date_zbj" type="date" format="YYYY-MM-DD" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
                 <el-divider v-hasRole="'ADMIN'" content-position="left">入库、财务</el-divider>
+                <el-col v-hasRole="'ADMIN'" :span="16">
+                    <el-form-item label="挂账日期">
+                        <el-date-picker v-model="form.date_rk" type="date" format="YYYY-MM-DD" style="width:100%" @change="onDateRkChange"/>
+                    </el-form-item>
+                </el-col>
                 <el-row v-hasRole="'ADMIN'" :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="是否已入库">
@@ -630,6 +650,7 @@ function gotoImport() {
     width: auto;
     height: auto;
 }
+
 .step-num {
     display: inline-flex;
     align-items: center;
@@ -642,10 +663,31 @@ function gotoImport() {
     user-select: none;
     border: 1px solid transparent;
     transition: all .18s ease;
-    &.wait   { color:#909399; background:#f4f4f5; border-color:#dcdfe6; }
-    &.active { color:#ffffff; background:#409eff; border-color:#409eff; font-weight:600; }
-    &.done   { color:#ffffff; background:#67c23a; border-color:#67c23a; font-weight:600; }
-    &:hover  { filter: brightness(1.05); transform: translateY(-1px); }
+
+    &.wait {
+        color: #909399;
+        background: #f4f4f5;
+        border-color: #dcdfe6;
+    }
+
+    &.active {
+        color: #ffffff;
+        background: #409eff;
+        border-color: #409eff;
+        font-weight: 600;
+    }
+
+    &.done {
+        color: #ffffff;
+        background: #67c23a;
+        border-color: #67c23a;
+        font-weight: 600;
+    }
+
+    &:hover {
+        filter: brightness(1.05);
+        transform: translateY(-1px);
+    }
 }
 
 .ledger-page {
@@ -658,6 +700,12 @@ function gotoImport() {
             .filter-form .el-form-item {
                 margin-bottom: 12px;
                 margin-right: 14px;
+            }
+
+            /* 强制换行：签订日期和挂账日期单独一行 */
+            .filter-line-break {
+                width: 100%;
+                height: 0;
             }
         }
     }

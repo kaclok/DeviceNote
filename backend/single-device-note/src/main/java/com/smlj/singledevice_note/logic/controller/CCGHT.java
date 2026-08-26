@@ -214,7 +214,7 @@ public class CCGHT {
 
     // ================================================================
     // 合同台账 CRUD（TCGHTContract 24 个业务字段 + open_status 逻辑删除）
-    // 查询参数名与前端 query 参数一致；date_sign 日期范围用 queryBegin/queryEnd
+    // 查询参数名与前端 query 参数一致；date_sign 日期范围用 queryBegin/queryEnd，date_rk 挂账日期范围用 rkBegin/rkEnd
     // ================================================================
 
     @Transactional
@@ -229,10 +229,12 @@ public class CCGHT {
             @RequestParam(name = "queryEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryEnd,
             @RequestParam(name = "finish_step", required = false) Integer finish_step,
             @RequestParam(name = "has_rk", required = false) Boolean has_rk,
+            @RequestParam(name = "rkBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date rkBegin,
+            @RequestParam(name = "rkEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date rkEnd,
             @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
             @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = contractDao.queryAll(id, title, sign_person, sign_type, supplier, queryBegin, queryEnd, finish_step, has_rk);
+        var ls = contractDao.queryAll(id, title, sign_person, sign_type, supplier, queryBegin, queryEnd, finish_step, has_rk, rkBegin, rkEnd);
         return Result.success(new PageSerializable<>(ls));
     }
 
