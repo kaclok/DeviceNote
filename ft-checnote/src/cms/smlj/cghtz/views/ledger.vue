@@ -266,12 +266,26 @@ function openEdit(row) {
     form.value = {...base, ...src}
     // date_rk 有值时自动勾选已入库，为 null/'' 则取消勾选
     form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
+    // 根据付款日期同步 finish_step：质保金>到货款>预付款 逐级取最高
+    // syncFinishStep()
     dialogVisible.value = true
 }
 
 /** date_rk 变化时联动 has_rk：有值则勾选，清空则取消 */
 function onDateRkChange() {
     form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
+}
+
+/** 付款日期变化时同步 finish_step：有质保金日期→3，有到货款日期→2，有预付款日期→1，无→0 */
+function onPayDateChange() {
+    syncFinishStep()
+}
+
+function syncFinishStep() {
+    if (form.value.date_zbj) form.value.finish_step = 3
+    else if (form.value.date_dhk) form.value.finish_step = 2
+    else if (form.value.date_yfk) form.value.finish_step = 1
+    else form.value.finish_step = 0
 }
 
 /** 勾选入库前校验：挂账日期未设置则阻止，提示"存在挂账日期才能入库" */
@@ -620,17 +634,17 @@ function mills2DateStr(mills) {
                 <el-row :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="预付款日期">
-                            <el-date-picker v-model="form.date_yfk" type="date" format="YYYY-MM-DD" style="width:100%"/>
+                            <el-date-picker v-model="form.date_yfk" type="date" format="YYYY-MM-DD" style="width:100%" @change="onPayDateChange"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="到货款日期">
-                            <el-date-picker v-model="form.date_dhk" type="date" format="YYYY-MM-DD" style="width:100%"/>
+                            <el-date-picker v-model="form.date_dhk" type="date" format="YYYY-MM-DD" style="width:100%" @change="onPayDateChange"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="质保金付款日期">
-                            <el-date-picker v-model="form.date_zbj" type="date" format="YYYY-MM-DD" style="width:100%"/>
+                            <el-date-picker v-model="form.date_zbj" type="date" format="YYYY-MM-DD" style="width:100%" @change="onPayDateChange"/>
                         </el-form-item>
                     </el-col>
                 </el-row>
