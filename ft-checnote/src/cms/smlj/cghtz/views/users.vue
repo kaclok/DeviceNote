@@ -7,17 +7,30 @@ const list = ref([])
 
 // 搜索关键字（按账号 / 姓名模糊匹配）
 const keyword = ref('')
+// 表头排序状态：sortProp 为 null 时用原始排序
+const sortProp = ref(null)
+const sortOrder = ref(null) // 'ascending' | 'descending' | null
 const filteredList = computed(() => {
     const kw = keyword.value.trim().toLowerCase()
-    if (!kw) {
-        return list.value
+    let result = !kw
+        ? [...list.value]
+        : list.value.filter(row =>
+            (row.account || '').toLowerCase().includes(kw) ||
+            (row.username || '').toLowerCase().includes(kw)
+        )
+    // 应用排序
+    if (sortProp.value && sortOrder.value) {
+        result.sort((a, b) => {
+            let cmp = 0
+            if (sortProp.value === 'role_code') {
+                cmp = (a.role?.role_code || '').localeCompare(b.role?.role_code || '')
+            } else if (sortProp.value === 'open_status') {
+                cmp = (a.open_status ? 1 : 0) - (b.open_status ? 1 : 0)
+            }
+            return sortOrder.value === 'ascending' ? cmp : -cmp
+        })
     }
-
-    // 模糊查找
-    return list.value.filter(row =>
-        (row.account || '').toLowerCase().includes(kw) ||
-        (row.username || '').toLowerCase().includes(kw)
-    )
+    return result
 })
 
 // 客户端分页：账号是小体量字典数据，整表加载后本地分页即可，
@@ -32,6 +45,12 @@ const pagedList = computed(() => {
 watch(keyword, () => {
     page.value = 1
 })
+
+/** el-table 表头排序：三态切换 ascending → descending → null(原始排序) */
+function onSortChange({prop, order}) {
+    sortProp.value = prop || null
+    sortOrder.value = order || null
+}
 
 // 角色列表（动态数据，由后端下发
 const roles = ref([])
@@ -219,18 +238,18 @@ function toggleStatus(row) {
                 </el-input>
             </div>
 
-            <el-table :data="pagedList" v-loading="loading" border stripe style="width:100%">
+            <el-table :data="pagedList" v-loading="loading" border stripe style="width:100%" @sort-change="onSortChange">
                 <el-table-column type="index" label="序号" width="64" align="center"/>
                 <el-table-column prop="account" label="账号" width="140">
                     <template #default="{row}"><b style="color:#2563eb">{{ row.account }}</b></template>
                 </el-table-column>
                 <el-table-column prop="username" label="姓名" width="130"/>
-                <el-table-column prop="role" label="角色" width="120" align="center">
+                <el-table-column prop="role_code" label="角色" width="120" align="center" sortable="custom">
                     <template #default="{row}">
                         <el-tag :type="roleTag(row.role.role_code)" size="small" effect="light">{{ row.role.role_name }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="status" label="状态" width="90" align="center">
+                <el-table-column prop="open_status" label="状态" width="90" align="center" sortable="custom">
                     <template #default="{row}">
                         <el-tag :type="statusTag(row.open_status).type" size="small">{{ statusTag(row.open_status).text }}</el-tag>
                     </template>

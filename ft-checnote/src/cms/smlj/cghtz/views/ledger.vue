@@ -13,6 +13,24 @@ const loading = ref(false)
 const list = ref([])
 const total = ref(0)
 const page = ref(1)
+// 表头排序状态：sortProp 为 null 时用原始排序
+const sortProp = ref(null)
+const sortOrder = ref(null) // 'ascending' | 'descending' | null
+// 前端排序当前页数据（服务端分页，排序仅对当前页生效）
+const sortedList = computed(() => {
+    if (!sortProp.value || !sortOrder.value) return list.value
+    const sorted = [...list.value]
+    sorted.sort((a, b) => {
+        let cmp = 0
+        if (sortProp.value === 'finish_step') {
+            cmp = (Number(a.finish_step) || 0) - (Number(b.finish_step) || 0)
+        } else if (sortProp.value === 'has_rk') {
+            cmp = (a.has_rk ? 1 : 0) - (b.has_rk ? 1 : 0)
+        }
+        return sortOrder.value === 'ascending' ? cmp : -cmp
+    })
+    return sorted
+})
 const pageSize = ref(10)
 
 // 筛选条件（顶部筛选栏）— 与后端 contractList 的 @RequestParam 保持一致
@@ -128,6 +146,12 @@ function resetFilters() {
         finish_step: '', has_rk: '',
     }
     applyFilters()
+}
+
+/** el-table 表头排序：三态切换 ascending → descending → null(原始排序) */
+function onSortChange({prop, order}) {
+    sortProp.value = prop || null
+    sortOrder.value = order || null
 }
 
 function formatMoney(v) {
@@ -365,7 +389,7 @@ function mills2DateStr(mills) {
                         <el-option v-for="(label, idx) in gd.finishedOptions" :key="idx" :label="label" :value="idx"/>
                     </el-select>
                 </el-form-item>
-                <el-form-item label="已入库">
+                <el-form-item label="入库">
                     <el-select v-model="filters.has_rk" placeholder="全部" clearable style="width:100px">
                         <el-option v-for="(label, idx) in gd.yesNoOptions" :key="idx" :label="label" :value="idx === 0"/>
                     </el-select>
@@ -403,7 +427,7 @@ function mills2DateStr(mills) {
 
         <!-- 表格：只读 9 列 -->
         <el-card shadow="never" class="table-card">
-            <el-table :data="list" v-loading="loading" border stripe style="width:100%">
+            <el-table :data="sortedList" v-loading="loading" border stripe style="width:100%" @sort-change="onSortChange">
                 <el-table-column prop="id" label="合同编号" width="160" fixed="left">
                     <template #default="{row}"><b style="color:#2563eb">{{ row.id }}</b></template>
                 </el-table-column>
@@ -424,7 +448,7 @@ function mills2DateStr(mills) {
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="pay_type" label="付款方式" min-width="170" show-overflow-tooltip/>
-                <el-table-column prop="finish_step" label="财务环节" width="105" align="center">
+                <el-table-column prop="finish_step" label="财务环节" width="105" align="center" sortable="custom">
                     <template #default="{row}">
                         <el-tag v-if="!row.finish_step" type="info" size="small">预付款待付</el-tag>
                         <el-tag v-else-if="row.finish_step === 1" type="warning" size="small">到货款待付</el-tag>
@@ -432,7 +456,7 @@ function mills2DateStr(mills) {
                         <el-tag v-else type="success" size="small">全付</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="has_rk" label="已入库" width="70" align="center">
+                <el-table-column prop="has_rk" label="入库" width="77" align="center" sortable="custom">
                     <template #default="{row}">
                         <el-tag :type="row.has_rk ? 'success' : 'info'" size="small">{{ row.has_rk ? '是' : '否' }}</el-tag>
                     </template>
@@ -609,7 +633,7 @@ function mills2DateStr(mills) {
                 </el-col>
                 <el-row v-hasRole="'ADMIN'" :gutter="16">
                     <el-col :span="12">
-                        <el-form-item label="是否已入库">
+                        <el-form-item label="是否入库">
                             <el-switch v-model="form.has_rk" active-text="是" inactive-text="否"/>
                         </el-form-item>
                     </el-col>
