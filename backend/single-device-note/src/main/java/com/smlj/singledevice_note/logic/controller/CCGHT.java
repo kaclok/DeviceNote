@@ -113,7 +113,7 @@ public class CCGHT {
             @RequestParam(name = "account") String account,
             @RequestParam(name = "username") String username,
             @RequestParam(name = "role_code") String role_code,
-            @RequestParam(name = "password") String password) {
+            @RequestParam(name = "password", required = false) String password) {
         if (!StringUtils.hasText(account)) {
             return Result.fail(ResultCode.RC10101, "账号(account)不能为空");
         }
@@ -125,9 +125,9 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10305);
         }
 
-        boolean exists = userDao.exist(account) > 0;
-        if (!exists) {
-            // 新建：username 必填（姓名）
+        TCGHTUser old = userDao.query(account);
+        if (old == null) {
+            // 全新账号：新建
             if (!StringUtils.hasText(username)) return Result.fail(ResultCode.RC10101, "姓名(username)不能为空");
             final String pwd = StringUtils.hasText(password) ? password : DEFAULT_INIT_PWD;
             TCGHTUser u = new TCGHTUser();
@@ -141,17 +141,33 @@ public class CCGHT {
             u.setRole(roleDao.query(role_code));
             return Result.success(u);
         }
-        // 编辑：username 不允许置空
-        TCGHTUser old = userDao.query(account);
-        if (old == null) {
-            return Result.fail(ResultCode.RC10103, "目标账号不存在");
+
+        if (old.getOpen_status()) {
+            // 账号已存在且启用中：带密码视为新增重复，拒绝；不带密码视为编辑
+            if (StringUtils.hasText(password)) {
+                return Result.fail(ResultCode.RC10304);
+            }
+            if (StringUtils.hasText(username)) {
+                old.setUsername(username);
+            }
+            old.setRole_code(role_code);
+            userDao.update(old);
+
+            old.setRole(roleDao.query(role_code));
+            return Result.success(old);
         }
+
+        // 账号已存在但已删除：复用，更新信息并重新启用
         if (StringUtils.hasText(username)) {
             old.setUsername(username);
         }
         old.setRole_code(role_code);
         userDao.update(old);
-
+        userDao.toggleStatus(account, true);
+        final String pwd = StringUtils.hasText(password) ? password : DEFAULT_INIT_PWD;
+        userDao.resetPwd(account, pwd);
+        old.setOpen_status(true);
+        old.setPwd(pwd);
         old.setRole(roleDao.query(role_code));
         return Result.success(old);
     }
@@ -243,7 +259,7 @@ public class CCGHT {
     public Result<?> contractGet(@RequestParam(name = "id", required = false) String id) {
         if (id == null || id.isBlank()) return Result.fail(ResultCode.RC10101, "合同编号(id)不能为空");
         TCGHTContract c = contractDao.query(id);
-        if (c == null) return Result.fail(ResultCode.RC10103, "目标合同不存在");
+        if (c == null || !c.isOpen_status()) return Result.fail(ResultCode.RC10103, "目标合同不存在");
         return Result.success(c);
     }
 
@@ -254,12 +270,24 @@ public class CCGHT {
         if (c == null || c.getId() == null || c.getId().isBlank()) {
             return Result.fail(ResultCode.RC10101, "合同编号(id)不能为空");
         }
-        if (contractDao.exist(c.getId()) > 0) {
+        TCGHTContract old = contractDao.query(c.getId());
+        if (old == null) {
+            // 全新合同：新建
+            contractDao.insert(c);
+            return Result.success(contractDao.query(c.getId()));
+        }
+
+        if (old.isOpen_status()) {
+            // 合同已存在且启用中：拒绝重复录入
             Map<String, Object> data = new HashMap<>();
             data.put("duplicate", true);
             return new Result<>(ResultCode.RC10102.getCode(), String.format("合同编号 %s 已存在，禁止重复录入", c.getId()));
         }
-        contractDao.insert(c);
+
+        // 合同已存在但已作废：复用，更新所有业务字段并重新启用
+        BeanUtils.copyProperties(c, old, "id", "open_status");
+        contractDao.update(old);
+        contractDao.reactivate(c.getId());
         return Result.success(contractDao.query(c.getId()));
     }
 

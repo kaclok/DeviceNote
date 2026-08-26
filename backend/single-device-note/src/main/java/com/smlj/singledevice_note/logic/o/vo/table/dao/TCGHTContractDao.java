@@ -41,4 +41,7 @@ public interface TCGHTContractDao {
      * 逻辑作废：将 open_status 置 false。不物理删除。
      */
     int markInvalid(@Param("id") String id);
+
+    /** 重新启用：将 open_status 置 true（复用作废合同时使用） */
+    int reactivate(@Param("id") String id);
 }

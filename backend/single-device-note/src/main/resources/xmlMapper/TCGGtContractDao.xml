@@ -126,4 +126,8 @@
         update cght.t_contract set open_status = false where id = #{id}
     </update>
 
+    <!-- ============ 重新启用（复用作废合同时使用） ============ -->
+    <update id="reactivate">
+        update cght.t_contract set open_status = true where id = #{id}
+    </update>
 </mapper>
