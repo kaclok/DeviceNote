@@ -135,12 +135,14 @@ router.beforeEach((to, current, next) => {
     console.warn('goto ------ current: ' + current.fullPath + ' -> to:', to.fullPath/*, ' 当前hash:', window.location.hash*/)
     const isLoggedIn = !!wsCache.get(ECacheType.ACCOUNT)
 
-    // 未登录：只允许进登录页，同时把原始目标 fullPath 存入 redirect 参数
+    // 未登录：只允许进登录页，同时把原始目标 fullPath 存入 goto 参数
     if (!isLoggedIn) {
         if (to.name === 'login') {
             next()
         } else {
-            next({name: 'login', query: {redirect: to.fullPath}})
+            // 这里其实是跳转到login页面并且给传递vuerouter类型的query参数，参数名叫做goto，参数值为to.fullPath
+            // 类似：http://localhost:4177/pages/smlj/cghtz/index.html?sign_person=薛少军#/login?goto=/home/ledger
+            next({name: 'login', query: {goto: to.fullPath}})
         }
         return
     }
@@ -149,9 +151,9 @@ router.beforeEach((to, current, next) => {
 
     // 已登录访问登录页：优先跳转 redirect 参数指向的原始目标，否则跳首页
     if (to.name === 'login') {
-        const redirect = to.query?.redirect
-        if (redirect) {
-            next({path: redirect})
+        const goto = to.query?.goto
+        if (goto) {
+            next({path: goto})
         } else {
             next({name: 'home'})
         }

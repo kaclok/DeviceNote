@@ -44,10 +44,10 @@ function loginAction() {
             ElMessage.success(`欢迎回来，${acc.account}`)
             // 预加载签订人/权限字典缓存，不传 login 页的 signal，避免页面卸载 abort 掉请求
             preloadDictCache()
-            // 优先跳转 redirect 参数指向的原始目标（登录前想去的页面），否则跳首页
-            const redirect = router.currentRoute.value.query?.redirect
-            if (redirect) {
-                router.replace(redirect)
+            // 优先跳转 goto 参数指向的原始目标（登录前想去的页面），否则跳首页
+            const goto = router.currentRoute.value.query?.goto
+            if (goto) {
+                router.replace(goto)
             } else {
                 router.push({name: 'home'})
             }
