@@ -135,18 +135,26 @@ router.beforeEach((to, current, next) => {
     console.warn('goto ------ current: ' + current.fullPath + ' -> to:', to.fullPath/*, ' 当前hash:', window.location.hash*/)
     const isLoggedIn = !!wsCache.get(ECacheType.ACCOUNT)
 
-    // 未登录：只允许进登录页
+    // 未登录：只允许进登录页，同时把原始目标 fullPath 存入 redirect 参数
     if (!isLoggedIn) {
-        next(to.name === 'login' ? undefined : {name: 'login'})
+        if (to.name === 'login') {
+            next()
+        } else {
+            next({name: 'login', query: {redirect: to.fullPath}})
+        }
         return
     }
 
     // 下面是isLoggedIn===true的情况
 
-    // 已登录访问登录页：跳转首页（home 自带 redirect，会自动落到默认子页）
-    // redirect之后to不是login，类似于递归重新进来
+    // 已登录访问登录页：优先跳转 redirect 参数指向的原始目标，否则跳首页
     if (to.name === 'login') {
-        next({name: 'home'})
+        const redirect = to.query?.redirect
+        if (redirect) {
+            next({path: redirect})
+        } else {
+            next({name: 'home'})
+        }
         return
     }
 

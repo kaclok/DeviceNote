@@ -44,7 +44,13 @@ function loginAction() {
             ElMessage.success(`欢迎回来，${acc.account}`)
             // 预加载签订人/权限字典缓存，不传 login 页的 signal，避免页面卸载 abort 掉请求
             preloadDictCache()
-            router.push({name: 'home'})
+            // 优先跳转 redirect 参数指向的原始目标（登录前想去的页面），否则跳首页
+            const redirect = router.currentRoute.value.query?.redirect
+            if (redirect) {
+                router.replace(redirect)
+            } else {
+                router.push({name: 'home'})
+            }
         } else {
             ElMessage.error(data?.data?.message || data?.msg || '登录失败')
         }

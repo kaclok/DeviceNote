@@ -21,7 +21,8 @@ import {router} from "./router/Index.js";
 changeAuthFailureHandler((needLogout) => {
     clearAccount();
     if (router.currentRoute.value.name !== 'login') {
-        router.push({name: 'login'});
+        const cur = router.currentRoute.value.fullPath
+        router.push({name: 'login', query: {redirect: cur}});
     }
 });
 

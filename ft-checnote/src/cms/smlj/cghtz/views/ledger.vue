@@ -2,12 +2,13 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {downloadTemplate, exportContractExcel} from "../utils/ExcelX.js"
-import {useRouter} from 'vue-router';
+import {useRouter, useRoute} from 'vue-router';
 import dayjs from 'dayjs';
 import gd from "../data/gd.json"
 import hd from "../data/hd.json"
 
 const router = useRouter();
+const route = useRoute();
 
 const loading = ref(false)
 const list = ref([])
@@ -64,6 +65,25 @@ let AC_list = new AbortController()
 const AC_signers = new AbortController()
 
 onMounted(() => {
+    // 从 URL 读取筛选参数，兼容两种位置：
+    // 1. hash 路由 query: /#/home/ledger?sign_person=xxx（route.query）
+    // 2. 标准 URL query: /index.html?sign_person=xxx#/home/ledger（window.location.search）
+    const q = {...route.query}
+    const sp = new URLSearchParams(window.location.search)
+    for (const [k, v] of sp) {
+        if (!(k in q)) q[k] = v
+    }
+    if (q.id) filters.value.id = String(q.id)
+    if (q.title) filters.value.title = String(q.title)
+    if (q.sign_person) filters.value.sign_person = String(q.sign_person)
+    if (q.sign_type !== undefined && q.sign_type !== '') filters.value.sign_type = String(q.sign_type)
+    if (q.supplier) filters.value.supplier = String(q.supplier)
+    if (q.dateFrom) filters.value.dateFrom = String(q.dateFrom)
+    if (q.dateTo) filters.value.dateTo = String(q.dateTo)
+    if (q.rkDateFrom) filters.value.rkDateFrom = String(q.rkDateFrom)
+    if (q.rkDateTo) filters.value.rkDateTo = String(q.rkDateTo)
+    if (q.finish_step !== undefined && q.finish_step !== '') filters.value.finish_step = String(q.finish_step)
+    if (q.has_rk !== undefined && q.has_rk !== '') filters.value.has_rk = String(q.has_rk)
     loadList()
     loadSigners()
 })
