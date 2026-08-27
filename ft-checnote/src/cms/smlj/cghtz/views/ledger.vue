@@ -158,6 +158,30 @@ function applyFilters() {
     loadList()
 }
 
+function calcRemainingDays(row) {
+    let rm = '--'
+    if (row.finish_step === 1) { // 到付款待付
+        if (row.has_rk) { // 已入库
+            rm = calcRemainDay(row.date_rk, row.paycycle_dh);
+        }
+    } else if (row.finish_step === 2) { // 质保款待付
+        if (row.has_rk) { // 已入库
+            rm = calcRemainDay(row.date_rk, row.paycycle_zb);
+        }
+    }
+    // console.error(row.id + " " + row.finish_step + "   " + rm)
+    return rm
+}
+
+function calcRemainDay(date, payCycleMonth) {
+    if (!date) return '--'
+    const beginDate = dayjs(new Date(date))
+    const cycle = Number(payCycleMonth) || 0
+    const targetDate = beginDate.add(cycle * 30, 'day')
+    const now = dayjs()
+    return targetDate.diff(now, 'day')
+}
+
 function resetFilters() {
     filters.value = {
         id: '', title: '', sign_person: '', sign_type: '', supplier: '',
@@ -260,6 +284,7 @@ function openCreate() {
     dupWarning.value = ''
     originalContract.value = {}
     form.value = emptyForm()
+    useSignDate.value = true
     dialogVisible.value = true
 }
 
@@ -285,7 +310,7 @@ function openEdit(row) {
     }
     form.value = {...base, ...src}
     // date_rk 有值时自动勾选已入库，为 null/'' 则取消勾选
-    form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
+    // form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
     // 根据付款日期同步 finish_step：质保金>到货款>预付款 逐级取最高
     // syncFinishStep()
     dialogVisible.value = true
@@ -294,6 +319,24 @@ function openEdit(row) {
 /** date_rk 变化时联动 has_rk：有值则勾选，清空则取消 */
 function onDateRkChange() {
     form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
+}
+
+/** "使用签订日期"勾选框：勾选时把 date_sign 赋值给 date_yfk */
+const useSignDate = ref(true)
+
+function onUseSignDateChange(val) {
+    if (val) {
+        form.value.date_yfk = form.value.date_sign
+        onPayDateChange()
+    }
+}
+
+/** 签订日期变化时，若勾选了"使用签订日期"则同步 date_yfk */
+function onDateSignChange() {
+    if (useSignDate.value) {
+        form.value.date_yfk = form.value.date_sign
+        onPayDateChange()
+    }
 }
 
 /** 付款日期变化时同步 finish_step：有质保金日期→3，有到货款日期→2，有预付款日期→1，无→0 */
@@ -479,18 +522,12 @@ function mills2DateStr(mills) {
                 <el-table-column prop="amount" label="合同金额(元)" width="110" align="right">
                     <template #default="{row}"><span class="money">{{ formatMoney(row.amount) }}</span></template>
                 </el-table-column>
-                <el-table-column prop="date_sign" label="签订日期" width="100">
+                <el-table-column prop="date_sign" label="签订日期" width="97">
                     <template #default="{row}">{{ mills2DateStr(row.date_sign) }}</template>
                 </el-table-column>
-                <el-table-column prop="date_rk" label="挂账日期" width="100">
+                <el-table-column prop="date_rk" label="挂账日期" width="97">
                     <template #default="{row}">{{ mills2DateStr(row.date_rk) }}</template>
                 </el-table-column>
-                <el-table-column prop="sign_person" label="签订人" width="68">
-                </el-table-column>
-                <el-table-column prop="sign_type" label="签订方式" width="85">
-                    <template #default="{row}">{{ methodOptions.find(item => item.id === row.sign_type).desc }}</template>
-                </el-table-column>
-                <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="pay_type" label="付款方式" min-width="170" show-overflow-tooltip/>
                 <el-table-column prop="finish_step" label="财务环节" width="105" align="center" sortable="custom">
                     <template #default="{row}">
@@ -500,11 +537,24 @@ function mills2DateStr(mills) {
                         <el-tag v-else type="success" size="small">全付</el-tag>
                     </template>
                 </el-table-column>
+                <el-table-column prop="remaining_days" label="预警天数" width="81" align="center">
+                    <template #default="{row}">
+                        <span :class="calcRemainingDays(row) <= 0 ? 'days-overdue' : (calcRemainingDays(row) <= 20 ? 'days-warning' : '')">
+                            {{ calcRemainingDays(row) }}
+                        </span>
+                    </template>
+                </el-table-column>
                 <el-table-column prop="has_rk" label="入库" width="77" align="center" sortable="custom">
                     <template #default="{row}">
                         <el-tag :type="row.has_rk ? 'success' : 'info'" size="small">{{ row.has_rk ? '是' : '否' }}</el-tag>
                     </template>
                 </el-table-column>
+                <el-table-column prop="sign_person" label="签订人" width="68">
+                </el-table-column>
+                <el-table-column prop="sign_type" label="签订方式" width="85">
+                    <template #default="{row}">{{ methodOptions.find(item => item.id === row.sign_type).desc }}</template>
+                </el-table-column>
+                <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
                 <el-table-column label="操作" width="100" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-hasPermission="['contract:update']" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
@@ -549,7 +599,7 @@ function mills2DateStr(mills) {
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="签订日期" prop="date_sign">
-                            <el-date-picker v-model="form.date_sign" type="date" format="YYYY-MM-DD" style="width:100%"/>
+                            <el-date-picker v-model="form.date_sign" type="date" format="YYYY-MM-DD" style="width:100%" @change="onDateSignChange"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
@@ -654,7 +704,12 @@ function mills2DateStr(mills) {
                 <el-row :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="预付款日期">
-                            <el-date-picker v-model="form.date_yfk" type="date" format="YYYY-MM-DD" style="width:100%" @change="onPayDateChange"/>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <el-tooltip content="使用签订日期" placement="top">
+                                    <el-checkbox v-model="useSignDate" @change="onUseSignDateChange"/>
+                                </el-tooltip>
+                                <el-date-picker v-model="form.date_yfk" type="date" format="YYYY-MM-DD" style="flex:1" :disabled="useSignDate" @change="onPayDateChange"/>
+                            </div>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
@@ -690,7 +745,7 @@ function mills2DateStr(mills) {
                                     <template #icon>
                                         <span class="step-num"
                                               :class="{wait: form.finish_step < idx, active: form.finish_step === idx, done: form.finish_step > idx}"
-                                              @click.stop="form.finish_step = idx">{{ idx + 1 }}</span>
+                                              @click.stop="form.finish_step = idx">{{ idx }}</span>
                                     </template>
                                 </el-step>
                             </el-steps>
@@ -794,6 +849,16 @@ function mills2DateStr(mills) {
         .money {
             font-weight: 600;
             font-variant-numeric: tabular-nums;
+        }
+
+        .days-overdue {
+            color: #f56c6c;
+            font-weight: 700;
+        }
+
+        .days-warning {
+            color: #e6a23c;
+            font-weight: 600;
         }
 
         .pager {
