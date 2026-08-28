@@ -126,8 +126,8 @@ function loadList() {
     }, (r, data) => {
         loading.value = false
         if (r) {
-            list.value = Array.isArray(data.data?.list) ? data.data.list : []
-            total.value = Number(data.data?.total ?? list.value.length)
+            list.value = data.data.list
+            total.value = data.data.total
         }
     })
 }
@@ -178,8 +178,9 @@ function calcRemainDay(date, payCycleMonth) {
     const beginDate = dayjs(new Date(date))
     const cycle = Number(payCycleMonth) || 0
     const targetDate = beginDate.add(cycle * 30, 'day')
-    const now = dayjs()
-    return targetDate.diff(now, 'day')
+    // startOf('day') 对齐到 0 点，与后端 SQL 的 CURRENT_DATE（今天 0:00）保持一致，
+    // 避免含时分秒导致前后端天数差 1 天（如前端算 9 天，后端算 10 天被过滤掉）
+    return targetDate.startOf('day').diff(dayjs().startOf('day'), 'day')
 }
 
 function resetFilters() {
@@ -526,8 +527,8 @@ function mills2DateStr(mills) {
                 </el-table-column>
                 <el-table-column prop="sign_person" label="签订人" width="68">
                 </el-table-column>
-                <el-table-column prop="sign_type" label="签订方式" width="85">
-                    <template #default="{row}">{{ methodOptions.find(item => item.id === row.sign_type).desc }}</template>
+                <el-table-column prop="sign_type" label="签订方式" width="100">
+                    <template #default="{row}">{{ methodOptions.find(i => i.id === row.sign_type)?.desc }}</template>
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
                 <el-table-column v-hasPermission="'contract:op'" label="操作" width="100" fixed="right" align="center">
@@ -580,14 +581,14 @@ function mills2DateStr(mills) {
                     <el-col :span="12">
                         <el-form-item label="签订人" prop="sign_person">
                             <el-select v-model="form.sign_person" placeholder="请选择签订人" filterable style="width:100%">
-                                <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.account"/>
+                                <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.username"/>
                             </el-select>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="合同签订方式" prop="sign_type">
                             <el-select v-model="form.sign_type" placeholder="请选择" style="width:100%">
-                                <el-option v-for="(m, i) in methodOptions" :key="i" :label="m.desc" :value="i"/>
+                                <el-option v-for="(m, i) in methodOptions" :key="i" :label="m.desc" :value="m.id"/>
                             </el-select>
                         </el-form-item>
                     </el-col>
