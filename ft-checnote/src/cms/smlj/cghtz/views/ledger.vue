@@ -175,12 +175,17 @@ function calcRemainingDays(row) {
 
 function calcRemainDay(date, payCycleMonth) {
     if (!date) return '--'
-    const beginDate = dayjs(new Date(date))
+    // 与后端 SQL 完全对齐：EXTRACT(DAY FROM (date_rk + paycycle*30 * INTERVAL '1 day') - CURRENT_DATE)
+    // 1. date_rk + paycycle*30 天 → 保留 date_rk 原始时间分量（不 startOf）
+    // 2. 减 CURRENT_DATE（今天 00:00）
+    // 3. EXTRACT(DAY FROM interval) = Math.floor 向下取整
+    const due = new Date(date)
     const cycle = Number(payCycleMonth) || 0
-    const targetDate = beginDate.add(cycle * 30, 'day')
-    // startOf('day') 对齐到 0 点，与后端 SQL 的 CURRENT_DATE（今天 0:00）保持一致，
-    // 避免含时分秒导致前后端天数差 1 天（如前端算 9 天，后端算 10 天被过滤掉）
-    return targetDate.startOf('day').diff(dayjs().startOf('day'), 'day')
+    due.setDate(due.getDate() + cycle * 30)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const DAY_MS = 24 * 60 * 60 * 1000
+    return Math.floor((due.getTime() - today.getTime()) / DAY_MS)
 }
 
 function resetFilters() {

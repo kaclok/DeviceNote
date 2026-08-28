@@ -143,22 +143,24 @@ export class MockX {
             list = list.filter(c => Number(c.finish_step) === fv)
         }
         // 预警天数筛选：剩余天数 < warn_day；warn_day 为空/null => 不传递 => 不处理
+        // 与后端 SQL 完全对齐：EXTRACT(DAY FROM (date_rk + paycycle*30*INTERVAL'1day') - CURRENT_DATE)
         const wd = Number(filters.warn_day)
         if (Number.isFinite(wd) && wd > 0) {
-            const now = new Date()
             const DAY_MS = 24 * 60 * 60 * 1000
+            const today = new Date()
+            today.setHours(0, 0, 0, 0) // CURRENT_DATE = 今天 00:00
             list = list.filter(c => {
                 if (!c.date_rk) return false
-                const rkTime = new Date(c.date_rk).getTime()
+                const due = new Date(c.date_rk) // 保留原始时间分量
                 if (Number(c.finish_step) === 1) {
                     const cycle = Number(c.paycycle_dh) || 0
-                    const dueTime = rkTime + cycle * 30 * DAY_MS
-                    return Math.floor((dueTime - now.getTime()) / DAY_MS) < wd
+                    due.setDate(due.getDate() + cycle * 30)
+                    return Math.floor((due.getTime() - today.getTime()) / DAY_MS) < wd
                 }
                 if (Number(c.finish_step) === 2) {
                     const cycle = Number(c.paycycle_zb) || 0
-                    const dueTime = rkTime + cycle * 30 * DAY_MS
-                    return Math.floor((dueTime - now.getTime()) / DAY_MS) < wd
+                    due.setDate(due.getDate() + cycle * 30)
+                    return Math.floor((due.getTime() - today.getTime()) / DAY_MS) < wd
                 }
                 return false
             })
