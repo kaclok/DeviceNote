@@ -416,8 +416,41 @@ function removeContract(row) {
 
 /* ---------------- 导出 ---------------- */
 function doExport() {
-    exportContractExcel(list.value, '合同台账_导出', signerOptions.value)
-    ElMessage.success(`已导出 ${list.value.length} 条合同`)
+    // 用当前筛选条件请求全量数据（不分页），导出所有匹配的合同
+    const fm = {
+        id: filters.value.id,
+        title: filters.value.title,
+        sign_person: filters.value.sign_person,
+        sign_type: filters.value.sign_type === '' || filters.value.sign_type == null ? null : Number(filters.value.sign_type),
+        supplier: filters.value.supplier,
+        queryBegin: filters.value.dateFrom,
+        queryEnd: filters.value.dateTo,
+        rkBegin: filters.value.rkDateFrom,
+        rkEnd: filters.value.rkDateTo,
+        finish_step: filters.value.finish_step === '' || filters.value.finish_step == null ? null : Number(filters.value.finish_step),
+        warn_day: filters.value.warn ? 10 : null,
+    }
+    const paras = {}
+    for (const k in fm) {
+        const v = fm[k]
+        if (v !== '' && v != null) paras[k] = v
+    }
+    ElMessage.info('正在导出，请稍候...')
+    Singleton.getInstance(SysX).getContractList(paras, null, () => {
+    }, (r, data) => {
+        if (r) {
+            const payload = data?.data ?? data
+            const allList = Array.isArray(payload?.list) ? payload.list : (Array.isArray(payload?.rows) ? payload.rows : [])
+            if (allList.length === 0) {
+                ElMessage.warning('没有匹配的合同数据')
+                return
+            }
+            exportContractExcel(allList, '合同台账_导出', signerOptions.value)
+            ElMessage.success(`已导出 ${allList.length} 条合同`)
+        } else {
+            ElMessage.error('导出失败，请重试')
+        }
+    })
 }
 
 /* ---------------- 跳转导入页 ---------------- */
