@@ -25,9 +25,9 @@ public interface TCGHTContractDao {
             , @Param("queryBegin") Date queryBegin
             , @Param("queryEnd") Date queryEnd
             , @Param("finish_step") Integer finish_step
-            , @Param("has_rk") Boolean has_rk
             , @Param("rkBegin") Date rkBegin
-            , @Param("rkEnd") Date rkEnd);
+            , @Param("rkEnd") Date rkEnd
+            , @Param("warn_day") Integer warn_day);
 
     TCGHTContract query(@Param("id") String id);
 

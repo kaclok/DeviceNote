@@ -25,8 +25,6 @@ const sortedList = computed(() => {
         let cmp = 0
         if (sortProp.value === 'finish_step') {
             cmp = (Number(a.finish_step) || 0) - (Number(b.finish_step) || 0)
-        } else if (sortProp.value === 'has_rk') {
-            cmp = (a.has_rk ? 1 : 0) - (b.has_rk ? 1 : 0)
         }
         return sortOrder.value === 'ascending' ? cmp : -cmp
     })
@@ -46,7 +44,7 @@ const filters = ref({
     rkDateFrom: null,
     rkDateTo: null,
     finish_step: '',
-    has_rk: '',
+    warn: false, // bool：勾选 = 筛选预警天数<10天（固定传 warn_day=10）
 })
 // 签订人列表（动态数据，由后端下发；）
 const signerOptions = ref([])
@@ -83,7 +81,9 @@ onMounted(() => {
     if (q.rkDateFrom) filters.value.rkDateFrom = String(q.rkDateFrom)
     if (q.rkDateTo) filters.value.rkDateTo = String(q.rkDateTo)
     if (q.finish_step !== undefined && q.finish_step !== '') filters.value.finish_step = Number(q.finish_step)
-    if (q.has_rk !== undefined && q.has_rk !== '') filters.value.has_rk = (q.has_rk === 'true')
+    if (q.warn_day !== undefined && q.warn_day !== '' && q.warn_day !== null) {
+        filters.value.warn = true
+    }
     loadList()
     loadSigners()
 })
@@ -112,7 +112,7 @@ function loadList() {
         rkBegin: filters.value.rkDateFrom,
         rkEnd: filters.value.rkDateTo,
         finish_step: filters.value.finish_step,
-        has_rk: filters.value.has_rk,
+        warn_day: filters.value.warn ? 10 : null,
     }
 
     // 过滤对象中的空值， 和...fm不一样
@@ -161,11 +161,11 @@ function applyFilters() {
 function calcRemainingDays(row) {
     let rm = '--'
     if (row.finish_step === 1) { // 到付款待付
-        if (row.has_rk) { // 已入库
+        if (row.date_rk) { // 有挂账日期
             rm = calcRemainDay(row.date_rk, row.paycycle_dh);
         }
     } else if (row.finish_step === 2) { // 质保款待付
-        if (row.has_rk) { // 已入库
+        if (row.date_rk) { // 有挂账日期
             rm = calcRemainDay(row.date_rk, row.paycycle_zb);
         }
     }
@@ -187,7 +187,8 @@ function resetFilters() {
         id: '', title: '', sign_person: '', sign_type: '', supplier: '',
         dateFrom: null, dateTo: null,
         rkDateFrom: null, rkDateTo: null,
-        finish_step: '', has_rk: '',
+        finish_step: '',
+        warn: false,
     }
     applyFilters()
 }
@@ -223,9 +224,6 @@ function emptyForm() {
         pay_type: '',
         paycycle_dh: 0,
         paycycle_zb: 0,
-        rate_yfk: 0,
-        rate_dhk: 0,
-        rate_zbj: 0,
         date_yfk: '',
         date_dhk: '',
         date_zbj: '',
@@ -238,7 +236,6 @@ function emptyForm() {
         date_actual_dh: '',
         date_ruzlyj: '',
         finish_step: 0,
-        has_rk: false,
     }
 }
 
@@ -254,9 +251,6 @@ const rules = {
     date_sign: [{required: true, message: '请选择签订时间', trigger: 'change'}],
     paycycle_dh: [{required: true, message: '请输入到货周期', trigger: 'change'}],
     paycycle_zb: [{required: true, message: '请输入质保周期', trigger: 'change'}],
-    rate_yfk: [{required: true, message: '请输入预付款比例', trigger: 'change'}],
-    rate_dhk: [{required: true, message: '请输入到货款比例', trigger: 'change'}],
-    rate_zbj: [{required: true, message: '请输入质保金比例', trigger: 'change'}],
 }
 
 // 编号唯一性实时校验
@@ -309,16 +303,13 @@ function openEdit(row) {
         src.sign_type = 0
     }
     form.value = {...base, ...src}
-    // date_rk 有值时自动勾选已入库，为 null/'' 则取消勾选
-    // form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
     // 根据付款日期同步 finish_step：质保金>到货款>预付款 逐级取最高
     // syncFinishStep()
     dialogVisible.value = true
 }
 
-/** date_rk 变化时联动 has_rk：有值则勾选，清空则取消 */
+/** 保留：date_rk 变化后的扩展钩子 */
 function onDateRkChange() {
-    form.value.has_rk = !!(form.value.date_rk && form.value.date_rk !== '')
 }
 
 /** "使用签订日期"勾选框：勾选时把 date_sign 赋值给 date_yfk */
@@ -351,16 +342,6 @@ function syncFinishStep() {
     else form.value.finish_step = 0
 }
 
-/** 勾选入库前校验：挂账日期未设置则阻止，提示"存在挂账日期才能入库" */
-function beforeRkChange() {
-    // before-change 不传参数，当前 has_rk=false 表示即将勾选为 true
-    if (!form.value.has_rk && !form.value.date_rk) {
-        ElMessage.warning('存在挂账日期才能入库')
-        return false
-    }
-    return true
-}
-
 function saveContract() {
     formRef.value.validate(valid => {
         if (!valid) return
@@ -374,7 +355,7 @@ function saveContract() {
         // sign_type 强转 int（下拉 value 是 0-7 int）
         edited.sign_type = Number.isFinite(+edited.sign_type) ? parseInt(edited.sign_type, 10) : 0
         // 数字字段归一化
-        const floatKeys = ['amount', 'paycycle_dh', 'paycycle_zb', 'rate_yfk', 'rate_dhk', 'rate_zbj', 'settle_amount']
+        const floatKeys = ['amount', 'paycycle_dh', 'paycycle_zb', 'settle_amount']
         floatKeys.forEach(k => {
             const n = Number(edited[k])
             edited[k] = Number.isNaN(n) ? 0 : n
@@ -387,7 +368,6 @@ function saveContract() {
         // 布尔字段归一化；finish_step 为 int：0-未开始，1-预付款，2-到货款，3-质保款
         const fNum = Number(edited.finish_step)
         edited.finish_step = Number.isNaN(fNum) ? 0 : parseInt(fNum, 10)
-        edited.has_rk = edited.has_rk === true || edited.has_rk === 'true'
         // Experience 718922：编辑模式 merge original，避免空覆盖
         const paras = isEdit.value ? {...originalContract.value, ...edited} : {...edited}
 
@@ -476,10 +456,10 @@ function mills2DateStr(mills) {
                         <el-option v-for="(label, idx) in gd.finishedOptions" :key="idx" :label="label" :value="idx"/>
                     </el-select>
                 </el-form-item>
-                <el-form-item label="入库">
-                    <el-select v-model="filters.has_rk" placeholder="全部" clearable style="width:100px">
-                        <el-option v-for="(label, idx) in gd.yesNoOptions" :key="idx" :label="label" :value="idx === 0"/>
-                    </el-select>
+                <el-form-item>
+                    <el-tooltip content="筛选预警天数小于10天" placement="top">
+                        <el-checkbox v-model="filters.warn" @change="applyFilters">预警10天</el-checkbox>
+                    </el-tooltip>
                 </el-form-item>
                 <div class="filter-line-break"></div>
                 <el-form-item label="签订日期">
@@ -539,14 +519,9 @@ function mills2DateStr(mills) {
                 </el-table-column>
                 <el-table-column prop="remaining_days" label="预警天数" width="81" align="center">
                     <template #default="{row}">
-                        <span :class="calcRemainingDays(row) <= 0 ? 'days-overdue' : (calcRemainingDays(row) <= 20 ? 'days-warning' : '')">
+                        <span :class="calcRemainingDays(row) < 10 ? 'days-overdue' : ''">
                             {{ calcRemainingDays(row) }}
                         </span>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="has_rk" label="入库" width="77" align="center" sortable="custom">
-                    <template #default="{row}">
-                        <el-tag :type="row.has_rk ? 'success' : 'info'" size="small">{{ row.has_rk ? '是' : '否' }}</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="sign_person" label="签订人" width="68">
@@ -555,7 +530,7 @@ function mills2DateStr(mills) {
                     <template #default="{row}">{{ methodOptions.find(item => item.id === row.sign_type).desc }}</template>
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
-                <el-table-column label="操作" width="100" fixed="right" align="center">
+                <el-table-column v-hasPermission="'contract:op'" label="操作" width="100" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-hasPermission="['contract:update']" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
                         <el-button v-hasPermission="['contract:delete']" link type="danger" size="small" @click="removeContract(row)">作废</el-button>
@@ -642,25 +617,6 @@ function mills2DateStr(mills) {
                     </el-col>
                 </el-row>
 
-                <el-divider content-position="left">付款比例(总和保持为100)</el-divider>
-                <el-row :gutter="16">
-                    <el-col :span="8">
-                        <el-form-item label="预付款比例(%)" prop="rate_yfk">
-                            <el-input-number v-model="form.rate_yfk" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item label="到货款比例(%)" prop="rate_dhk">
-                            <el-input-number v-model="form.rate_dhk" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item label="质保金比例(%)" prop="rate_zbj">
-                            <el-input-number v-model="form.rate_zbj" :min="0" :max="100" :precision="2" :controls="false" style="width:100%"/>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-
                 <el-divider content-position="left">货期、移交与备注</el-divider>
                 <el-row :gutter="16">
                     <el-col :span="12">
@@ -725,15 +681,10 @@ function mills2DateStr(mills) {
                 </el-row>
 
                 <el-divider v-hasRole="'ADMIN'" content-position="left">入库、财务</el-divider>
-                <el-col v-hasRole="'ADMIN'" :span="16">
-                    <el-form-item label="挂账日期">
-                        <el-date-picker v-model="form.date_rk" type="date" format="YYYY-MM-DD" style="width:100%" @change="onDateRkChange"/>
-                    </el-form-item>
-                </el-col>
                 <el-row v-hasRole="'ADMIN'" :gutter="16">
-                    <el-col :span="12">
-                        <el-form-item label="是否入库">
-                            <el-switch v-model="form.has_rk" active-text="是" inactive-text="否" :before-change="beforeRkChange"/>
+                    <el-col :span="16">
+                        <el-form-item label="挂账日期">
+                            <el-date-picker v-model="form.date_rk" type="date" format="YYYY-MM-DD" style="width:100%" @change="onDateRkChange"/>
                         </el-form-item>
                     </el-col>
                 </el-row>

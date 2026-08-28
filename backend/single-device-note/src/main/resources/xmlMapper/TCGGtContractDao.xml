@@ -7,10 +7,10 @@
     <!-- ============ 公共字段集合 ============ -->
     <sql id="base_cols">
         id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type,
-        paycycle_dh, paycycle_zb, rate_yfk, rate_dhk, rate_zbj,
+        paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        finish_step, has_rk, open_status
+        finish_step, open_status
     </sql>
 
     <!-- ============ 列表查询：动态 where ============ -->
@@ -18,7 +18,7 @@
         select
         <include refid="base_cols"/>
         from cght.t_contract
-        where open_status = true
+        where open_status = TRUE
         <if test="id != null and id != ''">
             and id like concat('%', #{id}, '%')
         </if>
@@ -49,8 +49,17 @@
         <if test="finish_step != null">
             and finish_step = #{finish_step}
         </if>
-        <if test="has_rk != null">
-            and has_rk = #{has_rk}
+        <!-- 预警筛选：预警天数 < warn_day。与前端 calcRemainingDays 算法一致 -->
+        <if test="warn_day != null">
+            AND (
+                (finish_step = 1
+                AND date_rk IS NOT NULL
+                AND #{warn_day} > EXTRACT(DAY FROM (date_rk + (paycycle_dh * 30) * INTERVAL '1 day') - CURRENT_DATE))
+                OR
+                (finish_step = 2
+                AND date_rk IS NOT NULL
+                AND #{warn_day} > EXTRACT(DAY FROM (date_rk + (paycycle_zb * 30) * INTERVAL '1 day') - CURRENT_DATE))
+            )
         </if>
 
         order by id asc
@@ -73,18 +82,18 @@
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
         insert into cght.t_contract (
         id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type,
-        paycycle_dh, paycycle_zb, rate_yfk, rate_dhk, rate_zbj,
+        paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        finish_step, has_rk, open_status
+        finish_step, open_status
         ) values (
         #{c.id}, #{c.title}, #{c.amount}, #{c.date_sign}, #{c.sign_person}, #{c.sign_type},
         #{c.supplier}, #{c.pay_type},
-        #{c.paycycle_dh}, #{c.paycycle_zb}, #{c.rate_yfk}, #{c.rate_dhk}, #{c.rate_zbj},
+        #{c.paycycle_dh}, #{c.paycycle_zb},
         #{c.date_yfk}, #{c.date_dhk}, #{c.date_zbj}, #{c.date_rk},
         #{c.bz}, #{c.settle_amount}, #{c.hq},
         #{c.date_htyj}, #{c.date_fpyj}, #{c.date_actual_dh}, #{c.date_ruzlyj},
-        #{c.finish_step}, #{c.has_rk}, true
+        #{c.finish_step}, true
         )
     </insert>
 
@@ -101,9 +110,6 @@
             pay_type = #{c.pay_type},
             paycycle_dh = #{c.paycycle_dh},
             paycycle_zb = #{c.paycycle_zb},
-            rate_yfk = #{c.rate_yfk},
-            rate_dhk = #{c.rate_dhk},
-            rate_zbj = #{c.rate_zbj},
             date_yfk = #{c.date_yfk},
             date_dhk = #{c.date_dhk},
             date_zbj = #{c.date_zbj},
@@ -115,8 +121,7 @@
             date_fpyj = #{c.date_fpyj},
             date_actual_dh = #{c.date_actual_dh},
             date_ruzlyj = #{c.date_ruzlyj},
-            finish_step = #{c.finish_step},
-            has_rk = #{c.has_rk}
+            finish_step = #{c.finish_step}
         </set>
         where id = #{c.id}
     </update>

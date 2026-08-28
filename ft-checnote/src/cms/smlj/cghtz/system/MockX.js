@@ -14,10 +14,9 @@ import hd from "../data/hd.json"
  * - data/gd.json：固定数据（签订方式枚举等前端固定配置）
  * - data/hd.json：将来后端下发的数据（角色、权限码字典、账号、合同）
  *
- * 合同字段（v3 - 对齐后端 TCGHTContract 24 字段）：
+ * 合同字段（v4 - rate字段已移除）：
  *   基本：id / title / amount / date_sign / sign_person / sign_type / supplier
  *   付款：pay_type / paycycle_dh / paycycle_zb
- *         rate_yfk / rate_dhk / rate_zbj
  *         date_yfk / date_dhk / date_zbj / date_rk
  *   其他：bz / settle_amount / hq
  *   移交：date_htyj / date_fpyj / date_actual_dh / date_ruzlyj
@@ -39,23 +38,21 @@ const CONTRACTS = hd.contracts
 const CONTRACT_FIELDS = [
     "id", "title", "amount", "date_sign", "sign_person", "sign_type", "supplier",
     "pay_type", "paycycle_dh", "paycycle_zb",
-    "rate_yfk", "rate_dhk", "rate_zbj",
     "date_yfk", "date_dhk", "date_zbj", "date_rk",
     "bz", "settle_amount", "hq",
     "date_htyj", "date_fpyj", "date_actual_dh", "date_ruzlyj",
-    "finish_step", "has_rk",
+    "finish_step",
 ]
 
 /* 浮点字段（导入/创建时统一转 Number） */
 const FLOAT_FIELDS = [
     "amount", "paycycle_dh", "paycycle_zb",
-    "rate_yfk", "rate_dhk", "rate_zbj",
     "settle_amount",
 ]
 /* 整数字段 */
 const INT_FIELDS = ["hq", "sign_type", "finish_step"]
 /* 布尔字段 */
-const BOOL_FIELDS = ["has_rk"]
+const BOOL_FIELDS = []
 
 /**
  * 将外部传入的合同对象按字段白名单清洗并强制类型转换
@@ -145,8 +142,26 @@ export class MockX {
             const fv = Number(filters.finish_step) || 0
             list = list.filter(c => Number(c.finish_step) === fv)
         }
-        if (filters.has_rk !== undefined && filters.has_rk !== '' && filters.has_rk !== null) {
-            list = list.filter(c => c.has_rk === (filters.has_rk === true || filters.has_rk === 'true' || filters.has_rk === 1));
+        // 预警天数筛选：剩余天数 < warn_day；warn_day 为空/null => 不传递 => 不处理
+        const wd = Number(filters.warn_day)
+        if (Number.isFinite(wd) && wd > 0) {
+            const now = new Date()
+            const DAY_MS = 24 * 60 * 60 * 1000
+            list = list.filter(c => {
+                if (!c.date_rk) return false
+                const rkTime = new Date(c.date_rk).getTime()
+                if (Number(c.finish_step) === 1) {
+                    const cycle = Number(c.paycycle_dh) || 0
+                    const dueTime = rkTime + cycle * 30 * DAY_MS
+                    return Math.floor((dueTime - now.getTime()) / DAY_MS) < wd
+                }
+                if (Number(c.finish_step) === 2) {
+                    const cycle = Number(c.paycycle_zb) || 0
+                    const dueTime = rkTime + cycle * 30 * DAY_MS
+                    return Math.floor((dueTime - now.getTime()) / DAY_MS) < wd
+                }
+                return false
+            })
         }
         const total = list.length;
         // 分页（pageNum 1-based；pageSize <= 0 或 pageNum <= 0 视为不分页，对齐后端 PageHelper reasonable + pageSizeZero）

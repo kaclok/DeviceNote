@@ -25,9 +25,6 @@ public class TCGHTContract implements Serializable {
     private String supplier;
     private float paycycle_dh;
     private float paycycle_zb;
-    private float rate_yfk;
-    private float rate_dhk;
-    private float rate_zbj;
     @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_yfk;
     @DateTimeFormat(pattern = "yyyy-MM-dd")
@@ -48,7 +45,6 @@ public class TCGHTContract implements Serializable {
 
     /** 财务环节进度：0-未完结 1-预付款 2-到货款 3-质保款(完结) */
     private Integer finish_step;
-    private boolean has_rk;
     private boolean open_status;
 }
 

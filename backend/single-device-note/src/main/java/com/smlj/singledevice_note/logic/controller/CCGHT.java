@@ -142,7 +142,7 @@ public class CCGHT {
             return Result.success(u);
         }
 
-        if (old.getOpen_status()) {
+        if (old.isOpen_status()) {
             // 账号已存在且启用中：带密码视为新增重复，拒绝；不带密码视为编辑
             if (StringUtils.hasText(password)) {
                 return Result.fail(ResultCode.RC10304);
@@ -244,13 +244,13 @@ public class CCGHT {
             @RequestParam(name = "queryBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryBegin,
             @RequestParam(name = "queryEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryEnd,
             @RequestParam(name = "finish_step", required = false) Integer finish_step,
-            @RequestParam(name = "has_rk", required = false) Boolean has_rk,
             @RequestParam(name = "rkBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date rkBegin,
             @RequestParam(name = "rkEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date rkEnd,
+            @RequestParam(name = "warn_day", required = false) Integer warn_day,
             @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
             @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = contractDao.queryAll(id, title, sign_person, sign_type, supplier, queryBegin, queryEnd, finish_step, has_rk, rkBegin, rkEnd);
+        var ls = contractDao.queryAll(id, title, sign_person, sign_type, supplier, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day);
         return Result.success(new PageSerializable<>(ls));
     }
 
