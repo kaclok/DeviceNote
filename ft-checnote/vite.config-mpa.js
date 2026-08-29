@@ -14,6 +14,7 @@ const mpaInput = {
     sbrhjy: resolve(__dirname, './pages/smlj/sbrhjy/index.html'),
     cggy: resolve(__dirname, './pages/smlj/cggy/index.html'),
     cghtz: resolve(__dirname, './pages/smlj/cghtz/index.html'),
+    carop: resolve(__dirname, './pages/smlj/carop/index.html'),
     downloads: resolve(__dirname, './pages/downloads/index.html'),
 }
 
@@ -21,6 +22,7 @@ const mpaInput = {
 const mpaRewrites = [
     {from: /\/cggy/, to: '/pages/smlj/cggy/index.html'},
     {from: /\/cghtz/, to: '/pages/smlj/cghtz/index.html'},
+    {from: /\/carop/, to: '/pages/smlj/carop/index.html'},
 ]
 
 const mpaPages= [

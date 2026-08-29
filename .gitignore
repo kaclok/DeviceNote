@@ -56,3 +56,4 @@ backend/lp-jtlj/.logs/log.txt
 /backend/mongo/mongo/src/main/java/com/smlj/mongo/service/QueryService.java
 /backend/mongo/mongo/src/main/resources/application.yml
 /ft-checnote/dist-json-verify
+/ft-checnote/carop-test-0.0.1-cors
