@@ -4,9 +4,12 @@ import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.logic.o.vo.table.service.CarOpService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Date;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -23,5 +26,10 @@ public class CCarOp {
     @PostMapping("/openDoor")
     public Result<?> openDoor(String laneId, int status) throws Exception {
         return Result.success(carOpService.openDoor(laneId, status));
+    }
+
+    @GetMapping("/testxx")
+    public Result<?> testxx(Date dt) throws Exception {
+        return Result.success(dt);
     }
 }

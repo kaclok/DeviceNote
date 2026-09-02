@@ -296,13 +296,7 @@ const appGridItems = ref([
         url: "http://10.8.54.24:4177/pages/smlj/cghtz/index.html?group=" + group,
         image: logo_book,
         enabled: true,
-    },
-    {
-        name: "车道闸控制",
-        url: "http://117.36.227.42:4177/pages/smlj/carop/index.html?group=" + group,
-        image: logo_book,
-        enabled: true,
-    },
+    }
 ])
 
 // Example of a method to handle clicks on grid items

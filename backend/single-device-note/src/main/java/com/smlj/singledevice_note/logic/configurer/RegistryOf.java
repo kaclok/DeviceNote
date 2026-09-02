@@ -2,8 +2,10 @@ package com.smlj.singledevice_note.logic.configurer;
 
 import com.smlj.singledevice_note.core.annotation.Acc;
 import com.smlj.singledevice_note.core.annotation.AccProfile;
+import com.smlj.singledevice_note.core.o.converter.Long2Date;
 import com.smlj.singledevice_note.core.o.converter.StringToKV;
 import com.smlj.singledevice_note.logic.o.vo.converter.StringToTDeviceRecord;
+import com.smlj.singledevice_note.core.o.converter.formatter.MultiDateFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -30,17 +32,24 @@ public class RegistryOf implements WebMvcConfigurer {
     private final AccessInterceptor accessInterceptor;
 
     // 侧重于处理接口参数
+    // Formatter 优先于 Converter
     @Override
     public void addFormatters(FormatterRegistry registry) {
         // todo 为什么总是失败?
         //registry.addConverter(new StringTo<KV>(KV.class));
 
         registry.addConverter(new StringToTDeviceRecord());
+
         registry.addConverter(new StringToKV<Long, Float>());
         registry.addConverter(new StringToKV<Long, String>());
         registry.addConverter(new StringToKV<Integer, String>());
         registry.addConverter(new StringToKV<Integer, Float>());
         registry.addConverter(new StringToKV<Integer, Integer>());
+
+        registry.addConverter(new Long2Date());
+
+        // 无论你注册的是 Formatter 还是 Converter，最终都会变成统一的 Converter 接口
+        registry.addFormatter(new MultiDateFormatter());
     }
 
     // 拦截器针对方法，HandlerMethodArgumentResolver针对参数
