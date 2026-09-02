@@ -1,7 +1,9 @@
 package com.smlj.singledevice_note.core.o.from;
 
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.bind.annotation.RequestParam;
 
 // 用@ModelAttribute可以一次性接收多个参数
 
@@ -9,7 +11,12 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class PageParam {
+    @Min(value = 1, message = "页码最小为1")
     private Integer pageNum;
+
+    // @JsonProperty处理字段page_size
+
+    @Min(value = 1, message = "每页大小最小为1")
     private Integer pageSize;
 }
 

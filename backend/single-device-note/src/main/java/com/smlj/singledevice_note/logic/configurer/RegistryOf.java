@@ -3,6 +3,7 @@ package com.smlj.singledevice_note.logic.configurer;
 import com.smlj.singledevice_note.core.annotation.Acc;
 import com.smlj.singledevice_note.core.annotation.AccProfile;
 import com.smlj.singledevice_note.core.o.converter.Long2Date;
+import com.smlj.singledevice_note.core.o.converter.String2Date;
 import com.smlj.singledevice_note.core.o.converter.StringToKV;
 import com.smlj.singledevice_note.logic.o.vo.converter.StringToTDeviceRecord;
 import com.smlj.singledevice_note.core.o.converter.formatter.MultiDateFormatter;
@@ -48,8 +49,10 @@ public class RegistryOf implements WebMvcConfigurer {
 
         registry.addConverter(new Long2Date());
 
+        registry.addConverter(new String2Date());
+
         // 无论你注册的是 Formatter 还是 Converter，最终都会变成统一的 Converter 接口
-        registry.addFormatter(new MultiDateFormatter());
+        // registry.addFormatter(new MultiDateFormatter());
     }
 
     // 拦截器针对方法，HandlerMethodArgumentResolver针对参数
