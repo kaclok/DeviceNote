@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 // https://mp.weixin.qq.com/s/vVBmqCbhmLXYjW1w8gsk3Q
 @RestControllerAdvice(basePackages = "com.smlj.train")
 public class GlobalExceptionHandler {
@@ -29,28 +32,28 @@ public class GlobalExceptionHandler {
     // {@code @RequestBody} 参数校验不通过时抛出的异常处理
     // https://mp.weixin.qq.com/s/slsETQsBjMJ4qKRCKYeGGg
     // https://blog.csdn.net/qq_42402854/article/details/137344029
+    // 处理 @Valid 校验异常
     @ExceptionHandler({MethodArgumentNotValidException.class})
     public Result<?> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
-        BindingResult bindingResult = ex.getBindingResult();
-        StringBuilder sb = new StringBuilder("校验失败:");
-        for (FieldError fieldError : bindingResult.getFieldErrors()) {
-            sb.append(fieldError.getField()).append("：").append(fieldError.getDefaultMessage()).append(", ");
-        }
-        String msg = sb.toString();
-        if (StringUtils.hasText(msg)) {
-            return Result.fail(ResultCode.RC400.getCode(), msg);
-        }
-        return Result.fail(ResultCode.RC400);
+        // 自动处理所有校验异常
+        List<String> errors = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.toList());
+
+        return Result.fail(400, "参数校验失败", errors);
     }
 
     // https://mp.weixin.qq.com/s/vVBmqCbhmLXYjW1w8gsk3Q
     // {@code @PathVariable} 和 {@code @RequestParam} 参数校验不通过时抛出的异常处理
-    @ExceptionHandler({ConstraintViolationException.class})
-    public Result<?> handleConstraintViolationException(ConstraintViolationException ex) {
-        if (StringUtils.hasText(ex.getMessage())) {
-            return Result.fail(ResultCode.RC400.getCode(), ex.getMessage());
-        }
-        return Result.fail(ResultCode.RC400);
+    // 处理 @RequestParam + @Validated 校验异常
+    @ExceptionHandler(ConstraintViolationException.class)
+    public Result<?> handleConstraintViolation(ConstraintViolationException e) {
+        List<String> errors = e.getConstraintViolations()
+                .stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                .collect(Collectors.toList());
+        return Result.fail(400, "参数校验失败", errors);
     }
 
     // 处理 HTTP 消息不可读（如 JSON 格式错误）
