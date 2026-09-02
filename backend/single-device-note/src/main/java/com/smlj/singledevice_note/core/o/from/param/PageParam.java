@@ -1,9 +1,8 @@
-package com.smlj.singledevice_note.core.o.from;
+package com.smlj.singledevice_note.core.o.from.param;
 
 import jakarta.validation.constraints.Min;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.web.bind.annotation.RequestParam;
 
 // 用@ModelAttribute可以一次性接收多个参数
 

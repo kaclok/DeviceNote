@@ -1,15 +1,13 @@
-package com.smlj.singledevice_note.core.o.from;
+package com.smlj.singledevice_note.core.o.from.param;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.Date;
 
 // 用@ModelAttribute可以一次性接收多个参数
 // 并且@ModelAttribute和@RequestParam可以一起混合使用
 @Data
 @NoArgsConstructor
-public class DateParam {
-    private Date beginTime;     // 开始时间
-    private Date endTime;       // 结束时间
+public class SortParam {
+    private String sortField;          // 排序字段
+    private String sortOrder = "desc"; // asc 或 desc
 }
