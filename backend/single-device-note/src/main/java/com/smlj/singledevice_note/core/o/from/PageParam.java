@@ -1,11 +1,13 @@
 package com.smlj.singledevice_note.core.o.from;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 // 用@ModelAttribute可以一次性接收多个参数
 
 // 并且@ModelAttribute和@RequestParam可以一起混合使用
 @Data
+@NoArgsConstructor
 public class PageParam {
     private Integer pageNum;
     private Integer pageSize;
