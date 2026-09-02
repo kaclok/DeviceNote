@@ -29,7 +29,7 @@ public class CCarOp {
     }
 
     @GetMapping("/testxx")
-    public Result<?> testxx(Date dt) throws Exception {
+    public Result<?> testxx(Date dt) {
         return Result.success(dt);
     }
 }
