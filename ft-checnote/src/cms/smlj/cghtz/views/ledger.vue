@@ -1,7 +1,7 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
-import {downloadTemplate, exportContractExcel} from "../utils/ExcelX.js"
+import {downloadTemplate, exportContractExcel, exportFinanceExcel} from "../utils/ExcelX.js"
 import {useRouter, useRoute} from 'vue-router';
 import dayjs from 'dayjs';
 import gd from "../data/gd.json"
@@ -416,8 +416,8 @@ function removeContract(row) {
 }
 
 /* ---------------- 导出 ---------------- */
-function doExport() {
-    // 用当前筛选条件请求全量数据（不分页），导出所有匹配的合同
+// 基于当前 filters 生成无分页、全量查询所需参数（导出台账/导给财务两处复用）
+function buildCurrentFilterParas() {
     const fm = {
         id: filters.value.id,
         title: filters.value.title,
@@ -436,7 +436,13 @@ function doExport() {
         const v = fm[k]
         if (v !== '' && v != null) paras[k] = v
     }
-    ElMessage.info('正在导出，请稍候...')
+    return paras
+}
+
+// 按当前筛选条件拉全量合同数据（不分页），结果交给 onSuccess 回调
+function fetchAllFilteredContracts({loadingMsg, onSuccess}) {
+    const paras = buildCurrentFilterParas()
+    if (loadingMsg) ElMessage.info(loadingMsg)
     Singleton.getInstance(SysX).getContractList(paras, null, () => {
     }, (r, data) => {
         if (r) {
@@ -446,12 +452,37 @@ function doExport() {
                 ElMessage.warning('没有匹配的合同数据')
                 return
             }
-            exportContractExcel(allList, '合同台账_导出', signerOptions.value)
-            ElMessage.success(`已导出 ${allList.length} 条合同`)
+            onSuccess(allList)
         } else {
-            ElMessage.error('导出失败，请重试')
+            ElMessage.error(data?.data?.message || '拉取合同数据失败，请重试')
         }
     })
+}
+
+function doExport() {
+    fetchAllFilteredContracts({
+        loadingMsg: '正在导出，请稍候...',
+        onSuccess: (allList) => {
+            exportContractExcel(allList, '合同台账_导出', signerOptions.value)
+            ElMessage.success(`已导出 ${allList.length} 条合同`)
+        },
+    })
+}
+
+function doExportFinance() {
+    fetchAllFilteredContracts({
+        loadingMsg: '正在生成导给财务的 Excel，请稍候...',
+        onSuccess: (allList) => {
+            exportFinanceExcel(allList, '导给财务', signerOptions.value)
+            ElMessage.success(`已导出 ${allList.length} 条导给财务数据`)
+        },
+    })
+}
+
+/* 推送财务：ADMIN 专属；未来接入推送接口，目前空实现 */
+function doPushFinance() {
+    // TODO：接入推送财务接口
+    ElMessage.info('推送财务功能尚未接入，当前为占位实现')
 }
 
 /* ---------------- 跳转导入页 ---------------- */
@@ -525,6 +556,8 @@ function mills2DateStr(mills) {
                 <el-button v-hasPermission="['contract:create']" type="primary" @click="openCreate">＋ 新增合同</el-button>
                 <el-button v-hasPermission="['contract:import']" @click="gotoImport">📥 Excel 导入</el-button>
                 <el-button v-hasPermission="['contract:export']" @click="doExport">📤 导出 Excel</el-button>
+                <el-button v-hasRole="['EDITOR','ADMIN']" type="success" @click="doExportFinance">💵 导给财务</el-button>
+                <el-button v-hasRole="'ADMIN'" type="warning" @click="doPushFinance">📨 推送财务</el-button>
                 <!--                <el-button @click="downloadTemplate">⬇️ 下载模板</el-button>-->
             </div>
             <div class="toolbar-right">

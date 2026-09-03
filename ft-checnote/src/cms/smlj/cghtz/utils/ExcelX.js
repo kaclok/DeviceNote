@@ -149,6 +149,70 @@ export function exportContractExcel(rows, filename = '合同台账_导出', sign
     XLSX.writeFile(wb, `${filename}_${stamp}.xlsx`)
 }
 
+/* 金额保留两位小数（字符串形式，避免 xlsx 把 0 显示为空） */
+const FIX2 = (n) => {
+    const v = Number(n)
+    if (!Number.isFinite(v)) return '0.00'
+    return v.toFixed(2)
+}
+
+/**
+ * 导给财务：按制定 12 列表头编排导出（角色 >= EDITOR 才能调用）
+ * 列：序号、付款类型、供应商单位名称、付款事由、结算金额、已付金额、未付金额、
+ *     本次计划付款金额、计划电汇金额、计划承兑金额、备注、业务员
+ * 所有金额均保留两位小数
+ */
+export function exportFinanceExcel(rows, filename = '导给财务', signers = []) {
+    const headerRow = [
+        '序号', '付款类型', '供应商单位名称', '付款事由',
+        '结算金额', '已付金额', '未付金额',
+        '本次计划付款金额', '计划电汇金额', '计划承兑金额',
+        '备注', '业务员',
+    ]
+    const dataRows = rows.map((c, idx) => {
+        const settle = Number(c.settle_amount) || 0
+        const has = Number(c.has_amount) || 0
+        const remain = Math.max(0, settle - has)
+        return [
+            idx + 1,                              // 序号 1 起
+            '备品备件',                           // 付款类型固定
+            String(c.supplier || ''),             // 供应商
+            String(c.title || ''),                // 付款事由 = 合同 title
+            FIX2(settle),                         // 结算金额
+            FIX2(has),                            // 已付金额
+            FIX2(remain),                         // 未付金额 = 结算 - 已付
+            FIX2(remain),                         // 本次计划付款 = 未付金额
+            FIX2(remain),                         // 计划电汇 = 未付金额
+            FIX2(0),                              // 计划承兑 = 0
+            String(c.id || ''),                   // 备注 = 合同 id
+            USERNAME_FROM_ACCOUNT(c.sign_person, signers), // 业务员 account→username
+        ]
+    })
+
+    const aoa = [headerRow, ...dataRows]
+    const sheet = XLSX.utils.aoa_to_sheet(aoa)
+    // 列宽
+    sheet['!cols'] = [
+        {wch: 6},  // 序号
+        {wch: 12}, // 付款类型
+        {wch: 32}, // 供应商单位名称
+        {wch: 36}, // 付款事由
+        {wch: 14}, // 结算金额
+        {wch: 14}, // 已付金额
+        {wch: 14}, // 未付金额
+        {wch: 18}, // 本次计划付款金额
+        {wch: 16}, // 计划电汇金额
+        {wch: 16}, // 计划承兑金额
+        {wch: 22}, // 备注
+        {wch: 12}, // 业务员
+    ]
+    // 金额列按数字类型写入会更贴业务习惯，但用户明确"保留两位小数"，写字符串更保险
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, sheet, '导给财务')
+    const stamp = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `${filename}_${stamp}.xlsx`)
+}
+
 /* ---------------- 模板下载 ---------------- */
 export function downloadTemplate() {
     const fieldRow = FIELD_DEFS.map(d => d.field)
