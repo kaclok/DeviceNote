@@ -21,6 +21,7 @@ public interface TCGHTContractDao {
             , @Param("title") String title
             , @Param("sign_person") String sign_person
             , @Param("sign_type") Integer sign_type
+            , @Param("payment_type") Integer payment_type
             , @Param("supplier") String supplier
             , @Param("queryBegin") Date queryBegin
             , @Param("queryEnd") Date queryEnd
@@ -29,7 +30,7 @@ public interface TCGHTContractDao {
             , @Param("rkEnd") Date rkEnd
             , @Param("warn_day") Integer warn_day);
 
-    TCGHTContract query(@Param("id") String id);
+    TCGHTContract query(@Param("unique_id") String unique_id);
 
     int exist(@Param("id") String id);
 
@@ -38,10 +39,10 @@ public interface TCGHTContractDao {
     int update(@Param("c") TCGHTContract c);
 
     /**
-     * 逻辑作废：将 open_status 置 false。不物理删除。
+     * 逻辑作废：将 open_status 置 false。不物理删除。按 unique_id。
      */
-    int markInvalid(@Param("id") String id);
+    int markInvalid(@Param("unique_id") String unique_id);
 
-    /** 重新启用：将 open_status 置 true（复用作废合同时使用） */
-    int reactivate(@Param("id") String id);
+    /** 重新启用：将 open_status 置 true（复用作废合同时使用）。按 unique_id。 */
+    int reactivate(@Param("unique_id") String unique_id);
 }

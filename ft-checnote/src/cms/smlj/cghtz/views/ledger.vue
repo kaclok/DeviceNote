@@ -38,6 +38,7 @@ const filters = ref({
     title: '',
     sign_person: '',
     sign_type: '',
+    payment_type: '',
     supplier: '',
     dateFrom: null,
     dateTo: null,
@@ -75,6 +76,7 @@ onMounted(() => {
     if (q.title) filters.value.title = String(q.title)
     if (q.sign_person) filters.value.sign_person = String(q.sign_person)
     if (q.sign_type !== undefined && q.sign_type !== '') filters.value.sign_type = Number(q.sign_type)
+    if (q.payment_type !== undefined && q.payment_type !== '') filters.value.payment_type = Number(q.payment_type)
     if (q.supplier) filters.value.supplier = String(q.supplier)
     if (q.dateFrom) filters.value.dateFrom = String(q.dateFrom)
     if (q.dateTo) filters.value.dateTo = String(q.dateTo)
@@ -106,6 +108,7 @@ function loadList() {
         title: filters.value.title,
         sign_person: filters.value.sign_person,
         sign_type: filters.value.sign_type,
+        payment_type: filters.value.payment_type,
         supplier: filters.value.supplier,
         queryBegin: filters.value.dateFrom,
         queryEnd: filters.value.dateTo,
@@ -190,7 +193,7 @@ function calcRemainDay(date, payCycleMonth) {
 
 function resetFilters() {
     filters.value = {
-        id: '', title: '', sign_person: '', sign_type: '', supplier: '',
+        id: '', title: '', sign_person: '', sign_type: '', payment_type: '', supplier: '',
         dateFrom: null, dateTo: null,
         rkDateFrom: null, rkDateTo: null,
         finish_step: '',
@@ -225,9 +228,10 @@ function emptyForm() {
         amount: null,
         date_sign: '',
         sign_person: '',
-        sign_type: 0,
+        sign_type: '',
         supplier: '',
         pay_type: '',
+        payment_type: null,
         paycycle_dh: 0,
         paycycle_zb: 0,
         date_yfk: '',
@@ -253,6 +257,7 @@ const rules = {
     title: [{required: true, message: '请输入合同名称', trigger: 'blur'}],
     sign_person: [{required: true, message: '请选择签订人', trigger: 'change'}],
     sign_type: [{required: true, message: '请选择签订方式', trigger: 'change'}],
+    payment_type: [{required: true, message: '请选择付款类型', trigger: 'change'}],
     supplier: [{required: true, message: '请输入供应商', trigger: 'blur'}],
     amount: [{required: true, message: '请输入合同金额', trigger: 'blur'}],
     date_sign: [{required: true, message: '请选择签订时间', trigger: 'change'}],
@@ -267,15 +272,15 @@ function checkIdDup() {
     const id = String(form.value.id || '').trim()
     dupWarning.value = ''
     if (!id || isEdit.value) return
+    // 周期结算类(2)：id 可重复，不做唯一性校验
+    if (Number(form.value.payment_type) === 2) return
     AC_checkId.abort()
     AC_checkId = new AbortController()
     Singleton.getInstance(SysX).checkNoExists({id}, AC_checkId.signal, () => {
     }, (r, data) => {
         if (r) {
-            // MockX.checkNoExists 返回 {code,msg,data: true/false}
-            // 后端兜底也返回 {code,msg,data: succ.data.data != null}
             const exists = data?.data?.data === true || data?.data === true
-            if (exists) dupWarning.value = `合同编号 ${id} 已存在，禁止重复录入！`
+            if (exists) dupWarning.value = `即时结算类合同编号 ${id} 已存在，禁止重复录入！`
         }
     })
 }
@@ -372,6 +377,9 @@ function saveContract() {
             const n = Number(edited[k])
             edited[k] = Number.isNaN(n) ? 0 : parseInt(n, 10)
         })
+        // payment_type：可空整型，null = 未选择
+        const ptNum = Number(edited.payment_type)
+        edited.payment_type = Number.isNaN(ptNum) ? null : parseInt(ptNum, 10)
         // 布尔字段归一化；finish_step 为 int：0-未开始，1-预付款，2-到货款，3-质保款
         const fNum = Number(edited.finish_step)
         edited.finish_step = Number.isNaN(fNum) ? 0 : parseInt(fNum, 10)
@@ -402,7 +410,7 @@ function saveContract() {
 /* ---------------- 作废 ---------------- */
 function removeContract(row) {
     ElMessageBox.confirm(`确定作废合同 ${row.id} 吗？作废后不可恢复。`, '作废确认', {type: 'warning'}).then(() => {
-        Singleton.getInstance(SysX).deleteContract({id: row.id}, new AbortController().signal, () => {
+        Singleton.getInstance(SysX).deleteContract({unique_id: row.unique_id}, new AbortController().signal, () => {
         }, (r, data) => {
             if (r) {
                 ElMessage.success('已作废')
@@ -423,6 +431,7 @@ function buildCurrentFilterParas() {
         title: filters.value.title,
         sign_person: filters.value.sign_person,
         sign_type: filters.value.sign_type === '' || filters.value.sign_type == null ? null : Number(filters.value.sign_type),
+        payment_type: filters.value.payment_type === '' || filters.value.payment_type == null ? null : Number(filters.value.payment_type),
         supplier: filters.value.supplier,
         queryBegin: filters.value.dateFrom,
         queryEnd: filters.value.dateTo,
@@ -519,6 +528,11 @@ function mills2DateStr(mills) {
                         <el-option v-for="(m, index) in methodOptions" :key="m.id" :label="m.desc" :value="m.id"/>
                     </el-select>
                 </el-form-item>
+                <el-form-item label="付款类型">
+                    <el-select v-model="filters.payment_type" placeholder="全部" clearable style="width:130px">
+                        <el-option v-for="pt in gd.payment_type" :key="pt.id" :label="pt.desc" :value="pt.id"/>
+                    </el-select>
+                </el-form-item>
                 <el-form-item label="供应商">
                     <el-input v-model="filters.supplier" placeholder="模糊搜索" clearable style="width:160px" @keyup.enter="applyFilters"/>
                 </el-form-item>
@@ -571,7 +585,7 @@ function mills2DateStr(mills) {
                 <el-table-column prop="id" label="合同编号" width="160" fixed="left">
                     <template #default="{row}"><b style="color:#2563eb">{{ row.id }}</b></template>
                 </el-table-column>
-                <el-table-column prop="title" label="合同名称" min-width="150" show-overflow-tooltip/>
+                <el-table-column prop="title" label="合同名称" min-width="165" show-overflow-tooltip/>
                 <el-table-column prop="amount" label="合同金额(元)" width="120" align="right">
                     <template #default="{row}"><span class="money">{{ formatMoney(row.amount) }}</span></template>
                 </el-table-column>
@@ -672,6 +686,13 @@ function mills2DateStr(mills) {
                     <el-col :span="12">
                         <el-form-item label="付款方式">
                             <el-input v-model="form.pay_type" placeholder="例：货到票到3个月付款"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="付款类型" prop="payment_type">
+                            <el-select v-model="form.payment_type" placeholder="请选择" style="width:100%" @change="checkIdDup">
+                                <el-option v-for="pt in gd.payment_type" :key="pt.id" :label="pt.desc" :value="pt.id"/>
+                            </el-select>
                         </el-form-item>
                     </el-col>
                 </el-row>

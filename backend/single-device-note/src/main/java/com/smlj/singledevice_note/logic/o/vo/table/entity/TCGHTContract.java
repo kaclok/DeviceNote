@@ -16,6 +16,8 @@ public class TCGHTContract implements Serializable {
     // private static final long serialVersionUID = 1;
 
     private String id;
+    /** 主键（自动生成），即时结算类唯一校验按 id，周期结算类允许 id 重复但 unique_id 不同 */
+    private String unique_id;
     private String title;
     private float amount;
     // @DateTimeFormat(pattern = "yyyy-MM-dd")
@@ -36,6 +38,8 @@ public class TCGHTContract implements Serializable {
     private String bz;
 
     private String pay_type;
+    /** 付款类型：1-即时结算类 2-周期结算类 */
+    private Integer payment_type;
     private float settle_amount;
     /** 已付款金额（元） */
     private float has_amount;

@@ -39,6 +39,22 @@ const ACCOUNT_FROM_USERNAME = (username, signers) => {
     return s ? s.account : String(username || '')
 }
 
+/* 付款类型 int ↔ 文本：1-即时结算类 2-周期结算类 */
+const PAYMENT_TYPE_CODE_TO_STR = (i) => {
+    const n = Number(i)
+    if (n === 1) return '即时结算类'
+    if (n === 2) return '周期结算类'
+    return ''
+}
+const PAYMENT_TYPE_STR_TO_CODE = (v) => {
+    const num = Number(v)
+    if (num === 1 || num === 2) return num
+    const s = String(v ?? '').trim()
+    if (s.includes('即时')) return 1
+    if (s.includes('周期')) return 2
+    return null
+}
+
 /* 是/否 → boolean，空值默认 false */
 const YES_NO_TO_BOOL = (v) => {
     if (v === true || v === 1) return true
@@ -92,6 +108,7 @@ const FIELD_DEFS = [
     {field: 'amount', header: '合同金额(元)', required: true, type: 'float'},
     {field: 'date_sign', header: '签订时间', required: true, type: 'date'},
     {field: 'pay_type', header: '付款方式'},
+    {field: 'payment_type', header: '付款类型'},
     {field: 'paycycle_dh', header: '到货付款周期(月)', type: 'float'},
     {field: 'paycycle_zb', header: '质保付款周期(月)', type: 'float'},
     {field: 'settle_amount', header: '结算金额(元)', type: 'float'},
@@ -128,6 +145,7 @@ export function exportContractExcel(rows, filename = '合同台账_导出', sign
             let v = c[field]
             if (v === undefined || v === null) v = ''
             if (field === 'sign_type') v = SIGN_CODE_TO_STR(v)
+            else if (field === 'payment_type') v = PAYMENT_TYPE_CODE_TO_STR(v)
             else if (field === 'sign_person') v = USERNAME_FROM_ACCOUNT(v, signers)
             else if (field === 'finish_step') v = FINISHED_INT_TO_STR(v)
             else if (type === 'date') v = formatExportDate(v)
@@ -173,6 +191,10 @@ export function exportFinanceExcel(rows, filename = '导给财务', signers = []
         const settle = Number(c.settle_amount) || 0
         const has = Number(c.has_amount) || 0
         const remain = Math.max(0, settle - has)
+        // 即时结算类(1)：备注=id；周期结算类(2)：备注=id + bz
+        const remark = Number(c.payment_type) === 1
+            ? String(c.id || '')
+            : String(c.id || '') + String(c.bz || '')
         return [
             idx + 1,                              // 序号 1 起
             '备品备件',                           // 付款类型固定
@@ -184,7 +206,7 @@ export function exportFinanceExcel(rows, filename = '导给财务', signers = []
             FIX2(remain),                         // 本次计划付款 = 未付金额
             FIX2(remain),                         // 计划电汇 = 未付金额
             FIX2(0),                              // 计划承兑 = 0
-            String(c.id || ''),                   // 备注 = 合同 id
+            remark,                               // 备注
             USERNAME_FROM_ACCOUNT(c.sign_person, signers), // 业务员 account→username
         ]
     })
@@ -221,6 +243,7 @@ export function downloadTemplate() {
         const ex = EXAMPLE_ROW[field]
         if (ex === undefined) return ''
         if (field === 'sign_type') return SIGN_CODE_TO_STR(ex)
+        if (field === 'payment_type') return PAYMENT_TYPE_CODE_TO_STR(ex)
         if (field === 'finish_step') return FINISHED_INT_TO_STR(ex)
         if (type === 'date') return formatExportDate(ex)
         return ex
@@ -247,6 +270,7 @@ const EXAMPLE_ROW = {
     sign_type: 0,
     supplier: '榆林景云五金机电设备有限公司',
     pay_type: '货到票到3个月付款',
+    payment_type: 1,
     paycycle_dh: 3,
     paycycle_zb: 12,
     date_yfk: '',
@@ -317,7 +341,7 @@ export function parseContractExcel(file, signers = []) {
                 // 跳过英文字段名行之后的表头行（中文表头/说明行），找到真正的数据起始行
                 // 判断依据：行中包含中文表头关键词 → 视为表头，跳过
                 const HEADER_KEYWORDS = ['合同编号', '合同名称', '签订人', '供应商', '合同金额', '签订时间',
-                    '付款方式', '签订方式', '到货付款', '质保付款', '结算金额', '货期', '移交日期', '到货日期', '挂账日期',
+                    '付款方式', '付款类型', '签订方式', '到货付款', '质保付款', '结算金额', '货期', '移交日期', '到货日期', '挂账日期',
                     '预付款日期', '到货款日期', '质保金付款日期', '备注', '序号',
                     '财务完结', '合同签订方式']
                 const isHeaderLike = (row) => {
@@ -363,6 +387,8 @@ export function parseContractExcel(file, signers = []) {
 
                         // sign_type：收中文，转成 int code
                         if (field === 'sign_type') v = v !== '' && v !== null ? SIGN_STR_TO_CODE(v) : null
+                        // payment_type：收中文，转成 int code
+                        if (field === 'payment_type') v = v !== '' && v !== null ? PAYMENT_TYPE_STR_TO_CODE(v) : null
                         // finish_step：收中文/数字，转成 int 进度
                         if (field === 'finish_step') v = FINISHED_STR_TO_INT(v)
                         // sign_person：收中文姓名，转成 account

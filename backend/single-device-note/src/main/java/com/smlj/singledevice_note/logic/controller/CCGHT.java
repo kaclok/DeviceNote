@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
 
@@ -240,6 +241,7 @@ public class CCGHT {
             @RequestParam(name = "title", required = false) String title,
             @RequestParam(name = "sign_person", required = false) String sign_person,
             @RequestParam(name = "sign_type", required = false) Integer sign_type,
+            @RequestParam(name = "payment_type", required = false) Integer payment_type,
             @RequestParam(name = "supplier", required = false) String supplier,
             @RequestParam(name = "queryBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryBegin,
             @RequestParam(name = "queryEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryEnd,
@@ -250,16 +252,20 @@ public class CCGHT {
             @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
             @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = contractDao.queryAll(id, title, sign_person, sign_type, supplier, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day);
+        var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day);
         return Result.success(new PageSerializable<>(ls));
     }
 
     @Transactional
     @PostMapping(value = "/contract/get")
-    public Result<?> contractGet(@RequestParam(name = "id", required = false) String id) {
-        if (id == null || id.isBlank()) return Result.fail(ResultCode.RC10101, "合同编号(id)不能为空");
-        TCGHTContract c = contractDao.query(id);
-        if (c == null || !c.isOpen_status()) return Result.fail(ResultCode.RC10103, "目标合同不存在");
+    public Result<?> contractGet(@RequestParam(name = "unique_id", required = false) String unique_id) {
+        if (unique_id == null || unique_id.isBlank()) {
+            return Result.fail(ResultCode.RC10101, "unique_id 不能为空");
+        }
+        TCGHTContract c = contractDao.query(unique_id);
+        if (c == null || !c.isOpen_status()) {
+            return Result.fail(ResultCode.RC10103, "目标合同不存在");
+        }
         return Result.success(c);
     }
 
@@ -270,48 +276,50 @@ public class CCGHT {
         if (c == null || c.getId() == null || c.getId().isBlank()) {
             return Result.fail(ResultCode.RC10101, "合同编号(id)不能为空");
         }
-        TCGHTContract old = contractDao.query(c.getId());
-        if (old == null) {
-            // 全新合同：新建
-            contractDao.insert(c);
-            return Result.success(contractDao.query(c.getId()));
+
+        // 即时结算类(1)：id 必须唯一；周期结算类(2)：id 可重复
+        if (c.getPayment_type() != null && c.getPayment_type() == 1) {
+            if (contractDao.exist(c.getId()) > 0) {
+                return new Result<>(ResultCode.RC10102.getCode(),
+                        String.format("即时结算类合同编号 %s 已存在，禁止重复录入", c.getId()));
+            }
         }
 
-        if (old.isOpen_status()) {
-            // 合同已存在且启用中：拒绝重复录入
-            Map<String, Object> data = new HashMap<>();
-            data.put("duplicate", true);
-            return new Result<>(ResultCode.RC10102.getCode(), String.format("合同编号 %s 已存在，禁止重复录入", c.getId()));
-        }
-
-        // 合同已存在但已作废：复用，更新所有业务字段并重新启用
-        BeanUtils.copyProperties(c, old, "id", "open_status");
-        contractDao.update(old);
-        contractDao.reactivate(c.getId());
-        return Result.success(contractDao.query(c.getId()));
+        // 生成 unique_id 作为主键
+        c.setUnique_id(UUID.randomUUID().toString().replace("-", ""));
+        contractDao.insert(c);
+        return Result.success(c);
     }
 
     @RequirePermission("contract:update")
     @Transactional
     @PostMapping(value = "/contract/update")
     public Result<?> contractUpdate(@RequestBody TCGHTContract c) {
-        if (c == null || c.getId() == null || c.getId().isBlank()) {
-            return Result.fail(ResultCode.RC10101, "合同编号(id)不能为空");
+        if (c == null || c.getUnique_id() == null || c.getUnique_id().isBlank()) {
+            return Result.fail(ResultCode.RC10101, "unique_id 不能为空");
         }
-        TCGHTContract old = contractDao.query(c.getId());
-        if (old == null) return Result.fail(ResultCode.RC10103, "目标合同不存在");
-        BeanUtils.copyProperties(c, old, "id", "open_status");
+        TCGHTContract old = contractDao.query(c.getUnique_id());
+        if (old == null) {
+            return Result.fail(ResultCode.RC10103, "目标合同不存在");
+        }
+        // 保留 unique_id 和 open_status，其余从 c 拷贝
+        BeanUtils.copyProperties(c, old, "unique_id", "open_status");
         contractDao.update(old);
-        return Result.success(contractDao.query(c.getId()));
+        return Result.success(old);
     }
 
     @RequirePermission("contract:delete")
     @Transactional
     @PostMapping(value = "/contract/delete")
-    public Result<?> contractDelete(@RequestParam(name = "id", required = false) String id) {
-        if (id == null || id.isBlank()) return Result.fail(ResultCode.RC10101, "合同编号(id)不能为空");
-        if (contractDao.exist(id) <= 0) return Result.fail(ResultCode.RC10103, "目标合同不存在");
-        contractDao.markInvalid(id);
+    public Result<?> contractDelete(@RequestParam(name = "unique_id", required = false) String unique_id) {
+        if (unique_id == null || unique_id.isBlank()) {
+            return Result.fail(ResultCode.RC10101, "unique_id 不能为空");
+        }
+        TCGHTContract c = contractDao.query(unique_id);
+        if (c == null) {
+            return Result.fail(ResultCode.RC10103, "目标合同不存在");
+        }
+        contractDao.markInvalid(unique_id);
         return Result.success();
     }
 
@@ -324,19 +332,38 @@ public class CCGHT {
         }
         int okCnt = 0;
         List<Map<String, Object>> failRows = new ArrayList<>();
-        Set<String> batchIds = new HashSet<>();
+        // 批次内即时结算类 id 去重
+        Set<String> batchInstantIds = new HashSet<>();
         for (int i = 0; i < rows.size(); i++) {
             TCGHTContract c = rows.get(i);
             List<String> reasons = new ArrayList<>();
             String id = c.getId();
-            if (id == null || id.isBlank()) reasons.add("合同编号为空");
-            else if (contractDao.exist(id) > 0) reasons.add("合同编号已存在");
-            else if (batchIds.contains(id)) reasons.add("合同编号在本批次中重复");
-            else batchIds.add(id);
-            if (c.getTitle() == null || c.getTitle().isBlank()) reasons.add("合同名称必填");
-            if (c.getSupplier() == null || c.getSupplier().isBlank()) reasons.add("供应商必填");
-            if (c.getDate_sign() == null) reasons.add("签订时间必填");
+            if (id == null || id.isBlank()) {
+                reasons.add("合同编号为空");
+            } else {
+                // 即时结算类(1)：id 唯一校验（DB + 批次内）；周期结算类(2)：跳过 id 唯一校验
+                boolean isInstant = c.getPayment_type() != null && c.getPayment_type() == 1;
+                if (isInstant) {
+                    if (contractDao.exist(id) > 0) {
+                        reasons.add("即时结算类合同编号已存在");
+                    } else if (batchInstantIds.contains(id)) {
+                        reasons.add("即时结算类合同编号在本批次中重复");
+                    } else {
+                        batchInstantIds.add(id);
+                    }
+                }
+            }
+            if (c.getTitle() == null || c.getTitle().isBlank()) {
+                reasons.add("合同名称必填");
+            }
+            if (c.getSupplier() == null || c.getSupplier().isBlank()) {
+                reasons.add("供应商必填");
+            }
+            if (c.getDate_sign() == null) {
+                reasons.add("签订时间必填");
+            }
             if (reasons.isEmpty()) {
+                c.setUnique_id(UUID.randomUUID().toString().replace("-", ""));
                 contractDao.insert(c);
                 okCnt++;
             } else {

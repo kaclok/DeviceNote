@@ -41,6 +41,16 @@
 			"desc": "其他"
 		}
 	],
+	"payment_type": [
+		{
+			"id": 1,
+			"desc": "即时结算类"
+		},
+		{
+			"id": 2,
+			"desc": "周期结算类"
+		}
+	],
 	"yesNoOptions": [
 		"是",
 		"否"

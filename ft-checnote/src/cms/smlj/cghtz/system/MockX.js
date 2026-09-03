@@ -36,8 +36,8 @@ const CONTRACTS = hd.contracts
 
 /* ---------------- 合同字段白名单（用于 create/update/import 接收合法字段） ---------------- */
 const CONTRACT_FIELDS = [
-    "id", "title", "amount", "date_sign", "sign_person", "sign_type", "supplier",
-    "pay_type", "paycycle_dh", "paycycle_zb",
+    "unique_id", "id", "title", "amount", "date_sign", "sign_person", "sign_type", "supplier",
+    "pay_type", "payment_type", "paycycle_dh", "paycycle_zb",
     "date_yfk", "date_dhk", "date_zbj", "date_rk",
     "bz", "settle_amount", "has_amount", "hq",
     "date_htyj", "date_fpyj", "date_actual_dh", "date_ruzlyj",
@@ -50,7 +50,7 @@ const FLOAT_FIELDS = [
     "settle_amount", "has_amount",
 ]
 /* 整数字段 */
-const INT_FIELDS = ["hq", "sign_type", "finish_step"]
+const INT_FIELDS = ["hq", "sign_type", "payment_type", "finish_step"]
 /* 布尔字段 */
 const BOOL_FIELDS = []
 
@@ -72,6 +72,17 @@ function normalizeContract(raw = {}) {
         else out[k] = raw[k]
     })
     return out
+}
+
+/* 生成唯一 unique_id（简单递增 + 随机后缀） */
+function genUniqueId(db) {
+    const prefix = 'u'
+    let max = 0
+    db.contracts.forEach(c => {
+        const m = String(c.unique_id || '').match(/^u(\d+)/)
+        if (m) max = Math.max(max, parseInt(m[1], 10))
+    })
+    return prefix + (max + 1) + Date.now().toString(36).slice(-4)
 }
 
 /* ---------------- Mock 单例 ---------------- */
@@ -176,9 +187,9 @@ export class MockX {
         return ok({list, total});
     }
 
-    static getContract(id) {
+    static getContract(unique_id) {
         const db = loadDB();
-        const c = db.contracts.find(x => x.id === id);
+        const c = db.contracts.find(x => x.unique_id === unique_id);
         if (!c) return ok(null);
         return ok({...c});
     }
@@ -190,10 +201,13 @@ export class MockX {
 
     static createContract(paras) {
         const db = loadDB();
-        if (db.contracts.find(c => c.id.toLowerCase() === paras.id.toLowerCase())) {
-            return {code: __OK__, msg: `合同编号 ${paras.id} 已存在，禁止重复录入`, data: {duplicate: true}};
+        // 即时结算类(1)：id 必须唯一；周期结算类(2)：id 可重复
+        const isInstant = Number(paras.payment_type) === 1
+        if (isInstant && db.contracts.find(c => c.id.toLowerCase() === paras.id.toLowerCase() && c.open_status !== false)) {
+            return {code: __OK__, msg: `即时结算类合同编号 ${paras.id} 已存在，禁止重复录入`, data: {duplicate: true}};
         }
         const c = normalizeContract(paras);
+        c.unique_id = genUniqueId(db)
         db.contracts.push(c);
         saveDB(db);
         return ok(c);
@@ -201,17 +215,19 @@ export class MockX {
 
     static updateContract(paras) {
         const db = loadDB();
-        const idx = db.contracts.findIndex(c => c.id === paras.id);
+        const idx = db.contracts.findIndex(c => c.unique_id === paras.unique_id);
         if (idx < 0) return {code: __OK__, msg: "合同不存在", data: {}};
         const old = db.contracts[idx];
         db.contracts[idx] = normalizeContract({...old, ...paras});
+        // 保留 unique_id 不被覆盖
+        db.contracts[idx].unique_id = old.unique_id
         saveDB(db);
         return ok(db.contracts[idx]);
     }
 
-    static deleteContract(id) {
+    static deleteContract(unique_id) {
         const db = loadDB();
-        db.contracts = db.contracts.filter(c => c.id !== id);
+        db.contracts = db.contracts.filter(c => c.unique_id !== unique_id);
         saveDB(db);
         return ok(true);
     }
@@ -220,11 +236,23 @@ export class MockX {
         const db = loadDB();
         const failRows = [];
         let okCnt = 0;
+        const batchInstantIds = new Set()
         rows.forEach((r, i) => {
             const id = String(r.id || "").trim();
             const reasons = [];
             if (!id) reasons.push("合同编号为空");
-            else if (db.contracts.find(c => c.id.toLowerCase() === id.toLowerCase())) reasons.push("合同编号重复");
+            else {
+                // 即时结算类(1)：id 唯一校验；周期结算类(2)：跳过
+                const isInstant = Number(r.payment_type) === 1
+                if (isInstant) {
+                    if (db.contracts.find(c => c.id.toLowerCase() === id.toLowerCase() && c.open_status !== false))
+                        reasons.push("即时结算类合同编号重复");
+                    else if (batchInstantIds.has(id))
+                        reasons.push("即时结算类合同编号在本批次中重复");
+                    else
+                        batchInstantIds.add(id);
+                }
+            }
             if (!r.title) reasons.push("合同名称必填");
             if (!r.supplier) reasons.push("供应商必填");
             if (isNaN(Number(r.amount))) reasons.push("合同金额格式错误");
@@ -233,7 +261,9 @@ export class MockX {
                 failRows.push({row: i + 2, id: id || "-", title: r.title || "", reason: reasons.join("；")});
                 return;
             }
-            db.contracts.push(normalizeContract(r));
+            const c = normalizeContract(r)
+            c.unique_id = genUniqueId(db)
+            db.contracts.push(c);
             okCnt++;
         });
         saveDB(db);

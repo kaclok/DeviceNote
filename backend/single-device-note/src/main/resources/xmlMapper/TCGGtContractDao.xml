@@ -6,7 +6,7 @@
 
     <!-- ============ 公共字段集合 ============ -->
     <sql id="base_cols">
-        id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type,
+        unique_id, id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type, payment_type,
         paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
@@ -30,6 +30,9 @@
         </if>
         <if test="sign_type != null">
             and sign_type = #{sign_type}
+        </if>
+        <if test="payment_type != null">
+            and payment_type = #{payment_type}
         </if>
         <if test="supplier != null and supplier != ''">
             and supplier like concat('%', #{supplier}, '%')
@@ -65,30 +68,30 @@
         order by id asc
     </select>
 
-    <!-- ============ 单条查询 ============ -->
+    <!-- ============ 单条查询（按 unique_id） ============ -->
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
         select
         <include refid="base_cols"/>
         from cght.t_contract
-        where id = #{id}
+        where unique_id = #{unique_id}
     </select>
 
-    <!-- ============ 存在校验 ============ -->
+    <!-- ============ 存在校验：即时结算类按 id 唯一校验 ============ -->
     <select id="exist" resultType="java.lang.Integer">
-        SELECT COUNT(*) FROM cght.t_contract WHERE id = #{id}
+        SELECT COUNT(*) FROM cght.t_contract WHERE id = #{id} and open_status = true
     </select>
 
     <!-- ============ 新增 ============ -->
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
         insert into cght.t_contract (
-        id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type,
+        unique_id, id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type, payment_type,
         paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
         finish_step, open_status
         ) values (
-        #{c.id}, #{c.title}, #{c.amount}, #{c.date_sign}, #{c.sign_person}, #{c.sign_type},
-        #{c.supplier}, #{c.pay_type},
+        #{c.unique_id}, #{c.id}, #{c.title}, #{c.amount}, #{c.date_sign}, #{c.sign_person}, #{c.sign_type},
+        #{c.supplier}, #{c.pay_type}, #{c.payment_type},
         #{c.paycycle_dh}, #{c.paycycle_zb},
         #{c.date_yfk}, #{c.date_dhk}, #{c.date_zbj}, #{c.date_rk},
         #{c.bz}, #{c.settle_amount}, #{c.has_amount}, #{c.hq},
@@ -97,10 +100,11 @@
         )
     </insert>
 
-    <!-- ============ 更新（全量）：按 id 更新所有业务字段 ============ -->
+    <!-- ============ 更新（全量）：按 unique_id 更新所有业务字段 ============ -->
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
         update cght.t_contract
         <set>
+            id = #{c.id},
             title = #{c.title},
             amount = #{c.amount},
             date_sign = #{c.date_sign},
@@ -108,6 +112,7 @@
             sign_type = #{c.sign_type},
             supplier = #{c.supplier},
             pay_type = #{c.pay_type},
+            payment_type = #{c.payment_type},
             paycycle_dh = #{c.paycycle_dh},
             paycycle_zb = #{c.paycycle_zb},
             date_yfk = #{c.date_yfk},
@@ -124,16 +129,16 @@
             date_ruzlyj = #{c.date_ruzlyj},
             finish_step = #{c.finish_step}
         </set>
-        where id = #{c.id}
+        where unique_id = #{c.unique_id}
     </update>
 
-    <!-- ============ 逻辑作废（不物理删除） ============ -->
+    <!-- ============ 逻辑作废（不物理删除）：按 unique_id ============ -->
     <update id="markInvalid">
-        update cght.t_contract set open_status = false where id = #{id}
+        update cght.t_contract set open_status = false where unique_id = #{unique_id}
     </update>
 
-    <!-- ============ 重新启用（复用作废合同时使用） ============ -->
+    <!-- ============ 重新启用：按 unique_id ============ -->
     <update id="reactivate">
-        update cght.t_contract set open_status = true where id = #{id}
+        update cght.t_contract set open_status = true where unique_id = #{unique_id}
     </update>
 </mapper>
