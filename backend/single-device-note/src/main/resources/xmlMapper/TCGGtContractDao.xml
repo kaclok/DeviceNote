@@ -9,7 +9,7 @@
         id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type,
         paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
-        bz, settle_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
+        bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
         finish_step, open_status
     </sql>
 
@@ -84,14 +84,14 @@
         id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type,
         paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
-        bz, settle_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
+        bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
         finish_step, open_status
         ) values (
         #{c.id}, #{c.title}, #{c.amount}, #{c.date_sign}, #{c.sign_person}, #{c.sign_type},
         #{c.supplier}, #{c.pay_type},
         #{c.paycycle_dh}, #{c.paycycle_zb},
         #{c.date_yfk}, #{c.date_dhk}, #{c.date_zbj}, #{c.date_rk},
-        #{c.bz}, #{c.settle_amount}, #{c.hq},
+        #{c.bz}, #{c.settle_amount}, #{c.has_amount}, #{c.hq},
         #{c.date_htyj}, #{c.date_fpyj}, #{c.date_actual_dh}, #{c.date_ruzlyj},
         #{c.finish_step}, true
         )
@@ -116,6 +116,7 @@
             date_rk = #{c.date_rk},
             bz = #{c.bz},
             settle_amount = #{c.settle_amount},
+            has_amount = #{c.has_amount},
             hq = #{c.hq},
             date_htyj = #{c.date_htyj},
             date_fpyj = #{c.date_fpyj},

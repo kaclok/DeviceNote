@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Data
 public class TokenReqTuple {
-    private String username;
+    private String account;
     private String password;
+    private String captcha;
 }

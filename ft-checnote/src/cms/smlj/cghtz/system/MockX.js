@@ -39,7 +39,7 @@ const CONTRACT_FIELDS = [
     "id", "title", "amount", "date_sign", "sign_person", "sign_type", "supplier",
     "pay_type", "paycycle_dh", "paycycle_zb",
     "date_yfk", "date_dhk", "date_zbj", "date_rk",
-    "bz", "settle_amount", "hq",
+    "bz", "settle_amount", "has_amount", "hq",
     "date_htyj", "date_fpyj", "date_actual_dh", "date_ruzlyj",
     "finish_step",
 ]
@@ -47,7 +47,7 @@ const CONTRACT_FIELDS = [
 /* 浮点字段（导入/创建时统一转 Number） */
 const FLOAT_FIELDS = [
     "amount", "paycycle_dh", "paycycle_zb",
-    "settle_amount",
+    "settle_amount", "has_amount",
 ]
 /* 整数字段 */
 const INT_FIELDS = ["hq", "sign_type", "finish_step"]

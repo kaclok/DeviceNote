@@ -206,7 +206,7 @@ function onSortChange({prop, order}) {
 }
 
 function formatMoney(v) {
-    return Number(v || 0).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})
+    return Number(v || 0).toLocaleString('zh-CN', {minimumFractionDigits: 1, maximumFractionDigits: 1})
 }
 
 /* ---------------- 新增 / 编辑 ---------------- */
@@ -236,6 +236,7 @@ function emptyForm() {
         date_rk: '',
         bz: '',
         settle_amount: 0,
+        has_amount: 0,
         hq: 0,
         date_htyj: '',
         date_fpyj: '',
@@ -361,7 +362,7 @@ function saveContract() {
         // sign_type 强转 int（下拉 value 是 0-7 int）
         edited.sign_type = Number.isFinite(+edited.sign_type) ? parseInt(edited.sign_type, 10) : 0
         // 数字字段归一化
-        const floatKeys = ['amount', 'paycycle_dh', 'paycycle_zb', 'settle_amount']
+        const floatKeys = ['amount', 'paycycle_dh', 'paycycle_zb', 'settle_amount', 'has_amount']
         floatKeys.forEach(k => {
             const n = Number(edited[k])
             edited[k] = Number.isNaN(n) ? 0 : n
@@ -538,7 +539,7 @@ function mills2DateStr(mills) {
                     <template #default="{row}"><b style="color:#2563eb">{{ row.id }}</b></template>
                 </el-table-column>
                 <el-table-column prop="title" label="合同名称" min-width="150" show-overflow-tooltip/>
-                <el-table-column prop="amount" label="合同金额(元)" width="110" align="right">
+                <el-table-column prop="amount" label="合同金额(元)" width="120" align="right">
                     <template #default="{row}"><span class="money">{{ formatMoney(row.amount) }}</span></template>
                 </el-table-column>
                 <el-table-column prop="date_sign" label="签订日期" width="97">
@@ -661,6 +662,11 @@ function mills2DateStr(mills) {
                     <el-col :span="12">
                         <el-form-item label="结算金额(元)">
                             <el-input-number v-model="form.settle_amount" :min="0" :precision="2" :controls="false" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="已付款(元)">
+                            <el-input-number v-model="form.has_amount" :min="0" :precision="2" :controls="false" style="width:100%"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">

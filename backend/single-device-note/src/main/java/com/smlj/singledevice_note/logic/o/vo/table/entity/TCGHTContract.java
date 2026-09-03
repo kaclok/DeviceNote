@@ -18,32 +18,36 @@ public class TCGHTContract implements Serializable {
     private String id;
     private String title;
     private float amount;
-    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    // @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_sign;
     private String sign_person;
     private Integer sign_type;
     private String supplier;
     private float paycycle_dh;
     private float paycycle_zb;
-    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    // @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_yfk;
-    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    // @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_dhk;
-    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    // @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_zbj;
-    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    // @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_rk;
     private String bz;
 
     private String pay_type;
     private float settle_amount;
+    /** 已付款金额（元） */
+    private float has_amount;
     private int hq;
     private String date_htyj;
     private String date_fpyj;
     private String date_actual_dh;
     private String date_ruzlyj;
 
-    /** 财务环节进度：0-未完结 1-预付款 2-到货款 3-质保款(完结) */
+    /**
+     * 财务环节进度：0-未完结 1-预付款 2-到货款 3-质保款(完结)
+     */
     private Integer finish_step;
     private boolean open_status;
 }
