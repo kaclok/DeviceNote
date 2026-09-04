@@ -55,6 +55,14 @@ spring:
   jackson: # restful格式转换json的时候，null不转换
     default-property-inclusion: NON_EMPTY
 
+      # 关键配置：关闭时间戳模式
+#    serialization:
+#      write-dates-as-timestamps: false
+#    # 指定日期格式
+#    date-format: yyyy-MM-dd HH:mm:ss.SSS
+#    # 时区（重要！否则会有8小时差）
+#    time-zone: Asia/Shanghai
+
   devtools:
     restart:
       enabled: true
