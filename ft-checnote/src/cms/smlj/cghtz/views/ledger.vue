@@ -548,7 +548,7 @@ function mills2DateStr(mills) {
                 <el-button v-hasPermission="['contract:import']" @click="gotoImport">📥 Excel 导入</el-button>
                 <el-button v-hasPermission="['contract:export']" @click="doExport">📤 导出 Excel</el-button>
                 <el-button v-hasRole="['EDITOR','ADMIN']" type="success" @click="doExportFinance">💵 导给财务</el-button>
-                <el-button v-hasRole="'ADMIN'" type="warning" @click="doPushFinance">📨 推送财务</el-button>
+                <!--                <el-button v-hasRole="'ADMIN'" type="warning" @click="doPushFinance">📨 推送财务</el-button>-->
                 <!--                <el-button @click="downloadTemplate">⬇️ 下载模板</el-button>-->
             </div>
             <div class="toolbar-right">

@@ -108,7 +108,6 @@ const FIELD_DEFS = [
     {field: 'amount', header: '合同金额(元)', required: true, type: 'float'},
     {field: 'date_sign', header: '签订时间', required: true, type: 'date'},
     {field: 'pay_type', header: '付款方式'},
-    {field: 'payment_type', header: '付款类型'},
     {field: 'paycycle_dh', header: '到货付款周期(月)', type: 'float'},
     {field: 'paycycle_zb', header: '质保付款周期(月)', type: 'float'},
     {field: 'settle_amount', header: '结算金额(元)', type: 'float'},
@@ -123,6 +122,8 @@ const FIELD_DEFS = [
     {field: 'date_zbj', header: '质保金付款日期', type: 'date'},
     {field: 'bz', header: '备注'},
     {field: 'finish_step', header: '财务环节'},
+    {field: 'has_amount', header: '已付款(元)', type: 'float'},
+    {field: 'payment_type', header: '付款类型'},
 ]
 
 /* ---------------- 导出 ---------------- */
@@ -279,6 +280,7 @@ const EXAMPLE_ROW = {
     date_rk: '',
     bz: '标准件采购',
     settle_amount: 3836.92,
+    has_amount: 0,
     hq: 30,
     date_htyj: '2026-08-08',
     date_fpyj: '',
@@ -341,7 +343,7 @@ export function parseContractExcel(file, signers = []) {
                 // 跳过英文字段名行之后的表头行（中文表头/说明行），找到真正的数据起始行
                 // 判断依据：行中包含中文表头关键词 → 视为表头，跳过
                 const HEADER_KEYWORDS = ['合同编号', '合同名称', '签订人', '供应商', '合同金额', '签订时间',
-                    '付款方式', '付款类型', '签订方式', '到货付款', '质保付款', '结算金额', '货期', '移交日期', '到货日期', '挂账日期',
+                    '付款方式', '付款类型', '签订方式', '到货付款', '质保付款', '结算金额', '已付款', '货期', '移交日期', '到货日期', '挂账日期',
                     '预付款日期', '到货款日期', '质保金付款日期', '备注', '序号',
                     '财务完结', '合同签订方式']
                 const isHeaderLike = (row) => {
