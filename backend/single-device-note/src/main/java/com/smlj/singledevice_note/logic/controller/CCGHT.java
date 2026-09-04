@@ -280,7 +280,7 @@ public class CCGHT {
         // 即时结算类(1)：id 必须唯一；周期结算类(2)：id 可重复
         if (c.getPayment_type() != null && c.getPayment_type() == 1) {
             if (contractDao.exist(c.getId()) > 0) {
-                return new Result<>(ResultCode.RC10102.getCode(),
+                return Result.fail(ResultCode.RC10102.getCode(),
                         String.format("即时结算类合同编号 %s 已存在，禁止重复录入", c.getId()));
             }
         }

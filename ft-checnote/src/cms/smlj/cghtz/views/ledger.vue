@@ -265,26 +265,6 @@ const rules = {
     paycycle_zb: [{required: true, message: '请输入质保周期', trigger: 'change'}],
 }
 
-// 编号唯一性实时校验
-let AC_checkId = new AbortController()
-
-function checkIdDup() {
-    const id = String(form.value.id || '').trim()
-    dupWarning.value = ''
-    if (!id || isEdit.value) return
-    // 周期结算类(2)：id 可重复，不做唯一性校验
-    if (Number(form.value.payment_type) === 2) return
-    AC_checkId.abort()
-    AC_checkId = new AbortController()
-    Singleton.getInstance(SysX).checkNoExists({id}, AC_checkId.signal, () => {
-    }, (r, data) => {
-        if (r) {
-            const exists = data?.data?.data === true || data?.data === true
-            if (exists) dupWarning.value = `即时结算类合同编号 ${id} 已存在，禁止重复录入！`
-        }
-    })
-}
-
 function openCreate() {
     isEdit.value = false
     dupWarning.value = ''
@@ -363,6 +343,7 @@ function saveContract() {
         }
         saving.value = true
         // 提交体：合并原数据（编辑）+ 当前表单字段；类型归一化：sign_type 为 int，数字字段为 Number
+        form.value.id = form.value.id.trim()
         const edited = {...form.value}
         // sign_type 强转 int（下拉 value 是 0-7 int）
         edited.sign_type = Number.isFinite(+edited.sign_type) ? parseInt(edited.sign_type, 10) : 0
@@ -393,15 +374,11 @@ function saveContract() {
         }, (r, data) => {
             saving.value = false
             if (r) {
-                if (data?.data?.duplicate) {
-                    ElMessage.error(data.msg)
-                    return
-                }
                 ElMessage.success(isEdit.value ? '修改成功' : '录入成功')
                 dialogVisible.value = false
                 loadList()
             } else {
-                ElMessage.error(data?.msg || '操作失败')
+                ElMessage.error(data.data?.message || '操作失败')
             }
         })
     })
@@ -416,7 +393,7 @@ function removeContract(row) {
                 ElMessage.success('已作废')
                 loadList()
             } else {
-                ElMessage.error(data?.msg || '作废失败')
+                ElMessage.error(data.data?.message || '作废失败')
             }
         })
     }).catch(() => {
@@ -646,7 +623,7 @@ function mills2DateStr(mills) {
                 <el-row :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="合同编号" prop="id">
-                            <el-input v-model="form.id" placeholder="例：SMLJ-CG-CL-26330" :disabled="isEdit" @input="checkIdDup"/>
+                            <el-input v-model="form.id" placeholder="例：SMLJ-CG-CL-26330" :disabled="isEdit"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
@@ -690,7 +667,7 @@ function mills2DateStr(mills) {
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="付款类型" prop="payment_type">
-                            <el-select v-model="form.payment_type" placeholder="请选择" style="width:100%" @change="checkIdDup">
+                            <el-select v-model="form.payment_type" placeholder="请选择" style="width:100%">
                                 <el-option v-for="pt in gd.payment_type" :key="pt.id" :label="pt.desc" :value="pt.id"/>
                             </el-select>
                         </el-form-item>
