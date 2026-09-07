@@ -68,12 +68,13 @@ public class RegistryOf implements WebMvcConfigurer {
         i.addPathPatterns("/train/**");*/
 
         var i = registry.addInterceptor(tokenInterceptor);
-        // 对train开头的进行处理，不对swagger-ui等进行拦截
         i.addPathPatterns("/cghtz/**");
-        // 不对以下接口进行拦截， 登录、refresh续签、注册
         i.excludePathPatterns("/cghtz/account/login", "/x/getRefreshToken", "/x/getAccessToken", "/x/refreshAccessToken", "/swagger-ui/*");
 
-        // i = registry.addInterceptor(signInterceptor);
+        // 签名拦截器：与 tokenInterceptor 同路径，排除登录/刷新/静态资源
+        var si = registry.addInterceptor(signInterceptor);
+        si.addPathPatterns("/cghtz/**");
+        si.excludePathPatterns("/cghtz/account/login", "/x/getRefreshToken", "/x/getAccessToken", "/x/refreshAccessToken", "/swagger-ui/*");
     }
 
     // 用于处理接收消息 和 发送消息，比如将接收的消息转换为json, 侧重于处理消息

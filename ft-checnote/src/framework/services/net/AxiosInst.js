@@ -190,23 +190,22 @@ axiosInst.interceptors.request.use(config => {
         config.headers.rt = TokenService.getRT();
     }
 
-    // 规避文件上传
-    let configData = config.data;
-    // 处理FormData
-    if (config.data instanceof FormData) {
-        // 提取FormData中的非文件字段
-        configData = {};
-        for (let [key, value] of config.data?.entries()) {
-            if (!(value instanceof File) && !(value instanceof Blob)) {
-                configData[key] = value;
+    /*  只处理params参数，不处理data参数
+        // 规避文件上传
+        let configData = config.data;
+        // 处理FormData
+        if (config.data instanceof FormData) {
+            // 提取FormData中的非文件字段
+            configData = {};
+            for (let [key, value] of config.data?.entries()) {
+                if (!(value instanceof File) && !(value instanceof Blob)) {
+                    configData[key] = value;
+                }
             }
         }
-    }
+    */
 
-    const signs = addSignWithTimestamp({...config.params, ...configData})
-    config.headers['__sign__'] = signs.__sign__
-    config.headers['__timestamp__'] = signs.__timestamp__
-    config.headers['__nonce__'] = signs.__nonce__
+    config.params = addSignWithTimestamp({...config.params})
 
     // console.error("-----------------request url: %s, isRT: %s", config.url, isRT);
     return config;
