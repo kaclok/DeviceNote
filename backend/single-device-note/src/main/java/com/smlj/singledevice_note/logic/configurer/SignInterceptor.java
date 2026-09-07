@@ -34,14 +34,14 @@ public class SignInterceptor implements HandlerInterceptor {
     }
 
     @Override
-    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+    public void postHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, ModelAndView modelAndView) throws Exception {
         // CurUserService.remove();
     }
 
     // https://mp.weixin.qq.com/s/kN_H5zqcppuzgdmJVR_VVQ
     // https://blog.csdn.net/Top_L398/article/details/109361680
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) throws Exception {
         try {
             // 如果不是映射到方法，直接通过
             // https://mp.weixin.qq.com/s/kN_H5zqcppuzgdmJVR_VVQ
