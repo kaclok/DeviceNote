@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
@@ -26,7 +27,7 @@ import java.util.Set;
 @Component
 public class TokenInterceptor implements HandlerInterceptor {
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, @Nullable Exception ex) throws Exception {
+    public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, @Nullable Exception ex) throws Exception {
         log.info("afterCompletion -> {}", handler);
 
         // 执行完毕之后，删除用户信息,防止Tomcat的 线程池数据残留 以及 内存泄露
@@ -36,14 +37,14 @@ public class TokenInterceptor implements HandlerInterceptor {
     }
 
     @Override
-    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+    public void postHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, ModelAndView modelAndView) throws Exception {
         // CurUserService.remove();
     }
 
     // https://mp.weixin.qq.com/s/kN_H5zqcppuzgdmJVR_VVQ
     // https://blog.csdn.net/Top_L398/article/details/109361680
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) throws Exception {
         try {
             // 如果不是映射到方法，直接通过
             // https://mp.weixin.qq.com/s/kN_H5zqcppuzgdmJVR_VVQ

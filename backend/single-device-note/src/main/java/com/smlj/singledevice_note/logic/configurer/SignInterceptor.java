@@ -1,16 +1,12 @@
 package com.smlj.singledevice_note.logic.configurer;
 
-import com.smlj.singledevice_note.core.annotation.JwtIgnore;
-import com.smlj.singledevice_note.core.annotation.RequirePermission;
-import com.smlj.singledevice_note.core.annotation.RequireRole;
 import com.smlj.singledevice_note.core.annotation.SignIgnore;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
-import com.smlj.singledevice_note.core.utils.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
+import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
@@ -18,16 +14,20 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 @Slf4j
 @Component
 public class SignInterceptor implements HandlerInterceptor {
+    // 允许的时间误差（5分钟）
+    private static final long ALLOWED_TIME_DRIFT = 5 * 60 * 1000;
+
+    // Header名称（与前端保持一致）
+    private static final String HEADER_SIGN = "__sign__";
+    private static final String HEADER_TIMESTAMP = "__timestamp__";
+    private static final String HEADER_NONCE = "__nonce__";
+
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, @Nullable Exception ex) throws Exception {
+    public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, @Nullable Exception ex) throws Exception {
         log.info("afterCompletion -> {}", handler);
 
         // 执行完毕之后，删除用户信息,防止Tomcat的 线程池数据残留 以及 内存泄露
