@@ -20,6 +20,8 @@ export class ApiX {
         })
     }
 
+    // post的参数如果想变现为query的形式，可以被后端的RequestParam捕获则不传递data
+    // 如果表现为json body,，则传递data
     static getContract(paras, signal) {
         return axiosR.post("cghtz/contract/get", null, {
             params: paras, signal: signal,
