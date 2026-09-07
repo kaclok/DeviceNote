@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.ReceiptMapper">
+    <!-- 查询符合条件的记录 -->
+    <select id="selectStatus130ByStatusAndRemark" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.ReceiptInfo">
+        SELECT
+            a.id AS id,
+            a.receipt_code AS receipt_code,
+            a.receipt_status AS receipt_status,
+            a.door_car_id as door_car_id,
+            b.car_number AS car_number,
+            c.`name`,
+            c.phone
+        FROM
+            biz_receipt_send_car_head a
+                LEFT JOIN dic_car b ON a.car_id = b.id
+                LEFT JOIN dic_driver c ON a.driver_id = c.id
+        WHERE
+            a.receipt_status IN (130) and a.is_delete = 0
+    </select>
+
+    <select id="selectStatus144ByStatusAndRemark" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.ReceiptInfo">
+        SELECT
+            a.id AS id,
+            a.receipt_code AS receipt_code,
+            a.receipt_status AS receipt_status,
+            a.door_car_id as door_car_id,
+            b.car_number AS car_number,
+            c.`name`,
+            c.phone
+        FROM
+            biz_receipt_send_car_head_mj a
+            LEFT JOIN dic_car b ON a.car_id = b.id
+            LEFT JOIN dic_driver c ON a.driver_id = c.id
+        WHERE
+            a.receipt_status IN (144) and a.remark = 0 and a.is_delete = 0
+    </select>
+
+    <select id="selectOneByStatusAndRemark" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.ReceiptInfo">
+        SELECT
+            a.id AS id,
+            a.receipt_code AS receipt_code,
+            a.receipt_status AS receipt_status,
+            a.door_car_id as door_car_id,
+            b.car_number AS car_number,
+            c.`name`,
+            c.phone
+        FROM
+            biz_receipt_send_car_head a
+            LEFT JOIN dic_car b ON a.car_id = b.id
+            LEFT JOIN dic_driver c ON a.driver_id = c.id
+        WHERE
+            a.id = ${id}
+    </select>
+
+    <!-- 更新remark字段 -->
+    <update id="updateRemark">
+        UPDATE biz_receipt_send_car_head_mj
+        SET remark = #{remark}
+        WHERE id = ${id}
+    </update>
+
+    <!-- 更新主表的door_car_id -->
+    <update id="updateDoorCarId">
+        UPDATE biz_receipt_send_car_head
+        SET door_car_id = #{doorCarId}
+        WHERE id = ${id}
+    </update>
+</mapper>

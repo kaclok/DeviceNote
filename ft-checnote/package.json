@@ -17,6 +17,7 @@
     "@vueuse/components": "^13.1.0",
     "@vueuse/core": "^12.8.2",
     "axios": "^1.8.4",
+    "crypto-js": "^4.1.1",
     "echarts": "^5.6.0",
     "element-plus": "^2.7.6",
     "js-cookie": "^3.0.5",

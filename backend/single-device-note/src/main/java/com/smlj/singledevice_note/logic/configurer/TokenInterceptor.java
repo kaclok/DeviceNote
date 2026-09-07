@@ -24,7 +24,7 @@ import java.util.Set;
 
 @Slf4j
 @Component
-public class AccessInterceptor implements HandlerInterceptor {
+public class TokenInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, @Nullable Exception ex) throws Exception {
         log.info("afterCompletion -> {}", handler);
@@ -167,7 +167,7 @@ public class AccessInterceptor implements HandlerInterceptor {
 
             return true;
         } catch (Exception e) {
-            log.error("AccessInterceptor preHandle error", e);
+            log.error("TokenInterceptor preHandle error", e);
             // 不能吞异常：必须给前端一个可解析的 JSON 响应，否则前端拿到空 body 无法处理
             try {
                 response.getWriter().write(Result.fail(ResultCode.RC_1).toJson());

@@ -6,7 +6,6 @@ import com.smlj.singledevice_note.core.o.converter.Long2Date;
 import com.smlj.singledevice_note.core.o.converter.String2Date;
 import com.smlj.singledevice_note.core.o.converter.StringToKV;
 import com.smlj.singledevice_note.logic.o.vo.converter.StringToTDeviceRecord;
-import com.smlj.singledevice_note.core.o.converter.formatter.MultiDateFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -30,7 +29,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Configuration
 public class RegistryOf implements WebMvcConfigurer {
-    private final AccessInterceptor accessInterceptor;
+    private final TokenInterceptor tokenInterceptor;
+    private final SignInterceptor signInterceptor;
 
     // 侧重于处理接口参数
     // Formatter 优先于 Converter
@@ -67,7 +67,7 @@ public class RegistryOf implements WebMvcConfigurer {
         /*var i = registry.addInterceptor(signInterceptor);
         i.addPathPatterns("/train/**");*/
 
-        var i = registry.addInterceptor(accessInterceptor);
+        var i = registry.addInterceptor(tokenInterceptor);
         // 对train开头的进行处理，不对swagger-ui等进行拦截
         i.addPathPatterns("/cghtz/**");
         // 不对以下接口进行拦截， 登录、refresh续签、注册

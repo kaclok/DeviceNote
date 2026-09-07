@@ -52,7 +52,7 @@ spring:
     # clean之后重新构建
     active: @activated@
 
-  jackson: # restful格式转换json的时候，null不转换
+  jackson: # restful格式转换json的时候，null不转换, 让所有null字段在序列化时直接忽略，不返回给前端，能有效精简数据体积
     default-property-inclusion: NON_EMPTY
 
       # 关键配置：关闭时间戳模式

@@ -28,6 +28,11 @@ spring:
           username: postgres
           password: root
           driver-class-name: org.postgresql.Driver
+        wlcc:
+          url: jdbc:mysql://10.8.54.84:3306/jt_dev?useSSL=false&serverTimezone=UTC
+          username: root
+          password: '!@#QWE123qwe'
+          driver-class-name: com.mysql.cj.jdbc.Driver
 
 #  data:
 #    redis:  # Redis
