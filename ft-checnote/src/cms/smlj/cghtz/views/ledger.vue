@@ -808,7 +808,7 @@ function mills2DateStr(mills) {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    font-size: 14px;
+    font-size: 12px;
     cursor: pointer;
     user-select: none;
     border: 1px solid transparent;
@@ -841,6 +841,43 @@ function mills2DateStr(mills) {
 }
 
 .ledger-page {
+    /* 合同台账列表全局字体缩小 2px（14px → 12px） */
+    font-size: 10px;
+
+    /* el-table 单元格、表头 */
+    :deep(.el-table) {
+        font-size: 12px;
+        .el-table__header th {
+            font-size: 12px;
+        }
+        .el-table__cell {
+            font-size: 12px;
+        }
+    }
+
+    /* el-form 筛选区标签和输入框 */
+    :deep(.el-form-item__label) {
+        font-size: 12px;
+    }
+    :deep(.el-input__inner),
+    :deep(.el-select .el-input__inner),
+    :deep(.el-date-editor .el-input__inner) {
+        font-size: 12px;
+    }
+
+    /* el-button 按钮 */
+    :deep(.el-button) {
+        font-size: 12px;
+    }
+
+    /* el-pagination 分页 */
+    :deep(.el-pagination) {
+        font-size: 12px;
+        .el-pagination__total {
+            font-size: 12px;
+        }
+    }
+
     .filter-card {
         margin-bottom: 14px;
 
@@ -867,7 +904,7 @@ function mills2DateStr(mills) {
         margin-bottom: 12px;
 
         .total-tip {
-            font-size: 13px;
+            font-size: 12px;
             color: #64748b;
         }
     }
