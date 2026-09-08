@@ -27,8 +27,8 @@ public class CMinio {
      */
     @PostMapping("/init")
     public Result<FileUploadResultDTO> initUpload(@Valid @RequestBody FileUploadInitDTO dto) {
-        log.info("初始化上传请求: {}", dto.getOriginalName());
-        return fileService.initUpload(dto);
+        log.info("初始化上传请求: {}", dto.getOriginal_name());
+        return Result.success(fileService.initUpload(dto));
     }
 
     /**
@@ -37,7 +37,8 @@ public class CMinio {
     @PostMapping("/complete/{fileId}")
     public Result<Void> completeUpload(@PathVariable String fileId) {
         log.info("确认上传完成: {}", fileId);
-        return fileService.completeUpload(fileId);
+        fileService.completeUpload(fileId);
+        return Result.success();
     }
 
     /**
@@ -46,15 +47,16 @@ public class CMinio {
     @GetMapping("/download/{fileId}")
     public Result<String> getDownloadUrl(@PathVariable String fileId) {
         log.info("获取下载地址: {}", fileId);
-        return fileService.getDownloadUrl(fileId);
+        return Result.success(fileService.getDownloadUrl(fileId));
     }
 
     /**
      * 删除文件
      */
-    @DeleteMapping("/{fileId}")
+    @PostMapping("/delete/{fileId}")
     public Result<Void> deleteFile(@PathVariable String fileId) {
         log.info("删除文件: {}", fileId);
-        return fileService.deleteFile(fileId);
+        fileService.deleteFile(fileId);
+        return Result.success();
     }
 }

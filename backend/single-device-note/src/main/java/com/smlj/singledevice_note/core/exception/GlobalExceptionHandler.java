@@ -27,6 +27,14 @@ public class GlobalExceptionHandler {
         return Result.fail(ResultCode.RC10104, ex.getMessage());
     }
 
+    /**
+     * 业务异常：Service 层抛出，携带 ResultCode，统一返回对应错误码
+     */
+    @ExceptionHandler(BizException.class)
+    public Result<?> handleBizException(BizException ex) {
+        return Result.fail(ex.getResultCode());
+    }
+
     /*@ExceptionHandler(RepeatSubmitException.class)
     public Result<?> handleRepeatSubmitException(RepeatSubmitException ex) {
         return Result.fail(ReturnCode.RC10108, ex.getMessage());

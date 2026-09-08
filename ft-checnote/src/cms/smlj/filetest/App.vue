@@ -35,16 +35,16 @@ async function doUpload() {
             uploadProgress.value = Math.round(percent * 100)
         })
         uploadResult.value = result
-        if (result.isExist) {
+        if (result.is_exist) {
             ElMessage.success('秒传成功！文件已存在')
         } else {
             ElMessage.success('上传成功')
         }
         uploadedFiles.value.push({
-            fileId: result.fileId,
+            file_id: result.file_id,
             name: rawFile.name,
             size: rawFile.size,
-            isExist: result.isExist,
+            is_exist: result.is_exist,
         })
         fileList.value = []
         uploadProgress.value = 0
@@ -59,7 +59,7 @@ async function doUpload() {
 async function doDownload(file) {
     downloading.value = true
     try {
-        await downloadFile(file.fileId, file.name)
+        await downloadFile(file.file_id, file.name)
         ElMessage.success('下载已触发')
     } catch (e) {
         ElMessage.error('下载失败: ' + (e?.message || e))
@@ -71,7 +71,7 @@ async function doDownload(file) {
 // ---- 获取下载地址 ----
 async function doGetUrl(file) {
     try {
-        const url = await getDownloadUrl(file.fileId)
+        const url = await getDownloadUrl(file.file_id)
         ElMessageBox.alert(url, '下载地址', { confirmButtonText: '关闭' })
     } catch (e) {
         ElMessage.error('获取地址失败: ' + (e?.message || e))
@@ -90,7 +90,7 @@ async function doDelete(file, index) {
         return
     }
     try {
-        await deleteFile(file.fileId)
+        await deleteFile(file.file_id)
         uploadedFiles.value.splice(index, 1)
         ElMessage.success('删除成功')
     } catch (e) {
@@ -153,9 +153,9 @@ onUnmounted(() => {
             <el-alert
                 v-if="uploadResult"
                 style="margin-top: 12px"
-                :title="uploadResult.isExist ? '秒传命中' : '上传完成'"
-                :description="`fileId: ${uploadResult.fileId}`"
-                :type="uploadResult.isExist ? 'warning' : 'success'"
+                :title="uploadResult.is_exist ? '秒传命中' : '上传完成'"
+                :description="`file_id: ${uploadResult.file_id}`"
+                :type="uploadResult.is_exist ? 'warning' : 'success'"
                 :closable="false"
             />
         </el-card>
@@ -166,19 +166,19 @@ onUnmounted(() => {
                 <span style="font-weight: bold">已上传文件</span>
             </template>
 
-            <el-table :data="uploadedFiles" border stripe row-key="fileId" empty-text="暂无文件">
+            <el-table :data="uploadedFiles" border stripe row-key="file_id" empty-text="暂无文件">
                 <el-table-column label="文件名" prop="name" min-width="200" show-overflow-tooltip />
                 <el-table-column label="大小" width="120">
                     <template #default="{ row }">{{ formatSize(row.size) }}</template>
                 </el-table-column>
                 <el-table-column label="秒传" width="80" align="center">
                     <template #default="{ row }">
-                        <el-tag :type="row.isExist ? 'warning' : 'info'" size="small">
-                            {{ row.isExist ? '是' : '否' }}
+                        <el-tag :type="row.is_exist ? 'warning' : 'info'" size="small">
+                            {{ row.is_exist ? '是' : '否' }}
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="fileId" prop="fileId" min-width="200" show-overflow-tooltip />
+                <el-table-column label="file_id" prop="file_id" min-width="200" show-overflow-tooltip />
                 <el-table-column label="操作" width="240" align="center">
                     <template #default="{ row, $index }">
                         <el-button size="small" type="primary" @click="doDownload(row)" :loading="downloading">

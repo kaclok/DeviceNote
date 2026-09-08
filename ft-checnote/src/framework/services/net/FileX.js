@@ -7,6 +7,7 @@
  * 下一个项目直接复制此文件即可使用，只需修改 baseURL
  */
 import axios from 'axios'
+import {axiosInst} from '@/framework/services/net/AxiosInst.js'
 import SparkMD5 from 'spark-md5'
 
 // ---- 配置 ----
@@ -34,14 +35,14 @@ function calcFileMd5(file) {
 
 /**
  * 初始化上传
- * @param {{originalName: string, fileSize: number, fileMd5: string}} fileInfo
- * @returns {Promise<{fileId: string, uploadUrl: string, downloadUrl: string, isExist: boolean}>}
+ * @param {{original_name: string, file_size: number, file_md5: string}} fileInfo
+ * @returns {Promise<{file_id: string, upload_url: string, download_url: string, is_exist: boolean}>}
  */
 export async function initUpload(fileInfo) {
-    const res = await axios.post(BASE_URL + '/x/minio/init', {
-        originalName: fileInfo.originalName,
-        fileSize: fileInfo.fileSize,
-        fileMd5: fileInfo.fileMd5,
+    const res = await axiosInst.post(BASE_URL + '/x/minio/init', {
+        original_name: fileInfo.original_name,
+        file_size: fileInfo.file_size,
+        file_md5: fileInfo.file_md5,
     }, {
         headers: {'Content-Type': 'application/json'},
     })
@@ -53,9 +54,10 @@ export async function initUpload(fileInfo) {
  * @param {File|Blob} file
  * @param {string} presignedUrl
  * @param {(loaded, total, percent) => void} [onProgress]
- * @returns {Promise<axios.AxiosResponse<any>>}
  */
 export function uploadToMinio(file, presignedUrl, onProgress) {
+    // MinIO presigned URL 是外部地址，用裸 axios 避免拦截器干扰
+    // axiosInst 的响应拦截器要求 {code,data,message} 格式，MinIO 返回的不是
     return axios.put(presignedUrl, file, {
         headers: {'Content-Type': 'application/octet-stream'},
         onUploadProgress: e => {
@@ -70,7 +72,7 @@ export function uploadToMinio(file, presignedUrl, onProgress) {
  * @returns {Promise<void>}
  */
 export async function completeUpload(fileId) {
-    await axios.post(BASE_URL + `/x/minio/complete/${fileId}`)
+    await axiosInst.post(BASE_URL + `/x/minio/complete/${fileId}`)
 }
 
 /**
@@ -79,7 +81,7 @@ export async function completeUpload(fileId) {
  * @returns {Promise<string>} presigned download URL
  */
 export async function getDownloadUrl(fileId) {
-    const res = await axios.get(BASE_URL + `/x/minio/download/${fileId}`)
+    const res = await axiosInst.get(BASE_URL + `/x/minio/download/${fileId}`)
     return res.data?.data || res.data
 }
 
@@ -89,7 +91,7 @@ export async function getDownloadUrl(fileId) {
  * @returns {Promise<void>}
  */
 export async function deleteFile(fileId) {
-    await axios.delete(BASE_URL + `/x/minio/${fileId}`)
+    await axiosInst.post(BASE_URL + `/x/minio/delete/${fileId}`)
 }
 
 // ---- 一站式封装 ----
@@ -100,7 +102,7 @@ export async function deleteFile(fileId) {
  *
  * @param {File} file
  * @param {(loaded, total, percent) => void} [onProgress]
- * @returns {Promise<{fileId: string, isExist: boolean}>}
+ * @returns {Promise<{file_id: string, is_exist: boolean}>}
  */
 export async function uploadFile(file, onProgress) {
     // 1. 计算 MD5
@@ -108,24 +110,24 @@ export async function uploadFile(file, onProgress) {
 
     // 2. 初始化上传
     const result = await initUpload({
-        originalName: file.name,
-        fileSize: file.size,
-        fileMd5,
+        original_name: file.name,
+        file_size: file.size,
+        file_md5: fileMd5,
     })
 
     // 3. 秒传命中，直接返回
-    if (result.isExist) {
+    if (result.is_exist) {
         onProgress?.(file.size, file.size, 1)
-        return {fileId: result.fileId, isExist: true}
+        return {file_id: result.file_id, is_exist: true}
     }
 
     // 4. 直传 MinIO
-    await uploadToMinio(file, result.uploadUrl, onProgress)
+    await uploadToMinio(file, result.upload_url, onProgress)
 
     // 5. 确认上传完成
-    await completeUpload(result.fileId)
+    await completeUpload(result.file_id)
 
-    return {fileId: result.fileId, isExist: false}
+    return {file_id: result.file_id, is_exist: false}
 }
 
 /**

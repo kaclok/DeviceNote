@@ -30,7 +30,9 @@
     <select id="queryByMd5" resultMap="BaseResultMap">
         SELECT
         <include refid="base_cols"/>
-        FROM file.t_file WHERE file_md5 = #{file_md5} AND upload_status != 2
+        FROM file.t_file
+        WHERE file_md5 = #{file_md5} AND upload_status != 2
+        ORDER BY upload_status DESC, create_time DESC
         LIMIT 1
     </select>
 
