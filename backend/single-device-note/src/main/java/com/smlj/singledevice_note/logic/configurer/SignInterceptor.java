@@ -15,8 +15,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,7 +62,6 @@ public class SignInterceptor implements HandlerInterceptor {
             }
 
             // ---- 0. 无业务参数时直接放行（前端未附加签名） ----
-            // 收集所有 query 参数（排除签名参数本身）
             Map<String, String[]> rawParamMap = request.getParameterMap();
             boolean hasBusinessParam = false;
             for (Map.Entry<String, String[]> entry : rawParamMap.entrySet()) {
@@ -99,7 +96,6 @@ public class SignInterceptor implements HandlerInterceptor {
             }
 
             // ---- 3. nonce 防重放 ----
-            // 先清理过期 nonce
             cleanExpiredNonces(now);
             if (NONCE_CACHE.containsKey(nonce)) {
                 return reject(response, ResultCode.RC10404);
@@ -107,10 +103,9 @@ public class SignInterceptor implements HandlerInterceptor {
             NONCE_CACHE.put(nonce, now);
 
             // ---- 4. 重算签名 ----
-            // 收集所有 query 参数（与前端 addSignWithTimestamp 一致：过滤 __sign__，过滤 null/undefined）
-            Map<String, String[]> paramMap = request.getParameterMap();
+            // 收集所有 query 参数（与前端 addSign 一致：过滤 __sign__，过滤 null/undefined）
             TreeMap<String, String> sorted = new TreeMap<>();
-            for (Map.Entry<String, String[]> entry : paramMap.entrySet()) {
+            for (Map.Entry<String, String[]> entry : rawParamMap.entrySet()) {
                 String key = entry.getKey();
                 if (PARAM_SIGN.equals(key)) continue; // 签名本身不参与计算
                 String[] vals = entry.getValue();
@@ -123,7 +118,7 @@ public class SignInterceptor implements HandlerInterceptor {
             // 拼接：key1=value1&key2=value2（按 key 字典序）
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, String> entry : sorted.entrySet()) {
-                if (sb.length() > 0) sb.append('&');
+                if (!sb.isEmpty()) sb.append('&');
                 sb.append(entry.getKey()).append('=').append(entry.getValue());
             }
             String queryString = sb.toString();
@@ -145,7 +140,9 @@ public class SignInterceptor implements HandlerInterceptor {
         }
     }
 
-    /** 统一拒绝出口：写 JSON 响应并返回 false */
+    /**
+     * 统一拒绝出口：写 JSON 响应并返回 false
+     */
     private boolean reject(HttpServletResponse response, ResultCode rc) throws Exception {
         response.setStatus(200);
         response.setContentType("application/json;charset=UTF-8");
@@ -153,7 +150,9 @@ public class SignInterceptor implements HandlerInterceptor {
         return false;
     }
 
-    /** 清理过期的 nonce，防止内存无限增长 */
+    /**
+     * 清理过期的 nonce，防止内存无限增长
+     */
     private void cleanExpiredNonces(long now) {
         NONCE_CACHE.entrySet().removeIf(e -> (now - e.getValue()) > NONCE_EXPIRE);
     }

@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
 import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.lang.NonNull;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -67,11 +68,12 @@ public class RegistryOf implements WebMvcConfigurer {
         /*var i = registry.addInterceptor(signInterceptor);
         i.addPathPatterns("/train/**");*/
 
+        // 1、 处理token校验问题
         var i = registry.addInterceptor(tokenInterceptor);
         i.addPathPatterns("/cghtz/**");
         i.excludePathPatterns("/cghtz/account/login", "/x/getRefreshToken", "/x/getAccessToken", "/x/refreshAccessToken", "/swagger-ui/*");
 
-        // 签名拦截器：与 tokenInterceptor 同路径，排除登录/刷新/静态资源
+        // 2、处理参数校验问题
         var si = registry.addInterceptor(signInterceptor);
         si.addPathPatterns("/cghtz/**");
         si.excludePathPatterns("/cghtz/account/login", "/x/getRefreshToken", "/x/getAccessToken", "/x/refreshAccessToken", "/swagger-ui/*");
@@ -79,7 +81,7 @@ public class RegistryOf implements WebMvcConfigurer {
 
     // 用于处理接收消息 和 发送消息，比如将接收的消息转换为json, 侧重于处理消息
     @Override
-    public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+    public void configureMessageConverters(@NonNull List<HttpMessageConverter<?>> converters) {
 
     }
 

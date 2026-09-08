@@ -38,9 +38,11 @@ export function generateSign(params) {
  * @param {Object} params 业务参数
  * @returns {Object} 包含timestamp、nonce、sign的完整参数
  */
-export function addSignWithTimestamp(params) {
+export function addSign(params) {
     // params 为 null/undefined/空对象时，不附加签名
-    if (!params || Object.keys(params).length === 0) return params;
+    if (!params || Object.keys(params).length === 0) {
+        return params;
+    }
     // 1. 生成时间戳和nonce
     const timestamp = Date.now();
     const nonce = generateNonce();

@@ -3,7 +3,7 @@ import {config} from './Config.js'
 
 import {ECacheType, useLocalCache} from '@/framework/composable/use/useCache.ts'
 import {TokenService} from "@/framework/services/TokenService.js";
-import {addSignWithTimestamp} from "@/framework/utils/SignParamUtil.js";
+import {addSign} from "@/framework/utils/SignParamUtil.js";
 
 const {wsCache} = useLocalCache()
 
@@ -190,23 +190,14 @@ axiosInst.interceptors.request.use(config => {
         config.headers.rt = TokenService.getRT();
     }
 
-    /*  只处理params参数，不处理data参数
-        // 规避文件上传
-        let configData = config.data;
-        // 处理FormData
-        if (config.data instanceof FormData) {
-            // 提取FormData中的非文件字段
-            configData = {};
-            for (let [key, value] of config.data?.entries()) {
-                if (!(value instanceof File) && !(value instanceof Blob)) {
-                    configData[key] = value;
-                }
-            }
-        }
-    */
-
-    config.params = addSignWithTimestamp({...config.params})
-
+    // 只处理params参数，不处理data参数
+    // 每次请求（含 AT 刷新后的重试）都重新签名：
+    //   场景1 正常请求：生成新 timestamp/nonce/sign → 后端校验通过并记录 nonce
+    //   场景2 重放攻击：攻击者无法生成新 sign（没有密钥），复用旧 nonce → 后端 nonce 缓存命中 → RC10404 拒绝
+    //   场景3 AT过期重试：原请求被 TokenInterceptor 拒绝 → SignInterceptor 未执行 → nonce 未记录
+    //   重试时 addSign 生成全新 timestamp/nonce/sign → 后端校验通过
+    const allParams = !config.params ? {} : config.params;
+    config.params = addSign(allParams)
     // console.error("-----------------request url: %s, isRT: %s", config.url, isRT);
     return config;
 }, fail => {
