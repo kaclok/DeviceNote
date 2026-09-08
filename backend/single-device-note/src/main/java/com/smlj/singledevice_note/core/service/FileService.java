@@ -80,14 +80,7 @@ public class FileService {
             return resumeUpload(concurrent);
         }
 
-        // 生成 presigned upload URL
-        String uploadUrl = generateUploadUrlOrFail(fileId, objectKey);
-
-        FileUploadResultDTO result = new FileUploadResultDTO();
-        result.setFile_id(fileId);
-        result.setUpload_url(uploadUrl);
-        result.setIs_exist(false);
-        return result;
+        return resumeUpload(entity);
     }
 
     /**
