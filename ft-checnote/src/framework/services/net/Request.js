@@ -38,10 +38,20 @@ async function doPost(url, paras, signal, onBefore, onAfter, onUploading, onDown
     });
 }
 
+async function doDelete(url, paras, signal, onBefore, onAfter) {
+    onBefore?.();
+    axiosR.delete(url, {params: paras, signal: signal}).then(succ => {
+        onAfter?.(true, succ.data);
+    }).catch(fail => {
+        onAfter?.(false, fail);
+    });
+}
+
 export {
     innerGet,
     innerPost,
 
     doGet,
     doPost,
+    doDelete,
 }

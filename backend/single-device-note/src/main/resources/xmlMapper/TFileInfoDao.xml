@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.core.o.vo.table.dao.TFileInfoDao">
+    <resultMap id="BaseResultMap" type="com.smlj.singledevice_note.core.o.vo.table.entity.TFileInfo">
+        <id column="id" property="id"/>
+        <result column="original_name" property="original_name"/>
+        <result column="object_key" property="object_key"/>
+        <result column="file_size" property="file_size"/>
+        <result column="file_md5" property="file_md5"/>
+        <result column="content_type" property="content_type"/>
+        <result column="bucket_name" property="bucket_name"/>
+        <result column="upload_status" property="upload_status"/>
+        <result column="create_time" property="create_time"/>
+        <result column="update_time" property="update_time"/>
+    </resultMap>
+
+    <sql id="base_cols">id, original_name, object_key, file_size, file_md5, content_type, bucket_name, upload_status, create_time, update_time</sql>
+
+    <insert id="insert">
+        INSERT INTO file.t_file (id, original_name, object_key, file_size, file_md5, content_type, bucket_name, upload_status, create_time, update_time)
+        VALUES (#{id}, #{original_name}, #{object_key}, #{file_size}, #{file_md5}, #{content_type}, #{bucket_name}, #{upload_status}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    </insert>
+
+    <select id="queryById" resultMap="BaseResultMap">
+        SELECT
+        <include refid="base_cols"/>
+        FROM file.t_file WHERE id = #{id}
+    </select>
+
+    <select id="queryByMd5" resultMap="BaseResultMap">
+        SELECT
+        <include refid="base_cols"/>
+        FROM file.t_file WHERE file_md5 = #{file_md5} AND upload_status != 2
+        LIMIT 1
+    </select>
+
+    <update id="updateUploadStatus">
+        UPDATE file.t_file SET upload_status = #{upload_status}, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
+    <update id="markDeleted">
+        UPDATE file.t_file SET upload_status = 2, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
+</mapper>

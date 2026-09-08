@@ -69,8 +69,13 @@ async function upload(option) {
     return _request({method: 'POST', ...option});
 }
 
+async function del(option) {
+    const res = await _request({method: 'DELETE', ...option})
+    return res.data
+}
+
 export {
-    get, post, put,
+    get, post, put, del,
     getAsync, postAsync, putAsync,
     download, upload
 }

@@ -45,11 +45,11 @@ server:
 minio: # https://mp.weixin.qq.com/s/ptlGsr0OJZ1g4ehY-MUEdA
   config:
     # 这里配置的url,user, password必须都是在cmd中运行minio的api栏的数据，否则会导致文件上传失败，判断文件是否存在失败，文件下载失败
-    url: http://localhost:9000 # ip地址 webUI地址：http://host.docker.internal:4833
+    url: http://10.8.54.24:9000 # ip地址 webUI地址：http://host.docker.internal:4833
     accessKey: minioadmin # 账号
     secretKey: minioadmin # 密码
     secure: false # 如果是true，则用的是https而不是http,默认值是true
-    bucketName: "train"  # 桶的名字 相当于文件夹
+    bucketName: "store"  # 桶的名字 相当于文件夹
 
 logging:
   level:
