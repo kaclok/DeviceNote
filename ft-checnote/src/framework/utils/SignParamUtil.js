@@ -59,9 +59,7 @@ export function addSign(params) {
 
     // 4. 只返回安全参数
     return {
-        ...params,
-        __timestamp__: timestamp,
-        __nonce__: nonce,
+        ...allParams,
         __sign__: sign,
     };
 }
