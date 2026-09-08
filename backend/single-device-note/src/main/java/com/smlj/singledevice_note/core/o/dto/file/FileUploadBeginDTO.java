@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 @Data
-public class FileUploadInitDTO {
+public class FileUploadBeginDTO {
     @NotBlank(message = "文件名不能为空")
     private String original_name;
 

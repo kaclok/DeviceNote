@@ -1,7 +1,7 @@
 /**
  * 文件操作框架层封装
  * 交互流程:
- *   上传: initUpload → (秒传则跳过) → uploadToMinio → completeUpload
+ *   上传: beginUpload → (秒传则跳过) → uploadToMinio → endUpload
  *   下载: getDownloadUrl → 直连 MinIO 下载
  *
  * 下一个项目直接复制此文件即可使用，只需修改 baseURL
@@ -34,12 +34,12 @@ function calcFileMd5(file) {
 // ---- API 接口 ----
 
 /**
- * 初始化上传
+ * 开始上传
  * @param {{original_name: string, file_size: number, file_md5: string}} fileInfo
  * @returns {Promise<{file_id: string, upload_url: string, download_url: string, is_exist: boolean}>}
  */
-export async function initUpload(fileInfo) {
-    const res = await axiosInst.post(BASE_URL + '/x/minio/init', {
+export async function beginUpload(fileInfo) {
+    const res = await axiosInst.post('x/minio/begin', {
         original_name: fileInfo.original_name,
         file_size: fileInfo.file_size,
         file_md5: fileInfo.file_md5,
@@ -67,12 +67,12 @@ export function uploadToMinio(file, presignedUrl, onProgress) {
 }
 
 /**
- * 确认上传完成
+ * 结束上传
  * @param {string} fileId
  * @returns {Promise<void>}
  */
-export async function completeUpload(fileId) {
-    await axiosInst.post(BASE_URL + `/x/minio/complete/${fileId}`)
+export async function endUpload(fileId) {
+    await axiosInst.post('x/minio/end', null, {params: {file_id: fileId}})
 }
 
 /**
@@ -81,7 +81,7 @@ export async function completeUpload(fileId) {
  * @returns {Promise<string>} presigned download URL
  */
 export async function getDownloadUrl(fileId) {
-    const res = await axiosInst.get(BASE_URL + `/x/minio/download/${fileId}`)
+    const res = await axiosInst.post('x/minio/download', null, {params: {file_id: fileId}})
     return res.data?.data || res.data
 }
 
@@ -91,14 +91,14 @@ export async function getDownloadUrl(fileId) {
  * @returns {Promise<void>}
  */
 export async function deleteFile(fileId) {
-    await axiosInst.post(BASE_URL + `/x/minio/delete/${fileId}`)
+    await axiosInst.post('x/minio/delete', null, {params: {file_id: fileId}})
 }
 
 // ---- 一站式封装 ----
 
 /**
  * 一站式上传文件
- * 自动: 计算 MD5 → initUpload → (秒传跳过) → uploadToMinio → completeUpload
+ * 自动: 计算 MD5 → beginUpload → (秒传跳过) → uploadToMinio → endUpload
  *
  * @param {File} file
  * @param {(loaded, total, percent) => void} [onProgress]
@@ -108,8 +108,8 @@ export async function uploadFile(file, onProgress) {
     // 1. 计算 MD5
     const fileMd5 = await calcFileMd5(file)
 
-    // 2. 初始化上传
-    const result = await initUpload({
+    // 2. 开始上传
+    const result = await beginUpload({
         original_name: file.name,
         file_size: file.size,
         file_md5: fileMd5,
@@ -124,8 +124,8 @@ export async function uploadFile(file, onProgress) {
     // 4. 直传 MinIO
     await uploadToMinio(file, result.upload_url, onProgress)
 
-    // 5. 确认上传完成
-    await completeUpload(result.file_id)
+    // 5. 结束上传
+    await endUpload(result.file_id)
 
     return {file_id: result.file_id, is_exist: false}
 }

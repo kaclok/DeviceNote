@@ -1,6 +1,6 @@
 package com.smlj.singledevice_note.core.controller;
 
-import com.smlj.singledevice_note.core.o.dto.file.FileUploadInitDTO;
+import com.smlj.singledevice_note.core.o.dto.file.FileUploadBeginDTO;
 import com.smlj.singledevice_note.core.o.dto.file.FileUploadResultDTO;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.service.FileService;
@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 文件管理接口
- * 上传流程: POST /init → 前端直传 MinIO → POST /complete/{fileId}
- * 下载流程: GET /download/{fileId} → 前端直连 MinIO 下载
+ * 上传流程: POST /begin → 前端直传 MinIO → POST /end
+ * 下载流程: GET /download → 前端直连 MinIO 下载
  */
 @Slf4j
 @RestController
@@ -23,40 +23,40 @@ public class CMinio {
     private final FileService fileService;
 
     /**
-     * 初始化上传 - 获取预签名上传地址
+     * 开始上传 - 获取预签名上传地址
      */
-    @PostMapping("/init")
-    public Result<FileUploadResultDTO> initUpload(@Valid @RequestBody FileUploadInitDTO dto) {
-        log.info("初始化上传请求: {}", dto.getOriginal_name());
-        return Result.success(fileService.initUpload(dto));
+    @PostMapping("/begin")
+    public Result<FileUploadResultDTO> beginUpload(@Valid @RequestBody FileUploadBeginDTO dto) {
+        log.info("开始上传请求: {}", dto.getOriginal_name());
+        return Result.success(fileService.beginUpload(dto));
     }
 
     /**
-     * 确认上传完成
+     * 结束上传
      */
-    @PostMapping("/complete/{fileId}")
-    public Result<Void> completeUpload(@PathVariable String fileId) {
-        log.info("确认上传完成: {}", fileId);
-        fileService.completeUpload(fileId);
+    @PostMapping("/end")
+    public Result<Void> endUpload(@RequestParam String file_id) {
+        log.info("结束上传: {}", file_id);
+        fileService.endUpload(file_id);
         return Result.success();
     }
 
     /**
      * 获取下载地址
      */
-    @GetMapping("/download/{fileId}")
-    public Result<String> getDownloadUrl(@PathVariable String fileId) {
-        log.info("获取下载地址: {}", fileId);
-        return Result.success(fileService.getDownloadUrl(fileId));
+    @PostMapping("/download")
+    public Result<String> getDownloadUrl(@RequestParam String file_id) {
+        log.info("获取下载地址: {}", file_id);
+        return Result.success(fileService.getDownloadUrl(file_id));
     }
 
     /**
      * 删除文件
      */
-    @PostMapping("/delete/{fileId}")
-    public Result<Void> deleteFile(@PathVariable String fileId) {
-        log.info("删除文件: {}", fileId);
-        fileService.deleteFile(fileId);
+    @PostMapping("/delete")
+    public Result<Void> deleteFile(@RequestParam String file_id) {
+        log.info("删除文件: {}", file_id);
+        fileService.deleteFile(file_id);
         return Result.success();
     }
 }

@@ -1,7 +1,7 @@
 package com.smlj.singledevice_note.core.service;
 
 import com.smlj.singledevice_note.core.exception.BizException;
-import com.smlj.singledevice_note.core.o.dto.file.FileUploadInitDTO;
+import com.smlj.singledevice_note.core.o.dto.file.FileUploadBeginDTO;
 import com.smlj.singledevice_note.core.o.dto.file.FileUploadResultDTO;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.o.vo.table.dao.TFileInfoDao;
@@ -16,7 +16,7 @@ import java.util.UUID;
 
 /**
  * 文件业务逻辑层
- * 上传流程: initUpload → 前端直传 MinIO → completeUpload
+ * 上传流程: beginUpload → 前端直传 MinIO → endUpload
  * 下载流程: getDownloadUrl → 前端直连 MinIO 下载
  *
  * 约定: Service 只返回基础对象，失败抛 BizException(ResultCode)，由 GlobalExceptionHandler 统一捕获
@@ -33,10 +33,10 @@ public class FileService {
     private static final int PRESIGN_EXPIRE_SECONDS = 30 * 60;
 
     /**
-     * 初始化上传: 生成 fileId + presigned upload URL，存文件元数据到 DB
+     * 开始上传: 生成 fileId + presigned upload URL，存文件元数据到 DB
      * 如果 MD5 已存在则返回 is_exist=true（秒传）
      */
-    public FileUploadResultDTO initUpload(FileUploadInitDTO dto) {
+    public FileUploadResultDTO beginUpload(FileUploadBeginDTO dto) {
         // 查询是否已存在同 MD5 的有效记录（排除已删除 status=2）
         TFileInfo existing = fileDao.queryByMd5(dto.getFile_md5());
 
@@ -108,9 +108,9 @@ public class FileService {
     }
 
     /**
-     * 确认上传完成: 校验 MinIO 对象存在 → 更新 DB status=1
+     * 结束上传: 校验 MinIO 对象存在 → 更新 DB status=1
      */
-    public void completeUpload(String fileId) {
+    public void endUpload(String fileId) {
         TFileInfo entity = fileDao.queryById(fileId);
         if (entity == null) {
             throw new BizException(ResultCode.RC10501);
