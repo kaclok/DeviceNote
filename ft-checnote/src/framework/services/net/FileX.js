@@ -72,7 +72,11 @@ export function uploadToMinio(file, presignedUrl, onProgress) {
  * @returns {Promise<void>}
  */
 export async function endUpload(fileId) {
-    await axiosInst.post('x/minio/end', null, {params: {file_id: fileId}})
+    await axiosInst.post('x/minio/end', fileId, {
+        headers: {
+            'Content-Type': 'text/plain'  // 或者 'application/json'
+        }
+    })
 }
 
 /**
@@ -81,17 +85,26 @@ export async function endUpload(fileId) {
  * @returns {Promise<string>} presigned download URL
  */
 export async function getDownloadUrl(fileId) {
-    const res = await axiosInst.post('x/minio/download', null, {params: {file_id: fileId}})
+    const res = await axiosInst.post('x/minio/download', fileId, {
+        headers: {
+            'Content-Type': 'text/plain'  // 或者 'application/json'
+        }
+    })
     return res.data?.data || res.data
 }
 
 /**
- * 删除文件
+ * 彻底删除文件
+ * 后端语义: 删除 MinIO 对象 + 物理删除 DB 记录(不可恢复, 非逻辑删除)
  * @param {string} fileId
  * @returns {Promise<void>}
  */
 export async function deleteFile(fileId) {
-    await axiosInst.post('x/minio/delete', null, {params: {file_id: fileId}})
+    await axiosInst.post('x/minio/delete', fileId, {
+        headers: {
+            'Content-Type': 'text/plain'  // 或者 'application/json'
+        }
+    })
 }
 
 // ---- 一站式封装 ----

@@ -44,4 +44,8 @@
         UPDATE file.t_file SET upload_status = 2, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
     </update>
 
+    <delete id="deleteById">
+        DELETE FROM file.t_file WHERE id = #{id}
+    </delete>
+
 </mapper>

@@ -153,6 +153,28 @@ public class FileService {
     }
 
     /**
+     * 彻底删除文件: MinIO 删除对象 + DB 物理删除记录
+     * 说明:
+     * 1. MinIO removeObject 幂等，对象不存在(未上传完成/已被删过)不会报错，故不区分 upload_status 统一删除；
+     * 2. 先删 MinIO 再删 DB：若 MinIO 删除失败则抛异常中止，DB 记录保留，可重试；
+     * 3. 删除后 DB 无残留记录，同 MD5 文件可再次正常上传(秒传以 status!=2 的有效记录为准)。
+     */
+    public void realDeleteFile(String fileId) {
+        TFileInfo entity = fileDao.queryById(fileId);
+        if (entity == null) {
+            throw new BizException(ResultCode.RC10501);
+        }
+        try {
+            minoUtil.deleteObject(entity.getObject_key());
+        } catch (Exception e) {
+            log.error("MinIO删除文件失败: fileId={}, objectKey={}", fileId, entity.getObject_key(), e);
+            throw new BizException(ResultCode.RC10508);
+        }
+        fileDao.deleteById(fileId);
+        log.info("文件彻底删除完成: fileId={}, objectKey={}", fileId, entity.getObject_key());
+    }
+
+    /**
      * 删除文件: MinIO 删除对象 + DB 软删除
      */
     public void deleteFile(String fileId) {

@@ -78,13 +78,13 @@ async function doGetUrl(file) {
     }
 }
 
-// ---- 删除 ----
+// ---- 彻底删除(MinIO 对象 + DB 记录一并移除, 不可恢复) ----
 async function doDelete(file, index) {
     try {
         await ElMessageBox.confirm(
-            `确定删除文件「${file.name}」吗？`,
-            '删除确认',
-            { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+            `确定彻底删除文件「${file.name}」吗？\n删除后将同时移除 MinIO 存储对象与数据库记录，不可恢复。`,
+            '彻底删除确认',
+            { confirmButtonText: '彻底删除', cancelButtonText: '取消', type: 'warning' }
         )
     } catch {
         return

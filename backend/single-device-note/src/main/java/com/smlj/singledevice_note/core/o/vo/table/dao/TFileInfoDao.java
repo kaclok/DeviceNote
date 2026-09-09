@@ -25,4 +25,7 @@ public interface TFileInfoDao {
 
     /** 软删除（标记为已删除） */
     int markDeleted(@Param("id") String id);
+
+    /** 物理删除（彻底删除：DB 记录与 MinIO 对象一并移除） */
+    int deleteById(@Param("id") String id);
 }

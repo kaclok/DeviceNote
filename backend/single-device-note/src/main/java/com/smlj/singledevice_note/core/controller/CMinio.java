@@ -35,7 +35,7 @@ public class CMinio {
      * 结束上传
      */
     @PostMapping("/end")
-    public Result<Void> endUpload(@RequestParam String file_id) {
+    public Result<Void> endUpload(@RequestBody String file_id) {
         log.info("结束上传: {}", file_id);
         fileService.endUpload(file_id);
         return Result.success();
@@ -45,7 +45,7 @@ public class CMinio {
      * 获取下载地址
      */
     @PostMapping("/download")
-    public Result<String> getDownloadUrl(@RequestParam String file_id) {
+    public Result<String> getDownloadUrl(@RequestBody String file_id) {
         log.info("获取下载地址: {}", file_id);
         return Result.success(fileService.getDownloadUrl(file_id));
     }
@@ -54,9 +54,9 @@ public class CMinio {
      * 删除文件
      */
     @PostMapping("/delete")
-    public Result<Void> deleteFile(@RequestParam String file_id) {
+    public Result<Void> deleteFile(@RequestBody String file_id) {
         log.info("删除文件: {}", file_id);
-        fileService.deleteFile(file_id);
+        fileService.realDeleteFile(file_id);
         return Result.success();
     }
 }
