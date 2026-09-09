@@ -151,6 +151,7 @@ public class FileService {
             }
         }
 
+        // begin的时候就计算每个最终需要上传的(其实就是不可复用的)chunk的上传url
         FileChunkBeginResultDTO result = new FileChunkBeginResultDTO();
         result.setFile_id(fileId);
         result.setChunk_size(chunkSize);
