@@ -118,6 +118,26 @@ public class MinoUtil {
     }
 
     /**
+     * 读取文件对象流(同源降级通道: 当浏览器直连 MinIO 受 CORS/网络限制失败时,
+     * 由后端同源代理字节流给前端做 Blob 预览, 彻底绕开跨域)
+     * 注意: 调用方负责关闭返回的 InputStream
+     */
+    public InputStream getObject(String objectKey) {
+        try {
+            ensureBucketExists();
+            return minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(minioConfig.getBucketName())
+                            .object(objectKey)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("读取文件失败: {}", objectKey, e);
+            throw new RuntimeException("读取文件失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 生成预签名预览URL（GET 直链，浏览器直接访问 MinIO）
      * 说明:
      * 1. 上传时对象 Content-Type 统一为 octet-stream，这里用 response-content-type 覆盖为真实类型，

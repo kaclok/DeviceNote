@@ -1,5 +1,5 @@
 <script setup>
-import {ref, computed, onMounted} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount} from 'vue'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import {axiosInst} from '@/framework/services/net/AxiosInst.js'
 import {uploadFile, deleteFile} from '@/framework/services/net/FileX.js'
@@ -29,10 +29,20 @@ const loading = ref(false)
 const curFile = ref(null)   // 当前选中预览的文件
 const previewing = ref(false)
 
-// 预览数据源: 后端签发 MinIO 预签名直链，浏览器直接访问 MinIO(与上传直传同机制)
-const previewUrl = ref('')       // MinIO 预签名 GET 直链
+// 预览数据源(两级):
+// 1) 首选: 后端签发 MinIO 预签名直链 → 浏览器直接访问 MinIO
+// 2) 降级: 直链 fetch 失败(浏览器到 MinIO 的 CORS/网络受限) → 自动切后端同源 /raw → Blob → viewer
+const previewUrl = ref('')        // 当前喂给 viewer 的源(MinIO 直链 或 blob: URL)
 const previewLoading = ref(false)
-const previewKey = computed(() => curFile.value?.id || '')
+const fallbackTried = ref(false)  // 当前文件是否已尝试过同源降级
+const blobObjectUrl = ref('')     // 降级产生的 Blob 对象URL(便于回收)
+const isDirect = computed(() => !!previewUrl.value && /^https?:/i.test(previewUrl.value))
+
+// 会话级标记: 首次直连探测被浏览器拦截(ERR_BLOCKED_BY_CLIENT / CORS)后置 true,
+// 之后预览直接走同源降级, 不再重复发探测请求, 避免每次预览都产生被拦截的红字请求
+let directDisabled = false
+// 源从直链切到 blob 时 key 变化, 强制 viewer 重挂载
+const previewKey = computed(() => `${curFile.value?.id || ''}-${fallbackTried.value ? 'blob' : 'direct'}`)
 
 /* ---------------- 列表 ---------------- */
 async function loadList() {
@@ -52,6 +62,8 @@ async function onPreview(file) {
     curFile.value = file
     previewing.value = true
     previewUrl.value = ''
+    fallbackTried.value = false
+    revokeBlobObjectUrl()
     previewLoading.value = true
     try {
         const res = await axiosInst.get(`x/fileview/url/${file.id}`)
@@ -59,12 +71,76 @@ async function onPreview(file) {
         if (!url) {
             throw new Error('后端未返回预览地址')
         }
-        previewUrl.value = url
+        // 主动探测浏览器→MinIO 跨域是否可用(16 字节 Range,代价极小)
+        // 首次失败会置 directDisabled: 该环境浏览器层拦截直连(ERR_BLOCKED_BY_CLIENT/CORS/无ACAO),
+        // 后续文件直接同源降级, 不再重复探测
+        let directOk = false
+        if (!directDisabled) {
+            directOk = await probeDirectOk(url)
+            if (!directOk) directDisabled = true
+        }
+        if (directOk) {
+            previewUrl.value = url   // 首选: 直链
+        } else {
+            // 直连受限(无 ACAO/网络不通/被浏览器拦截) → 直接降级同源 Blob,不依赖 viewer 报错
+            await fallbackToSameOrigin()
+        }
     } catch (e) {
         previewing.value = false
         ElMessage.error('获取预览地址失败: ' + (e?.data?.message || e?.message || e))
     } finally {
         previewLoading.value = false
+    }
+}
+
+// 探测直链跨域可用性: 服务器是否回带 CORS 头(fetch 失败即代表被 CORS/网络拦截)
+async function probeDirectOk(url) {
+    try {
+        const ctl = new AbortController()
+        const timer = setTimeout(() => ctl.abort(), 8000)
+        const r = await fetch(url, {mode: 'cors', headers: {Range: 'bytes=0-15'}, signal: ctl.signal})
+        clearTimeout(timer)
+        return r.ok
+    } catch {
+        return false
+    }
+}
+
+function revokeBlobObjectUrl() {
+    if (blobObjectUrl.value) {
+        URL.revokeObjectURL(blobObjectUrl.value)
+        blobObjectUrl.value = ''
+    }
+}
+
+// 直链被浏览器 CORS/网络拦截时的降级(官方 FAQ 建议的 Blob 方案):
+// 改请求后端同源 /raw → 拉取字节 → Blob URL → 交给 viewer
+async function fallbackToSameOrigin() {
+    if (fallbackTried.value || !curFile.value) return
+    fallbackTried.value = true
+    try {
+        // 注意: AxiosInst 响应拦截器对 Blob 响应直接返回 Blob 本体(return success.data),
+        // 因此 res 本身就是 Blob, 不能再用 res.data
+        const res = await axiosInst.get(`x/fileview/raw/${curFile.value.id}`, {responseType: 'blob'})
+        const blob = res instanceof Blob ? res : (res?.data instanceof Blob ? res.data : null)
+        // 后端返回异常(Result JSON 而非文件字节)时兜底提示
+        if (!blob || !blob.type || blob.type.includes('json') || blob.type.includes('text/plain')) {
+            let msg = '后端返回异常'
+            try {
+                msg = await blob.text()
+            } catch {}
+            fallbackTried.value = false
+            previewing.value = false
+            ElMessage.error('同源预览失败: ' + msg.slice(0, 120))
+            return
+        }
+        revokeBlobObjectUrl()
+        blobObjectUrl.value = URL.createObjectURL(blob)
+        previewUrl.value = blobObjectUrl.value
+        ElMessage.info('当前网络直连 MinIO 受限，已切换为后端同源预览')
+    } catch (e) {
+        fallbackTried.value = false
+        ElMessage.error('同源预览失败: ' + (e?.message || e))
     }
 }
 
@@ -75,15 +151,23 @@ function openRaw() {
     }
 }
 
-// 预览源加载失败(如文件已被删/后端异常)时回调: 避免 viewer 静默卡在加载态
+// 预览源加载失败: 若当前是直链且未降级过 → 自动切同源 Blob; 已降级仍失败才提示
 function onPreviewError(err) {
     console.error('预览加载失败:', err)
+    if (isDirect.value && !fallbackTried.value) {
+        fallbackToSameOrigin()
+        return
+    }
     const msg = err?.message || (typeof err === 'string' ? err : '')
     ElMessage.error('预览失败: ' + (msg || '文件可能已被删除或后端不可达'))
 }
 
-// 格式不支持时的兜底提示
+// 直链格式不支持时也先尝试同源降级一次(CORS 拦截可能影响其类型探测)
 function onPreviewUnsupported() {
+    if (isDirect.value && !fallbackTried.value) {
+        fallbackToSameOrigin()
+        return
+    }
     ElMessage.warning('该文件格式暂不支持在线预览，可尝试下载后查看')
 }
 
@@ -135,6 +219,7 @@ async function onDelete(file) {
             curFile.value = null
             previewing.value = false
             previewUrl.value = ''
+            revokeBlobObjectUrl()
         }
         await loadList()
     } catch (e) {
@@ -159,6 +244,10 @@ function formatTime(ts) {
 
 onMounted(() => {
     loadList()
+})
+
+onBeforeUnmount(() => {
+    revokeBlobObjectUrl()
 })
 </script>
 
@@ -218,7 +307,8 @@ onMounted(() => {
                 <template #header>
                     <div style="display: flex; justify-content: space-between; align-items: center">
                         <span style="font-weight: bold">预览: {{ curFile.original_name }}</span>
-                        <el-button size="small" type="primary" plain @click="openRaw">新窗口打开原文件</el-button>
+                        <!-- 仅直链模式可用: 新窗口打开能直接验证 MinIO 直链本身是否可用 -->
+                        <el-button v-if="isDirect" size="small" type="primary" plain @click="openRaw">新窗口打开原文件</el-button>
                     </div>
                 </template>
                 <OpenFileViewer
