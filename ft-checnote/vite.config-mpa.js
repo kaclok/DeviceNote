@@ -17,6 +17,7 @@ const mpaInput = {
     carop: resolve(__dirname, './pages/smlj/carop/index.html'),
     filetest: resolve(__dirname, './pages/smlj/filetest/index.html'),
     fileview: resolve(__dirname, './pages/smlj/fileview/index.html'),
+    filechunk: resolve(__dirname, './pages/smlj/filechunk/index.html'),
     downloads: resolve(__dirname, './pages/downloads/index.html'),
 }
 
@@ -27,6 +28,7 @@ const mpaRewrites = [
     {from: /\/carop/, to: '/pages/smlj/carop/index.html'},
     {from: /\/filetest/, to: '/pages/smlj/filetest/index.html'},
     {from: /\/fileview/, to: '/pages/smlj/fileview/index.html'},
+    {from: /\/filechunk/, to: '/pages/smlj/filechunk/index.html'},
 ]
 
 const mpaPages= [
