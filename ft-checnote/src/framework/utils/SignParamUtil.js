@@ -67,16 +67,13 @@ export function addSign(params) {
 /* ---------------- 响应签名(校验后端返回的 Result.data) ---------------- */
 
 /**
- * 数字规范文本: 与后端 ResponseSignAdvice.numberText 保持一致
- *   - 整数(JS Number.isInteger 且 |n|<1e15): 十进制整数文本
- *   - 其余: Number.toString 最短十进制(常规范围内与后端 BigDecimal.toPlainString 一致)
- * 约定范围: 数值应在 JS 安全整数(±2^53) 且非极小(≥1e-6)/极大(<1e21) 内, 超出可能导致两端不一致
+ * 数字规范文本: 统一到 JS 语义 —— Number.prototype.toString 的最短十进制(如 1→'1', 1.5→'1.5', 1e20→'1000...')
+ * 与后端 ResponseSignAdvice.numberText(BigDecimal.valueOf(d).stripTrailingZeros().toPlainString()) 对齐:
+ * 整数/浮点走 toString 即得到与 Java 侧一致的十进制文本。
+ * 约定范围: 数值应在 JS 安全整数(±2^53) 且非极小(≥1e-6)/极大(<1e21) 内, 超出则 toString 会走指数形式(e+21)与 Java 分叉。
  */
 function numberText(n) {
-    if (Number.isInteger(n) && Math.abs(n) < 1e15) {
-        return String(n);
-    }
-    return String(n); // 常规小数(如 0.5/1.5/0.1) toString 即最短十进制, 与后端一致
+    return String(n);
 }
 
 /**
