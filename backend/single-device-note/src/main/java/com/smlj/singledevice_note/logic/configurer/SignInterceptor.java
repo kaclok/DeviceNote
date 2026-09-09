@@ -7,6 +7,7 @@ import com.smlj.singledevice_note.core.utils.SignUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
@@ -30,6 +31,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class SignInterceptor implements HandlerInterceptor {
 
+    /** 全局开关: application.yml 的 sign.request-enabled, 与前端 Config.js request_sign_enabled 同步 */
+    @Value("${sign.request-enabled:false}")
+    private boolean requestSignEnabled;
+
     private static final long ALLOWED_TIME_DRIFT = 5 * 60 * 1000; // 5 分钟
 
     // 参数名（与前端 SignParamUtil.js 保持一致）
@@ -51,6 +56,10 @@ public class SignInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) throws Exception {
+        // 全局开关关闭: 跳过验签直接放行(需与前端 Config.js request_sign_enabled=false 同步)
+        if (!requestSignEnabled) {
+            return true;
+        }
         try {
             if (!(handler instanceof HandlerMethod handlerMethod)) {
                 return true;

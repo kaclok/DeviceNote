@@ -17,6 +17,14 @@ public class Msg<T> {
     @Schema(description = "业务逻辑返回数据")
     protected T data = null;
 
+    /**
+     * 响应签名: data 规范 JSON 文本的 HMAC-SHA256(hex)。
+     * 仅在全局开关 sign.response-enabled=true 且成功返回(data 非空、无 @SignIgnore)时由 ResponseSignAdvice 填充。
+     * 为 null 时因全局 jackson NON_EMPTY 配置不会序列化输出，不影响旧接口。
+     */
+    @Schema(description = "响应签名(data 规范 JSON 的 HMAC-SHA256), 未开启响应签名时为 null")
+    protected String sign = null;
+
     public String toJson() {
         return JSONUtil.toJsonStr(this);
     }

@@ -3,7 +3,7 @@ import {config} from './Config.js'
 
 import {ECacheType, useLocalCache} from '@/framework/composable/use/useCache.ts'
 import {TokenService} from "@/framework/services/TokenService.js";
-import {addSign} from "@/framework/utils/SignParamUtil.js";
+import {addSign, signData} from "@/framework/utils/SignParamUtil.js";
 
 const {wsCache} = useLocalCache()
 
@@ -123,6 +123,15 @@ function _setToken(resp) {
     }
 }
 
+/**
+ * 响应签名豁免判断(等效后端"方法级"@SignIgnore):
+ * 发起请求时传 option {__signIgnore__: true}, 该请求的响应跳过签名校验。
+ * e.g. axiosInst.post(url, data, {__signIgnore__: true}) 或 InnerRequest 等封装透传自定义 option。
+ */
+function isResponseSignIgnored(response) {
+    return response?.config?.__signIgnore__ === true
+}
+
 // https://mp.weixin.qq.com/s/sWDnhq6MCUusQ0-aUpfNPw
 // https://v.douyin.com/iyUS3KtS/ https://v.douyin.com/iyUSqx35/
 // 参考：实现token无感刷新 https://github.com/yudaocode/yudao-ui-admin-vue3/blob/master/src/config/axios/service.ts#L117
@@ -148,6 +157,21 @@ axiosInst.interceptors.response.use(async (success) => {
 
     const code = success.data?.code;
     if (code === __OK__) {
+        // 响应签名校验(与后端 sign.response-enabled / ResponseSignAdvice 同步):
+        // 开关开启时, 对成功且带 data 的响应重算 HMAC 并与 body.sign 比对, 防响应数据被篡改。
+        // 说明: data 为 null 的响应后端不签名(sign 为空), 此处同样跳过;
+        //       若某请求想豁免校验, 发起时传 option {__signIgnore__: true}(等效后端"方法级"@SignIgnore)。
+        if (config.verify_response_sign && !isResponseSignIgnored(success)
+            && success.data?.data !== undefined && success.data?.data !== null) {
+            const expected = success.data.sign;
+            const actual = signData(success.data.data);
+            if (!expected || expected !== actual) {
+                console.error('响应签名校验失败 | url=' + (success.config?.url || ''), success.data);
+                const err = new Error('响应签名校验失败: 数据可能被篡改或前后端签名开关/算法不一致');
+                err.code = 'RESPONSE_SIGN_ERROR';
+                return Promise.reject(err);
+            }
+        }
         // 成功处理，走then分支
         return success;
     }
@@ -182,24 +206,30 @@ axiosInst.interceptors.response.use(async (success) => {
 // request拦截器, 让每个请求添加token
 // https://www.axios-http.cn/docs/interceptors
 // 添加响应拦截器，其实是把异步成功回调、失败回调给统一封装
-axiosInst.interceptors.request.use(config => {
+// 注意: 此处形参名使用 reqConfig 而不是 config, 避免遮蔽上方 import 的全局 config 对象(请求签名开关等读取)
+axiosInst.interceptors.request.use(reqConfig => {
     // https://www.bilibili.com/video/BV1DKDMYBETU?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
-    const isRT = TokenService.isRT(config)
-    config.headers.at = TokenService.getAT();
+    const isRT = TokenService.isRT(reqConfig)
+    reqConfig.headers.at = TokenService.getAT();
     if (isRT) {
-        config.headers.rt = TokenService.getRT();
+        reqConfig.headers.rt = TokenService.getRT();
     }
 
-    // 只处理params参数，不处理data参数
-    // 每次请求（含 AT 刷新后的重试）都重新签名：
-    //   场景1 正常请求：生成新 timestamp/nonce/sign → 后端校验通过并记录 nonce
-    //   场景2 重放攻击：攻击者无法生成新 sign（没有密钥），复用旧 nonce → 后端 nonce 缓存命中 → RC10404 拒绝
-    //   场景3 AT过期重试：原请求被 TokenInterceptor 拒绝 → SignInterceptor 未执行 → nonce 未记录
-    //   重试时 addSign 生成全新 timestamp/nonce/sign → 后端校验通过
-    const allParams = !config.params ? {} : config.params;
-    config.params = addSign(allParams)
-    // console.error("-----------------request url: %s, isRT: %s", config.url, isRT);
-    return config;
+    // 请求签名全局开关(config.request_sign_enabled, 与后端 application.yml sign.request-enabled 同步):
+    // true : 给 params 附加 __timestamp__/__nonce__/__sign__, 后端 SignInterceptor 验签(默认行为)
+    // false: params 原样透传, 后端需同步关闭验签, 否则带业务参数的无签名请求会被拒
+    if (config.request_sign_enabled) {
+        // 只处理params参数，不处理data参数
+        // 每次请求（含 AT 刷新后的重试）都重新签名：
+        //   场景1 正常请求：生成新 timestamp/nonce/sign → 后端校验通过并记录 nonce
+        //   场景2 重放攻击：攻击者无法生成新 sign（没有密钥），复用旧 nonce → 后端 nonce 缓存命中 → RC10404 拒绝
+        //   场景3 AT过期重试：原请求被 TokenInterceptor 拒绝 → SignInterceptor 未执行 → nonce 未记录
+        //   重试时 addSign 生成全新 timestamp/nonce/sign → 后端校验通过
+        const allParams = !reqConfig.params ? {} : reqConfig.params;
+        reqConfig.params = addSign(allParams)
+        // console.error("-----------------request url: %s, isRT: %s", reqConfig.url, isRT);
+    }
+    return reqConfig;
 }, fail => {
     console.error(fail);
     // 异步状态转换为失败状态，走到catch分支

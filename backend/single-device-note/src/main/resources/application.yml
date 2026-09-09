@@ -1,6 +1,19 @@
 # 同一路径下，配置文件优先级： properties > yml > yaml
 # 多环境配置：https://www.bilibili.com/video/BV14z4y1N7pg?p=44&vd_source=5c9f5bd891aee351c325bcf632b5550f 12:48
 
+# ========= 请求验签 / 响应签名 全局开关 =========
+# request-enabled  (请求验签, 对应 SignInterceptor + 前端 Config.js request_sign_enabled):
+#   true : 校验前端 GET/query 请求附带的 __sign__/__timestamp__/__nonce__(防篡改+防重放), 默认行为。
+#   false: 跳过验签直接放行; 需与前端 request_sign_enabled=false 同步关闭, 否则前端仍带签但后端不校验(无碍),
+#          反过来若前端关闭而后端仍开启, 带业务参数的无签名请求会被拒(RC10401)。
+# response-enabled (响应签名, 对应 ResponseSignAdvice + 前端 Config.js verify_response_sign):
+#   true : 后端对每个成功响应(Result.code=200 且 data 非空)计算 data 规范文本的 HMAC-SHA256,
+#          结果放入响应体的 sign 字段, 前端会重算比对, 防响应篡改。
+#   false: 不做任何处理, sign 字段不输出, 对旧接口零影响。
+sign:
+  request-enabled: false
+  response-enabled: false
+
 # web服务器启动端口
 server:
   servlet:

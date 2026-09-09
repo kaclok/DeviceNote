@@ -63,3 +63,47 @@ export function addSign(params) {
         __sign__: sign,
     };
 }
+
+/* ---------------- 响应签名(校验后端返回的 Result.data) ---------------- */
+
+/**
+ * 数字规范文本: 与后端 ResponseSignAdvice.numberText 保持一致
+ *   - 整数(JS Number.isInteger 且 |n|<1e15): 十进制整数文本
+ *   - 其余: Number.toString 最短十进制(常规范围内与后端 BigDecimal.toPlainString 一致)
+ * 约定范围: 数值应在 JS 安全整数(±2^53) 且非极小(≥1e-6)/极大(<1e21) 内, 超出可能导致两端不一致
+ */
+function numberText(n) {
+    if (Number.isInteger(n) && Math.abs(n) < 1e15) {
+        return String(n);
+    }
+    return String(n); // 常规小数(如 0.5/1.5/0.1) toString 即最短十进制, 与后端一致
+}
+
+/**
+ * data → 规范 JSON 文本(仅作 HMAC 输入, 不需可逆解析)
+ * 规则与后端 ResponseSignAdvice.canonical 对齐:
+ *   对象: 键按 UTF-16 字典序升序, 输出 {k:v,k2:v2}(键不加引号)
+ *   数组: [v1,v2]; 字符串: 原样; 布尔: true/false; null: null; 数字: numberText
+ * @param {*} v JSON.parse 后的 data
+ * @returns {string}
+ */
+export function canonicalJson(v) {
+    if (v === null || v === undefined) return 'null';
+    const t = typeof v;
+    if (t === 'string') return v;
+    if (t === 'boolean') return v ? 'true' : 'false';
+    if (t === 'number') return numberText(v);
+    if (Array.isArray(v)) return '[' + v.map(canonicalJson).join(',') + ']';
+    // 对象: 键排序(默认按 UTF-16 code unit 升序, 与 Java String.compareTo 一致)
+    const keys = Object.keys(v).sort();
+    return '{' + keys.map(k => k + ':' + canonicalJson(v[k])).join(',') + '}';
+}
+
+/**
+ * 计算 data 的响应签名(HMAC-SHA256 hex)
+ * @param {*} data 后端返回的 Result.data(已 JSON.parse)
+ * @returns {string}
+ */
+export function signData(data) {
+    return CryptoJS.HmacSHA256(canonicalJson(data), SECRET_KEY).toString();
+}
