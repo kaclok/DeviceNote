@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -112,6 +114,35 @@ public class MinoUtil {
         } catch (Exception e) {
             log.error("删除文件失败", e);
             throw new RuntimeException("删除文件失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 生成预签名预览URL（GET 直链，浏览器直接访问 MinIO）
+     * 说明:
+     * 1. 上传时对象 Content-Type 统一为 octet-stream，这里用 response-content-type 覆盖为真实类型，
+     *    保证浏览器/viewer 能按正确 MIME 内联预览；
+     * 2. 仅覆盖 content-type，不写 response-content-disposition，避免中文文件名 header 编码问题。
+     */
+    public String generatePresignedPreviewUrl(String objectKey, String contentType, int expireSeconds) {
+        try {
+            ensureBucketExists();
+            Map<String, String> params = new HashMap<>();
+            if (contentType != null && !contentType.isBlank()) {
+                params.put("response-content-type", contentType);
+            }
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(minioConfig.getBucketName())
+                            .object(objectKey)
+                            .expiry(expireSeconds, TimeUnit.SECONDS)
+                            .extraQueryParams(params)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("生成预览URL失败: {}", objectKey, e);
+            throw new RuntimeException("生成预览URL失败: " + e.getMessage());
         }
     }
 

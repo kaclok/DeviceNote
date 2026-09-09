@@ -5,6 +5,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 /**
  * 文件元数据 DAO
  */
@@ -28,4 +30,7 @@ public interface TFileInfoDao {
 
     /** 物理删除（彻底删除：DB 记录与 MinIO 对象一并移除） */
     int deleteById(@Param("id") String id);
+
+    /** 查询所有已上传完成的有效文件(status=1)，用于预览列表 */
+    List<TFileInfo> queryValidList();
 }

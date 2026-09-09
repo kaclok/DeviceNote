@@ -48,4 +48,12 @@
         DELETE FROM file.t_file WHERE id = #{id}
     </delete>
 
+    <select id="queryValidList" resultMap="BaseResultMap">
+        SELECT
+        <include refid="base_cols"/>
+        FROM file.t_file
+        WHERE upload_status = 1
+        ORDER BY create_time DESC
+    </select>
+
 </mapper>
