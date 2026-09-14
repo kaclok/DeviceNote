@@ -20,6 +20,11 @@ public class TCGHTUser implements Serializable {
     private String pwd;
     private String role_code;
     /**
+     * 归属部门 Code，关联 train.t_org.dept_code（必填）。
+     * 作为数据隔离的基准点；前端据此把编码回显成「公司/部门」名称。
+     */
+    private String dept_code;
+    /**
      * 启用状态：true 启用、false 停用
      * 对应 hd.json.status(1/0)，后端/前端一致用布尔，序列化时为 true/false
      */

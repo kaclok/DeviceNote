@@ -23,11 +23,34 @@ function _failBody(fail) {
 let _signerCache = null  // 签订人列表
 let _roleCache = null    // 角色列表
 let _permCache = null    // 权限定义列表
+let _deptCache = null    // 组织架构（部门字典，来自 train.t_org）
+let _deptLoading = null  // 组织架构请求去重：登录预加载与首屏页面可能同时触发
+
+/**
+ * 组织架构只拉一次：命中缓存直接返回，否则复用同一个在途请求。
+ * 刻意不透传调用方的 signal —— 这是全局共享的字典，不应因某个页面卸载而被 abort。
+ * 失败时重置 _deptLoading，保证后续能重试（否则一次失败会永久返回空）。
+ */
+function loadDeptOnce() {
+    if (_deptCache) return Promise.resolve(_deptCache)
+    if (!_deptLoading) {
+        _deptLoading = ApiX.getDeptList(null, null)
+            .then(succ => {
+                _deptCache = succ?.data?.data || []
+                return _deptCache
+            })
+            .catch(err => {
+                _deptLoading = null
+                throw err
+            })
+    }
+    return _deptLoading
+}
 
 /** 登录成功后预加载字典缓存 */
 export function preloadDictCache(signal, onAfter) {
     let done = 0
-    const total = 3
+    const total = 4
     const check = () => {
         done++
         if (done >= total) onAfter?.()
@@ -41,6 +64,9 @@ export function preloadDictCache(signal, onAfter) {
     ApiX.getPermDefs(null, signal).then(succ => {
         _permCache = succ.data
     }).catch(() => {}).finally(check)
+    // 组织架构：合同/账号的"归属部门"都要靠它把 dept_code 回显成"公司/部门"名，
+    // 登录后立即拉全量并缓存，避免每个页面各自请求一次
+    loadDeptOnce().catch(() => {}).finally(check)
 }
 
 /** 登出时清空缓存 */
@@ -48,6 +74,8 @@ export function clearDictCache() {
     _signerCache = null
     _roleCache = null
     _permCache = null
+    _deptCache = null
+    _deptLoading = null
 }
 
 class SysX {
@@ -194,6 +222,25 @@ class SysX {
         }).catch(fail => {
             onAfter?.(false, _failBody(fail));
         });
+    }
+
+    /* ---------------- 组织架构（部门字典，只读） ---------------- */
+    // 登录成功后由 preloadDictCache 预加载并缓存，之后所有页面 / DeptPicker 直接读缓存，
+    // 本地完成"输入关键字匹配部门名"、组织树渲染/搜索，以及 dept_code → 公司/部门名的回显。
+    // 缓存为空时（例如直接刷新页面、未走登录）自动回源一次并补上缓存。
+    // 回调数据形状与其它接口保持一致：{code, data}，调用方读 data.data 拿数组。
+    async getDeptList(paras, signal, onBefore, onAfter) {
+        if (_deptCache) {
+            onAfter?.(true, {code: __OK__, data: _deptCache})
+            return
+        }
+        onBefore?.();
+        try {
+            const ls = await loadDeptOnce()
+            onAfter?.(true, {code: __OK__, data: ls})
+        } catch (fail) {
+            onAfter?.(false, _failBody(fail));
+        }
     }
 }
 

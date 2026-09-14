@@ -3,6 +3,36 @@
 <!-- mapper namespace作用是：代码和xml进行关联 -->
 <!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptDao">
+
+    <!--
+      组织树专用结果映射：数据源是 train.t_org（MySQL），列名与本地副本不同，用别名对齐前端契约字段。
+      - 不含数组列（ids_direct_sub_depts / ids_recursive_sub_depts）：那是 main 库 dept_user.t_dept 的 PG 专有列，
+        MySQL 侧不存在，因此不能复用下面的 DeptResultMap（它绑定了 ArrayTypeHandler）。
+      - 前端契约保持不变：dept_code / dept_name / dept_all_name / parent_dept_code。
+    -->
+    <resultMap id="OrgResultMap" type="com.smlj.singledevice_note.logic.o.vo.table.entity.TDept">
+        <id property="dept_code" column="dept_code"/>
+        <result property="dept_name" column="org_name"/>
+        <result property="dept_all_name" column="org_all_name"/>
+        <result property="parent_dept_code" column="org_pid_code"/>
+    </resultMap>
+
+    <!--
+      组织架构全量字典：只返回启用节点（openStatus=1，bit(1)）。
+      含 parent_dept_code 是为了让前端自行拼组织树、算「公司/部门」全路径，无需再提供单独的树接口。
+      走 @DS("train")，故此处不能使用 PageHelper（全局方言是 postgresql）。
+    -->
+    <select id="queryOptions" resultMap="OrgResultMap">
+        select
+            dept_code,
+            org_name,
+            org_all_name,
+            org_pid_code
+        from train.t_org
+        where openStatus = 1
+        order by dept_code asc
+    </select>
+
     <resultMap id="DeptResultMap" type="com.smlj.singledevice_note.logic.o.vo.table.entity.TDept">
         <id property="dept_code" column="dept_code"/>
         <result property="dept_name" column="dept_name"/>
@@ -35,10 +65,6 @@
     <select id="queryById" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDept" resultMap="DeptResultMap">
         select * from dept_user.t_dept
         where dept_code = #{deptCode}
-    </select>
-
-    <select id="exist" resultType="java.lang.Integer">
-        SELECT COUNT(*) FROM dept_user.t_dept WHERE dept_code = #{deptCode} and is_using = true
     </select>
 
     <select id="querySubDepts" resultType="java.lang.String">

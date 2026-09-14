@@ -11,10 +11,13 @@ import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTPermDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTRoleDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTUserDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TDept;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +50,41 @@ public class CCGHT {
     private final TCGHTRoleDao roleDao;
     private final TCGHTPermDao permDao;
     private final TCGHTContractDao contractDao;
+    /** 组织架构只读 DAO：queryOptions 走 train 库（@DS 打在方法上），其余方法走 main 库 */
+    private final TDeptDao deptDao;
+
+    // ================================================================
+    // 组织架构缓存（进程内）
+    // ================================================================
+    // 为什么要缓存、而不是每次 deptExists() 直接查库：
+    // accountSave / contractCreate|Update|Import 都带 @Transactional，
+    // 而 dynamic-datasource 4.3.1 在事务开启时就把连接绑定到主库(main)，
+    // 事务内再切 @DS("train") 不生效 —— 会拿着 PG 连接去查 MySQL 的 train.t_org 直接报错。
+    // 因此部门有效性校验一律只读下面的内存索引，彻底不进事务查库。
+    // 附带好处：校验读的就是下发给前端的那一份数据，「能选到的」与「能存进去的」口径天然一致。
+    private volatile Set<String> deptCodes = Set.of();
+
+    /** 启动预热：让首个请求不必等一次 train 库查询（失败只告警，不阻断启动） */
+    @PostConstruct
+    public void warmDeptCache() {
+        try {
+            refreshDeptCache();
+        } catch (Exception e) {
+            log.warn("组织架构预热失败（将在首次 /cghtz/dept/list 时重试）: {}", e.getMessage());
+        }
+    }
+
+    /** 加载/刷新组织架构缓存，返回全量启用部门（失败时抛出，由调用方决定是否保留旧缓存） */
+    private synchronized List<TDept> refreshDeptCache() {
+        List<TDept> ls = deptDao.queryOptions();
+        if (ls == null) ls = new ArrayList<>();
+        Set<String> codes = new HashSet<>(ls.size());
+        for (TDept d : ls) {
+            if (d != null && StringUtils.hasText(d.getDept_code())) codes.add(d.getDept_code());
+        }
+        this.deptCodes = codes;
+        return ls;
+    }
 
     @Transactional
     @PostMapping(value = "/account/login")
@@ -90,13 +128,22 @@ public class CCGHT {
         return Result.success(user);
     }
 
+    /**
+     * 账号列表：服务端分页 + 关键字/部门筛选。
+     * <p>
+     * 关键字 kw 同时匹配 account / username（模糊），dept_code 精确匹配归属部门。
+     * 之所以把原先「一次拉 200 条、前端本地过滤分页」改成服务端搜索：
+     * 账号量级将来会到几万，整表下发+本地过滤不可持续。
+     */
     @RequirePermission("perm:assign")
     @Transactional
     @PostMapping(value = "/account/list")
-    public Result<?> accountList(@RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
+    public Result<?> accountList(@RequestParam(name = "kw", required = false) String kw,
+                                 @RequestParam(name = "dept_code", required = false) String dept_code,
+                                 @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
                                  @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = userDao.queryAll(true, false);
+        var ls = userDao.queryAll(kw, dept_code, true, false);
         for (var i : ls) {
             i.setRole(roleDao.query(i.getRole_code()));
         }
@@ -107,6 +154,9 @@ public class CCGHT {
      * 账号保存：统一新增/修改入口。
      * 前端 users.vue 不区分新建/编辑，一律调用同一接口；后端根据 account 是否存在做 insert / update。
      * 密码只在“新增”且前端提交了 password 时写入；否则使用默认 123456。编辑不改密码（密码另走 resetPwd）。
+     * <p>
+     * dept_code 归属部门为必填：必须是非空、且组织架构(train.t_org)中启用中的真实部门。
+     * 数据隔离以该字段为基准点，因此新建/编辑都必须明确归属。
      */
     @RequirePermission("perm:assign")
     @Transactional
@@ -115,12 +165,20 @@ public class CCGHT {
             @RequestParam(name = "account") String account,
             @RequestParam(name = "username") String username,
             @RequestParam(name = "role_code") String role_code,
+            @RequestParam(name = "dept_code", required = false) String dept_code,
             @RequestParam(name = "password", required = false) String password) {
         if (!StringUtils.hasText(account)) {
             return Result.fail(ResultCode.RC10101, "账号(account)不能为空");
         }
         if (!StringUtils.hasText(role_code)) {
             return Result.fail(ResultCode.RC10101, "角色(role_code)不能为空");
+        }
+        // 归属部门必填：空值直接拒绝，非空则必须能在组织架构中找到（口径与下拉/组织树一致）
+        if (!StringUtils.hasText(dept_code)) {
+            return Result.fail(ResultCode.RC10101, "归属部门(dept_code)不能为空");
+        }
+        if (!deptExists(dept_code)) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", dept_code));
         }
         var role = roleDao.query(role_code);
         if (role == null) {
@@ -137,6 +195,7 @@ public class CCGHT {
             u.setUsername(username);
             u.setPwd(pwd);
             u.setRole_code(role_code);
+            u.setDept_code(dept_code);
             u.setOpen_status(true);
             userDao.insert(u);
 
@@ -153,6 +212,7 @@ public class CCGHT {
                 old.setUsername(username);
             }
             old.setRole_code(role_code);
+            old.setDept_code(dept_code);
             userDao.update(old);
 
             old.setRole(roleDao.query(role_code));
@@ -164,6 +224,7 @@ public class CCGHT {
             old.setUsername(username);
         }
         old.setRole_code(role_code);
+        old.setDept_code(dept_code);
         userDao.update(old);
         userDao.toggleStatus(account, true);
         final String pwd = StringUtils.hasText(password) ? password : DEFAULT_INIT_PWD;
@@ -262,7 +323,8 @@ public class CCGHT {
     @PostMapping(value = "/signer/list")
     public Result<?> signerList() {
         // signer 下拉用：只返回启用的非管理员，且仅需 account/username（合同 sign_person 关联）
-        var ls = userDao.queryAll(true, false);
+        // 不加关键字/部门筛选（kw=null, dept_code=null 表示不过滤）
+        var ls = userDao.queryAll(null, null, true, false);
         return Result.success(ls);
     }
 
@@ -271,6 +333,41 @@ public class CCGHT {
     public Result<?> permList() {
         var ls = permDao.queryAll();
         return Result.success(ls);
+    }
+
+    // ================================================================
+    // 组织架构（只读）
+    // 数据源：train.t_org（MySQL，集团组织树权威主数据，116 个启用部门）。
+    // 部门下拉、组织架构树、列表部门筛选、部门名校验、dept_code→公司/部门名回显，五处共用同一份数据：
+    // 登录成功后前端立即拉一次全量并缓存，之后本地完成关键字匹配、组织树渲染/搜索与回显，不再逐次请求。
+    // 不限权限：任何已登录用户录合同/选部门都要用到，仅由 JWT 认证兜底。
+    // ================================================================
+
+    /**
+     * 部门全量字典（dept_code / dept_name / dept_all_name / parent_dept_code）。
+     * 含 parent_dept_code 是为了让前端能自行拼出组织树并推算「公司/部门」全路径，无需再提供单独的树接口。
+     * <p>
+     * 刻意不加 @Transactional：纯读接口，且事务内切数据源不生效（详见 deptCodes 字段上的说明）。
+     * 每次调用都刷新缓存 —— 登录后的预加载会走到这里，顺带让组织架构变更在重新登录时生效。
+     */
+    @PostMapping(value = "/dept/list")
+    public Result<?> deptList() {
+        return Result.success(refreshDeptCache());
+    }
+
+    /**
+     * 部门编码有效性：必须非空、且存在于组织架构（train.t_org 中启用中的部门）。
+     * 只查内存索引，不进数据库 —— 调用方全都在 @Transactional 里，此时切数据源是无效的。
+     */
+    private boolean deptExists(String deptCode) {
+        if (!StringUtils.hasText(deptCode)) return false;
+        Set<String> codes = this.deptCodes;
+        if (codes.isEmpty()) {
+            // 预热失败或尚未加载：惰性重试一次
+            refreshDeptCache();
+            codes = this.deptCodes;
+        }
+        return codes.contains(deptCode);
     }
 
     // ================================================================
@@ -287,6 +384,7 @@ public class CCGHT {
             @RequestParam(name = "sign_type", required = false) Integer sign_type,
             @RequestParam(name = "payment_type", required = false) Integer payment_type,
             @RequestParam(name = "supplier", required = false) String supplier,
+            @RequestParam(name = "dept_code", required = false) String dept_code,
             @RequestParam(name = "queryBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryBegin,
             @RequestParam(name = "queryEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryEnd,
             @RequestParam(name = "finish_step", required = false) Integer finish_step,
@@ -296,7 +394,7 @@ public class CCGHT {
             @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
             @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day);
+        var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, dept_code, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day);
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -319,6 +417,13 @@ public class CCGHT {
     public Result<?> contractCreate(@RequestBody TCGHTContract c) {
         if (c == null || c.getId() == null || c.getId().isBlank()) {
             return Result.fail(ResultCode.RC10101, "合同编号(id)不能为空");
+        }
+        // 归属部门必填：空值拒绝，非空必须在组织架构中真实存在
+        if (!StringUtils.hasText(c.getDept_code())) {
+            return Result.fail(ResultCode.RC10101, "归属部门(dept_code)不能为空");
+        }
+        if (!deptExists(c.getDept_code())) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", c.getDept_code()));
         }
 
         // 即时结算类(1)：id 必须唯一；周期结算类(2)：id 可重复
@@ -345,6 +450,13 @@ public class CCGHT {
         TCGHTContract old = contractDao.query(c.getUnique_id());
         if (old == null) {
             return Result.fail(ResultCode.RC10103, "目标合同不存在");
+        }
+        // 归属部门必填：空值拒绝，非空必须在组织架构中真实存在
+        if (!StringUtils.hasText(c.getDept_code())) {
+            return Result.fail(ResultCode.RC10101, "归属部门(dept_code)不能为空");
+        }
+        if (!deptExists(c.getDept_code())) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", c.getDept_code()));
         }
         // 保留 unique_id 和 open_status，其余从 c 拷贝
         BeanUtils.copyProperties(c, old, "unique_id", "open_status");
@@ -402,6 +514,12 @@ public class CCGHT {
             }
             if (c.getSupplier() == null || c.getSupplier().isBlank()) {
                 reasons.add("供应商必填");
+            }
+            // 归属部门必填：逐行校验，缺部门或部门非法都按行拦截（不静默丢数据）
+            if (!StringUtils.hasText(c.getDept_code())) {
+                reasons.add("归属部门必填");
+            } else if (!deptExists(c.getDept_code())) {
+                reasons.add(String.format("归属部门 %s 不存在或已停用", c.getDept_code()));
             }
             if (c.getDate_sign() == null) {
                 reasons.add("签订时间必填");

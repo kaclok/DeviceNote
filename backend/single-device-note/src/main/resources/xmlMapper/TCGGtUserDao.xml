@@ -2,16 +2,23 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTUserDao">
 
-    <!-- 查询全量：返回全部基础账号字段 + lastLogin -->
+    <!-- 查询账号：支持关键字(account/username 模糊) + 归属部门精确筛选，分页由调用方 PageHelper 控制 -->
     <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser">
         select
             account,
             username,
             pwd,
             role_code,
+            dept_code,
             open_status
         from cght.t_user
        <where>
+           <if test="kw != null and kw != ''">
+               and (account like concat('%', #{kw}, '%') or username like concat('%', #{kw}, '%'))
+           </if>
+           <if test="dept_code != null and dept_code != ''">
+               and dept_code = #{dept_code}
+           </if>
            <if test="filterOpenStatus == true">
                and open_status = true
            </if>
@@ -29,6 +36,7 @@
             username,
             pwd,
             role_code,
+            dept_code,
             open_status
         from cght.t_user
         where account = #{account}
@@ -38,25 +46,27 @@
         SELECT COUNT(*) FROM cght.t_user WHERE account = #{account}
     </select>
 
-    <!-- 新增账号：account/username/pwd/role_code 为核心必填；lastLogin 可选 -->
+    <!-- 新增账号：account/username/pwd/role_code/dept_code 为核心必填 -->
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser">
         insert into cght.t_user (
-            account, username, pwd, role_code, open_status
+            account, username, pwd, role_code, dept_code, open_status
         ) values (
             #{u.account},
             #{u.username},
             #{u.pwd},
             #{u.role_code},
+            #{u.dept_code},
             #{u.open_status}
         )
     </insert>
 
-    <!-- 更新账号：username / role_code / lastLogin -->
+    <!-- 更新账号：username / role_code / dept_code -->
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser">
         update cght.t_user
         <set>
             username = #{u.username},
             role_code = #{u.role_code},
+            dept_code = #{u.dept_code},
         </set>
         where account = #{u.account}
     </update>

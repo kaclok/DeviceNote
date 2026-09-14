@@ -18,6 +18,11 @@ public class TCGHTContract implements Serializable {
     private String id;
     /** 主键（自动生成），即时结算类唯一校验按 id，周期结算类允许 id 重复但 unique_id 不同 */
     private String unique_id;
+    /**
+     * 归属部门 Code，关联 train.t_org.dept_code（必填）。
+     * 新增/编辑合同时由部门选择器选定，列表展示与部门筛选都基于该字段。
+     */
+    private String dept_code;
     private String title;
     private float amount;
     // @DateTimeFormat(pattern = "yyyy-MM-dd")

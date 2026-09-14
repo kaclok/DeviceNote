@@ -1,11 +1,12 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
-import {downloadTemplate, exportContractExcel, exportFinanceExcel} from "../utils/ExcelX.js"
+import {exportContractExcel, exportFinanceExcel} from "../utils/ExcelX.js"
 import {useRouter, useRoute} from 'vue-router';
 import dayjs from 'dayjs';
 import gd from "../data/gd.json"
-import hd from "../data/hd.json"
+import DeptPicker from "../components/DeptPicker.vue"
+import {buildDeptPathMap, deptDisplay, deptShort, isUnknownDept} from "../utils/DeptX.js"
 
 const router = useRouter();
 const route = useRoute();
@@ -40,6 +41,7 @@ const filters = ref({
     sign_type: '',
     payment_type: '',
     supplier: '',
+    dept_code: '',
     dateFrom: null,
     dateTo: null,
     rkDateFrom: null,
@@ -49,6 +51,25 @@ const filters = ref({
 })
 // 签订人列表（动态数据，由后端下发；）
 const signerOptions = ref([])
+// 归属部门字典（动态数据，来自 /cghtz/dept/list，登录后已缓存）
+const deptOptions = ref([])
+const deptPathMap = computed(() => buildDeptPathMap(deptOptions.value))
+
+/** 归属部门展示文本：命中字典 → 「公司/部门」；未命中 → 「未知部门(code)」 */
+function deptPath(code) {
+    return deptDisplay(deptPathMap.value, code)
+}
+
+/** 该编码未命中字典（用于把「未知部门(code)」标灰） */
+function deptUnknown(code) {
+    return isUnknownDept(deptPathMap.value, code)
+}
+
+/** 列表列位窄：只显示末级部门名，完整「公司/部门」路径放 tooltip */
+function deptShortName(code) {
+    return deptShort(deptPathMap.value, code)
+}
+
 // 签订方式枚举为固定数据，统一来自 gd.json（经 MockX 导出）
 const methodOptions = gd.methodOptions
 // 财务环节步骤的 description（对应 finishedOptions 4 项）
@@ -62,6 +83,7 @@ const stepDescriptions = [
 // 用 let：服务端分页每次翻页都要发请求，需取消上一次未完成的请求，避免旧响应覆盖新响应
 let AC_list = new AbortController()
 const AC_signers = new AbortController()
+let AC_dept = new AbortController()
 
 onMounted(() => {
     // 从 URL 读取筛选参数，兼容两种位置：
@@ -88,11 +110,13 @@ onMounted(() => {
     }
     loadList()
     loadSigners()
+    loadDepts()
 })
 
 onUnmounted(() => {
     AC_list.abort()
     AC_signers.abort()
+    AC_dept.abort()
 })
 
 function loadList() {
@@ -110,6 +134,7 @@ function loadList() {
         sign_type: filters.value.sign_type,
         payment_type: filters.value.payment_type,
         supplier: filters.value.supplier,
+        dept_code: filters.value.dept_code,
         queryBegin: filters.value.dateFrom,
         queryEnd: filters.value.dateTo,
         rkBegin: filters.value.rkDateFrom,
@@ -156,6 +181,16 @@ function loadSigners() {
     })
 }
 
+// 归属部门字典：登录后已由 SysX 预加载缓存，这里命中缓存即刻返回
+function loadDepts() {
+    Singleton.getInstance(SysX).getDeptList(null, AC_dept.signal, () => {
+    }, (r, data) => {
+        if (r) {
+            deptOptions.value = data.data || []
+        }
+    })
+}
+
 function applyFilters() {
     page.value = 1
     loadList()
@@ -193,7 +228,7 @@ function calcRemainDay(date, payCycleMonth) {
 
 function resetFilters() {
     filters.value = {
-        id: '', title: '', sign_person: '', sign_type: '', payment_type: '', supplier: '',
+        id: '', title: '', sign_person: '', sign_type: '', payment_type: '', supplier: '', dept_code: '',
         dateFrom: null, dateTo: null,
         rkDateFrom: null, rkDateTo: null,
         finish_step: '',
@@ -230,6 +265,7 @@ function emptyForm() {
         sign_person: '',
         sign_type: '',
         supplier: '',
+        dept_code: '',
         pay_type: '',
         payment_type: null,
         paycycle_dh: 0,
@@ -263,6 +299,18 @@ const rules = {
     date_sign: [{required: true, message: '请选择签订时间', trigger: 'change'}],
     paycycle_dh: [{required: true, message: '请输入到货周期', trigger: 'change'}],
     paycycle_zb: [{required: true, message: '请输入质保周期', trigger: 'change'}],
+    // 归属部门必填（后端强校验）。trigger 用 change：下拉选择与组织树确认都会 emit change
+    dept_code: [{required: true, message: '请选择归属部门', trigger: 'change'}],
+}
+
+/**
+ * DeptPicker 选完部门后立刻消掉必填的红字。
+ * 下拉路径由 el-select 触发 change 能自然带出校验，但"组织架构树弹窗"是程序化 emit，
+ * 不在表单元素的事件链上，不显式 validateField 会残留红色提示。
+ */
+function onDeptChange() {
+    formRef.value?.validateField('dept_code').catch(() => {
+    })
 }
 
 function openCreate() {
@@ -410,6 +458,7 @@ function buildCurrentFilterParas() {
         sign_type: filters.value.sign_type === '' || filters.value.sign_type == null ? null : Number(filters.value.sign_type),
         payment_type: filters.value.payment_type === '' || filters.value.payment_type == null ? null : Number(filters.value.payment_type),
         supplier: filters.value.supplier,
+        dept_code: filters.value.dept_code,
         queryBegin: filters.value.dateFrom,
         queryEnd: filters.value.dateTo,
         rkBegin: filters.value.rkDateFrom,
@@ -513,6 +562,11 @@ function mills2DateStr(mills) {
                 <el-form-item label="供应商">
                     <el-input v-model="filters.supplier" placeholder="模糊搜索" clearable style="width:160px" @keyup.enter="applyFilters"/>
                 </el-form-item>
+                <el-form-item label="归属部门">
+                    <div class="dept-filter">
+                        <DeptPicker v-model="filters.dept_code" :depts="deptOptions" placeholder="全部" @change="applyFilters"/>
+                    </div>
+                </el-form-item>
                 <el-form-item label="财务环节">
                     <el-select v-model="filters.finish_step" placeholder="全部" clearable style="width:110px">
                         <el-option v-for="(label, idx) in gd.finishedOptions" :key="idx" :label="label" :value="idx"/>
@@ -594,6 +648,14 @@ function mills2DateStr(mills) {
                     <template #default="{row}">{{ methodOptions.find(i => i.id === row.sign_type)?.desc }}</template>
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
+                <el-table-column prop="dept_code" label="归属部门" min-width="140">
+                    <template #default="{row}">
+                        <span v-if="!row.dept_code" style="color:#cbd5e1">-</span>
+                        <el-tooltip v-else :content="deptPath(row.dept_code)" placement="top">
+                            <span :class="{'dept-unknown': deptUnknown(row.dept_code)}">{{ deptShortName(row.dept_code) }}</span>
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
                 <el-table-column v-hasPermission="'contract:op'" label="操作" width="100" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-hasPermission="['contract:update']" link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
@@ -658,6 +720,11 @@ function mills2DateStr(mills) {
                     <el-col :span="12">
                         <el-form-item label="供应商" prop="supplier">
                             <el-input v-model="form.supplier" placeholder="供应商全称"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="归属部门" prop="dept_code">
+                            <DeptPicker v-model="form.dept_code" :depts="deptOptions" :teleported="false" @change="onDeptChange"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
@@ -793,6 +860,11 @@ function mills2DateStr(mills) {
 </template>
 
 <style lang="scss" scoped>
+/* 归属部门字典未命中：灰色标出「未知部门(code)」，避免与正常部门名混淆 */
+.dept-unknown {
+    color: #94a3b8;
+}
+
 /* Element Plus el-step 自定义图标：点击数字圆圈切换步骤 */
 :deep(.el-step__icon) {
     padding: 0;
@@ -847,9 +919,11 @@ function mills2DateStr(mills) {
     /* el-table 单元格、表头 */
     :deep(.el-table) {
         font-size: 12px;
+
         .el-table__header th {
             font-size: 12px;
         }
+
         .el-table__cell {
             font-size: 12px;
         }
@@ -859,6 +933,7 @@ function mills2DateStr(mills) {
     :deep(.el-form-item__label) {
         font-size: 12px;
     }
+
     :deep(.el-input__inner),
     :deep(.el-select .el-input__inner),
     :deep(.el-date-editor .el-input__inner) {
@@ -873,6 +948,7 @@ function mills2DateStr(mills) {
     /* el-pagination 分页 */
     :deep(.el-pagination) {
         font-size: 12px;
+
         .el-pagination__total {
             font-size: 12px;
         }
@@ -894,6 +970,11 @@ function mills2DateStr(mills) {
                 width: 100%;
                 height: 0;
             }
+        }
+
+        /* DeptPicker 根节点是 100% 宽，筛选栏里需要固定宽度 */
+        .dept-filter {
+            width: 190px;
         }
     }
 

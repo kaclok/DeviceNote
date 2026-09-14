@@ -2,61 +2,61 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
+import DeptPicker from "../components/DeptPicker.vue"
+import {buildDeptPathMap, deptDisplay, deptShort, isUnknownDept} from "../utils/DeptX.js"
 
 const loading = ref(false)
 const list = ref([])
-
-// 搜索关键字（按账号 / 姓名模糊匹配）
-const keyword = ref('')
-// 表头排序状态：sortProp 为 null 时用原始排序
-const sortProp = ref(null)
-const sortOrder = ref(null) // 'ascending' | 'descending' | null
-const filteredList = computed(() => {
-    const kw = keyword.value.trim().toLowerCase()
-    let result = !kw
-        ? [...list.value]
-        : list.value.filter(row =>
-            (row.account || '').toLowerCase().includes(kw) ||
-            (row.username || '').toLowerCase().includes(kw)
-        )
-    // 应用排序
-    if (sortProp.value && sortOrder.value) {
-        result.sort((a, b) => {
-            let cmp = 0
-            if (sortProp.value === 'role_code') {
-                cmp = (a.role?.role_code || '').localeCompare(b.role?.role_code || '')
-            } else if (sortProp.value === 'open_status') {
-                cmp = (a.open_status ? 1 : 0) - (b.open_status ? 1 : 0)
-            }
-            return sortOrder.value === 'ascending' ? cmp : -cmp
-        })
-    }
-    return result
-})
-
-// 客户端分页：账号是小体量字典数据，整表加载后本地分页即可，
-// 这样可保留上方"账号/姓名"关键字搜索跨全部数据生效，无需后端支持搜索
+const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
-const pagedList = computed(() => {
-    const start = (page.value - 1) * pageSize.value
-    return filteredList.value.slice(start, start + pageSize.value)
-})
-// 关键字/列表变化时回到第一页，避免停留在超出范围的页码
-watch(keyword, () => {
-    page.value = 1
-})
 
-/** el-table 表头排序：三态切换 ascending → descending → null(原始排序) */
-function onSortChange({prop, order}) {
-    sortProp.value = prop || null
-    sortOrder.value = order || null
-}
+// 搜索条件：关键字（账号/姓名模糊）与归属部门 —— 均由后端过滤，配合服务端分页
+const keyword = ref('')
+const deptFilter = ref('')
+
+// 表头排序状态：sortProp 为 null 时用原始排序。
+// 服务端分页下排序只对当前页生效（与 ledger.vue 保持一致）。
+const sortProp = ref(null)
+const sortOrder = ref(null) // 'ascending' | 'descending' | null
+const sortedList = computed(() => {
+    if (!sortProp.value || !sortOrder.value) return list.value
+    const sorted = [...list.value]
+    sorted.sort((a, b) => {
+        let cmp = 0
+        if (sortProp.value === 'role_code') {
+            cmp = (a.role?.role_code || '').localeCompare(b.role?.role_code || '')
+        } else if (sortProp.value === 'open_status') {
+            cmp = (a.open_status ? 1 : 0) - (b.open_status ? 1 : 0)
+        }
+        return sortOrder.value === 'ascending' ? cmp : -cmp
+    })
+    return sorted
+})
 
 // 角色列表（动态数据，由后端下发
 const roles = ref([])
 // 权限码字典（动态数据，由后端下发
 const permDefs = ref([])
+
+/* ---------------- 组织架构（归属部门字典） ---------------- */
+// 数据源 /cghtz/dept/list（train.t_org），登录后已由 SysX 预加载缓存，这里只读缓存
+const deptOptions = ref([])
+const deptPathMap = computed(() => buildDeptPathMap(deptOptions.value))
+/** 归属部门展示文本：命中字典 → 「公司/部门」；未命中 → 「未知部门(code)」 */
+function deptPath(code) {
+    return deptDisplay(deptPathMap.value, code)
+}
+
+/** 该编码未命中字典（用于把「未知部门(code)」标灰） */
+function deptUnknown(code) {
+    return isUnknownDept(deptPathMap.value, code)
+}
+
+/** 列表列位窄：只显示末级部门名，完整「公司/部门」路径放 tooltip */
+function deptShortName(code) {
+    return deptShort(deptPathMap.value, code)
+}
 
 // 权限分组（基于动态 permDefs 计算）
 const permGroups = computed(() => {
@@ -74,30 +74,73 @@ const currentRolePerms = computed(() => {
     return new Set(r?.perms || [])
 })
 
-// 字典级单例共享 AbortController（避免多次重复请求；但账号/角色/权限字典的刷新仍应可重复）
-const AC_list = new AbortController()
+// 列表请求在翻页/搜索时会重发，需取消上一次未完成的请求，避免旧响应覆盖新响应
+let AC_list = new AbortController()
 const AC_roles = new AbortController()
 const AC_perms = new AbortController()
+const AC_dept = new AbortController()
 
 onMounted(() => {
     loadList()
     loadRoles()
     loadPermDefs()
+    loadDepts()
 })
 
 onUnmounted(() => {
     AC_list.abort()
     AC_roles.abort()
     AC_perms.abort()
+    AC_dept.abort()
+    clearTimeout(kwTimer)
 })
 
 function loadList() {
-    Singleton.getInstance(SysX).getAccountList({pageNum: page.value, pageSize: 200}, AC_list.signal, null, (r, data) => {
+    AC_list.abort()
+    AC_list = new AbortController()
+
+    loading.value = true
+    // 只传非空条件，避免后端把空串当成"筛选空值"
+    const paras = {pageNum: page.value, pageSize: pageSize.value}
+    const kw = keyword.value.trim()
+    if (kw) paras.kw = kw
+    if (deptFilter.value) paras.dept_code = deptFilter.value
+
+    Singleton.getInstance(SysX).getAccountList(paras, AC_list.signal, () => {
+    }, (r, data) => {
+        loading.value = false
         if (r) {
             list.value = data.data.list || []
-            page.value = 1
+            total.value = data.data.total || 0
         }
     })
+}
+
+// 关键字变化防抖 300ms 后重新查询（回到第一页）
+let kwTimer = null
+watch(keyword, () => {
+    clearTimeout(kwTimer)
+    kwTimer = setTimeout(() => {
+        page.value = 1
+        loadList()
+    }, 300)
+})
+
+function applySearch() {
+    page.value = 1
+    loadList()
+}
+
+// 服务端分页：页码/每页条数变化需重新发请求
+function onPageChange(p) {
+    page.value = p
+    loadList()
+}
+
+function onSizeChange(s) {
+    pageSize.value = s
+    page.value = 1
+    loadList()
 }
 
 function loadRoles() {
@@ -118,6 +161,21 @@ function loadPermDefs() {
     })
 }
 
+function loadDepts() {
+    Singleton.getInstance(SysX).getDeptList(null, AC_dept.signal, () => {
+    }, (r, data) => {
+        if (r) {
+            deptOptions.value = data.data || []
+        }
+    })
+}
+
+/** el-table 表头排序：三态切换 ascending → descending → null(原始排序) */
+function onSortChange({prop, order}) {
+    sortProp.value = prop || null
+    sortOrder.value = order || null
+}
+
 function statusTag(status) {
     return status ? {type: 'success', text: '启用'} : {type: 'info', text: '停用'}
 }
@@ -136,17 +194,19 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 const saving = ref(false)
-const form = ref({account: '', username: '', role_code: 'EDITOR', password: ''})
+const form = ref({account: '', username: '', role_code: 'EDITOR', dept_code: '', password: ''})
 
 const rules = {
     account: [{required: true, message: '请输入账号', trigger: 'blur'}],
     username: [{required: true, message: '请输入姓名', trigger: 'blur'}],
     role_code: [{required: true, message: '请选择角色', trigger: 'change'}],
+    // 归属部门必填（后端强校验）。trigger 用 change：下拉选择与组织树确认都会 emit change
+    dept_code: [{required: true, message: '请选择归属部门', trigger: 'change'}],
 }
 
 function openCreate() {
     isEdit.value = false
-    form.value = {account: '', username: '', role_code: 'EDITOR', password: ''}
+    form.value = {account: '', username: '', role_code: 'EDITOR', dept_code: '', password: ''}
     dialogVisible.value = true
 }
 
@@ -156,6 +216,7 @@ function openEdit(row) {
         account: row.account,
         username: row.username,
         role_code: row.role?.role_code || '',
+        dept_code: row.dept_code || '',
         password: '',
     }
     dialogVisible.value = true
@@ -166,15 +227,26 @@ function hasPermInForm(code) {
     return currentRolePerms.value.has(code)
 }
 
+/**
+ * DeptPicker 选完部门后立刻消掉必填的红字。
+ * 下拉路径由 el-select 触发 change 能自然带出校验，但"组织架构树弹窗"是程序化 emit，
+ * 不在表单元素的事件链上，不显式 validateField 会残留红色提示。
+ */
+function onDeptChange() {
+    formRef.value?.validateField('dept_code').catch(() => {
+    })
+}
+
 function saveAccount() {
     formRef.value.validate(valid => {
         if (!valid) return
         saving.value = true
-        // 提交体：与后端 accountSave @RequestParam 一致：account/username/role_code/password(新增用)
+        // 提交体：与后端 accountSave @RequestParam 一致：account/username/role_code/dept_code/password(新增用)
         const paras = {
             account: String(form.value.account || '').trim(),
             username: String(form.value.username || '').trim(),
             role_code: form.value.role_code,
+            dept_code: form.value.dept_code || '',
         }
         if (!isEdit.value) {
             paras.password = String(form.value.password || '').trim()
@@ -187,7 +259,7 @@ function saveAccount() {
                 dialogVisible.value = false
                 loadList()
             } else {
-                ElMessage.error('保存失败')
+                ElMessage.error(data?.data?.message || '保存失败')
             }
         })
     })
@@ -227,25 +299,36 @@ function toggleStatus(row) {
     <div class="users-page">
         <div class="page-head">
             <div class="head-title">账号与权限管理</div>
-            <div class="head-desc">为每个账号分配角色，权限由角色决定，不可手动调整</div>
+            <div class="head-desc">为每个账号分配角色与归属部门，权限由角色决定，不可手动调整</div>
         </div>
 
         <el-card shadow="never" class="table-card">
             <div class="toolbar">
                 <el-button v-hasPermission="['perm:assign']" type="primary" @click="openCreate">＋ 新建账号</el-button>
                 <div class="spacer"></div>
-                <el-input v-model="keyword" placeholder="搜索账号 / 姓名" clearable style="width:260px">
+                <div class="dept-filter">
+                    <DeptPicker v-model="deptFilter" :depts="deptOptions" placeholder="按部门筛选" @change="applySearch"/>
+                </div>
+                <el-input v-model="keyword" placeholder="搜索账号 / 姓名" clearable style="width:220px">
                     <template #prefix><span style="color:#94a3b8">🔍</span></template>
                 </el-input>
             </div>
 
-            <el-table :data="pagedList" v-loading="loading" border stripe style="width:100%" @sort-change="onSortChange">
+            <el-table :data="sortedList" v-loading="loading" border stripe style="width:100%" @sort-change="onSortChange">
                 <el-table-column type="index" label="序号" width="64" align="center"/>
-                <el-table-column prop="account" label="账号" width="140">
+                <el-table-column prop="account" label="账号" width="120">
                     <template #default="{row}"><b style="color:#2563eb">{{ row.account }}</b></template>
                 </el-table-column>
-                <el-table-column prop="username" label="姓名" width="130"/>
-                <el-table-column prop="role_code" label="角色" width="120" align="center" sortable="custom">
+                <el-table-column prop="username" label="姓名" width="110"/>
+                <el-table-column prop="dept_code" label="归属部门" min-width="140">
+                    <template #default="{row}">
+                        <span v-if="!row.dept_code" style="color:#cbd5e1">-</span>
+                        <el-tooltip v-else :content="deptPath(row.dept_code)" placement="top">
+                            <span :class="{'dept-unknown': deptUnknown(row.dept_code)}">{{ deptShortName(row.dept_code) }}</span>
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="role_code" label="角色" width="110" align="center" sortable="custom">
                     <template #default="{row}">
                         <el-tag :type="roleTag(row.role.role_code)" size="small" effect="light">{{ row.role.role_name }}</el-tag>
                     </template>
@@ -255,7 +338,7 @@ function toggleStatus(row) {
                         <el-tag :type="statusTag(row.open_status).type" size="small">{{ statusTag(row.open_status).text }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" width="260" fixed="right" align="center">
+                <el-table-column label="操作" width="250" fixed="right" align="center">
                     <template #default="{row}">
                         <el-button v-notSelf.readonly="row.account" link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
                         <el-button v-notSelf.readonly="row.account" link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
@@ -268,12 +351,14 @@ function toggleStatus(row) {
 
             <div class="pager">
                 <el-pagination
-                    v-model:current-page="page"
-                    v-model:page-size="pageSize"
+                    :current-page="page"
+                    :page-size="pageSize"
                     :page-sizes="[10, 20, 50, 100]"
-                    :total="filteredList.length"
+                    :total="total"
                     layout="total, sizes, prev, pager, next, jumper"
                     background
+                    @current-change="onPageChange"
+                    @size-change="onSizeChange"
                 />
             </div>
         </el-card>
@@ -297,6 +382,11 @@ function toggleStatus(row) {
                             <el-select v-model="form.role_code" placeholder="请选择角色" style="width:100%">
                                 <el-option v-for="r in roles" :key="r.role_code" :label="r.role_name" :value="r.role_code"/>
                             </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="归属部门" prop="dept_code">
+                            <DeptPicker v-model="form.dept_code" :depts="deptOptions" :teleported="false" @change="onDeptChange"/>
                         </el-form-item>
                     </el-col>
                     <el-col v-if="!isEdit" :span="24">
@@ -336,6 +426,11 @@ function toggleStatus(row) {
 </template>
 
 <style lang="scss" scoped>
+/* 归属部门字典未命中：灰色标出「未知部门(code)」，避免与正常部门名混淆 */
+.dept-unknown {
+    color: #94a3b8;
+}
+
 .users-page {
     .page-head {
         margin-bottom: 16px;
@@ -355,10 +450,16 @@ function toggleStatus(row) {
     .toolbar {
         display: flex;
         align-items: center;
+        gap: 10px;
         margin-bottom: 14px;
 
         .spacer {
             flex: 1
+        }
+
+        /* DeptPicker 根节点是 100% 宽，工具栏里需要固定宽度 */
+        .dept-filter {
+            width: 240px;
         }
     }
 

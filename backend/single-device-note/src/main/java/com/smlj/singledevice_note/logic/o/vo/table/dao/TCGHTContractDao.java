@@ -23,6 +23,7 @@ public interface TCGHTContractDao {
             , @Param("sign_type") Integer sign_type
             , @Param("payment_type") Integer payment_type
             , @Param("supplier") String supplier
+            , @Param("dept_code") String dept_code
             , @Param("queryBegin") Date queryBegin
             , @Param("queryEnd") Date queryEnd
             , @Param("finish_step") Integer finish_step

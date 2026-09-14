@@ -10,7 +10,7 @@
         paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        finish_step, open_status
+        dept_code, finish_step, open_status
     </sql>
 
     <!-- ============ 列表查询：动态 where ============ -->
@@ -36,6 +36,10 @@
         </if>
         <if test="supplier != null and supplier != ''">
             and supplier like concat('%', #{supplier}, '%')
+        </if>
+        <!-- 归属部门筛选：精确匹配 dept_code -->
+        <if test="dept_code != null and dept_code != ''">
+            and dept_code = #{dept_code}
         </if>
         <if test="queryBegin != null">
             AND date_sign &gt;= #{queryBegin}
@@ -88,7 +92,7 @@
         paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        finish_step, open_status
+        dept_code, finish_step, open_status
         ) values (
         #{c.unique_id}, #{c.id}, #{c.title}, #{c.amount}, #{c.date_sign}, #{c.sign_person}, #{c.sign_type},
         #{c.supplier}, #{c.pay_type}, #{c.payment_type},
@@ -96,7 +100,7 @@
         #{c.date_yfk}, #{c.date_dhk}, #{c.date_zbj}, #{c.date_rk},
         #{c.bz}, #{c.settle_amount}, #{c.has_amount}, #{c.hq},
         #{c.date_htyj}, #{c.date_fpyj}, #{c.date_actual_dh}, #{c.date_ruzlyj},
-        #{c.finish_step}, true
+        #{c.dept_code}, #{c.finish_step}, true
         )
     </insert>
 
@@ -127,6 +131,7 @@
             date_fpyj = #{c.date_fpyj},
             date_actual_dh = #{c.date_actual_dh},
             date_ruzlyj = #{c.date_ruzlyj},
+            dept_code = #{c.dept_code},
             finish_step = #{c.finish_step}
         </set>
         where unique_id = #{c.unique_id}

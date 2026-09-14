@@ -3,6 +3,7 @@ import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {downloadTemplate, parseContractExcel} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
+import DeptPicker from "../components/DeptPicker.vue"
 
 const router = useRouter();
 
@@ -11,16 +12,23 @@ const result = ref(null)          // {success, fail, failRows:[{row,id,title,rea
 const file = ref(null)
 const signers = ref([])          // 签订人字典，用于 Excel 中"姓名→account"转码
 
+// 归属部门：导入的整批合同统一归属该部门（必填，导入前先选定）
+const deptCode = ref('')
+const deptOptions = ref([])
+
 const AC_signers = new AbortController()
 const AC_import = new AbortController()
+const AC_dept = new AbortController()
 
 onMounted(() => {
     loadSigners()
+    loadDepts()
 })
 
 onUnmounted(() => {
     AC_signers.abort()
     AC_import.abort()
+    AC_dept.abort()
 })
 
 function loadSigners() {
@@ -30,8 +38,28 @@ function loadSigners() {
     })
 }
 
+// 归属部门字典：登录后已由 SysX 预加载缓存，这里命中缓存即刻返回
+function loadDepts() {
+    Singleton.getInstance(SysX).getDeptList(null, AC_dept.signal, () => {
+    }, (r, data) => {
+        if (r) deptOptions.value = data.data || []
+    })
+}
+
 // 拖拽/选择上传
 const fileInput = ref()
+
+/**
+ * 点点击上传区：未选归属部门时连文件选择框都不打开。
+ * 归属部门是必填项，先选后传能避免用户选完文件才被拦（那一趟已白跑一次解析）。
+ */
+function onUploadClick() {
+    if (!deptCode.value) {
+        ElMessage.warning('请先选择归属部门，再上传文件')
+        return
+    }
+    fileInput.value.click()
+}
 
 function onFileChange(e) {
     const f = e.target.files[0]
@@ -40,11 +68,19 @@ function onFileChange(e) {
 }
 
 function onDrop(e) {
+    if (!deptCode.value) {
+        ElMessage.warning('请先选择归属部门，再上传文件')
+        return
+    }
     const f = e.dataTransfer.files[0]
     if (f) handleFile(f)
 }
 
 async function handleFile(f) {
+    if (!deptCode.value) {
+        ElMessage.warning('请先选择归属部门，再上传文件')
+        return
+    }
     if (!/\.(xlsx|xls)$/i.test(f.name)) {
         ElMessage.error('仅支持 .xlsx / .xls 文件')
         return
@@ -58,6 +94,10 @@ async function handleFile(f) {
             importing.value = false
             return
         }
+        // 整批统一打上所选归属部门（后端逐行强校验：缺部门或部门非法都按行拦截）
+        rows.forEach(r => {
+            r.dept_code = deptCode.value
+        })
         Singleton.getInstance(SysX).importContractExcel(rows, AC_import.signal, () => {
         }, (r, data) => {
             importing.value = false
@@ -93,7 +133,7 @@ function goLedger() {
     <div class="import-page">
         <div class="page-head">
             <div class="head-title">Excel 批量导入</div>
-            <div class="head-desc">下载模板 → 填写数据 → 上传校验 → 查看导入结果（支持 .xlsx / .xls，单次最多 1000 行）</div>
+            <div class="head-desc">下载模板 → 填写数据 → 选择归属部门 → 上传校验 → 查看导入结果（支持 .xlsx / .xls，单次最多 1000 行）</div>
         </div>
 
         <!-- 模板 -->
@@ -106,17 +146,32 @@ function goLedger() {
             </div>
         </el-card>
 
+        <!-- 归属部门 -->
+        <el-card shadow="never" class="block-card">
+            <div class="block-title">② 选择归属部门（必填）</div>
+            <div class="block-body">
+                <div class="dept-box">
+                    <DeptPicker v-model="deptCode" :depts="deptOptions" placeholder="输入部门名称，或点右侧按钮从组织架构选择"/>
+                </div>
+                <div class="tip-text">
+                    本批合同将统一归属到该部门；未选择部门时无法上传。可输入文字模糊匹配，或点右侧「?」按组织架构逐层选择。
+                </div>
+            </div>
+        </el-card>
+
         <!-- 上传 -->
         <el-card shadow="never" class="block-card">
-            <div class="block-title">② 上传文件</div>
+            <div class="block-title">③ 上传文件</div>
             <div class="block-body">
-                <div class="upload-zone" :class="{dragging: importing}" @click="fileInput.click()"
+                <div class="upload-zone" :class="{dragging: importing, disabled: !deptCode}"
+                     @click="onUploadClick"
                      @dragover.prevent="importing = true" @dragleave.prevent="importing = false" @drop.prevent="onDrop">
                     <div class="uic">📂</div>
                     <div class="u-main">将 Excel 文件拖拽到此处，或 <b>点击选择文件</b></div>
                     <div class="u-sub">支持 .xlsx / .xls，单次最多 1000 行；导入前将进行必填、格式、编号唯一性校验</div>
                     <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileChange"/>
                 </div>
+                <div v-if="!deptCode" class="warn-tip">请先在上一步选择归属部门</div>
                 <div v-if="importing" class="importing-tip">
                     <el-icon class="is-loading" style="margin-right:6px"><i class="el-icon-loading"/></el-icon>
                     正在解析并校验...
@@ -126,7 +181,7 @@ function goLedger() {
 
         <!-- 结果 -->
         <el-card v-if="result" shadow="never" class="block-card">
-            <div class="block-title">③ 导入结果</div>
+            <div class="block-title">④ 导入结果</div>
             <el-alert :type="result.fail > 0 ? 'warning' : 'success'" :closable="false" show-icon
                       :title="`成功 ${result.success} 条${result.fail > 0 ? `，失败 ${result.fail} 条（见下方明细）` : '，全部通过'}`"
                       style="margin-bottom:14px"/>
@@ -180,6 +235,18 @@ function goLedger() {
             margin-top: 10px;
         }
 
+        .warn-tip {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #e6a23c;
+        }
+
+        /* DeptPicker 根节点是 100% 宽，这里限一下宽度便于与上传区对齐 */
+        .dept-box {
+            width: 520px;
+            max-width: 100%;
+        }
+
         .upload-zone {
             border: 2px dashed #cbd5e1;
             border-radius: 12px;
@@ -196,6 +263,17 @@ function goLedger() {
 
                 .uic {
                     transform: scale(1.1)
+                }
+            }
+
+            /* 未选归属部门：视觉上提示不可用（点击仍会给出明确提示） */
+            &.disabled {
+                opacity: .6;
+
+                &:hover {
+                    border-color: #cbd5e1;
+                    background: transparent;
+                    color: #64748b;
                 }
             }
 
