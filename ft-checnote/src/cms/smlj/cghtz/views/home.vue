@@ -4,6 +4,7 @@ import {clearAccount, ECacheType, useSessionCache} from "@/framework/composable/
 import {ElMessage, ElMessageBox} from "element-plus";
 import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
 import {clearDictCache} from "@/cms/smlj/cghtz/system/SysX.js";
+import gd from "../data/gd.json"
 
 const router = useRouter();
 const route = useRoute();
@@ -17,9 +18,11 @@ const perms = ref(acc.role.perms)
 let loadingLogout = ref(false)
 
 let AC_logoutList = new AbortController();
+const AC_pwd = new AbortController()
 
 onUnmounted(() => {
     AC_logoutList.abort();
+    AC_pwd.abort();
 });
 
 // 权限判断
@@ -61,6 +64,75 @@ function trueLogout() {
         }
     });
 }
+
+// 右上角下拉：按 command 分发（修改密码 / 退出登录）
+function onUserCommand(cmd) {
+    if (cmd === 'changePwd') openChangePwd()
+    else if (cmd === 'logout') logout()
+}
+
+/* ---------------- 修改密码（用户自助） ---------------- */
+// 管理员新建账号时写入的是初始密码，用户可在此凭原密码自行修改。
+// 登录响应把整个账号对象塞进了 JWT，因此这里能读到当前密码，
+// 用于识别"仍是初始密码"的状态并给出提醒（密码为明文存储，仅限内网 demo）。
+// 初始密码统一取自 gd.json，避免多处硬编码
+const INIT_PWD = gd.defaultPwd
+const isInitPwd = computed(() => String(account.value?.pwd ?? '') === INIT_PWD)
+
+const pwdDialogVisible = ref(false)
+const pwdFormRef = ref()
+const pwdSaving = ref(false)
+const pwdForm = ref({oldPwd: '', newPwd: '', confirmPwd: ''})
+
+const pwdRules = {
+    oldPwd: [{required: true, message: '请输入原密码', trigger: 'blur'}],
+    newPwd: [
+        {required: true, message: '请输入新密码', trigger: 'blur'},
+        {min: 6, max: 20, message: '新密码长度需为 6~20 位', trigger: 'blur'},
+        {
+            validator: (rule, value, callback) => {
+                if (value && value === pwdForm.value.oldPwd) callback(new Error('新密码不能与原密码相同'))
+                else callback()
+            }, trigger: 'blur'
+        },
+    ],
+    confirmPwd: [
+        {required: true, message: '请再次输入新密码', trigger: 'blur'},
+        {
+            validator: (rule, value, callback) => {
+                if (value !== pwdForm.value.newPwd) callback(new Error('两次输入的新密码不一致'))
+                else callback()
+            }, trigger: 'blur'
+        },
+    ],
+}
+
+function openChangePwd() {
+    pwdForm.value = {oldPwd: '', newPwd: '', confirmPwd: ''}
+    pwdDialogVisible.value = true
+}
+
+function submitChangePwd() {
+    pwdFormRef.value.validate(valid => {
+        if (!valid) return
+        pwdSaving.value = true
+        // account 不传：后端从请求头 at(JWT) 解析当前登录账号
+        ApiLogin.changePwd({oldPwd: pwdForm.value.oldPwd, newPwd: pwdForm.value.newPwd}, AC_pwd.signal, () => {
+        }, (r, data) => {
+            pwdSaving.value = false
+            if (r) {
+                pwdDialogVisible.value = false
+                ElMessage.success('密码修改成功，请使用新密码重新登录')
+                // 密码已变更：清掉登录态与字典缓存，回到登录页重新认证
+                clearDictCache()
+                clearAccount()
+                router.push({name: 'login'})
+            } else {
+                ElMessage.error(data?.data?.message || data?.msg || '密码修改失败')
+            }
+        })
+    })
+}
 </script>
 
 <template>
@@ -73,15 +145,19 @@ function trueLogout() {
             <div class="page-title-sub">陕西金泰化学神木氯碱</div>
 
             <div class="right-menu">
-                <el-dropdown @command="logout">
+                <el-dropdown @command="onUserCommand">
                     <div class="user-info">
                         <el-avatar :size="30" style="background:#6366f1;font-size:13px">
                             {{ (account.username || account.account || '?').slice(0, 1) }}
                         </el-avatar>
                         <span class="user-name">{{ account.account }}</span>
+                        <el-tag v-if="isInitPwd" size="small" type="warning" effect="light" class="pwd-warn"
+                                @click.stop="openChangePwd">初始密码
+                        </el-tag>
                     </div>
                     <template #dropdown>
                         <el-dropdown-menu>
+                            <el-dropdown-item command="changePwd">修改密码</el-dropdown-item>
                             <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
@@ -106,6 +182,35 @@ function trueLogout() {
                 <router-view/>
             </div>
         </div>
+
+        <!-- 修改密码（用户自助） -->
+        <el-dialog v-model="pwdDialogVisible" title="修改密码" width="440px" destroy-on-close>
+            <el-alert v-if="isInitPwd" type="warning" :closable="false" show-icon
+                      title="当前使用的是管理员设置的初始密码，建议尽快修改"
+                      style="margin-bottom:14px"/>
+            <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="80px">
+                <el-form-item label="账号">
+                    <el-input :model-value="account.account" disabled/>
+                </el-form-item>
+                <el-form-item label="原密码" prop="oldPwd">
+                    <el-input v-model="pwdForm.oldPwd" type="password" show-password
+                              placeholder="请输入原密码" autocomplete="off"/>
+                </el-form-item>
+                <el-form-item label="新密码" prop="newPwd">
+                    <el-input v-model="pwdForm.newPwd" type="password" show-password
+                              placeholder="6~20 位" autocomplete="off"/>
+                </el-form-item>
+                <el-form-item label="确认密码" prop="confirmPwd">
+                    <el-input v-model="pwdForm.confirmPwd" type="password" show-password
+                              placeholder="请再次输入新密码" autocomplete="off"/>
+                </el-form-item>
+            </el-form>
+            <div class="pwd-tip">修改成功后需使用新密码重新登录</div>
+            <template #footer>
+                <el-button @click="pwdDialogVisible = false">取消</el-button>
+                <el-button type="primary" :loading="pwdSaving" @click="submitChangePwd">确定修改</el-button>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -172,6 +277,11 @@ function trueLogout() {
                     font-weight: 500;
                 }
 
+                .pwd-warn {
+                    cursor: pointer;
+                    font-size: 11px;
+                }
+
                 .user-role {
                     font-size: 11px;
                     color: #2563eb;
@@ -233,6 +343,12 @@ function trueLogout() {
             overflow-x: hidden;
             padding: 20px 24px 40px;
         }
+    }
+
+    .pwd-tip {
+        font-size: 12px;
+        color: #94a3b8;
+        padding-left: 80px;
     }
 }
 </style>

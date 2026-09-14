@@ -2,6 +2,7 @@ package com.smlj.singledevice_note.logic.controller;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
+import com.smlj.singledevice_note.core.annotation.Acc;
 import com.smlj.singledevice_note.core.annotation.RequirePermission;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
@@ -185,6 +186,49 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10301);
         }
         final String newPwd = StringUtils.hasText(pwd) ? pwd : DEFAULT_INIT_PWD;
+        userDao.resetPwd(account, newPwd);
+        return Result.success();
+    }
+
+    /**
+     * 修改密码（用户自助）：管理员设定的初始密码，用户可凭原密码自行修改。
+     * 与 /account/resetPwd 的区别：
+     * - resetPwd 是管理员在账号管理页强制重置为初始密码，需要 perm:assign 权限，无需原密码；
+     * - changePwd 是账号本人的自助操作，不加 @RequirePermission（任何登录用户都必须能改自己的密码），但必须校验原密码。
+     * account 一律从请求头 at(JWT) 解析，不接收前端传参，避免越权修改他人密码。
+     */
+    @Transactional
+    @PostMapping(value = "/account/changePwd")
+    public Result<?> accountChangePwd(@RequestParam(name = "oldPwd") String oldPwd,
+                                      @RequestParam(name = "newPwd") String newPwd,
+                                      @Acc TCGHTUser curUser) {
+        final String account = curUser.getAccount();
+        if (!StringUtils.hasText(account)) {
+            return Result.fail(ResultCode.RC10002);
+        }
+        // 注意：Result.fail(ResultCode, T) 的第二个参数是 data 而非 message，
+        // 自定义提示需用 fail(int code, String message) 重载，否则前端读到的 message 仍是枚举默认值
+        if (!StringUtils.hasText(oldPwd) || !StringUtils.hasText(newPwd)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "原密码与新密码不能为空");
+        }
+        if (newPwd.length() < 6 || newPwd.length() > 20) {
+            return Result.fail(ResultCode.RC10101.getCode(), "新密码长度需为 6~20 位");
+        }
+
+        TCGHTUser user = userDao.query(account);
+        if (user == null) {
+            return Result.fail(ResultCode.RC10301);
+        }
+        if (!user.isOpen_status()) {
+            return Result.fail(ResultCode.RC10301.getCode(), String.format("账号 %s 已停用，请联系管理员", account));
+        }
+        if (!user.getPwd().equals(oldPwd)) {
+            return Result.fail(ResultCode.RC10303.getCode(), "原密码不正确");
+        }
+        if (newPwd.equals(oldPwd)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "新密码不能与原密码相同");
+        }
+
         userDao.resetPwd(account, newPwd);
         return Result.success();
     }

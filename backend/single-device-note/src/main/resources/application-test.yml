@@ -27,6 +27,12 @@ spring:
           username: postgres
           password: root
           driver-class-name: org.postgresql.Driver
+        # 组织架构与账号的主数据源(只读)：t_org 部门树 + t_user 账号(同一 account 可多行=多部门任职)
+        train:
+          url: jdbc:mysql://10.8.54.24:3306/train?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
+          username: root
+          password:
+          driver-class-name: com.mysql.cj.jdbc.Driver
 
 #  data:
 #    redis:  # Redis

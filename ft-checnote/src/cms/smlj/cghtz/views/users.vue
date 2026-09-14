@@ -1,6 +1,7 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
+import gd from "../data/gd.json"
 
 const loading = ref(false)
 const list = ref([])
@@ -182,7 +183,7 @@ function saveAccount() {
         }, (r, data) => {
             saving.value = false
             if (r) {
-                ElMessage.success(isEdit.value ? '保存成功' : `账号${paras.account}创建成功，初始密码：${paras.password || '123456'}`)
+                ElMessage.success(isEdit.value ? '保存成功' : `账号${paras.account}创建成功，初始密码：${paras.password || gd.defaultPwd}`)
                 dialogVisible.value = false
                 loadList()
             } else {
@@ -194,7 +195,7 @@ function saveAccount() {
 
 /* ---------------- 其他操作 ---------------- */
 function resetPwd(row) {
-    ElMessageBox.confirm(`确定将 ${row.account}（${row.username || ''}）的密码重置为 123456 吗？`, '重置密码', {type: 'warning'}).then(() => {
+    ElMessageBox.confirm(`确定将 ${row.account}（${row.username || ''}）的密码重置为 ${gd.defaultPwd} 吗？`, '重置密码', {type: 'warning'}).then(() => {
         Singleton.getInstance(SysX).resetPassword({account: row.account}, new AbortController().signal, () => {
         }, (r, data) => {
             if (r) {
@@ -300,7 +301,7 @@ function toggleStatus(row) {
                     </el-col>
                     <el-col v-if="!isEdit" :span="24">
                         <el-form-item label="初始密码">
-                            <el-input v-model="form.password" placeholder="留空则默认 123456"/>
+                            <el-input v-model="form.password" :placeholder="`留空则默认 ${gd.defaultPwd}`"/>
                         </el-form-item>
                     </el-col>
                 </el-row>

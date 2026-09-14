@@ -25,4 +25,19 @@ export class ApiLogin {
             onAfter?.(false, fail);
         });
     }
+
+    /**
+     * 修改密码（用户自助）：原密码校验通过后写入新密码。
+     * 注意：account 不传，后端从请求头 at(JWT) 解析，避免越权改他人密码。
+     */
+    static changePwd(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        axiosR.post("cghtz/account/changePwd", null, {
+            params: paras, signal: signal,
+        }).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, fail);
+        });
+    }
 }

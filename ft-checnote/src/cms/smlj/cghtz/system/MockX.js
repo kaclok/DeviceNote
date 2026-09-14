@@ -27,6 +27,9 @@ const KEY = "cghtz_mock_db_v4"
 /* ---------------- 固定数据（来自 gd.json） ---------------- */
 export const METHOD_OPTIONS = gd.methodOptions
 
+/** 初始密码：统一取自 gd.json，避免多处硬编码 */
+const DEFAULT_PWD = gd.defaultPwd
+
 /* ---------------- 后端下发数据（来自 hd.json，将来由后端接口返回） ---------------- */
 const ROLES = hd.roles
 const PERM_DEFS = hd.permDefs
@@ -299,7 +302,7 @@ export class MockX {
         } else {
             db.accounts.push({
                 ...accountData,
-                password: accountData.password || "123456",
+                password: accountData.password || DEFAULT_PWD,
                 status: accountData.status ?? 1,
             });
         }
@@ -325,7 +328,7 @@ export class MockX {
     static resetPassword(account) {
         const db = loadDB();
         const a = db.accounts.find(x => x.account === account);
-        if (a) a.password = "123456";
+        if (a) a.password = DEFAULT_PWD;
         saveDB(db);
         return ok(true);
     }

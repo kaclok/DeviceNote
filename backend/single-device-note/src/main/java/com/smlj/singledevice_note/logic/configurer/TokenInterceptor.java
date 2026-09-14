@@ -1,11 +1,13 @@
 package com.smlj.singledevice_note.logic.configurer;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.smlj.singledevice_note.core.annotation.JwtIgnore;
 import com.smlj.singledevice_note.core.annotation.RequirePermission;
 import com.smlj.singledevice_note.core.annotation.RequireRole;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -100,6 +102,9 @@ public class TokenInterceptor implements HandlerInterceptor {
                 response.getWriter().write(Result.fail(ResultCode.RC10005).toJson());
                 return false;
             }
+
+            var user = BeanUtil.toBean(claims.get("user"), TCGHTUser.class);
+            request.setAttribute("Acc", user);
 
             // 从 JWT payload 提取当前登录用户的 role_code 和 perms
             // claims 结构: {user: {account, username, role_code, role: {role_code, perms: [...]}}}

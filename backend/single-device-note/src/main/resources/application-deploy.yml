@@ -29,6 +29,11 @@ spring:
           username: root
           password: '!@#QWE123qwe'
           driver-class-name: com.mysql.cj.jdbc.Driver
+        train:
+          url: jdbc:mysql://10.8.54.24:3306/train?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
+          username: root
+          password:
+          driver-class-name: com.mysql.cj.jdbc.Driver
 
   #  data:
   #    redis:  # Redis
