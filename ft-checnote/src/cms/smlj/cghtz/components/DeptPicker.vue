@@ -178,7 +178,16 @@ onMounted(ensureDepts)
         </el-select>
 
         <el-tooltip content="从组织架构选择部门" placement="top">
-            <el-button class="dept-tree-btn" :disabled="disabled" @click="dialogVisible = true">?</el-button>
+            <button type="button" class="dept-tree-btn" :disabled="disabled"
+                    aria-label="从组织架构选择部门" @click="dialogVisible = true">
+                <!-- 组织架构图：1 个上级 + 2 个下级，比「?」自解释 -->
+                <svg class="org-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                    <rect x="5.6" y="1.6" width="4.8" height="3.6" rx="1"/>
+                    <rect x="0.6" y="10.8" width="4.8" height="3.6" rx="1"/>
+                    <rect x="10.6" y="10.8" width="4.8" height="3.6" rx="1"/>
+                    <path class="org-line" d="M8 5.2V7.6M3 7.6H13M3 7.6V10.8M13 7.6V10.8"/>
+                </svg>
+            </button>
         </el-tooltip>
 
         <el-dialog v-model="dialogVisible" title="选择部门（组织架构）" width="600px" append-to-body destroy-on-close>
@@ -236,12 +245,60 @@ onMounted(ensureDepts)
         min-width: 0;
     }
 
+    /* 组织架构选择按钮：用原生 button（避免 el-button 的 padding/边框干扰），
+       尺寸与 el-select 对齐（EP default size = 32px）。 */
     .dept-tree-btn {
         flex-shrink: 0;
-        width: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
         padding: 0;
-        font-weight: 700;
-        color: #2563eb;
+        border: 1px solid var(--el-border-color, #dcdfe6);
+        border-radius: 4px;
+        background: var(--el-fill-color-blank, #fff);
+        color: #64748b;
+        cursor: pointer;
+        transition: color .15s, border-color .15s, background-color .15s;
+
+        &:hover:not(:disabled) {
+            color: #2563eb;
+            border-color: #2563eb;
+            background: #f0f7ff;
+        }
+
+        &:active:not(:disabled) {
+            background: #e0efff;
+        }
+
+        &:focus-visible {
+            outline: 2px solid #93c5fd;
+            outline-offset: 1px;
+        }
+
+        &:disabled {
+            color: #c0c4cc;
+            border-color: #e4e7ed;
+            background: #f5f7fa;
+            cursor: not-allowed;
+        }
+
+        /* 上级/下级节点：实心方块，跟随按钮文字色 */
+        .org-icon {
+            display: block;
+            fill: currentColor;
+        }
+
+        /* 连线：path 上的 fill="none" 是 presentation attribute，
+           会被 .org-icon 的 fill 覆盖，所以这里显式声明 fill: none。 */
+        .org-line {
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
     }
 }
 

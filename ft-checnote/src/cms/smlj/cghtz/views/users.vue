@@ -432,6 +432,67 @@ function toggleStatus(row) {
 }
 
 .users-page {
+    /* 与 ledger-page 保持同一字号基准：正文级 12px，下拉类控件走全局统一变量 */
+    font-size: 10px;
+
+    /* el-table 单元格、表头 */
+    :deep(.el-table) {
+        font-size: 12px;
+
+        .el-table__header th {
+            font-size: 12px;
+        }
+
+        .el-table__cell {
+            font-size: 12px;
+        }
+    }
+
+    /* el-form 标签（列表筛选区 + 编辑弹窗） */
+    :deep(.el-form-item__label) {
+        font-size: 12px;
+    }
+
+    /* el-checkbox：EP 默认 14px，压回 12px 与筛选区/表单其它文字一致 */
+    :deep(.el-checkbox),
+    :deep(.el-checkbox__label) {
+        font-size: 12px;
+    }
+
+    /* 纯文本输入框 */
+    :deep(.el-input__inner) {
+        font-size: 12px;
+    }
+
+    /* 下拉类控件统一走全局变量（见 styles/cghtz.css）。
+       日期选择器内部也是 .el-input__inner，会命中上面那条 12px，
+       这里用更高特异性显式压回，保证下拉类控件字号与全局一致。 */
+    :deep(.el-select__wrapper),
+    :deep(.el-date-editor .el-input__inner) {
+        font-size: var(--cghtz-dd-font-size);
+    }
+
+    /* el-button 按钮 */
+    :deep(.el-button) {
+        font-size: 12px;
+    }
+
+    /* el-pagination 分页 */
+    :deep(.el-pagination) {
+        font-size: 12px;
+
+        .el-pagination__total {
+            font-size: 12px;
+        }
+    }
+
+    /* el-dialog 内容区：EP 默认 --el-dialog-content-font-size = 14px，压回 12px 与页面正文一致。
+       弹窗默认不 teleport（appendTo='body' + appendToBody=false → Teleport disabled），
+       留在 .users-page DOM 内，所以 scoped 规则能命中。 */
+    :deep(.el-dialog__body) {
+        font-size: 12px;
+    }
+
     .page-head {
         margin-bottom: 16px;
 
@@ -470,7 +531,7 @@ function toggleStatus(row) {
     }
 
     .perm-title {
-        font-size: 14px;
+        font-size: 12px;
         font-weight: 600;
         margin: 8px 0 10px;
         display: flex;
@@ -502,7 +563,7 @@ function toggleStatus(row) {
                 padding: 10px 14px;
                 background: #f8fafc;
                 font-weight: 600;
-                font-size: 13px;
+                font-size: 12px;
             }
 
             .perm-items {
@@ -515,7 +576,7 @@ function toggleStatus(row) {
                     display: flex;
                     align-items: center;
                     gap: 8px;
-                    font-size: 13px;
+                    font-size: 12px;
                     color: #94a3b8;
                     padding: 8px 10px;
                     border: 1px solid #e2e8f0;

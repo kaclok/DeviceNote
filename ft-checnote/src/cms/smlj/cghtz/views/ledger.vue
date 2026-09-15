@@ -534,8 +534,8 @@ function mills2DateStr(mills) {
                     <el-input v-model="filters.sign_person" placeholder="模糊搜索" clearable style="width:130px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="签订方式">
-                    <el-select v-model="filters.sign_type" placeholder="全部" clearable style="width:130px">
-                        <el-option v-for="(m, index) in methodOptions" :key="m.id" :label="m.desc" :value="m.id"/>
+                    <el-select v-model="filters.sign_type" placeholder="全部" clearable filterable default-first-option style="width:130px">
+                        <el-option v-for="m in methodOptions" :key="m.id" :label="m.desc" :value="m.id"/>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="付款类型">
@@ -596,11 +596,17 @@ function mills2DateStr(mills) {
 
         <!-- 表格：只读 9 列 -->
         <el-card shadow="never" class="table-card">
-            <el-table :data="sortedList" v-loading="loading" border stripe style="width:100%" @sort-change="onSortChange">
+            <!-- 整表统一：单元格一律不换行，内容超宽时 hover 才用 tooltip 展示全文。
+                 EP 的 show-overflow-tooltip 是【表格级】属性，列未显式赋值时自动继承
+                 （table-column/index.mjs：showOverflowTooltip ?? parent.props.showOverflowTooltip），
+                 开启后 EP 给单元格 .cell 补 white-space:nowrap + 钉宽度 + 省略号，
+                 并且在鼠标进入时实测一次内容宽度，只有真超框才弹（逻辑见 table-body/events-helper.mjs）。
+                 所以这里挂一次即可，各列不用重复写；归属部门列显式关掉，理由见该列注释。 -->
+            <el-table :data="sortedList" v-loading="loading" border stripe show-overflow-tooltip style="width:100%" @sort-change="onSortChange">
                 <el-table-column prop="id" label="合同编号" width="160" fixed="left">
-                    <template #default="{row}"><b style="color:#2563eb">{{ row.id }}</b></template>
+                    <template #default="{row}"><b class="contract-id">{{ row.id }}</b></template>
                 </el-table-column>
-                <el-table-column prop="title" label="合同名称" min-width="165" show-overflow-tooltip/>
+                <el-table-column prop="title" label="合同名称" min-width="165"/>
                 <el-table-column prop="amount" label="合同金额(元)" width="120" align="right">
                     <template #default="{row}"><span class="money">{{ formatMoney(row.amount) }}</span></template>
                 </el-table-column>
@@ -610,7 +616,7 @@ function mills2DateStr(mills) {
                 <el-table-column prop="date_rk" label="挂账日期" width="97">
                     <template #default="{row}">{{ mills2DateStr(row.date_rk) }}</template>
                 </el-table-column>
-                <el-table-column prop="pay_type" label="付款方式" min-width="170" show-overflow-tooltip/>
+                <el-table-column prop="pay_type" label="付款方式" min-width="170"/>
                 <el-table-column prop="finish_step" label="财务环节" width="105" align="center" sortable="custom">
                     <template #default="{row}">
                         <el-tag v-if="!row.finish_step" type="info" size="small">预付款待付</el-tag>
@@ -631,8 +637,11 @@ function mills2DateStr(mills) {
                 <el-table-column prop="sign_type" label="签订方式" width="100">
                     <template #default="{row}">{{ methodOptions.find(i => i.id === row.sign_type)?.desc }}</template>
                 </el-table-column>
-                <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip/>
-                <el-table-column prop="dept_code" label="归属部门" min-width="140">
+                <el-table-column prop="supplier" label="供应商" min-width="200"/>
+                <!-- 归属部门列自带「公司/部门」全路径 el-tooltip，必须显式关掉表格级 show-overflow-tooltip，
+                     否则 EP 会在同一单元格再挂一个内容 tooltip → 双 tooltip。
+                     但"不换行 + 超长省略"仍要保留，故用 class-name 手写这套规则（见样式区 .col-nowrap）。 -->
+                <el-table-column prop="dept_code" label="归属部门" min-width="140" class-name="col-nowrap" :show-overflow-tooltip="false">
                     <template #default="{row}">
                         <span v-if="!row.dept_code" style="color:#cbd5e1">-</span>
                         <el-tooltip v-else :content="deptPath(row.dept_code)" placement="top">
@@ -694,8 +703,8 @@ function mills2DateStr(mills) {
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="合同签订方式" prop="sign_type">
-                            <el-select v-model="form.sign_type" placeholder="请选择" style="width:100%">
-                                <el-option v-for="(m, i) in methodOptions" :key="i" :label="m.desc" :value="m.id"/>
+                            <el-select v-model="form.sign_type" placeholder="请选择" filterable default-first-option style="width:100%">
+                                <el-option v-for="m in methodOptions" :key="m.id" :label="m.desc" :value="m.id"/>
                             </el-select>
                         </el-form-item>
                     </el-col>
@@ -949,6 +958,13 @@ function mills2DateStr(mills) {
         }
     }
 
+    /* el-dialog 内容区：EP 默认 --el-dialog-content-font-size = 14px，压回 12px 与页面正文一致。
+       弹窗默认不 teleport（appendTo='body' + appendToBody=false → Teleport disabled），
+       留在 .ledger-page DOM 内，所以 scoped 规则能命中。 */
+    :deep(.el-dialog__body) {
+        font-size: 12px;
+    }
+
     .filter-card {
         margin-bottom: 14px;
 
@@ -986,6 +1002,23 @@ function mills2DateStr(mills) {
     }
 
     .table-card {
+        /* 合同编号列：编号是 16 位 ASCII（SMLJ-CG-BJ-26122），同样 font-size 下
+           拉丁字符的视觉高度/字宽都压过中文单元格，加上该列是整表唯一的蓝色加粗单元格，
+           看着就比别的列大。这里单独压 1px 把视觉高度拉平（蓝色 + 加粗的强调保留）。 */
+        .contract-id {
+            color: #2563eb;
+            font-size: 11px;
+        }
+
+        /* 归属部门列关了表格级 show-overflow-tooltip（它自带「全路径」tooltip），
+           EP 因此不会给它的 .cell 补白名单样式，这里手动补齐「不换行 + 省略号」
+           （等价于 theme-chalk 的 .el-table .cell.el-tooltip，但只作用于本列）。 */
+        :deep(.col-nowrap) .cell {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .money {
             font-weight: 600;
             font-variant-numeric: tabular-nums;
