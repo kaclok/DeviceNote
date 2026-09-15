@@ -31,7 +31,7 @@ const sortedList = computed(() => {
     })
     return sorted
 })
-const pageSize = ref(15)
+const pageSize = ref(13)
 
 // 筛选条件（顶部筛选栏）— 与后端 contractList 的 @RequestParam 保持一致
 const filters = ref({
@@ -68,8 +68,6 @@ function deptShortName(code) {
     return deptShort(deptPathMap.value, code)
 }
 
-// 签订方式枚举为固定数据，统一来自 gd.json（经 MockX 导出）
-const methodOptions = gd.methodOptions
 // 财务环节步骤的 description（对应 finishedOptions 4 项）
 const stepDescriptions = [
     '待付预付款',
@@ -94,7 +92,7 @@ onMounted(() => {
     if (q.id) filters.value.id = String(q.id)
     if (q.title) filters.value.title = String(q.title)
     if (q.sign_person) filters.value.sign_person = String(q.sign_person)
-    if (q.sign_type !== undefined && q.sign_type !== '') filters.value.sign_type = Number(q.sign_type)
+    if (q.sign_type !== undefined && q.sign_type !== '') filters.value.sign_type = String(q.sign_type)
     if (q.payment_type !== undefined && q.payment_type !== '') filters.value.payment_type = Number(q.payment_type)
     if (q.supplier) filters.value.supplier = String(q.supplier)
     if (q.dateFrom) filters.value.dateFrom = String(q.dateFrom)
@@ -278,7 +276,7 @@ const rules = {
     id: [{required: true, message: '请输入合同编号', trigger: 'blur'}],
     title: [{required: true, message: '请输入合同名称', trigger: 'blur'}],
     sign_person: [{required: true, message: '请输入签订人', trigger: 'blur'}],
-    sign_type: [{required: true, message: '请选择签订方式', trigger: 'change'}],
+    sign_type: [{required: true, message: '请输入签订方式', trigger: 'blur'}],
     payment_type: [{required: true, message: '请选择付款类型', trigger: 'change'}],
     supplier: [{required: true, message: '请输入供应商', trigger: 'blur'}],
     amount: [{required: true, message: '请输入合同金额', trigger: 'blur'}],
@@ -314,20 +312,8 @@ function openEdit(row) {
     // 缓存原始数据（merge 用），避免对话框中未展示/未编辑字段保存为 null
     originalContract.value = {...(row || {})}
     const base = emptyForm()
-    // sign_type 可能是字符串形式，统一切换到下拉选项对应的 index(int)
-    const src = {...row}
-    if (src.sign_type !== undefined && src.sign_type !== null && src.sign_type !== '') {
-        if (typeof src.sign_type === 'number') {
-            // 已是 int
-        } else if (/^-?\d+$/.test(String(src.sign_type))) {
-            src.sign_type = parseInt(src.sign_type, 10)
-        } else {
-            // 字符串文字 -> int 索引
-            src.sign_type = STR_TO_SIGN_TYPE(String(src.sign_type))
-        }
-    } else {
-        src.sign_type = 0
-    }
+    // sign_type 现为自由文本（DB varchar(255)）：只统一成字符串，不再做 int 编码映射
+    const src = {...row, sign_type: row?.sign_type == null ? '' : String(row.sign_type).trim()}
     form.value = {...base, ...src}
     // 根据付款日期同步 finish_step：质保金>到货款>预付款 逐级取最高
     // syncFinishStep()
@@ -376,11 +362,12 @@ function saveContract() {
             return
         }
         saving.value = true
-        // 提交体：合并原数据（编辑）+ 当前表单字段；类型归一化：sign_type 为 int，数字字段为 Number
+        // 提交体：合并原数据（编辑）+ 当前表单字段；类型归一化：数字字段为 Number
         form.value.id = form.value.id.trim()
         const edited = {...form.value}
-        // sign_type 强转 int（下拉 value 是 0-7 int）
-        edited.sign_type = Number.isFinite(+edited.sign_type) ? parseInt(edited.sign_type, 10) : 0
+        // 签订方式为自由文本（DB sign_type varchar(255) NULL）：去首尾空白，空值统一落 null，不存空串
+        const st = String(edited.sign_type ?? '').trim()
+        edited.sign_type = st === '' ? null : st
         // 数字字段归一化
         const floatKeys = ['amount', 'paycycle_dh', 'paycycle_zb', 'settle_amount', 'has_amount']
         floatKeys.forEach(k => {
@@ -441,7 +428,7 @@ function buildCurrentFilterParas() {
         id: filters.value.id,
         title: filters.value.title,
         sign_person: filters.value.sign_person,
-        sign_type: filters.value.sign_type === '' || filters.value.sign_type == null ? null : Number(filters.value.sign_type),
+        sign_type: filters.value.sign_type,
         payment_type: filters.value.payment_type === '' || filters.value.payment_type == null ? null : Number(filters.value.payment_type),
         supplier: filters.value.supplier,
         dept_code: filters.value.dept_code,
@@ -528,31 +515,29 @@ function mills2DateStr(mills) {
                     <el-input v-model="filters.id" placeholder="如 SMLJ-CG-CL" clearable style="width:160px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="合同名称">
-                    <el-input v-model="filters.title" placeholder="模糊搜索" clearable style="width:150px" @keyup.enter="applyFilters"/>
+                    <el-input v-model="filters.title" placeholder="合同名称" clearable style="width:150px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="签订人">
-                    <el-input v-model="filters.sign_person" placeholder="模糊搜索" clearable style="width:130px" @keyup.enter="applyFilters"/>
+                    <el-input v-model="filters.sign_person" placeholder="签订人" clearable style="width:130px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="签订方式">
-                    <el-select v-model="filters.sign_type" placeholder="全部" clearable filterable default-first-option style="width:130px">
-                        <el-option v-for="m in methodOptions" :key="m.id" :label="m.desc" :value="m.id"/>
-                    </el-select>
+                    <el-input v-model="filters.sign_type" placeholder="签订方式" clearable style="width:130px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="付款类型">
-                    <el-select v-model="filters.payment_type" placeholder="全部" clearable style="width:130px">
+                    <el-select v-model="filters.payment_type" placeholder="类型" clearable style="width:130px">
                         <el-option v-for="pt in gd.payment_type" :key="pt.id" :label="pt.desc" :value="pt.id"/>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="供应商">
-                    <el-input v-model="filters.supplier" placeholder="模糊搜索" clearable style="width:160px" @keyup.enter="applyFilters"/>
+                    <el-input v-model="filters.supplier" placeholder="供应商" clearable style="width:160px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="归属部门">
                     <div class="dept-filter">
-                        <DeptPicker v-model="filters.dept_code" :depts="deptOptions" placeholder="全部" @change="applyFilters"/>
+                        <DeptPicker v-model="filters.dept_code" :depts="deptOptions" placeholder="所属部门" @change="applyFilters"/>
                     </div>
                 </el-form-item>
                 <el-form-item label="财务环节">
-                    <el-select v-model="filters.finish_step" placeholder="全部" clearable style="width:110px">
+                    <el-select v-model="filters.finish_step" placeholder="环节" clearable style="width:110px">
                         <el-option v-for="(label, idx) in gd.finishedOptions" :key="idx" :label="label" :value="idx"/>
                     </el-select>
                 </el-form-item>
@@ -635,7 +620,10 @@ function mills2DateStr(mills) {
                 <el-table-column prop="sign_person" label="签订人" width="68">
                 </el-table-column>
                 <el-table-column prop="sign_type" label="签订方式" width="100">
-                    <template #default="{row}">{{ methodOptions.find(i => i.id === row.sign_type)?.desc }}</template>
+                    <template #default="{row}">
+                        <span v-if="row.sign_type">{{ row.sign_type }}</span>
+                        <span v-else style="color:#cbd5e1">-</span>
+                    </template>
                 </el-table-column>
                 <el-table-column prop="supplier" label="供应商" min-width="200"/>
                 <!-- 归属部门列自带「公司/部门」全路径 el-tooltip，必须显式关掉表格级 show-overflow-tooltip，
@@ -661,7 +649,7 @@ function mills2DateStr(mills) {
                 <el-pagination
                     :current-page="page"
                     :page-size="pageSize"
-                    :page-sizes="[15, 30, 45, 60]"
+                    :page-sizes="[13, 30, 45, 60]"
                     :total="total"
                     layout="total, sizes, prev, pager, next, jumper"
                     background
@@ -703,9 +691,7 @@ function mills2DateStr(mills) {
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="合同签订方式" prop="sign_type">
-                            <el-select v-model="form.sign_type" placeholder="请选择" filterable default-first-option style="width:100%">
-                                <el-option v-for="m in methodOptions" :key="m.id" :label="m.desc" :value="m.id"/>
-                            </el-select>
+                            <el-input v-model="form.sign_type" placeholder="请输入签订方式，如 定向商定" clearable/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">

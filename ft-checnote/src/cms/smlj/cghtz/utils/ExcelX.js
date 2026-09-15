@@ -1,33 +1,13 @@
 import * as XLSX from 'xlsx'
-import {METHOD_OPTIONS} from "../system/MockX.js"
 
 /**
- * 合同台账 - Excel 导入/导出工具（v4 - 2026-08-24）
+ * 合同台账 - Excel 导入/导出工具（v5 - 2026-09-15）
  * 导入：按英文字段名读取（Excel 第 1 行中文表头，第 2 行英文字段名，第 3 行忽略，从第 4 行开始读数据）
  * 导出：中文表头 + 英文字段名两行表头，数据从第 3 行开始
+ *
+ * v5 变更：sign_type（签订方式）在库中已是 varchar 自由文本，
+ *         Excel 与前后端统一使用中文原文，不再做 int 编码互转。
  */
-
-/* 签订方式 string → int 编码（sign_type）互转，与 gd.json METHOD_OPTIONS 下标一致 */
-const SIGN_STR_TO_CODE = (s) => {
-    const str = String(s || '').trim()
-    if (!str) return null
-    // 精确匹配
-    const i = METHOD_OPTIONS.findIndex(m => m.desc === str)
-    if (i >= 0) return METHOD_OPTIONS[i].id
-    // 模糊匹配：Excel 中可能写"网络询比价"等，只要包含关键词即可
-    for (let j = 0; j < METHOD_OPTIONS.length; j++) {
-        if (str.includes(METHOD_OPTIONS[j].desc) || METHOD_OPTIONS[j].desc.includes(str)) {
-            return METHOD_OPTIONS[j].id
-        }
-    }
-    return 0
-}
-const SIGN_CODE_TO_STR = (i) => {
-    const n = Number(i)
-    if (!Number.isInteger(n)) return ''
-    const m = METHOD_OPTIONS.find(x => x.id === n)
-    return m ? m.desc : ''
-}
 
 /* 付款类型 int ↔ 文本：1-即时结算类 2-周期结算类 */
 const PAYMENT_TYPE_CODE_TO_STR = (i) => {
@@ -134,8 +114,7 @@ export function exportContractExcel(rows, filename = '合同台账_导出') {
         return FIELD_DEFS.map(({field, type}) => {
             let v = c[field]
             if (v === undefined || v === null) v = ''
-            if (field === 'sign_type') v = SIGN_CODE_TO_STR(v)
-            else if (field === 'payment_type') v = PAYMENT_TYPE_CODE_TO_STR(v)
+            if (field === 'payment_type') v = PAYMENT_TYPE_CODE_TO_STR(v)
             else if (field === 'finish_step') v = FINISHED_INT_TO_STR(v)
             else if (type === 'date') v = formatExportDate(v)
             return v
@@ -231,7 +210,6 @@ export function downloadTemplate() {
     const exampleRow = FIELD_DEFS.map(({field, type}) => {
         const ex = EXAMPLE_ROW[field]
         if (ex === undefined) return ''
-        if (field === 'sign_type') return SIGN_CODE_TO_STR(ex)
         if (field === 'payment_type') return PAYMENT_TYPE_CODE_TO_STR(ex)
         if (field === 'finish_step') return FINISHED_INT_TO_STR(ex)
         if (type === 'date') return formatExportDate(ex)
@@ -256,7 +234,7 @@ const EXAMPLE_ROW = {
     amount: 3836.92,
     date_sign: '2026-08-01',
     sign_person: '薛少军',
-    sign_type: 0,
+    sign_type: '定向商定',
     supplier: '榆林景云五金机电设备有限公司',
     pay_type: '货到票到3个月付款',
     payment_type: 1,
@@ -374,8 +352,8 @@ export function parseContractExcel(file) {
                             if (v !== '') v = String(v).trim()
                         }
 
-                        // sign_type：收中文，转成 int code
-                        if (field === 'sign_type') v = v !== '' && v !== null ? SIGN_STR_TO_CODE(v) : null
+                        // sign_type：DB 允许 NULL，空串统一归一为 null（与"未填写"语义一致，不落空串）
+                        if (field === 'sign_type' && v === '') v = null
                         // payment_type：收中文，转成 int code
                         if (field === 'payment_type') v = v !== '' && v !== null ? PAYMENT_TYPE_STR_TO_CODE(v) : null
                         // finish_step：收中文/数字，转成 int 进度

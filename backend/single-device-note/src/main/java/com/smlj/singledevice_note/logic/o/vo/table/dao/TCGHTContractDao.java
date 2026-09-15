@@ -20,7 +20,7 @@ public interface TCGHTContractDao {
             @Param("id") String id
             , @Param("title") String title
             , @Param("sign_person") String sign_person
-            , @Param("sign_type") Integer sign_type
+            , @Param("sign_type") String sign_type
             , @Param("payment_type") Integer payment_type
             , @Param("supplier") String supplier
             , @Param("dept_code") String dept_code

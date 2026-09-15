@@ -25,7 +25,6 @@ import hd from "../data/hd.json"
 const KEY = "cghtz_mock_db_v4"
 
 /* ---------------- 固定数据（来自 gd.json） ---------------- */
-export const METHOD_OPTIONS = gd.methodOptions
 
 /** 初始密码：统一取自 gd.json，避免多处硬编码 */
 const DEFAULT_PWD = gd.defaultPwd
@@ -51,10 +50,12 @@ const FLOAT_FIELDS = [
     "amount", "paycycle_dh", "paycycle_zb",
     "settle_amount", "has_amount",
 ]
-/* 整数字段 */
-const INT_FIELDS = ["hq", "sign_type", "payment_type", "finish_step"]
+/* 整数字段（sign_type 已改为自由文本，不再在此归一化） */
+const INT_FIELDS = ["hq", "payment_type", "finish_step"]
 /* 布尔字段 */
 const BOOL_FIELDS = []
+/* 可空文本字段（DB 列允许 NULL）：空值归一为 null，不落空串 */
+const NULLABLE_TEXT_FIELDS = ["sign_type"]
 
 /**
  * 将外部传入的合同对象按字段白名单清洗并强制类型转换
@@ -65,6 +66,7 @@ function normalizeContract(raw = {}) {
         if (raw[k] === undefined || raw[k] === null || raw[k] === "") {
             if (FLOAT_FIELDS.includes(k) || INT_FIELDS.includes(k)) out[k] = 0
             else if (BOOL_FIELDS.includes(k)) out[k] = false
+            else if (NULLABLE_TEXT_FIELDS.includes(k)) out[k] = null
             else out[k] = ""
             return
         }
@@ -142,9 +144,8 @@ export class MockX {
         if (filters.title) list = list.filter(c => c.title.includes(filters.title));
         // 签订人是自由文本，与后端 sign_person like '%x%' 保持一致（模糊而非全等）
         if (filters.sign_person) list = list.filter(c => String(c.sign_person || '').includes(filters.sign_person));
-        if (filters.sign_type !== undefined && filters.sign_type !== '' && filters.sign_type !== null) {
-            list = list.filter(c => c.sign_type === Number(filters.sign_type));
-        }
+        // 签订方式是自由文本，与后端 sign_type like '%x%' 保持一致（模糊而非全等）
+        if (filters.sign_type) list = list.filter(c => String(c.sign_type || '').includes(filters.sign_type));
         if (filters.supplier) list = list.filter(c => c.supplier.includes(filters.supplier));
         if (filters.dateFrom) list = list.filter(c => c.date_sign >= filters.dateFrom);
         if (filters.dateTo) list = list.filter(c => c.date_sign <= filters.dateTo);

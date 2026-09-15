@@ -28,7 +28,11 @@ public class TCGHTContract implements Serializable {
     // @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date date_sign;
     private String sign_person;
-    private Integer sign_type;
+    /**
+     * 签订方式：自由文本（DB 已由 int 编码改为 varchar(255)），如「定向商定 / 续签 / 竞价」。
+     * 列表筛选走 like 模糊匹配，不再有 int↔文本的映射。
+     */
+    private String sign_type;
     private String supplier;
     private float paycycle_dh;
     private float paycycle_zb;

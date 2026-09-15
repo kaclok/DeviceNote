@@ -372,7 +372,7 @@ public class CCGHT {
             @RequestParam(name = "id", required = false) String id,
             @RequestParam(name = "title", required = false) String title,
             @RequestParam(name = "sign_person", required = false) String sign_person,
-            @RequestParam(name = "sign_type", required = false) Integer sign_type,
+            @RequestParam(name = "sign_type", required = false) String sign_type,
             @RequestParam(name = "payment_type", required = false) Integer payment_type,
             @RequestParam(name = "supplier", required = false) String supplier,
             @RequestParam(name = "dept_code", required = false) String dept_code,

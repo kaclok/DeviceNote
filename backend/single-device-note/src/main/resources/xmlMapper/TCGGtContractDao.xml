@@ -28,8 +28,9 @@
         <if test="sign_person != null and sign_person != ''">
             and sign_person like concat('%', #{sign_person}, '%')
         </if>
-        <if test="sign_type != null">
-            and sign_type = #{sign_type}
+        <!-- 签订方式：DB 为 varchar 自由文本（定向商定/续签/竞价…），与 sign_person 一致走模糊匹配 -->
+        <if test="sign_type != null and sign_type != ''">
+            and sign_type like concat('%', #{sign_type}, '%')
         </if>
         <if test="payment_type != null">
             and payment_type = #{payment_type}
