@@ -5,6 +5,8 @@ import ElementPlus from 'element-plus'
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import 'dayjs/locale/zh-cn';
 import VConsole from 'vconsole';
+// 模块级全局样式：下拉类控件字号等（面板 teleport 到 body，scoped 样式命中不到）
+import "./styles/cghtz.css";
 
 // import直接引用一个文件时，会执行一遍这个文件，而不获取任何文件对象, 比如：import './lib/init.js';
 import {RegisterDirective} from "@/framework/directives/DirectiveList.js";

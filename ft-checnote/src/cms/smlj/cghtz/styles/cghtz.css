@@ -1,0 +1,57 @@
+/* cghtz 模块 —— 全局样式
+ *
+ * 为什么必须写成全局（不能放进 .vue 的 <style scoped>）：
+ *   el-select / el-date-picker / el-dropdown 的面板默认 teleport 到 body，
+ *   组件内 scoped 选择器带 data-v-xxx 属性，命中不到面板里的元素。
+ *
+ * 为什么每条选择器前面都加 `body`：
+ *   Element Plus 的样式由 unplugin-vue-components 按需注入，与本文件的加载顺序不保证。
+ *   加一个元素选择器把特异性抬到 (0,n,1)，无论谁后加载都能压过 EP 自带的 (0,n,0)。
+ */
+
+:root {
+    /* 下拉类控件统一字号 */
+    --cghtz-dd-font-size: 11px;
+}
+
+/* ---------- el-select：输入框本体 ----------
+ * 注意：2.7.6 起 el-select 不再渲染 el-input__inner，改由 el-select__wrapper 承载显示文本，
+ * 所以 `.el-select .el-input__inner` 是死选择器，写了也不生效（ledger.vue 里曾踩过）。 */
+body .el-select__wrapper,
+body .el-select__placeholder,
+body .el-select__selected-item,
+body .el-select__input {
+    font-size: var(--cghtz-dd-font-size);
+}
+
+/* ---------- el-select：下拉面板（teleport 到 body） ---------- */
+body .el-select-dropdown,
+body .el-select-dropdown__list,
+body .el-select-dropdown__item,
+body .el-select-dropdown__empty {
+    font-size: var(--cghtz-dd-font-size);
+}
+
+/* ---------- el-date-picker：输入框 ---------- */
+body .el-date-editor .el-input__inner {
+    font-size: var(--cghtz-dd-font-size);
+}
+
+/* ---------- el-date-picker：日历面板（teleport 到 body） ----------
+ * 单元格宽高在 EP 里是固定 px，改字号只会缩小数字/表头文字，不会撑破布局。 */
+body .el-picker-panel,
+body .el-date-picker__header-label,
+body .el-picker-panel__icon-btn,
+body .el-picker-panel__shortcut,
+body .el-date-table,
+body .el-date-table th,
+body .el-date-table td,
+body .el-year-table td .cell,
+body .el-month-table td .cell {
+    font-size: var(--cghtz-dd-font-size);
+}
+
+/* ---------- el-dropdown：下拉菜单（teleport 到 body） ---------- */
+body .el-dropdown-menu__item {
+    font-size: var(--cghtz-dd-font-size);
+}

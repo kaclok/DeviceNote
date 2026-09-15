@@ -245,8 +245,9 @@ onMounted(ensureDepts)
     margin-right: 8px;
 }
 
+/* 跟随下拉面板统一字号（styles/cghtz.css 的 --cghtz-dd-font-size） */
 .opt-path {
-    font-size: 11px;
+    font-size: var(--cghtz-dd-font-size);
     color: #94a3b8;
 }
 

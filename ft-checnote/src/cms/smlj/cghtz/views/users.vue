@@ -9,7 +9,7 @@ const loading = ref(false)
 const list = ref([])
 const total = ref(0)
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(15)
 
 // 搜索条件：关键字（账号/姓名模糊）与归属部门 —— 均由后端过滤，配合服务端分页
 const keyword = ref('')
@@ -353,7 +353,7 @@ function toggleStatus(row) {
                 <el-pagination
                     :current-page="page"
                     :page-size="pageSize"
-                    :page-sizes="[10, 20, 50, 100]"
+                    :page-sizes="[15, 30, 60, 100]"
                     :total="total"
                     layout="total, sizes, prev, pager, next, jumper"
                     background

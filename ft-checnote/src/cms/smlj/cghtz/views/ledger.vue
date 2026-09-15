@@ -31,7 +31,7 @@ const sortedList = computed(() => {
     })
     return sorted
 })
-const pageSize = ref(10)
+const pageSize = ref(15)
 
 // 筛选条件（顶部筛选栏）— 与后端 contractList 的 @RequestParam 保持一致
 const filters = ref({
@@ -668,7 +668,7 @@ function mills2DateStr(mills) {
                 <el-pagination
                     :current-page="page"
                     :page-size="pageSize"
-                    :page-sizes="[10, 20, 50, 100]"
+                    :page-sizes="[15, 30, 45, 60]"
                     :total="total"
                     layout="total, sizes, prev, pager, next, jumper"
                     background
@@ -934,10 +934,17 @@ function mills2DateStr(mills) {
         font-size: 12px;
     }
 
-    :deep(.el-input__inner),
-    :deep(.el-select .el-input__inner),
-    :deep(.el-date-editor .el-input__inner) {
+    /* 纯文本输入框 */
+    :deep(.el-input__inner) {
         font-size: 12px;
+    }
+
+    /* 下拉类控件统一 8px（见 styles/cghtz.css）。
+       日期选择器内部也是 .el-input__inner，会命中上面那条 12px，
+       这里用更高特异性显式压回，保证下拉类控件字号与全局一致。 */
+    :deep(.el-select__wrapper),
+    :deep(.el-date-editor .el-input__inner) {
+        font-size: var(--cghtz-dd-font-size);
     }
 
     /* el-button 按钮 */
