@@ -144,11 +144,14 @@ function confirmTree() {
     dialogVisible.value = false
 }
 
+/**
+ * 清空选择：只清掉弹窗内的"草稿态"选中项，**不关闭弹窗、不立即提交**。
+ * 与「确定 / 取消」语义一致 —— 清空后仍需点确定才生效，点取消可撤回；
+ * 若这里直接 emit，点取消就撤不回来了。
+ */
 function clearDept() {
     checkedDept.value = null
-    emit('update:modelValue', '')
-    emit('change', null)
-    dialogVisible.value = false
+    treeRef.value?.setCurrentKey(null)
 }
 
 onMounted(ensureDepts)
@@ -206,7 +209,9 @@ onMounted(ensureDepts)
             </div>
 
             <div class="tree-selected">
-                已选部门：<b>{{ checkedDept ? checkedDept.dept_name : '未选择' }}</b>
+                <span v-if="checkedDept" class="sel-check" title="已选中">✅</span>
+                <span>已选部门：</span>
+                <b :class="{'sel-none': !checkedDept}">{{ checkedDept ? checkedDept.dept_name : '未选择' }}</b>
                 <span v-if="checkedDept" class="tree-selected-path">{{ checkedDept.dept_all_name }}</span>
             </div>
 
@@ -280,16 +285,30 @@ onMounted(ensureDepts)
 }
 
 .tree-selected {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     margin-top: 10px;
     font-size: 12px;
     color: #64748b;
+
+    /* 选中标记：明显大于正文，一眼可见当前是否有选中 */
+    .sel-check {
+        font-size: 20px;
+        line-height: 1;
+    }
 
     b {
         color: #2563eb;
     }
 
+    /* 未选择时不要蓝色，避免看起来像已选中 */
+    .sel-none {
+        color: #94a3b8;
+        font-weight: 400;
+    }
+
     .tree-selected-path {
-        margin-left: 8px;
         color: #94a3b8;
     }
 }

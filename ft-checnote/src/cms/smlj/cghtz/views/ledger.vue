@@ -916,6 +916,12 @@ function mills2DateStr(mills) {
         font-size: 12px;
     }
 
+    /* el-checkbox（预警10天）：EP 默认 14px，比筛选区其它文字大，这里压回 12px */
+    :deep(.el-checkbox),
+    :deep(.el-checkbox__label) {
+        font-size: 12px;
+    }
+
     /* 纯文本输入框 */
     :deep(.el-input__inner) {
         font-size: 12px;
