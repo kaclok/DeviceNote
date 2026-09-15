@@ -49,8 +49,6 @@ const filters = ref({
     finish_step: '',
     warn: false, // bool：勾选 = 筛选预警天数<10天（固定传 warn_day=10）
 })
-// 签订人列表（动态数据，由后端下发；）
-const signerOptions = ref([])
 // 归属部门字典（动态数据，来自 /cghtz/dept/list，登录后已缓存）
 const deptOptions = ref([])
 const deptPathMap = computed(() => buildDeptPathMap(deptOptions.value))
@@ -82,7 +80,6 @@ const stepDescriptions = [
 
 // 用 let：服务端分页每次翻页都要发请求，需取消上一次未完成的请求，避免旧响应覆盖新响应
 let AC_list = new AbortController()
-const AC_signers = new AbortController()
 let AC_dept = new AbortController()
 
 onMounted(() => {
@@ -109,13 +106,11 @@ onMounted(() => {
         filters.value.warn = true
     }
     loadList()
-    loadSigners()
     loadDepts()
 })
 
 onUnmounted(() => {
     AC_list.abort()
-    AC_signers.abort()
     AC_dept.abort()
 })
 
@@ -170,15 +165,6 @@ function onSizeChange(s) {
     pageSize.value = s
     page.value = 1
     loadList()
-}
-
-function loadSigners() {
-    Singleton.getInstance(SysX).getSignerList(null, AC_signers.signal, () => {
-    }, (r, data) => {
-        if (r) {
-            signerOptions.value = data.data
-        }
-    })
 }
 
 // 归属部门字典：登录后已由 SysX 预加载缓存，这里命中缓存即刻返回
@@ -291,7 +277,7 @@ const form = ref(emptyForm())
 const rules = {
     id: [{required: true, message: '请输入合同编号', trigger: 'blur'}],
     title: [{required: true, message: '请输入合同名称', trigger: 'blur'}],
-    sign_person: [{required: true, message: '请选择签订人', trigger: 'change'}],
+    sign_person: [{required: true, message: '请输入签订人', trigger: 'blur'}],
     sign_type: [{required: true, message: '请选择签订方式', trigger: 'change'}],
     payment_type: [{required: true, message: '请选择付款类型', trigger: 'change'}],
     supplier: [{required: true, message: '请输入供应商', trigger: 'blur'}],
@@ -498,7 +484,7 @@ function doExport() {
     fetchAllFilteredContracts({
         loadingMsg: '正在导出，请稍候...',
         onSuccess: (allList) => {
-            exportContractExcel(allList, '合同台账_导出', signerOptions.value)
+            exportContractExcel(allList, '合同台账_导出')
             ElMessage.success(`已导出 ${allList.length} 条合同`)
         },
     })
@@ -508,7 +494,7 @@ function doExportFinance() {
     fetchAllFilteredContracts({
         loadingMsg: '正在生成导给财务的 Excel，请稍候...',
         onSuccess: (allList) => {
-            exportFinanceExcel(allList, '导给财务', signerOptions.value)
+            exportFinanceExcel(allList, '导给财务')
             ElMessage.success(`已导出 ${allList.length} 条导给财务数据`)
         },
     })
@@ -545,9 +531,7 @@ function mills2DateStr(mills) {
                     <el-input v-model="filters.title" placeholder="模糊搜索" clearable style="width:150px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="签订人">
-                    <el-select v-model="filters.sign_person" placeholder="全部" clearable filterable style="width:130px">
-                        <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.username"/>
-                    </el-select>
+                    <el-input v-model="filters.sign_person" placeholder="模糊搜索" clearable style="width:130px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="签订方式">
                     <el-select v-model="filters.sign_type" placeholder="全部" clearable style="width:130px">
@@ -705,9 +689,7 @@ function mills2DateStr(mills) {
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="签订人" prop="sign_person">
-                            <el-select v-model="form.sign_person" placeholder="请选择签订人" filterable style="width:100%">
-                                <el-option v-for="s in signerOptions" :key="s.account" :label="s.username" :value="s.username"/>
-                            </el-select>
+                            <el-input v-model="form.sign_person" placeholder="请输入签订人姓名" clearable/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">

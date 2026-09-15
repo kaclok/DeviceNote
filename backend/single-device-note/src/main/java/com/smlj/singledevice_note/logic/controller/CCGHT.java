@@ -320,15 +320,6 @@ public class CCGHT {
     }
 
     @Transactional
-    @PostMapping(value = "/signer/list")
-    public Result<?> signerList() {
-        // signer 下拉用：只返回启用的非管理员，且仅需 account/username（合同 sign_person 关联）
-        // 不加关键字/部门筛选（kw=null, dept_code=null 表示不过滤）
-        var ls = userDao.queryAll(null, null, true, false);
-        return Result.success(ls);
-    }
-
-    @Transactional
     @PostMapping(value = "/perm/list")
     public Result<?> permList() {
         var ls = permDao.queryAll();

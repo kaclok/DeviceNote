@@ -14,7 +14,7 @@ public class TCGHTUser implements Serializable {
     // private static final long serialVersionUID = 1;
 
     private String account;
-    /** 中文名/姓名：供签订人列表展示(username)；保持与前端 signerOptions({account,username}) 一致 */
+    /** 中文名/姓名；合同的 sign_person 直接存该姓名（自由文本，模糊匹配） */
     private String username;
     /** 登录密码（明文存储，仅限内网 demo） */
     private String pwd;

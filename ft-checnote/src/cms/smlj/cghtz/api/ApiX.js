@@ -89,12 +89,6 @@ export class ApiX {
         })
     }
 
-    static getSignerList(paras, signal) {
-        return axiosR.post("cghtz/signer/list", null, {
-            params: paras, signal: signal,
-        })
-    }
-
     /* ---------------- 组织架构（部门字典，只读） ---------------- */
     // 数据源是 train.t_org（后端 @DS("train") 已切换），返回 dept_code/dept_name/dept_all_name/parent_dept_code
     static getDeptList(paras, signal) {

@@ -33,7 +33,6 @@ const DEFAULT_PWD = gd.defaultPwd
 /* ---------------- 后端下发数据（来自 hd.json，将来由后端接口返回） ---------------- */
 const ROLES = hd.roles
 const PERM_DEFS = hd.permDefs
-const SIGNERS = hd.signers
 const ACCOUNTS = hd.accounts
 const CONTRACTS = hd.contracts
 
@@ -100,7 +99,6 @@ function loadDB() {
     }
     const db = {
         roles: ROLES.map(r => ({...r, perms: [...r.perms]})),
-        signers: SIGNERS.map(s => ({...s})),
         contracts: CONTRACTS.map(c => normalizeContract(c)),
         accounts: ACCOUNTS.map(a => ({...a})),
     }
@@ -142,7 +140,8 @@ export class MockX {
         let list = db.contracts.map(c => ({...c}));
         if (filters.id) list = list.filter(c => c.id.toLowerCase().includes(filters.id.toLowerCase()));
         if (filters.title) list = list.filter(c => c.title.includes(filters.title));
-        if (filters.sign_person) list = list.filter(c => c.sign_person === filters.sign_person);
+        // 签订人是自由文本，与后端 sign_person like '%x%' 保持一致（模糊而非全等）
+        if (filters.sign_person) list = list.filter(c => String(c.sign_person || '').includes(filters.sign_person));
         if (filters.sign_type !== undefined && filters.sign_type !== '' && filters.sign_type !== null) {
             list = list.filter(c => c.sign_type === Number(filters.sign_type));
         }
@@ -341,12 +340,4 @@ export class MockX {
         return ok(a ? {account: a.account, status: a.status} : null);
     }
 
-    /* ---------------- 签订人字典 ---------------- */
-    /**
-     * 签订人列表：供合同表单/筛选的下拉使用
-     */
-    static getSignerList() {
-        const db = loadDB();
-        return ok(db.signers.map(s => ({...s})));
-    }
 }

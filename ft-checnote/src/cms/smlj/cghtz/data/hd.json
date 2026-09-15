@@ -90,24 +90,6 @@
 			"group": "系统管理"
 		}
 	],
-	"signers": [
-		{
-			"account": "xuesj",
-			"username": "薛少军"
-		},
-		{
-			"account": "wanghao",
-			"username": "王浩"
-		},
-		{
-			"account": "liting",
-			"username": "李婷"
-		},
-		{
-			"account": "zhangwei",
-			"username": "张伟"
-		}
-	],
 	"accounts": [
 		{
 			"account": "admin",

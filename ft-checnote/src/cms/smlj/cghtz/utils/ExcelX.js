@@ -28,16 +28,6 @@ const SIGN_CODE_TO_STR = (i) => {
     const m = METHOD_OPTIONS.find(x => x.id === n)
     return m ? m.desc : ''
 }
-// 签订人 account → username，导出展示用
-const USERNAME_FROM_ACCOUNT = (account, signers) => {
-    const s = signers.find(x => String(x.account) === String(account || ''))
-    return s ? s.username : String(account || '')
-}
-// 签订人 username → account，导入用
-const ACCOUNT_FROM_USERNAME = (username, signers) => {
-    const s = signers.find(x => String(x.username) === String(username || ''))
-    return s ? s.account : String(username || '')
-}
 
 /* 付款类型 int ↔ 文本：1-即时结算类 2-周期结算类 */
 const PAYMENT_TYPE_CODE_TO_STR = (i) => {
@@ -133,9 +123,8 @@ const FIELD_DEFS = [
  * 导出文件可直接当导入文件使用
  * @param rows 合同数组
  * @param filename 文件名
- * @param signers 签订人字典 [{account, username}]
  */
-export function exportContractExcel(rows, filename = '合同台账_导出', signers = []) {
+export function exportContractExcel(rows, filename = '合同台账_导出') {
     // 第 1 行：英文字段名
     const fieldRow = FIELD_DEFS.map(d => d.field)
     // 第 2 行：中文表头（不再加 * 号）
@@ -147,7 +136,6 @@ export function exportContractExcel(rows, filename = '合同台账_导出', sign
             if (v === undefined || v === null) v = ''
             if (field === 'sign_type') v = SIGN_CODE_TO_STR(v)
             else if (field === 'payment_type') v = PAYMENT_TYPE_CODE_TO_STR(v)
-            else if (field === 'sign_person') v = USERNAME_FROM_ACCOUNT(v, signers)
             else if (field === 'finish_step') v = FINISHED_INT_TO_STR(v)
             else if (type === 'date') v = formatExportDate(v)
             return v
@@ -181,7 +169,7 @@ const FIX2 = (n) => {
  *     本次计划付款金额、计划电汇金额、计划承兑金额、备注、业务员
  * 所有金额均保留两位小数
  */
-export function exportFinanceExcel(rows, filename = '导给财务', signers = []) {
+export function exportFinanceExcel(rows, filename = '导给财务') {
     const headerRow = [
         '序号', '付款类型', '供应商单位名称', '付款事由',
         '结算金额', '已付金额', '未付金额',
@@ -208,7 +196,7 @@ export function exportFinanceExcel(rows, filename = '导给财务', signers = []
             FIX2(remain),                         // 计划电汇 = 未付金额
             FIX2(0),                              // 计划承兑 = 0
             remark,                               // 备注
-            USERNAME_FROM_ACCOUNT(c.sign_person, signers), // 业务员 account→username
+            String(c.sign_person || ''),          // 业务员 = 签订人（存的就是姓名，无需转码）
         ]
     })
 
@@ -300,10 +288,9 @@ const EXAMPLE_ROW = {
  *   代码自动识别英文字段名行（包含 id 和 title），并跳过紧随其后的表头行
  *
  * @param file File 对象
- * @param signers 签订人字典 [{account, username}]，用于"签订人姓名→account"转码
  * @returns Promise<Array> 行对象数组
  */
-export function parseContractExcel(file, signers = []) {
+export function parseContractExcel(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = e => {
@@ -393,10 +380,6 @@ export function parseContractExcel(file, signers = []) {
                         if (field === 'payment_type') v = v !== '' && v !== null ? PAYMENT_TYPE_STR_TO_CODE(v) : null
                         // finish_step：收中文/数字，转成 int 进度
                         if (field === 'finish_step') v = FINISHED_STR_TO_INT(v)
-                        // sign_person：收中文姓名，转成 account
-                        // if (field === 'sign_person' && v !== '' && signers.length > 0) {
-                        //     v = ACCOUNT_FROM_USERNAME(v, signers)
-                        // }
 
                         row[field] = v
                     })

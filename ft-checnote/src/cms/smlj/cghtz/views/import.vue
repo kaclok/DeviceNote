@@ -10,33 +10,21 @@ const router = useRouter();
 const importing = ref(false)
 const result = ref(null)          // {success, fail, failRows:[{row,id,title,reason}]}
 const file = ref(null)
-const signers = ref([])          // 签订人字典，用于 Excel 中"姓名→account"转码
-
 // 归属部门：导入的整批合同统一归属该部门（必填，导入前先选定）
 const deptCode = ref('')
 const deptOptions = ref([])
 
-const AC_signers = new AbortController()
 const AC_import = new AbortController()
 const AC_dept = new AbortController()
 
 onMounted(() => {
-    loadSigners()
     loadDepts()
 })
 
 onUnmounted(() => {
-    AC_signers.abort()
     AC_import.abort()
     AC_dept.abort()
 })
-
-function loadSigners() {
-    Singleton.getInstance(SysX).getSignerList(null, AC_signers.signal, () => {
-    }, (r, data) => {
-        if (r) signers.value = data.data || []
-    })
-}
 
 // 归属部门字典：登录后已由 SysX 预加载缓存，这里命中缓存即刻返回
 function loadDepts() {
@@ -88,7 +76,7 @@ async function handleFile(f) {
     file.value = f
     importing.value = true
     try {
-        const rows = await parseContractExcel(f, signers.value)
+        const rows = await parseContractExcel(f)
         if (rows.length === 0) {
             ElMessage.warning('文件中没有可导入的数据')
             importing.value = false
