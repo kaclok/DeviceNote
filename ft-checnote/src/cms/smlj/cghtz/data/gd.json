@@ -15,5 +15,13 @@
 		"到货款待付",
 		"质保款待付",
 		"全付"
-	]
+	],
+	"dataScope": {
+		"levels": [
+			{"id": 1, "name": "SELF", "desc": "本人"},
+			{"id": 2, "name": "DEPT", "desc": "本部门"},
+			{"id": 3, "name": "COMPANY", "desc": "本公司"},
+			{"id": 4, "name": "ALL", "desc": "全集团"}
+		]
+	}
 }

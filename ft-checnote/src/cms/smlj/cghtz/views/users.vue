@@ -69,12 +69,8 @@ const myScope = effectiveScope(_acc)
 // 展开起点：账号自己的归属部门（后端 expandScope 的入参）
 const myDeptCode = _acc.dept_code || ''
 
-const SCOPE_OPTIONS = [
-    {value: '1', label: '1 本人'},
-    {value: '2', label: '2 本部门（含下级）'},
-    {value: '3', label: '3 本公司'},
-    {value: '4', label: '4 全集团'},
-]
+// 档位下拉：编号与文案的唯一来源 = gd.json（与 DeptX.SCOPE / scopeText 同源）
+const SCOPE_OPTIONS = gd.dataScope.levels.map(l => ({value: String(l.id), label: `${l.id} ${l.desc}`}))
 /** 该档位能否分配给账号：全集团账号不受限，其余只能选不高于自己的档位 */
 function canGrantScope(v) {
     return myScope === SCOPE.ALL || Number(v) <= myScope

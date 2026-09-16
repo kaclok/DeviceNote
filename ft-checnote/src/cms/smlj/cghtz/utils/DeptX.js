@@ -8,6 +8,8 @@
  * 所以「公司/部门」全路径统一由本模块按 parent_dept_code 自行拼接，不依赖该字段。
  */
 
+import gd from "../data/gd.json"
+
 /** 扁平字典 → 组织树。parent_dept_code 找不到对应节点者视为根节点。 */
 export function buildDeptTree(list) {
     const src = Array.isArray(list) ? list : []
@@ -98,8 +100,10 @@ export function matchDept(d, kw, pathMap) {
  * 档位常量，与后端 CCGHT.SCOPE_* 一一对应。
  * ⚠️ 编号即**严格**包含序（2 ⊂ 3 ⊂ 4）：前端「不能分配高于自身的范围」靠这个顺序做数值比较，别乱改。
  *   2 本部门已含全部下级，所以没有单独的「本部门及下级」档 —— 两者展开结果完全一致。
+ * 编号与文案的唯一来源 = data/gd.json 的 dataScope.levels：
+ *   改档位要同步后端 CCGHT.SCOPE_* 常量与库里 t_user.data_scope 的存量值。
  */
-export const SCOPE = {SELF: 1, DEPT: 2, COMPANY: 3, ALL: 4}
+export const SCOPE = Object.fromEntries(gd.dataScope.levels.map(l => [l.name, l.id]))
 
 /** 组织树索引：byCode 用于上溯、children 用于下探 */
 function _deptIndex(list) {
@@ -239,8 +243,8 @@ export function buildScopedDeptTree(list, visibleCodes) {
 
 /* ---------------- 数据范围（范围的唯一来源 = 账号行） ---------------- */
 
-/** 档位 → 中文文案，与后端 SCOPE_* 一一对应 */
-const SCOPE_TEXT = {1: '本人', 2: '本部门（含下级）', 3: '本公司', 4: '全集团'}
+/** 档位 → 中文文案，唯一来源 = data/gd.json（与 SCOPE 同一份 levels） */
+const SCOPE_TEXT = Object.fromEntries(gd.dataScope.levels.map(l => [String(l.id), l.desc]))
 
 /**
  * 账号的「有效数据范围」：只取账号行自己的 data_scope —— 它是范围的唯一来源。
