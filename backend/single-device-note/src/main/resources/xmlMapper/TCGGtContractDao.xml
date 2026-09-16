@@ -10,7 +10,7 @@
         paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        dept_code, finish_step, open_status
+        dept_code, finish_step, open_status, creator
     </sql>
 
     <!-- ============ 列表查询：动态 where ============ -->
@@ -107,7 +107,7 @@
         paycycle_dh, paycycle_zb,
         date_yfk, date_dhk, date_zbj, date_rk,
         bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        dept_code, finish_step, open_status
+        dept_code, finish_step, open_status, creator
         ) values (
         #{c.unique_id}, #{c.id}, #{c.title}, #{c.amount}, #{c.date_sign}, #{c.sign_person}, #{c.sign_type},
         #{c.supplier}, #{c.pay_type}, #{c.payment_type},
@@ -115,11 +115,13 @@
         #{c.date_yfk}, #{c.date_dhk}, #{c.date_zbj}, #{c.date_rk},
         #{c.bz}, #{c.settle_amount}, #{c.has_amount}, #{c.hq},
         #{c.date_htyj}, #{c.date_fpyj}, #{c.date_actual_dh}, #{c.date_ruzlyj},
-        #{c.dept_code}, #{c.finish_step}, true
+        #{c.dept_code}, #{c.finish_step}, true, #{c.creator}
         )
     </insert>
 
     <!-- ============ 更新（全量）：按 unique_id 更新所有业务字段 ============ -->
+    <!-- ⚠️ creator（录入人）刻意不在此列：它是审计字段，更新时保持原值 ——
+         若允许随表单改写，客户端就能伪造「谁录的」，按录入人过滤的「本人」档随之失效。 -->
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
         update cght.t_contract
         <set>

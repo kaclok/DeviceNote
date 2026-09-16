@@ -23,6 +23,14 @@ public class TCGHTContract implements Serializable {
      * 新增/编辑合同时由部门选择器选定，列表展示与部门筛选都基于该字段。
      */
     private String dept_code;
+
+    /**
+     * 录入人：创建该合同时的登录账号（account）。由后端按登录态写入，客户端传值一律被忽略
+     * （新增时覆盖、导入时逐行写入、更新时整列不动），因此不可伪造。
+     * 用途是「本人」档数据范围（data_scope=1）的过滤依据 —— 见 CCGHT.expandScope。
+     * 系统字段：刻意不进 Excel 导入/导出（见前端 ExcelX.FIELD_DEFS），也不在任何页面展示。
+     */
+    private String creator;
     private String title;
     private float amount;
     // @DateTimeFormat(pattern = "yyyy-MM-dd")

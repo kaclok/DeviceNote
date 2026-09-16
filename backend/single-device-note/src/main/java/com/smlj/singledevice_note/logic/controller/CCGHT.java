@@ -63,7 +63,7 @@ public class CCGHT {
      * 前端「只能分配不高于自身档位」的收窄下拉按它判断（只是体验层，真正的拦截在后端的集合包含校验）。
      * 新增档位必须插在包含序的正确位置上，不要图省事追加到末尾 —— 否则收窄会静默失效。
      */
-    private static final int SCOPE_SELF = 1;      // 本人（缺 t_contract.creator，暂按本部门收敛）
+    private static final int SCOPE_SELF = 1;      // 本人（creator 列已建，按录入人过滤尚未接入，暂按本部门收敛）
     private static final int SCOPE_DEPT = 2;      // 本部门（含全部下级部门 / 分厂 / 中心）
     private static final int SCOPE_COMPANY = 3;   // 本公司（含全部下级部门）
     private static final int SCOPE_ALL = 4;       // 全集团
@@ -520,7 +520,7 @@ public class CCGHT {
     // 「全集团 VIEWER」「分公司管理员」这类组合因此不必新建角色行，perms 也不用复制多份。
     //
     // 档位 = 怎么展开，展开起点固定为账号自己的 dept_code（组织归属，与人事一致）：
-    //   1 本人      -> 起点自身（缺 t_contract.creator 列，暂降级为「本部门」）
+    //   1 本人      -> 按 t_contract.creator 过滤（列已建，过滤尚未接入，暂降级为「本部门」）
     //   2 本部门    -> 起点整棵子树（含下级部门 / 分厂 / 中心，BFS 不写死层数）
     //   3 本公司    -> 起点向上定位到的公司节点，取其整棵子树
     //   4 全集团    -> 不限制
@@ -538,6 +538,14 @@ public class CCGHT {
             return List.of();
         }
         return expandScope(dataScopeOf(db), db.getDept_code(), db.getAccount());
+    }
+
+    /**
+     * 当前登录账号 —— 只取身份标识 account，专供写 creator（录入人）用。
+     * 刻意不读 @Acc 里的 data_scope：那个字段反序列化失败会静默变 0（原因见 resolveScopeDepts 上方说明）。
+     */
+    private String accountOf(TCGHTUser curUser) {
+        return curUser == null ? null : curUser.getAccount();
     }
 
     /**
@@ -573,10 +581,11 @@ public class CCGHT {
             }
             return List.copyOf(sub);
         }
-        // 1 本人：依据是 t_contract 的「录入人」字段，当前库里还没有该列（PRD §4.5 规划中），
-        //        因此无法实现 —— 降级为「本部门」而不是放行，比原档位更严格，不会造成越权。
+        // 1 本人：依据是 t_contract.creator（录入人）。该列已于 2026-09-16 建立，但接入过滤要换一个
+        //        维度下推（creator = ? 而不是 dept_code in (...)），且历史数据 creator 为空 ——
+        //        接入前先降级为「本部门」而不是放行，比原档位更严格，不会造成越权。见 PRD §4.5.7。
         if (scope == SCOPE_SELF) {
-            log.warn("账号 {} 的 data_scope=1(本人) 缺少 t_contract.creator 列，暂按本部门收敛", logAccount);
+            log.warn("账号 {} 的 data_scope=1(本人) 尚未接入 creator 过滤，暂按本部门收敛", logAccount);
         }
         // 2 本部门：起点自身 + 全部递归下级（BFS，不写死层数）。
         //   部门天然包含下级 —— 这正是不再单设「本部门及下级」一档的原因：
@@ -831,6 +840,8 @@ public class CCGHT {
 
         // 生成 unique_id 作为主键
         c.setUnique_id(UUID.randomUUID().toString().replace("-", ""));
+        // 录入人按登录态写入（覆盖请求体里的任何值）：客户端不可伪造
+        c.setCreator(accountOf(curUser));
         contractDao.insert(c);
         return Result.success(c);
     }
@@ -865,7 +876,8 @@ public class CCGHT {
                     String.format("无权将合同归属到部门 %s（超出你的数据范围）", c.getDept_code()));
         }
         // 保留 unique_id 和 open_status，其余从 c 拷贝
-        BeanUtils.copyProperties(c, old, "unique_id", "open_status");
+        // creator（录入人）不在拷贝范围：审计字段不随表单改，否则可伪造归属
+        BeanUtils.copyProperties(c, old, "unique_id", "open_status", "creator");
         contractDao.update(old);
         return Result.success(old);
     }
@@ -900,8 +912,9 @@ public class CCGHT {
         List<Map<String, Object>> failRows = new ArrayList<>();
         // 批次内即时结算类 id 去重
         Set<String> batchInstantIds = new HashSet<>();
-        // 数据范围在整批里解析一次即可：同一登录账号，批次内不会变
+        // 数据范围与录入人在整批里解析一次即可：同一登录账号，批次内不会变
         List<String> scopeDepts = resolveScopeDepts(curUser);
+        String creator = accountOf(curUser);
         for (int i = 0; i < rows.size(); i++) {
             TCGHTContract c = rows.get(i);
             List<String> reasons = new ArrayList<>();
@@ -940,6 +953,7 @@ public class CCGHT {
             }
             if (reasons.isEmpty()) {
                 c.setUnique_id(UUID.randomUUID().toString().replace("-", ""));
+                c.setCreator(creator);   // 导入的合同同样记「谁导的」
                 contractDao.insert(c);
                 okCnt++;
             } else {

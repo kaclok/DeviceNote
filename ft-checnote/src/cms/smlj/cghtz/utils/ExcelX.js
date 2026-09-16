@@ -68,6 +68,12 @@ const FINISHED_STR_TO_INT = (v) => {
  * 字段定义表：field（后端字段名/英文字段名）、header（中文表头）、type
  * 列顺序与导入 Excel 保持一致，保证导出文件可直接导入
  * 导出格式：第 1 行英文字段名，第 2 行中文表头，第 3 行起为数据
+ *
+ * ⚠️ 本表同时是「导出列 / 导入模板列 / 导入解析列」三处的唯一清单，改它等于三处一起改。
+ *    系统字段刻意不进本表：
+ *      · creator     录入人，后端按登录态写入 —— 导出（含导给财务）不带录入人信息
+ *      · dept_code   归属部门，导入时由页面上的部门选择器逐行注入（见 import.vue）
+ *      · unique_id / open_status   后端主键与逻辑删除标记
  */
 const FIELD_DEFS = [
     {field: 'id', header: '合同编号', required: true},
