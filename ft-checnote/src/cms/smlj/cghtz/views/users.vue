@@ -86,6 +86,34 @@ const scopedDeptOptions = computed(
     () => deptScopeDepts(deptOptions.value, myScope, myDeptCode) ?? deptOptions.value
 )
 
+/**
+ * 本账号「可见部门」的原样三态（null = 不限制）。
+ * 与 scopedDeptOptions 的区别是**不做全量 fallback** —— 判定可管理范围时必须区分
+ * 「不限制」和「全量恰好等于我的可见」，退回全量会把受限账号误判成不限。
+ */
+const myVisibleDepts = computed(() => deptScopeDepts(deptOptions.value, myScope, myDeptCode))
+
+/**
+ * 该行账号是否在我的「可管理范围」内 —— 与后端 canManageAccount 同口径：
+ * 目标账号**现有**范围的展开 ⊆ 我的可见部门。
+ * 只看归属部门是不够的：同一个公司里可能存在范围比操作者更大的账号
+ * （典型：本公司管理员 vs 同公司挂「全集团」档的账号），归属部门在范围内、整个人的范围却更大。
+ * ⚠️ 置灰只是体验，**不是安全边界** —— 后端 accountSave / resetPwd / toggle 三处各有这道闸。
+ */
+function canManage(row) {
+    if (myScope === SCOPE.ALL) return true
+    const target = deptScopeDepts(deptOptions.value, effectiveScope(row), row.dept_code)
+    if (target === null) return false                 // 目标是「全集团」，超出任何受限操作者
+    const mine = myVisibleDepts.value || []
+    return target.every(c => mine.includes(c))
+}
+
+/** 置灰原因（tooltip 文案）；可管理时返回空串，tooltip 自动不显示 */
+function manageBlockReason(row) {
+    return canManage(row) ? '' : `该账号的数据范围（${scopeLabel(row)}）超出你的可管理范围`
+}
+
+
 /** 列表行的范围文案 */
 function scopeLabel(row) {
     return scopeText(effectiveScope(row))
@@ -397,11 +425,16 @@ function toggleStatus(row) {
                 </el-table-column>
                 <el-table-column label="操作" width="250" fixed="right" align="center">
                     <template #default="{row}">
-                        <el-button v-notSelf.readonly="row.account" link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
-                        <el-button v-notSelf.readonly="row.account" link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
-                        <el-button v-notSelf.readonly="row.account" link :type="row.open_status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
-                            {{ row.open_status ? '停用' : '启用' }}
-                        </el-button>
+                        <!-- 禁用态按钮不派发鼠标事件，必须由 span 承载 tooltip（Element Plus 的既有做法） -->
+                        <el-tooltip :disabled="canManage(row)" :content="manageBlockReason(row)" placement="top">
+                            <span>
+                                <el-button v-notSelf.readonly="row.account" :disabled="!canManage(row)" link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
+                                <el-button v-notSelf.readonly="row.account" :disabled="!canManage(row)" link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
+                                <el-button v-notSelf.readonly="row.account" :disabled="!canManage(row)" link :type="row.open_status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
+                                    {{ row.open_status ? '停用' : '启用' }}
+                                </el-button>
+                            </span>
+                        </el-tooltip>
                     </template>
                 </el-table-column>
             </el-table>

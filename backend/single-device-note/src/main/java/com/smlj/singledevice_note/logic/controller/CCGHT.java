@@ -68,7 +68,9 @@ public class CCGHT {
     private static final int SCOPE_COMPANY = 3;   // 本公司（含全部下级部门）
     private static final int SCOPE_ALL = 4;       // 全集团
 
-    /** 合法档位集合。用集合判断而非区间判断：档位增删时不会被编号顺序误导。 */
+    /**
+     * 合法档位集合。用集合判断而非区间判断：档位增删时不会被编号顺序误导。
+     */
     private static final Set<Integer> SCOPE_VALID = Set.of(
             SCOPE_SELF, SCOPE_DEPT, SCOPE_COMPANY, SCOPE_ALL);
     private final CJwt cJwt;
@@ -76,7 +78,9 @@ public class CCGHT {
     private final TCGHTRoleDao roleDao;
     private final TCGHTPermDao permDao;
     private final TCGHTContractDao contractDao;
-    /** 组织架构只读 DAO：queryOptions 走 train 库（@DS 打在方法上），其余方法走 main 库 */
+    /**
+     * 组织架构只读 DAO：queryOptions 走 train 库（@DS 打在方法上），其余方法走 main 库
+     */
     private final TDeptDao deptDao;
 
     // ================================================================
@@ -89,12 +93,18 @@ public class CCGHT {
     // 因此部门有效性校验一律只读下面的内存索引，彻底不进事务查库。
     // 附带好处：校验读的就是下发给前端的那一份数据，「能选到的」与「能存进去的」口径天然一致。
     private volatile Set<String> deptCodes = Set.of();
-    /** 组织树索引（仅启用部门）：dept_code -> parent_dept_code，用于向上定位「所属公司」 */
+    /**
+     * 组织树索引（仅启用部门）：dept_code -> parent_dept_code，用于向上定位「所属公司」
+     */
     private volatile Map<String, String> deptParent = Map.of();
-    /** 组织树索引（仅启用部门）：parent_dept_code -> 直接子部门，用于向下展开子树 */
+    /**
+     * 组织树索引（仅启用部门）：parent_dept_code -> 直接子部门，用于向下展开子树
+     */
     private volatile Map<String, List<String>> deptChildren = Map.of();
 
-    /** 启动预热：让首个请求不必等一次 train 库查询（失败只告警，不阻断启动） */
+    /**
+     * 启动预热：让首个请求不必等一次 train 库查询（失败只告警，不阻断启动）
+     */
     @PostConstruct
     public void warmDeptCache() {
         try {
@@ -104,7 +114,9 @@ public class CCGHT {
         }
     }
 
-    /** 加载/刷新组织架构缓存，返回全量启用部门（失败时抛出，由调用方决定是否保留旧缓存） */
+    /**
+     * 加载/刷新组织架构缓存，返回全量启用部门（失败时抛出，由调用方决定是否保留旧缓存）
+     */
     private synchronized List<TDept> refreshDeptCache() {
         List<TDept> ls = deptDao.queryOptions();
         if (ls == null) ls = new ArrayList<>();
@@ -215,7 +227,7 @@ public class CCGHT {
             @RequestParam(name = "dept_code", required = false) String dept_code,
             @RequestParam(name = "password", required = false) String password,
             // 数据范围：新建必填（它是范围的唯一来源，没有角色兜底）；编辑不传/传空 = 保持原样，传了 = 整体设置
-            @RequestParam(name = "data_scope", required = false) String data_scope,
+            @RequestParam(name = "data_scope", required = false, defaultValue = "2") String data_scope,
             @Acc TCGHTUser curUser) {
         if (!StringUtils.hasText(account)) {
             return Result.fail(ResultCode.RC10101, "账号(account)不能为空");
@@ -255,6 +267,14 @@ public class CCGHT {
         // (3) 编辑已有账号：原账号也必须在范围内，否则可跨范围改人、改角色、改归属部门
         if (old != null && !inScope(scopeDepts, old.getDept_code())) {
             return accountOutOfScope(account, curUser);
+        }
+        // (3.5) 目标账号的「数据范围」也必须在可管理范围内 —— 归属部门在范围内不等于整个人在范围内。
+        //       缺这道闸的后果：同公司的低范围管理员能改高范围账号的角色/姓名/归属部门，
+        //       还能重置它的密码（重置后登录即拿到对方的范围，是完整的提权链条）。
+        //       它必须排在 (5) 之前：第 (5) 道闸被 scopeChanged 短路，而"范围原样不动"恰恰是
+        //       最常见的越权入口 —— 改角色、改姓名时前端根本不传 data_scope。
+        if (old != null && !canManageAccount(scopeDepts, old)) {
+            return Result.fail(ResultCode.RC10307.getCode(), "目标账号的数据范围超出你的可管理范围");
         }
         // (4) 范围入参：新建必须传；编辑不传 = 保持原样，传了 = 整体设置。
         //     范围的唯一来源是 t_user.data_scope，没有角色兜底 —— 新建时留空没有任何东西能补上，
@@ -355,8 +375,14 @@ public class CCGHT {
         }
         // 用 query 替代 exist：一次查询同时拿到"存不存在"和"归属部门在不在范围内"
         TCGHTUser target = userDao.query(account);
-        if (target == null || !inScope(resolveScopeDepts(curUser), target.getDept_code())) {
+        List<String> scopeDepts = resolveScopeDepts(curUser);
+        if (target == null || !inScope(scopeDepts, target.getDept_code())) {
             return accountOutOfScope(account, curUser);
+        }
+        // 归属部门在范围内还不够：目标账号自己的数据范围也必须 ⊆ 我的可见范围。
+        // 否则低范围管理员能重置高范围账号的密码，登录后即拿到对方全部可见数据。
+        if (!canManageAccount(scopeDepts, target)) {
+            return Result.fail(ResultCode.RC10307.getCode(), "目标账号的数据范围超出你的可管理范围");
         }
         final String newPwd = StringUtils.hasText(pwd) ? pwd : DEFAULT_INIT_PWD;
         userDao.resetPwd(account, newPwd);
@@ -415,8 +441,13 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10101, "账号(account)不能为空");
         }
         TCGHTUser u = userDao.query(account);
-        if (u == null || !inScope(resolveScopeDepts(curUser), u.getDept_code())) {
+        List<String> scopeDepts = resolveScopeDepts(curUser);
+        if (u == null || !inScope(scopeDepts, u.getDept_code())) {
             return accountOutOfScope(account, curUser);
+        }
+        // 同 accountSave / resetPwd：停用/启用是整个账号级操作，目标账号范围也必须 ⊆ 我的范围
+        if (!canManageAccount(scopeDepts, u)) {
+            return Result.fail(ResultCode.RC10307.getCode(), "目标账号的数据范围超出你的可管理范围");
         }
         boolean next = !u.isOpen_status();
         // 业务约束：不允许停用当前登录账号自身（当无法获取当前登录人时，此约束由前端 v-notSelf 先行拦截）
@@ -556,6 +587,38 @@ public class CCGHT {
     }
 
     /**
+     * 目标账号是否在「可管理范围」内 —— 写入侧的第二维闸（第一维是归属部门）。
+     * <p>
+     * 只看归属部门是不够的：同一个公司里可能存在「数据范围比操作者更大」的账号。
+     * 实例：王航舟(024537, 本公司 37 个部门) 与崔斌斌(029567, 4 全集团) 同属神木氯碱，
+     * 崔斌斌的归属部门(数字化中心)落在王航舟可见集内 —— 只校验归属部门时，王航舟可以改
+     * 崔斌斌的角色、把它降权到自己范围、改它的姓名，更能重置它的密码
+     * （重置后登录即拿到全集团权限，是一条完整的提权链条）。
+     * <p>
+     * 判据与 accountSave 第 (5) 道闸同源：目标账号**现有**范围的展开 ⊆ 操作者可见部门。
+     * 目标账号是「4 全集团」时展开为 null，对受限操作者恒为越权；
+     * 操作者自身不限制(myDepts == null)时一律可管理。
+     */
+    private boolean canManageAccount(List<String> myDepts, TCGHTUser target) {
+        if (myDepts == null) {
+            return true;                        // 操作者不限范围
+        }
+        if (target == null) {
+            return false;
+        }
+        List<String> targetDepts = expandScope(dataScopeOf(target), target.getDept_code(), target.getAccount());
+        if (targetDepts == null) {
+            log.warn("目标账号 {} 是 4 全集团，超出受限操作者的可管理范围", target.getAccount());
+            return false;
+        }
+        boolean ok = myDepts.containsAll(targetDepts);
+        if (!ok) {
+            log.warn("目标账号 {} 的范围展开 {} 个部门，超出可管理范围", target.getAccount(), targetDepts.size());
+        }
+        return ok;
+    }
+
+    /**
      * 有效范围档位：只取账号行自己的 data_scope —— 它是范围的唯一来源。
      * <p>
      * 角色的 data_scope 已删除（列已 drop）：范围是「这个人在组织里的位置」的函数，
@@ -593,12 +656,16 @@ public class CCGHT {
         return Result.fail(ResultCode.RC10301);
     }
 
-    /** 某部门的直接子部门（仅启用）。无子部门返回空列表。 */
+    /**
+     * 某部门的直接子部门（仅启用）。无子部门返回空列表。
+     */
     private List<String> childrenOf(String deptCode) {
         return this.deptChildren.getOrDefault(deptCode, List.of());
     }
 
-    /** 某部门的整棵子树（含自身）。null/空白入参返回空集。 */
+    /**
+     * 某部门的整棵子树（含自身）。null/空白入参返回空集。
+     */
     private Set<String> subtreeOf(String deptCode) {
         Set<String> out = new HashSet<>();
         if (!StringUtils.hasText(deptCode)) return out;
@@ -616,12 +683,18 @@ public class CCGHT {
         return out;
     }
 
-    /** 集团根：没有父节点、或父节点不在启用集合里的那个节点。取不到返回 null。 */
+    /**
+     * 集团根：没有父节点、或父节点不在启用集合里的那个节点。取不到返回 null。
+     */
     private String rootOf() {
-        if (this.deptCodes.isEmpty()) refreshDeptCache();
+        if (this.deptCodes.isEmpty()) {
+            refreshDeptCache();
+        }
         for (String code : this.deptCodes) {
             String p = this.deptParent.get(code);
-            if (!StringUtils.hasText(p) || !this.deptCodes.contains(p)) return code;
+            if (!StringUtils.hasText(p) || !this.deptCodes.contains(p)) {
+                return code;
+            }
         }
         return null;
     }
@@ -632,8 +705,12 @@ public class CCGHT {
      * 定位不到时返回入参自身 —— 语义退化为「本部门」，只会收窄范围，不会放大。
      */
     private String companyOf(String deptCode) {
-        if (!StringUtils.hasText(deptCode)) return null;
-        if (this.deptParent.isEmpty()) refreshDeptCache();
+        if (!StringUtils.hasText(deptCode)) {
+            return null;
+        }
+        if (this.deptParent.isEmpty()) {
+            refreshDeptCache();
+        }
         String root = rootOf();
         String cur = deptCode;
         for (int i = 0; i < 16; i++) {                      // 组织树最深 4 层，16 只是防环上限
@@ -642,16 +719,24 @@ public class CCGHT {
             // 若判据只看"父为空"，会一路走到 1，再 subtreeOf("1") 得到一个根本不存在的部门编码，
             // 结果「本公司」档在集团根上反而比「本部门」档更窄（2 ⊄ 3），包含序被打破。
             // 现在的规则：到顶就返回当前节点 → 集团根的"公司"就是它自己，本公司 == 全集团，语义自洽。
-            if (!StringUtils.hasText(p) || !this.deptCodes.contains(p)) return cur;   // 已到顶
-            if (root != null && root.equals(p)) return cur; // 父是集团根 -> cur 即公司节点
+            if (!StringUtils.hasText(p) || !this.deptCodes.contains(p)) {
+                return cur;   // 已到顶
+            }
+            if (root != null && root.equals(p)) {
+                return cur; // 父是集团根 -> cur 即公司节点
+            }
             cur = p;
         }
         return deptCode;
     }
 
-    /** 某个部门是否落在数据范围内。scope 为 null 表示不限制。 */
+    /**
+     * 某个部门是否落在数据范围内。scope 为 null 表示不限制。
+     */
     private boolean inScope(List<String> scope, String deptCode) {
-        if (scope == null) return true;
+        if (scope == null) {
+            return true;
+        }
         return StringUtils.hasText(deptCode) && scope.contains(deptCode);
     }
 
