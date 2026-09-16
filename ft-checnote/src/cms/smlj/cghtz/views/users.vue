@@ -3,7 +3,8 @@ import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
 import DeptPicker from "../components/DeptPicker.vue"
-import {buildDeptPathMap, deptDisplay, deptShort, isUnknownDept} from "../utils/DeptX.js"
+import {SCOPE, buildDeptPathMap, deptDisplay, deptShort, isUnknownDept, deptScopeDepts, effectiveScope, scopeText} from "../utils/DeptX.js"
+import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
 
 const loading = ref(false)
 const list = ref([])
@@ -56,6 +57,47 @@ function deptUnknown(code) {
 /** 列表列位窄：只显示末级部门名，完整「公司/部门」路径放 tooltip */
 function deptShortName(code) {
     return deptShort(deptPathMap.value, code)
+}
+
+/* ---------------- 数据范围（account.data_scope） ---------------- */
+// 范围的唯一来源是账号行自己的 data_scope（后端 NOT NULL、新建必填），角色侧没有该字段。
+// 任何有 perm:assign 的人都能给账号配范围，但只能配「不高于自己」的档位
+// （编号 = 包含序）。真正的拦截在后端的集合包含校验，这里只是不让他选到明显越权的项。
+const {wsCache} = useSessionCache()
+const _acc = wsCache.get(ECacheType.ACCOUNT) || {}
+const myScope = effectiveScope(_acc)
+// 展开起点：账号自己的归属部门（后端 expandScope 的入参）
+const myDeptCode = _acc.dept_code || ''
+
+const SCOPE_OPTIONS = [
+    {value: '1', label: '1 本人'},
+    {value: '2', label: '2 本部门（含下级）'},
+    {value: '3', label: '3 本公司'},
+    {value: '4', label: '4 全集团'},
+]
+/** 该档位能否分配给账号：全集团账号不受限，其余只能选不高于自己的档位 */
+function canGrantScope(v) {
+    return myScope === SCOPE.ALL || Number(v) <= myScope
+}
+/**
+ * 本账号「可见的部门」—— 账号页两个部门选择器共用这一份，与后端 inScope 同口径：
+ *   · 归属部门   ：只能把人挂到自己范围内的部门（后端 accountSave 第 (2) 条会校验）
+ *   · 按部门筛选 ：筛到范围外的部门必然 0 行，不如不给选
+ * deptScopeDepts 返回 null 表示不限制（全集团账号），此时退回全量字典。
+ * ⚠️ 只是收窄候选，不是安全边界 —— 改前端参数绕不过后端的集合包含校验。
+ */
+const scopedDeptOptions = computed(
+    () => deptScopeDepts(deptOptions.value, myScope, myDeptCode) ?? deptOptions.value
+)
+
+/** 列表行的范围文案 */
+function scopeLabel(row) {
+    return scopeText(effectiveScope(row))
+}
+
+/** 范围标签配色：范围越宽警示度越高 */
+function scopeTagType(row) {
+    return {'4': 'danger', '3': 'warning', '2': 'primary', '1': 'info'}[String(effectiveScope(row))] || 'info'
 }
 
 // 权限分组（基于动态 permDefs 计算）
@@ -194,7 +236,10 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 const saving = ref(false)
-const form = ref({account: '', username: '', role_code: 'EDITOR', dept_code: '', password: ''})
+const form = ref({
+    account: '', username: '', role_code: 'EDITOR', dept_code: '', password: '',
+    data_scope: '2',   // 数据范围必填，默认 2 本部门（含下级）
+})
 
 const rules = {
     account: [{required: true, message: '请输入账号', trigger: 'blur'}],
@@ -202,11 +247,16 @@ const rules = {
     role_code: [{required: true, message: '请选择角色', trigger: 'change'}],
     // 归属部门必填（后端强校验）。trigger 用 change：下拉选择与组织树确认都会 emit change
     dept_code: [{required: true, message: '请选择归属部门', trigger: 'change'}],
+    // 数据范围必填：它是范围的唯一来源，后端没有兜底（新建时留空会被直接拒绝）
+    data_scope: [{required: true, message: '请选择数据范围', trigger: 'change'}],
 }
 
 function openCreate() {
     isEdit.value = false
-    form.value = {account: '', username: '', role_code: 'EDITOR', dept_code: '', password: ''}
+    form.value = {
+        account: '', username: '', role_code: 'EDITOR', dept_code: '', password: '',
+        data_scope: '2',
+    }
     dialogVisible.value = true
 }
 
@@ -218,6 +268,8 @@ function openEdit(row) {
         role_code: row.role?.role_code || '',
         dept_code: row.dept_code || '',
         password: '',
+        // 账号行上一定有值（后端 NOT NULL）；老数据若为空则留空，用户必须补一个才能保存
+        data_scope: row.data_scope == null ? '' : String(row.data_scope),
     }
     dialogVisible.value = true
 }
@@ -251,6 +303,10 @@ function saveAccount() {
         if (!isEdit.value) {
             paras.password = String(form.value.password || '').trim()
         }
+        // 数据范围必填，传了就是"整体设置"。
+        // 是否越权（超出操作者可管理范围）由后端的集合包含校验判定，前端不做安全边界的判断。
+        paras.data_scope = form.value.data_scope || ''
+
         Singleton.getInstance(SysX).saveAccount(paras, new AbortController().signal, () => {
         }, (r, data) => {
             saving.value = false
@@ -299,7 +355,7 @@ function toggleStatus(row) {
     <div class="users-page">
         <div class="page-head">
             <div class="head-title">账号与权限管理</div>
-            <div class="head-desc">为每个账号分配角色与归属部门，权限由角色决定，不可手动调整</div>
+            <div class="head-desc">为每个账号分配角色与归属部门；功能权限由角色决定，数据范围可按账号单独指定（仅集团管理员可调）</div>
         </div>
 
         <el-card shadow="never" class="table-card">
@@ -307,7 +363,7 @@ function toggleStatus(row) {
                 <el-button v-hasPermission="['perm:assign']" type="primary" @click="openCreate">＋ 新建账号</el-button>
                 <div class="spacer"></div>
                 <div class="dept-filter">
-                    <DeptPicker v-model="deptFilter" :depts="deptOptions" placeholder="按部门筛选" @change="applySearch"/>
+                    <DeptPicker v-model="deptFilter" :depts="scopedDeptOptions" placeholder="按部门筛选" @change="applySearch"/>
                 </div>
                 <el-input v-model="keyword" placeholder="搜索账号 / 姓名" clearable style="width:220px">
                     <template #prefix><span style="color:#94a3b8">🔍</span></template>
@@ -326,6 +382,11 @@ function toggleStatus(row) {
                         <el-tooltip v-else :content="deptPath(row.dept_code)" placement="top">
                             <span :class="{'dept-unknown': deptUnknown(row.dept_code)}">{{ deptShortName(row.dept_code) }}</span>
                         </el-tooltip>
+                    </template>
+                </el-table-column>
+                <el-table-column label="数据范围" width="150" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="scopeTagType(row)" size="small" effect="plain">{{ scopeLabel(row) }}</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="role_code" label="角色" width="110" align="center" sortable="custom">
@@ -386,7 +447,18 @@ function toggleStatus(row) {
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="归属部门" prop="dept_code">
-                            <DeptPicker v-model="form.dept_code" :depts="deptOptions" :teleported="false" @change="onDeptChange"/>
+                            <DeptPicker v-model="form.dept_code" :depts="scopedDeptOptions" :teleported="false" @change="onDeptChange"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                        <el-form-item label="数据范围" prop="data_scope">
+                            <el-select v-model="form.data_scope" style="width:180px">
+                                <el-option v-for="o in SCOPE_OPTIONS" :key="o.value" :label="o.label"
+                                           :value="o.value" :disabled="!canGrantScope(o.value)"/>
+                            </el-select>
+                            <span style="color:#cbd5e1;font-size:12px;margin-left:8px">
+                                必填；只能分配不高于你自己（{{ scopeText(myScope) }}）的档位
+                            </span>
                         </el-form-item>
                     </el-col>
                     <el-col v-if="!isEdit" :span="24">

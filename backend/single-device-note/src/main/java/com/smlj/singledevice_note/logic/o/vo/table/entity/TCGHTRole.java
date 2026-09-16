@@ -16,7 +16,6 @@ public class TCGHTRole implements Serializable {
     private int id;
     private String role_name;
     private String role_code;
-    private int data_scope;
     private String[] perms;
     private String description;
 }

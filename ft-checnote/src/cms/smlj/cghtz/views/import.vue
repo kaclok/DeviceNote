@@ -4,15 +4,33 @@ import {Singleton} from "@/framework/services/Singleton.js";
 import {downloadTemplate, parseContractExcel} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
 import DeptPicker from "../components/DeptPicker.vue"
+import {deptScopeDepts, effectiveScope, scopeText, SCOPE} from "../utils/DeptX.js"
+import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
 
 const router = useRouter();
+
+// 数据范围（data_scope）：与后端 CCGHT.resolveScopeDepts 同口径（档位编号即包含序）——
+// 4 = 全集团（不限制）；3 本公司 / 2 本部门（含下级）逐级收敛。
+// 前端只做体验优化（让用户选不到越权部门），真正的拦截在后端 contract/import 的逐行校验。
+const {wsCache} = useSessionCache()
+const _acc = wsCache.get(ECacheType.ACCOUNT) || {}
+// 有效范围：唯一来源是账号行自己的 data_scope（与后端 dataScopeOf 同口径，角色侧已无该字段）
+const dataScope = effectiveScope(_acc)
+const scopeAll = dataScope === SCOPE.ALL
+// 展开起点：账号自己的归属部门 —— 与后端 expandScope 的入参同口径
+const myDeptCode = _acc.dept_code || ''
 
 const importing = ref(false)
 const result = ref(null)          // {success, fail, failRows:[{row,id,title,reason}]}
 const file = ref(null)
 // 归属部门：导入的整批合同统一归属该部门（必填，导入前先选定）
-const deptCode = ref('')
-const deptOptions = ref([])
+// 受限账号只能导到自己范围内，直接预填归属部门省一步；全集团账号留空，必须显式选择
+const deptCode = ref(scopeAll ? '' : myDeptCode)
+const allDeptOptions = ref([])
+/** 可选部门：口径与后端 expandScope 一致（4 全量 / 3 本公司子树 / 2 起点子树 / 其余起点） */
+const deptOptions = computed(
+    () => deptScopeDepts(allDeptOptions.value, dataScope, myDeptCode) ?? allDeptOptions.value
+)
 
 const AC_import = new AbortController()
 const AC_dept = new AbortController()
@@ -30,7 +48,7 @@ onUnmounted(() => {
 function loadDepts() {
     Singleton.getInstance(SysX).getDeptList(null, AC_dept.signal, () => {
     }, (r, data) => {
-        if (r) deptOptions.value = data.data || []
+        if (r) allDeptOptions.value = data.data || []
     })
 }
 
@@ -136,13 +154,21 @@ function goLedger() {
 
         <!-- 归属部门 -->
         <el-card shadow="never" class="block-card">
-            <div class="block-title">② 选择归属部门（必填）</div>
+            <div class="block-title">
+                ② 选择归属部门（必填）
+                <el-tooltip v-if="!scopeAll"
+                            content="你的账号只能把合同导入到数据范围内的部门。需要更大范围请联系管理员调整数据范围。"
+                            placement="top">
+                    <el-tag size="small" type="info" effect="light"
+                            class="scope-tip">数据范围：{{ scopeText(dataScope) }}</el-tag>
+                </el-tooltip>
+            </div>
             <div class="block-body">
                 <div class="dept-box">
                     <DeptPicker v-model="deptCode" :depts="deptOptions" placeholder="输入部门名称，或点右侧按钮从组织架构选择"/>
                 </div>
                 <div class="tip-text">
-                    本批合同将统一归属到该部门；未选择部门时无法上传。可输入文字模糊匹配，或点右侧「?」按组织架构逐层选择。
+                    本批合同将统一归属到该部门；未选择部门时无法上传。可输入文字模糊匹配，或点右侧按钮按组织架构逐层选择。
                 </div>
             </div>
         </el-card>
@@ -215,6 +241,13 @@ function goLedger() {
             margin-bottom: 14px;
             padding-left: 10px;
             border-left: 4px solid #2563eb;
+
+            /* 受限数据范围提示：跟在标题后面，字号降到正文级别，不抢标题 */
+            .scope-tip {
+                margin-left: 8px;
+                font-size: 12px;
+                font-weight: 400;
+            }
         }
 
         .tip-text {

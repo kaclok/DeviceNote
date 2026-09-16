@@ -1,16 +1,21 @@
 <script setup lang="js">
 import {nextTick} from 'vue'
+import {ElMessage} from 'element-plus'
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
-import {buildDeptTree, buildDeptPathMap, matchDept} from "../utils/DeptX.js"
+import {buildDeptPathMap, buildScopedDeptTree, matchDept} from "../utils/DeptX.js"
 
 /**
  * 部门选择器（两种选法，同一个值）
  *
  * 1) 下拉框：可直接在框里输入文字，按「部门名 / 公司·部门全路径 / 部门编码」模糊匹配，
  *    下拉中列出所有符合条件的部门，点击即选中；不点选则值不变。
- * 2) 右侧「?」按钮：打开「组织架构」树弹窗，树同样支持搜索，
+ * 2) 右侧按钮：打开「组织架构」树弹窗，树同样支持搜索，
  *    适合不知道部门全名、需要顺着 集团 → 公司 → 部门 逐层找的场景。
+ *
+ * 数据范围：入参 depts 是「可选部门」（通常已按 data_scope 收窄）。树上会把这些可选部门的
+ * 祖先节点一并补出来，还原成 集团 → 公司 → 部门 的完整路径；**祖先节点仅作层级上下文、不可选**。
+ * 例：某「本部门」档账号挂在 生产技术部，树为 集团 → 神木电石 → 生产技术部(不可选) → 其下各部门(可选)。
  *
  * 数据来源：/cghtz/dept/list（后端数据源为 train.t_org 的集团组织树），
  * 登录后由 SysX.preloadDictCache 预加载并全局缓存，这里只读缓存。
@@ -22,7 +27,14 @@ import {buildDeptTree, buildDeptPathMap, matchDept} from "../utils/DeptX.js"
  */
 const props = defineProps({
     modelValue: {type: String, default: ''},
-    /** 可选：父级已加载部门字典时传入，避免重复取值 */
+    /**
+     * **可选**部门（收窄后的候选集），通常来自 DeptX.deptScopeDepts：
+     *   · 传数组：只有数组中这些部门可选；其祖先节点会作为路径补回树上，但不可选
+     *   · 传 null / 不传：不限制，全量部门可选
+     *   · 传空数组：全不可选（数据范围 fail-closed 时的表现）
+     * ⚠️ 这是"可选集"不是"字典"：树上"从根到该部门"的路径必须基于全量字典才有意义，
+     *    所以本组件始终读 SysX 的全量缓存，不拿收窄集当字典用。
+     */
     depts: {type: Array, default: null},
     placeholder: {type: String, default: '输入部门名称，或点右侧按钮选择'},
     disabled: {type: Boolean, default: false},
@@ -38,16 +50,15 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'change'])
 
 /* ===================== 1. 部门字典 ===================== */
+/** 全量字典：登录后由 SysX 预加载并全局缓存，这里只读缓存 */
 const innerDepts = ref([])
 
-const deptList = computed(() => (props.depts && props.depts.length ? props.depts : innerDepts.value))
-
 /**
- * 取值：优先用父级传入的 depts；否则回落到 SysX 的全局缓存。
+ * 始终确保拿到**全量**字典：树的层级路径、以及 dept_code → 全路径的回显都依赖它。
+ * 父级传入的 depts 是收窄后的候选集，**不能当字典用**（父节点不在里面，路径会断）。
  * SysX 内部已做「只拉一次 + 在途请求去重 + 失败可重试」，这里不再自行维护 Promise。
  */
 function ensureDepts() {
-    if (props.depts && props.depts.length) return
     if (innerDepts.value.length) return
     Singleton.getInstance(SysX).getDeptList(null, null, () => {
     }, (r, data) => {
@@ -55,12 +66,31 @@ function ensureDepts() {
     })
 }
 
-/** dept_code → 部门全路径（用于下拉项副标题、树节点提示与回显兜底） */
-const pathMap = computed(() => buildDeptPathMap(deptList.value))
+/** 全量字典；缓存未就绪时退化用传入的候选集，至少保证还有内容可渲染 */
+const allDict = computed(() => (innerDepts.value.length ? innerDepts.value : (props.depts || [])))
+
+/**
+ * 可选集：null = 不限制（父级没传 depts）；Set 可能为空集（传了空数组 → 全不可选）。
+ * ⚠️ 必须用 Array.isArray 区分「没传」与「传了空数组」—— 后者是数据范围 fail-closed，
+ *    不能当成"没传"放行成全量。
+ */
+const visibleCodes = computed(() => {
+    if (!Array.isArray(props.depts)) return null
+    return new Set(props.depts.map(d => d.dept_code))
+})
+
+/** 可见部门（下拉候选）：全量里属于可见集的那部分，保持全量字典的顺序 */
+const scopedDepts = computed(() => {
+    const vis = visibleCodes.value
+    return vis === null ? allDict.value : allDict.value.filter(d => vis.has(d.dept_code))
+})
+
+/** dept_code → 部门全路径（下拉项副标题、树节点提示与选中项回显） */
+const pathMap = computed(() => buildDeptPathMap(allDict.value))
 
 function deptOf(code) {
     if (!code) return null
-    return deptList.value.find(d => d.dept_code === code) || null
+    return allDict.value.find(d => d.dept_code === code) || null
 }
 
 function deptPath(d) {
@@ -82,7 +112,7 @@ function cleanDept(d) {
 const query = ref('')
 
 const shownDepts = computed(() => {
-    const all = deptList.value
+    const all = scopedDepts.value
     const base = query.value.trim() ? all.filter(d => matchDept(d, query.value, pathMap.value)) : all
     // 已选部门始终保留在选项里，否则下拉框回显不出部门名（会退化成显示编码）
     const cur = deptOf(props.modelValue)
@@ -112,7 +142,12 @@ const treeKeyword = ref('')
 const treeRef = ref()
 const checkedDept = ref(null)
 
-const treeData = computed(() => buildDeptTree(deptList.value))
+/**
+ * 组织树 = 全量树按可见集剪枝 + 补回祖先链。
+ * 直接把收窄集交给建树函数是不行的：父节点不在集合里，每个部门都会变成根节点，
+ * 树上就只剩孤零零一个部门（看不出它挂在哪个公司 / 部门下）。
+ */
+const treeData = computed(() => buildScopedDeptTree(allDict.value, visibleCodes.value))
 
 function filterNode(value, data) {
     return matchDept(data, value, pathMap.value)
@@ -134,6 +169,11 @@ watch(dialogVisible, async v => {
 })
 
 function onNodeClick(data) {
+    // 祖先节点只是层级路径，不在数据范围内 → 不能拿来当归属部门
+    if (!data.selectable) {
+        ElMessage.warning('该部门不在你的数据范围内，仅作为层级路径展示')
+        return
+    }
     checkedDept.value = cleanDept(data)
 }
 
@@ -208,7 +248,8 @@ onMounted(ensureDepts)
                     @node-click="onNodeClick"
                 >
                     <template #default="{ data }">
-                        <span class="tree-node">
+                        <span class="tree-node" :class="{'node-plain': !data.selectable}"
+                              :title="data.selectable ? '' : '不在你的数据范围内，仅作为层级路径展示'">
                             <span class="tree-node-name">{{ data.dept_name }}</span>
                             <span class="tree-node-code">{{ data.dept_code }}</span>
                         </span>
@@ -337,6 +378,19 @@ onMounted(ensureDepts)
             font-size: 11px;
             color: #cbd5e1;
             font-family: monospace;
+        }
+
+        /* 祖先路径节点：不在数据范围内，只用来表达"这个部门挂在哪儿"，故灰显且不可选 */
+        &.node-plain {
+            cursor: not-allowed;
+
+            .tree-node-name {
+                color: #c0c4cc;
+            }
+
+            .tree-node-code {
+                color: #e2e8f0;
+            }
         }
     }
 }

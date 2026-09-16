@@ -6,7 +6,17 @@ import {useRouter, useRoute} from 'vue-router';
 import dayjs from 'dayjs';
 import gd from "../data/gd.json"
 import DeptPicker from "../components/DeptPicker.vue"
-import {buildDeptPathMap, deptDisplay, deptShort, isUnknownDept} from "../utils/DeptX.js"
+import {
+    buildDeptPathMap,
+    deptDisplay,
+    deptShort,
+    isUnknownDept,
+    deptScopeDepts,
+    effectiveScope,
+    scopeText,
+    SCOPE
+} from "../utils/DeptX.js"
+import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
 
 const router = useRouter();
 const route = useRoute();
@@ -49,9 +59,31 @@ const filters = ref({
     finish_step: '',
     warn: false, // bool：勾选 = 筛选预警天数<10天（固定传 warn_day=10）
 })
+// 数据范围（data_scope）：与后端 CCGHT.resolveScopeDepts 保持同一口径（档位编号即包含序）——
+// 4 = 全集团（不限制）；3 本公司 / 2 本部门（含下级）逐级收敛。
+// 注意：前端过滤只是体验优化（让用户在下拉里选不到越权部门），真正的拦截在后端，
+// 前端不构成安全边界 —— 改前端参数绕不过后端的 inScope 校验。
+const {wsCache} = useSessionCache()
+const _acc = wsCache.get(ECacheType.ACCOUNT) || {}
+// 有效范围：唯一来源是账号行自己的 data_scope（与后端 dataScopeOf 同口径，角色侧已无该字段）
+const dataScope = effectiveScope(_acc)
+const scopeAll = dataScope === SCOPE.ALL
+// 展开起点：账号自己的归属部门 —— 与后端 expandScope 的入参同口径
+const myDeptCode = _acc.dept_code || ''
+/** 是否处于受限数据范围（用于界面提示与默认值）。
+ *  额外要求 myDeptCode 非空：账号没归属部门时后端会 fail-closed 返回空集，
+ *  此时提示数据范围是误导，不如不显示。 */
+const scopeLimited = !scopeAll && !!myDeptCode
+
 // 归属部门字典（动态数据，来自 /cghtz/dept/list，登录后已缓存）
-const deptOptions = ref([])
-const deptPathMap = computed(() => buildDeptPathMap(deptOptions.value))
+const allDeptOptions = ref([])
+/** 可选部门：口径与后端 expandScope 完全一致（4 全量 / 3 本公司子树 / 2 起点子树 / 其余收敛为起点）。
+ *  deptScopeDepts 返回 null 表示不限制，此时直接用全量字典。 */
+const deptOptions = computed(
+    () => deptScopeDepts(allDeptOptions.value, dataScope, myDeptCode) ?? allDeptOptions.value
+)
+// 回显字典用全量：受限账号虽然只看得到本部门合同，但字典备全不会出错
+const deptPathMap = computed(() => buildDeptPathMap(allDeptOptions.value))
 
 /** 归属部门展示文本：命中字典 → 「公司/部门」；未命中 → 「未知部门(code)」 */
 function deptPath(code) {
@@ -170,7 +202,7 @@ function loadDepts() {
     Singleton.getInstance(SysX).getDeptList(null, AC_dept.signal, () => {
     }, (r, data) => {
         if (r) {
-            deptOptions.value = data.data || []
+            allDeptOptions.value = data.data || []
         }
     })
 }
@@ -249,7 +281,9 @@ function emptyForm() {
         sign_person: '',
         sign_type: '',
         supplier: '',
-        dept_code: '',
+        // 受限账号只能录到自己部门，直接预填省一步（后端也会再校验一次）；
+        // 全集团账号保持空值，必须显式选择，避免误录到本部
+        dept_code: scopeLimited ? myDeptCode : '',
         pay_type: '',
         payment_type: null,
         paycycle_dh: 0,
@@ -575,6 +609,12 @@ function mills2DateStr(mills) {
                 <!--                <el-button @click="downloadTemplate">⬇️ 下载模板</el-button>-->
             </div>
             <div class="toolbar-right">
+                <el-tooltip v-if="scopeLimited"
+                            content="你的账号只能查看与操作数据范围内的合同。需要更大范围请联系管理员调整数据范围。"
+                            placement="top">
+                    <el-tag size="small" type="info" effect="light"
+                            class="scope-tip">数据范围：{{ scopeText(dataScope) }}</el-tag>
+                </el-tooltip>
                 <span class="total-tip">共 {{ total }} 条</span>
             </div>
         </div>
@@ -980,6 +1020,17 @@ function mills2DateStr(mills) {
         align-items: center;
         justify-content: space-between;
         margin-bottom: 12px;
+
+        .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 受限数据范围提示：仅非全集团账号渲染，字号与页面正文对齐 */
+        .scope-tip {
+            font-size: 12px;
+        }
 
         .total-tip {
             font-size: 12px;

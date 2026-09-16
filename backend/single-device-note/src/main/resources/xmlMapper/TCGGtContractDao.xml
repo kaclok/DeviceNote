@@ -42,6 +42,20 @@
         <if test="dept_code != null and dept_code != ''">
             and dept_code = #{dept_code}
         </if>
+        <!-- 数据范围（data_scope）下推：由 CCGHT.resolveScopeDepts 解析后传入。
+             null = 不限制（管理员/全集团）；非空 = 只允许这些部门；
+             空列表 = 该账号没有任何可见部门，用 1=0 兜底（不能生成 in () —— PG 语法错误）。 -->
+        <if test="scopeDepts != null">
+            <choose>
+                <when test="scopeDepts.size() > 0">
+                    and dept_code in
+                    <foreach collection="scopeDepts" item="sd" open="(" separator="," close=")">#{sd}</foreach>
+                </when>
+                <otherwise>
+                    and 1 = 0
+                </otherwise>
+            </choose>
+        </if>
         <if test="queryBegin != null">
             AND date_sign &gt;= #{queryBegin}
         </if>

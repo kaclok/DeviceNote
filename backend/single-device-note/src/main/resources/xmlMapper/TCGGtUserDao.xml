@@ -10,7 +10,8 @@
             pwd,
             role_code,
             dept_code,
-            open_status
+            open_status,
+            data_scope
         from cght.t_user
        <where>
            <if test="kw != null and kw != ''">
@@ -25,6 +26,18 @@
            <if test="includeAdmin == false">
                and role_code != 'ADMIN'
            </if>
+           <!-- 数据范围下推（与合同列表同一口径）：由 CCGHT.resolveScopeDepts 解析后传入。
+                scopeDepts == null   -> 不加条件（全集团）
+                scopeDepts 为空列表  -> and 1 = 0（fail-closed；不能生成 in ()，PG 语法错误） -->
+           <if test="scopeDepts != null">
+               <choose>
+                   <when test="scopeDepts.size() &gt; 0">
+                       and dept_code in
+                       <foreach collection="scopeDepts" item="sd" open="(" separator="," close=")">#{sd}</foreach>
+                   </when>
+                   <otherwise>and 1 = 0</otherwise>
+               </choose>
+           </if>
        </where>
 
         order by account asc
@@ -37,7 +50,8 @@
             pwd,
             role_code,
             dept_code,
-            open_status
+            open_status,
+            data_scope
         from cght.t_user
         where account = #{account}
     </select>
@@ -46,7 +60,7 @@
         SELECT COUNT(*) FROM cght.t_user WHERE account = #{account}
     </select>
 
-    <!-- 新增账号：account/username/pwd/role_code/dept_code 为核心必填 -->
+    <!-- 新增账号：account/username/pwd/role_code/dept_code 为核心必填；data_scope 由随后的 updateScope 写入 -->
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser">
         insert into cght.t_user (
             account, username, pwd, role_code, dept_code, open_status
@@ -69,6 +83,13 @@
             dept_code = #{u.dept_code},
         </set>
         where account = #{u.account}
+    </update>
+
+    <!-- 设置数据范围（整体赋值）：data_scope 必传（列 NOT NULL） -->
+    <update id="updateScope">
+        update cght.t_user
+        set data_scope = #{data_scope}
+        where account = #{account}
     </update>
 
     <update id="resetPwd">

@@ -4,7 +4,6 @@
 			"role_id": 1,
 			"role_name": "超级管理员",
 			"role_code": "ADMIN",
-			"data_scope": 2,
 			"perms": [
 				"perm:login",
 				"contract:view",
@@ -22,7 +21,6 @@
 			"role_id": 2,
 			"role_name": "录入员",
 			"role_code": "EDITOR",
-			"data_scope": 1,
 			"perms": [
 				"perm:login",
 				"contract:view",
@@ -39,7 +37,6 @@
 			"role_id": 3,
 			"role_name": "查看员",
 			"role_code": "VIEWER",
-			"data_scope": 1,
 			"perms": [
 				"perm:login",
 				"contract:view"

@@ -7,7 +7,6 @@
         <id property="id" column="id"/>
         <result property="role_name" column="role_name"/>
         <result property="role_code" column="role_code"/>
-        <result property="data_scope" column="data_scope"/>
         <!-- 关键：为数组字段指定 TypeHandler -->
         <result property="perms" column="perms" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
         <result property="description" column="description"/>

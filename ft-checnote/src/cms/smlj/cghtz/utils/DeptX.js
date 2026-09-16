@@ -11,25 +11,19 @@
 /** 扁平字典 → 组织树。parent_dept_code 找不到对应节点者视为根节点。 */
 export function buildDeptTree(list) {
     const src = Array.isArray(list) ? list : []
-    const map = new Map()
-    src.forEach(d => map.set(d.dept_code, {...d, children: []}))
+    // 先只建节点本身，不带 children
+    const map = new Map(src.map(d => [d.dept_code, { ...d }]))
     const roots = []
-    src.forEach(d => {
+    for (const d of src) {
         const node = map.get(d.dept_code)
         const parent = map.get(d.parent_dept_code)
-        if (parent && parent !== node) parent.children.push(node)
-        else roots.push(node)
-    })
-    // 删掉空 children，避免 el-tree 给叶子节点也画展开箭头；
-    // seen 兜底防御脏数据造成的环，防止无限递归
-    const seen = new Set()
-    const prune = n => {
-        if (!n || seen.has(n)) return
-        seen.add(n)
-        if (!n.children.length) delete n.children
-        else n.children.forEach(prune)
+        if (parent && parent !== node) {
+            // 第一次有子节点时才创建数组
+            ;(parent.children ||= []).push(node)
+        } else {
+            roots.push(node)
+        }
     }
-    roots.forEach(prune)
     return roots
 }
 
@@ -96,4 +90,169 @@ export function matchDept(d, kw, pathMap) {
     return String(d.dept_name || '').toLowerCase().includes(k)
         || String(full).toLowerCase().includes(k)
         || String(d.dept_code || '').toLowerCase().includes(k)
+}
+
+/* ---------------- 数据范围（data_scope） ---------------- */
+
+/**
+ * 档位常量，与后端 CCGHT.SCOPE_* 一一对应。
+ * ⚠️ 编号即**严格**包含序（2 ⊂ 3 ⊂ 4）：前端「不能分配高于自身的范围」靠这个顺序做数值比较，别乱改。
+ *   2 本部门已含全部下级，所以没有单独的「本部门及下级」档 —— 两者展开结果完全一致。
+ */
+export const SCOPE = {SELF: 1, DEPT: 2, COMPANY: 3, ALL: 4}
+
+/** 组织树索引：byCode 用于上溯、children 用于下探 */
+function _deptIndex(list) {
+    const src = Array.isArray(list) ? list : []
+    const byCode = new Map()
+    const children = new Map()
+    src.forEach(d => byCode.set(d.dept_code, d))
+    src.forEach(d => {
+        const p = d.parent_dept_code
+        // 父必须真实存在于字典且不是自己，避免脏数据造出环
+        if (p && byCode.has(p) && p !== d.dept_code) {
+            if (!children.has(p)) children.set(p, [])
+            children.get(p).push(d.dept_code)
+        }
+    })
+    return {src, byCode, children}
+}
+
+/**
+ * 按数据范围算出「可见/可选」的部门列表。
+ *
+ * 与后端 CCGHT.expandScope 同一口径（档位编号即严格包含序）：
+ *   4 全集团 -> 不限制，返回 null（调用方直接用全量字典）
+ *   3 本公司 -> 起点向上定位到「公司节点」（集团根的直接子），取其整棵子树
+ *   2 本部门 -> 起点整棵子树（含下级部门 / 分厂 / 中心等更深层）
+ *   1 本人   -> 与 2 本部门 相同（后端缺 t_contract.creator，同样收敛为本部门）
+ *   取不到起点 / 未知档位 -> 空数组（fail-closed，与后端一致）
+ *
+ * 第 3 参传账号自己的 dept_code：展开起点就是人事归属部门。
+ * （曾经还有「范围锚点」scope_dept_code，已随列删除。）
+ *
+ * ⚠️ 这里只是把下拉候选收窄，属于体验优化，**不构成安全边界** ——
+ * 真正的拦截在后端，改前端参数绕不过后端的范围校验。
+ */
+export function deptScopeDepts(list, dataScope, deptCode) {
+    const scope = Number(dataScope)
+    if (scope === SCOPE.ALL) return null
+    if (!deptCode) return []
+    const {src, byCode, children} = _deptIndex(list)
+
+    /** 某节点的整棵子树（含自身），out.has 兼作防重复入队与防环 */
+    const subtree = rootCode => {
+        const out = new Set()
+        if (!rootCode) return out
+        const queue = [rootCode]
+        while (queue.length) {
+            const cur = queue.shift()
+            if (out.has(cur)) continue
+            out.add(cur)
+            ;(children.get(cur) || []).forEach(c => {
+                if (!out.has(c)) queue.push(c)
+            })
+        }
+        return out
+    }
+
+    let allow
+    if (scope === SCOPE.DEPT || scope === SCOPE.SELF) {
+        // 本部门：起点整棵子树（部门天然含下级 —— 这正是没有「本部门及下级」档的原因）。
+        // 「本人」档后端因缺 t_contract.creator 同样收敛为本部门，前端跟着一致，避免两侧口径分叉。
+        allow = subtree(deptCode)
+    } else if (scope === SCOPE.COMPANY) {
+        // 集团根：没有父、或父不在字典里的那个节点
+        let root = ''
+        for (const d of src) {
+            const p = d.parent_dept_code
+            if (!p || !byCode.has(p)) {
+                root = d.dept_code
+                break
+            }
+        }
+        // 从起点向上走到「公司节点」（父正好是集团根的那一层）。
+        // 「父不在字典里」同样算到顶 —— 集团根的父是 1、而 1 不在启用集合里，
+        // 只看"父为空"会走出树外，得到比「本部门」档还窄的结果（与后端 companyOf 同一处修正）。
+        let cur = deptCode
+        for (let i = 0; i < 16 && cur; i++) {
+            const d = byCode.get(cur)
+            const p = d && d.parent_dept_code
+            if (!p || !byCode.has(p)) {                       // 已到顶：公司即自身
+                allow = subtree(cur)
+                break
+            }
+            if (root && p === root) {
+                allow = subtree(cur)
+                break
+            }
+            cur = p
+        }
+    }
+    // 未知档位 / 定位失败：都只给起点（只会收窄，不会放大）
+    if (!allow) allow = new Set([deptCode])
+    return src.filter(d => allow.has(d.dept_code))
+}
+
+/**
+ * 「可见集 + 祖先链」→ 带路径的组织树（组织架构展示 / 逐层选择用）。
+ *
+ * 为什么需要它：可见集是按 data_scope 展开出来的一片部门，把它直接交给 buildDeptTree，
+ * 父节点不在集合里 → 每个节点都会被当成根节点，树上只剩孤零零一个部门，看不出层级。
+ * 这里把每个可见节点沿 parent_dept_code 上溯到根补齐，路径节点只作层级上下文（selectable=false），
+ * 只有可见集内的节点可选。
+ *
+ * ⚠️ list 必须是**全量**字典，否则上溯会断在半路。
+ *
+ * @param {Array} list 全量部门字典（dept_code / dept_name / parent_dept_code）
+ * @param {Set|null} visibleCodes 可见部门编码集合；**null = 不限制（全量可选）**，空集 = 全不可选
+ * @returns {Array} 树节点数组，每个节点额外带 selectable: boolean
+ */
+export function buildScopedDeptTree(list, visibleCodes) {
+    const src = Array.isArray(list) ? list : []
+    const scopeAll = visibleCodes === null
+    const byCode = new Map(src.map(d => [d.dept_code, d]))
+
+    let shown = src
+    if (!scopeAll) {
+        // 可见节点 ∪ 其祖先链。keep 兼作「这条链已补过」的剪枝标记，整体是 O(n)。
+        const keep = new Set()
+        visibleCodes.forEach(code => {
+            let cur = code
+            for (let i = 0; i < 32 && cur && !keep.has(cur); i++) {
+                keep.add(cur)
+                const d = byCode.get(cur)
+                cur = d ? d.parent_dept_code : ''
+            }
+        })
+        shown = src.filter(d => keep.has(d.dept_code))
+    }
+
+    const tree = buildDeptTree(shown)
+    const mark = nodes => nodes.forEach(n => {
+        n.selectable = scopeAll || visibleCodes.has(n.dept_code)
+        if (n.children && n.children.length) mark(n.children)
+    })
+    mark(tree)
+    return tree
+}
+
+/* ---------------- 数据范围（范围的唯一来源 = 账号行） ---------------- */
+
+/** 档位 → 中文文案，与后端 SCOPE_* 一一对应 */
+const SCOPE_TEXT = {1: '本人', 2: '本部门（含下级）', 3: '本公司', 4: '全集团'}
+
+/**
+ * 账号的「有效数据范围」：只取账号行自己的 data_scope —— 它是范围的唯一来源。
+ * 与后端 CCGHT.dataScopeOf 同口径（角色侧已无该字段）。
+ * 前端只用于收窄下拉与展示，不构成安全边界。
+ */
+export function effectiveScope(acct) {
+    const v = Number(acct?.data_scope ?? 0)
+    return Number.isFinite(v) ? v : 0
+}
+
+/** 档位 → 中文文案；未配置/未知档位返回「未配置」 */
+export function scopeText(scope) {
+    return SCOPE_TEXT[Number(scope)] || '未配置'
 }

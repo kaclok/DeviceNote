@@ -7,14 +7,19 @@ import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Mapper
 @Repository
 public interface TCGHTContractDao {
     /**
-     * 列表查询（带筛选 + date_sign 日期区间 + date_rk 挂账日期区间）。
+     * 列表查询（带筛选 + date_sign 日期区间 + date_rk 挂账日期区间 + 数据范围）。
      * 筛选参数空值视为不筛选。queryBegin/queryEnd 对应 date_sign 范围，rkBegin/rkEnd 对应 date_rk 范围。
      * date_rk 可能为 null：填了挂账区间时，null 的记录自然不命中范围条件，符合"按挂账日期筛选"语义。
+     *
+     * @param scopeDepts 数据范围白名单，由 CCGHT 按当前登录账号的 data_scope 解析后下推：
+     *                   null = 不限制（data_scope=4 全集团）；空列表 = 无任何部门可见（fail-closed）；
+     *                   非空 = 仅这些 dept_code 可见。与 dept_code 的筛选条件以 AND 叠加。
      */
     ArrayList<TCGHTContract> queryAll(
             @Param("id") String id
@@ -29,7 +34,8 @@ public interface TCGHTContractDao {
             , @Param("finish_step") Integer finish_step
             , @Param("rkBegin") Date rkBegin
             , @Param("rkEnd") Date rkEnd
-            , @Param("warn_day") Integer warn_day);
+            , @Param("warn_day") Integer warn_day
+            , @Param("scopeDepts") List<String> scopeDepts);
 
     TCGHTContract query(@Param("unique_id") String unique_id);
 
