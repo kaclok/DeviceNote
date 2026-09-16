@@ -38,6 +38,13 @@
                    <otherwise>and 1 = 0</otherwise>
                </choose>
            </if>
+           <!-- 「本人」档（data_scope=1）：账号列表同样只放行自己 —— 与合同列表的 creator 条件对称。
+                缺少它时 1 档账号会看到同部门全部同事，而账号列表正是所有账号写入接口的入口，
+                看得见就能重置密码 / 改角色（同事若是 EDITOR，重置后登录即拿到更大的范围）。
+                scopeOwner 为空表示该档位不叠加此条件（2/3/4 档）。 -->
+           <if test="scopeOwner != null and scopeOwner != ''">
+               and account = #{scopeOwner}
+           </if>
        </where>
 
         order by account asc

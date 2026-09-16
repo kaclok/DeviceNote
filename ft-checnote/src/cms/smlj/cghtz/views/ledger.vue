@@ -68,6 +68,10 @@ const _acc = wsCache.get(ECacheType.ACCOUNT) || {}
 // 有效范围：唯一来源是账号行自己的 data_scope（与后端 dataScopeOf 同口径，角色侧已无该字段）
 const dataScope = effectiveScope(_acc)
 const scopeAll = dataScope === SCOPE.ALL
+// 「本人」档（1）：后端把它收窄成「本部门子树 ∩ 签订人含我的姓名」，签订人筛选因此没有可筛的
+// 余地（筛别人必然 0 行，筛自己等于没筛）—— 直接隐藏该筛选项。真正的收窄在后端下推的
+// sign_person 条件，前端隐藏只是别给出会误导的空结果。
+const onlySelf = dataScope === SCOPE.SELF
 // 展开起点：账号自己的归属部门 —— 与后端 expandScope 的入参同口径
 const myDeptCode = _acc.dept_code || ''
 /** 是否处于受限数据范围（用于界面提示与默认值）。
@@ -123,7 +127,8 @@ onMounted(() => {
     }
     if (q.id) filters.value.id = String(q.id)
     if (q.title) filters.value.title = String(q.title)
-    if (q.sign_person) filters.value.sign_person = String(q.sign_person)
+    // 「本人」档没有签订人筛选项：URL 里带来的值一律忽略，否则会残留一个看不见的筛选条件
+    if (q.sign_person && !onlySelf) filters.value.sign_person = String(q.sign_person)
     if (q.sign_type !== undefined && q.sign_type !== '') filters.value.sign_type = String(q.sign_type)
     if (q.payment_type !== undefined && q.payment_type !== '') filters.value.payment_type = Number(q.payment_type)
     if (q.supplier) filters.value.supplier = String(q.supplier)
@@ -551,7 +556,8 @@ function mills2DateStr(mills) {
                 <el-form-item label="合同名称">
                     <el-input v-model="filters.title" placeholder="合同名称" clearable style="width:150px" @keyup.enter="applyFilters"/>
                 </el-form-item>
-                <el-form-item label="签订人">
+                <!-- 「本人」档只看得到自己签的合同，签订人筛选无意义（见 onlySelf 注释） -->
+                <el-form-item v-if="!onlySelf" label="签订人">
                     <el-input v-model="filters.sign_person" placeholder="签订人" clearable style="width:130px" @keyup.enter="applyFilters"/>
                 </el-form-item>
                 <el-form-item label="签订方式">

@@ -42,7 +42,7 @@
         <if test="dept_code != null and dept_code != ''">
             and dept_code = #{dept_code}
         </if>
-        <!-- 数据范围（data_scope）下推：由 CCGHT.resolveScopeDepts 解析后传入。
+        <!-- 数据范围（data_scope）下推：由 CCGHT.resolveContractScope 解析后传入。
              null = 不限制（管理员/全集团）；非空 = 只允许这些部门；
              空列表 = 该账号没有任何可见部门，用 1=0 兜底（不能生成 in () —— PG 语法错误）。 -->
         <if test="scopeDepts != null">
@@ -55,6 +55,15 @@
                     and 1 = 0
                 </otherwise>
             </choose>
+        </if>
+        <!-- 「本人」档（data_scope=1）：只放行「我签的」合同 —— sign_person 含我的姓名。
+             与上面的部门白名单是 AND，两者一起构成「本部门子树 ∩ 签订人=我」。
+             **不能只按签订人过滤**：那会让「本人」比「本部门」更宽（本人在别的部门签的合同会漏出来），
+             档位编号就不再是包含序。scopeSign 为空表示该档位不叠加此条件（2/3/4 档）。
+             匹配方式必须与 CCGHT.contractVisible 的 String.contains 严格同口径，否则会出现
+             「列表查不到、直连 unique_id 却能读/改/删」的单条越权。 -->
+        <if test="user_name != null and user_name != ''">
+            and sign_person = #{user_name}
         </if>
         <if test="queryBegin != null">
             AND date_sign &gt;= #{queryBegin}

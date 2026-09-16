@@ -18,14 +18,17 @@ public interface TCGHTUserDao {
      * @param dept_code        归属部门精确匹配；为空表示不过滤
      * @param includeAdmin     false=排除超级管理员，供签订人下拉使用；true=包含全部，账号管理/登录使用
      * @param filterOpenStatus true=只返回启用账号
-     * @param scopeDepts       数据范围白名单（由 CCGHT.resolveScopeDepts 解析后下推），三态与合同一致：
+     * @param scopeDepts       数据范围白名单（由 CCGHT.resolveContractScope 解析后下推），三态与合同一致：
      *                         null = 不限制（全集团）；空列表 = 什么都不返回（fail-closed）；非空 = 仅这些部门
+     * @param scopeOwner       「本人」档（data_scope=1）的归属账号，对应合同侧的 creator 维度：
+     *                         非空 = 只返回这个账号自己（1 本人）；null / 空 = 不叠加该条件（2/3/4 档）
      */
     ArrayList<TCGHTUser> queryAll(@Param("kw") String kw,
                                  @Param("dept_code") String dept_code,
                                  @Param("includeAdmin") boolean includeAdmin,
                                  @Param("filterOpenStatus") boolean filterOpenStatus,
-                                 @Param("scopeDepts") List<String> scopeDepts);
+                                 @Param("scopeDepts") List<String> scopeDepts,
+                                 @Param("scopeOwner") String scopeOwner);
 
     TCGHTUser query(@Param("account") String account);
 

@@ -68,6 +68,11 @@ const _acc = wsCache.get(ECacheType.ACCOUNT) || {}
 const myScope = effectiveScope(_acc)
 // 展开起点：账号自己的归属部门（后端 expandScope 的入参）
 const myDeptCode = _acc.dept_code || ''
+// 「本人」档的可管理面只有自己 —— 判据是账号本身（后端 canManageAccount 同口径）
+const myAccount = _acc.account || ''
+// 「本人」档（1）的账号可见面只有自己（后端按 account 下推），按部门筛选此时必然 0 行 —— 隐藏。
+// 与 canManage 的本人档分支同口径，真正的收窄在后端 userDao.queryAll 的 scopeOwner 条件。
+const onlySelf = myScope === SCOPE.SELF
 
 // 档位下拉：编号与文案的唯一来源 = gd.json（与 DeptX.SCOPE / scopeText 同源）
 const SCOPE_OPTIONS = gd.dataScope.levels.map(l => ({value: String(l.id), label: `${l.id} ${l.desc}`}))
@@ -102,6 +107,10 @@ const myVisibleDepts = computed(() => deptScopeDepts(deptOptions.value, myScope,
  */
 function canManage(row) {
     if (myScope === SCOPE.ALL) return true
+    // 「本人」档（1）：可见面 = 本部门子树 ∩ 归属=我，可管理面因此只有自己。
+    // 该档的授权边界与「本部门」档相同，只比部门会把同部门同事判成可管理 —— 后端的
+    // resetPwd / toggle 已按「仅本人」拦住，这里置灰是为了不给出误导性的可点按钮。
+    if (myScope === SCOPE.SELF) return row.account === myAccount
     const target = deptScopeDepts(deptOptions.value, effectiveScope(row), row.dept_code)
     if (target === null) return false                 // 目标是「全集团」，超出任何受限操作者
     const mine = myVisibleDepts.value || []
@@ -386,7 +395,8 @@ function toggleStatus(row) {
             <div class="toolbar">
                 <el-button v-hasPermission="['perm:assign']" type="primary" @click="openCreate">＋ 新建账号</el-button>
                 <div class="spacer"></div>
-                <div class="dept-filter">
+                <!-- 「本人」档列表里只有自己，按部门筛选没有意义（见 onlySelf 注释） -->
+                <div v-if="!onlySelf" class="dept-filter">
                     <DeptPicker v-model="deptFilter" :depts="scopedDeptOptions" placeholder="按部门筛选" @change="applySearch"/>
                 </div>
                 <el-input v-model="keyword" placeholder="搜索账号 / 姓名" clearable style="width:220px">

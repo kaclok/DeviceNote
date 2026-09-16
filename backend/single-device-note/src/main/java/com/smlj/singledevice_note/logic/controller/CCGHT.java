@@ -63,7 +63,7 @@ public class CCGHT {
      * 前端「只能分配不高于自身档位」的收窄下拉按它判断（只是体验层，真正的拦截在后端的集合包含校验）。
      * 新增档位必须插在包含序的正确位置上，不要图省事追加到末尾 —— 否则收窄会静默失效。
      */
-    private static final int SCOPE_SELF = 1;      // 本人（creator 列已建，按录入人过滤尚未接入，暂按本部门收敛）
+    private static final int SCOPE_SELF = 1;      // 本人
     private static final int SCOPE_DEPT = 2;      // 本部门（含全部下级部门 / 分厂 / 中心）
     private static final int SCOPE_COMPANY = 3;   // 本公司（含全部下级部门）
     private static final int SCOPE_ALL = 4;       // 全集团
@@ -198,8 +198,8 @@ public class CCGHT {
                                  @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize,
                                  @Acc TCGHTUser curUser) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        // 账号列表也要限范围：否则分公司管理员能翻出全集团账号，再把某个账号(或自己)改成 ADMIN 提权
-        var ls = userDao.queryAll(kw, dept_code, true, false, resolveScopeDepts(curUser));
+        var account = curUser.getData_scope() == SCOPE_SELF ? curUser.getAccount() : null;
+        var ls = userDao.queryAll(kw, dept_code, true, false, resolveScopeDepts(curUser), account);
         for (var i : ls) {
             i.setRole(roleDao.query(i.getRole_code()));
         }
@@ -786,8 +786,9 @@ public class CCGHT {
         // 数据范围下推：null 不限 / 空列表=无可见部门 / 非空=仅这些部门。
         // 与筛选栏的 dept_code 以 AND 叠加：受限用户筛了范围外的部门，结果自然为空，而不是越权。
         var scopeDepts = resolveScopeDepts(curUser);
+        var username = curUser.getData_scope() == SCOPE_SELF ? curUser.getUsername() : null;
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, dept_code, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day, scopeDepts);
+        var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, dept_code, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day, scopeDepts, username);
         return Result.success(new PageSerializable<>(ls));
     }
 

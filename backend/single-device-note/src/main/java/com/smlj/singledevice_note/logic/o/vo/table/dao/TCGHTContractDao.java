@@ -35,7 +35,8 @@ public interface TCGHTContractDao {
             , @Param("rkBegin") Date rkBegin
             , @Param("rkEnd") Date rkEnd
             , @Param("warn_day") Integer warn_day
-            , @Param("scopeDepts") List<String> scopeDepts);
+            , @Param("scopeDepts") List<String> scopeDepts
+            , @Param("user_name") String user_name);
 
     TCGHTContract query(@Param("unique_id") String unique_id);
 
