@@ -129,7 +129,8 @@ function _deptIndex(list) {
  *   4 全集团 -> 不限制，返回 null（调用方直接用全量字典）
  *   3 本公司 -> 起点向上定位到「公司节点」（集团根的直接子），取其整棵子树
  *   2 本部门 -> 起点整棵子树（含下级部门 / 分厂 / 中心等更深层）
- *   1 本人   -> 与 2 本部门 相同（后端缺 t_contract.creator，同样收敛为本部门）
+ *   1 本人   -> 部门边界与 2 本部门 相同；可见性由后端再叠加「归属=本人」那一维
+ *               （合同比 sign_person、账号比 account），前端这一层只负责收窄候选
  *   取不到起点 / 未知档位 -> 空数组（fail-closed，与后端一致）
  *
  * 第 3 参传账号自己的 dept_code：展开起点就是人事归属部门。
@@ -163,7 +164,8 @@ export function deptScopeDepts(list, dataScope, deptCode) {
     let allow
     if (scope === SCOPE.DEPT || scope === SCOPE.SELF) {
         // 本部门：起点整棵子树（部门天然含下级 —— 这正是没有「本部门及下级」档的原因）。
-        // 「本人」档后端因缺 t_contract.creator 同样收敛为本部门，前端跟着一致，避免两侧口径分叉。
+        // 「本人」档的**部门边界**与它一致（这一维同时是写入边界，不能收窄），可见性由后端
+        // 另叠加「归属=本人」；前端跟着一致，避免两侧对"能选哪个部门"的判断分叉。
         allow = subtree(deptCode)
     } else if (scope === SCOPE.COMPANY) {
         // 集团根：没有父、或父不在字典里的那个节点

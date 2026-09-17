@@ -283,7 +283,9 @@ function emptyForm() {
         title: '',
         amount: null,
         date_sign: '',
-        sign_person: '',
+        // 「本人」档：归属判据是 sign_person = 登录者姓名（后端精确比对），自由填写会让
+        // 自己录的合同从列表里消失 —— 预填，并在模板里锁成只读（见签订人 el-input）。
+        sign_person: onlySelf ? (_acc.username || '') : '',
         sign_type: '',
         supplier: '',
         // 受限账号只能录到自己部门，直接预填省一步（后端也会再校验一次）；
@@ -731,8 +733,12 @@ function mills2DateStr(mills) {
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
+                        <!-- 「本人」档：归属判据是 sign_person = 我的姓名（后端精确比对），
+                             自由填写（空格 / 别人的名字）会让合同从自己的列表里消失 —— 锁只读。 -->
                         <el-form-item label="签订人" prop="sign_person">
-                            <el-input v-model="form.sign_person" placeholder="请输入签订人姓名" clearable/>
+                            <el-input v-model="form.sign_person" :disabled="onlySelf"
+                                      :placeholder="onlySelf ? '本人档位固定为登录者本人' : '请输入签订人姓名'"
+                                      clearable/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">

@@ -399,7 +399,9 @@ function toggleStatus(row) {
                 <div v-if="!onlySelf" class="dept-filter">
                     <DeptPicker v-model="deptFilter" :depts="scopedDeptOptions" placeholder="按部门筛选" @change="applySearch"/>
                 </div>
-                <el-input v-model="keyword" placeholder="搜索账号 / 姓名" clearable style="width:220px">
+                <!-- 本人档：后端已把结果收窄成「只有自己」（scopeOwner 条件），搜索只是再筛一遍 -->
+                <el-input v-model="keyword" :placeholder="onlySelf ? '本人档位仅显示你自己' : '搜索账号 / 姓名'"
+                          clearable style="width:220px">
                     <template #prefix><span style="color:#94a3b8">🔍</span></template>
                 </el-input>
             </div>
