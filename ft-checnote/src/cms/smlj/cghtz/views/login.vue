@@ -4,6 +4,7 @@ import {useRouter} from 'vue-router';
 import {ElMessage} from "element-plus";
 import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
 import {preloadDictCache} from "@/cms/smlj/cghtz/system/SysX.js";
+import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const {wsCache} = useSessionCache()
 
@@ -52,7 +53,7 @@ function loginAction() {
                 router.push({name: 'home'})
             }
         } else {
-            ElMessage.error(data?.data?.message || data?.msg || '登录失败')
+            notifyError(data, '登录失败')
         }
     });
 }

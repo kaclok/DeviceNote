@@ -2,6 +2,7 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {exportContractExcel, exportFinanceExcel} from "../utils/ExcelX.js"
+import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 import {useRouter, useRoute} from 'vue-router';
 import dayjs from 'dayjs';
 import gd from "../data/gd.json"
@@ -440,7 +441,7 @@ function saveContract() {
                 dialogVisible.value = false
                 loadList()
             } else {
-                ElMessage.error(data.data?.message || '操作失败')
+                notifyError(data, '操作失败')
             }
         })
     })
@@ -455,7 +456,7 @@ function removeContract(row) {
                 ElMessage.success('已作废')
                 loadList()
             } else {
-                ElMessage.error(data.data?.message || '作废失败')
+                notifyError(data, '作废失败')
             }
         })
     }).catch(() => {
@@ -503,7 +504,7 @@ function fetchAllFilteredContracts({loadingMsg, onSuccess}) {
             }
             onSuccess(allList)
         } else {
-            ElMessage.error(data?.data?.message || '拉取合同数据失败，请重试')
+            notifyError(data, '拉取合同数据失败，请重试')
         }
     })
 }

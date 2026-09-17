@@ -16,6 +16,7 @@ import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TDept;
+import com.smlj.singledevice_note.logic.service.CurUserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
@@ -25,6 +26,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -73,7 +76,12 @@ public class CCGHT {
      */
     private static final Set<Integer> SCOPE_VALID = Set.of(
             SCOPE_SELF, SCOPE_DEPT, SCOPE_COMPANY, SCOPE_ALL);
-    private final CJwt cJwt;
+    /**
+     * 当前登录用户解析（account -> 实时用户 + 角色，带 TTL 缓存）。
+     * token 里只剩 account，凡是要判 data_scope / username / 停用状态的地方都走它，
+     * 保证「分档判定」与「权限执法」同源，也让 admin 对账号的改动在一个 TTL 内全站生效。
+     */
+    private final CurUserService curUserService;
     private final TCGHTUserDao userDao;
     private final TCGHTRoleDao roleDao;
     private final TCGHTPermDao permDao;
@@ -162,14 +170,27 @@ public class CCGHT {
         TCGHTRole role = roleDao.query(user.getRole_code());
         if (role == null) return Result.fail(ResultCode.RC10305);
         user.setRole(role);
+        // 只告诉前端「是不是初始密码」，不下发明文密码（pwd 上有 @JsonIgnore，本来就到不了前端）
+        user.setInitPwd(DEFAULT_INIT_PWD.equals(user.getPwd()));
 
-        // 登录成功，创建JWT令牌
+        // 登录成功，创建JWT令牌。
+        // token 里**只放 account**：username / role / perms / data_scope 全部由 TokenInterceptor
+        // 按 account 现查 t_user（CurUserService，带 TTL 缓存）。这是「admin 改了我的信息、
+        // 本地 token 不及时」的根治办法：
+        //   - 改姓名/角色/权限/数据范围 -> 最长 TTL 内全站生效，不需要用户重新登录；
+        //   - 停用/删除账号 -> 下一个请求即被拒（原来能靠旧 token 撑到 RT 过期，最长 4h）；
+        //   - 顺带消掉了明文密码进 payload 的问题：hutool 的 JWT.addPayloads 不认 @JsonIgnore
+        //     （实测 5.8.16），原来 claims.put("user", user) 会把 pwd 原样写进 JWT。
         HashMap<String, Object> claims = new HashMap<>();
-        claims.put("user", user);
+        claims.put(JwtUtil.ACCOUNT_CLAIM, account);
 
         JwtUtil.setResponseHeader(response, claims);
 
-        return Result.success(claims);
+        // 响应体照旧返回完整 user：前端登录后要立刻渲染菜单/头像/数据范围，
+        // 没必要为这几个字段再多等一次 /account/me 往返。它只是展示数据，不参与鉴权。
+        HashMap<String, Object> body = new HashMap<>();
+        body.put("user", user);
+        return Result.success(body);
     }
 
     @Transactional
@@ -180,6 +201,28 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10301);
         }
         return Result.success(user);
+    }
+
+    /**
+     * 当前登录用户的实时快照 —— 前端唯一的数据来源，用来回填本地 ACCOUNT 缓存。
+     * <p>
+     * 为什么需要它：token 里只有 account，而前端要渲染菜单、头像、数据范围下拉。
+     * 这里返回的结构**刻意与登录响应里的 user 完全一致**（含嵌套 role.perms），
+     * 于是前端那几处读 ECacheType.ACCOUNT 的代码一行都不用改。
+     * <p>
+     * 刻意不加 @Transactional：纯读接口。
+     * 刻意只读 @Acc：它已经是 TokenInterceptor 按 account 现查出来的实时账号行，再查一次库没有意义。
+     */
+    @PostMapping(value = "/account/me")
+    public Result<?> accountMe(@Acc TCGHTUser curUser) {
+        if (curUser == null || !StringUtils.hasText(curUser.getAccount())) {
+            return Result.fail(ResultCode.RC10301);
+        }
+        // 只补一个派生字段（pwd 本身有 @JsonIgnore，不会下发）。
+        // 注意 curUser 是 CurUserService 缓存里的实例，这里给它写一个由 pwd 派生的布尔值是幂等的，
+        // 不改变任何鉴权判据；其它响应里的账号行都是各自 query 出来的独立对象。
+        curUser.setInitPwd(DEFAULT_INIT_PWD.equals(curUser.getPwd()));
+        return Result.success(curUser);
     }
 
     /**
@@ -198,7 +241,9 @@ public class CCGHT {
                                  @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize,
                                  @Acc TCGHTUser curUser) {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var account = curUser.getData_scope() == SCOPE_SELF ? curUser.getAccount() : null;
+        // curUser 是 TokenInterceptor 按 account 现查出来的实时账号行（不是 JWT 快照），
+        // 所以这里读档位等于读库：admin 改了数据范围，不需要用户重登就按新档位收窄。
+        var account = dataScopeOf(curUser) == SCOPE_SELF ? curUser.getAccount() : null;
         var ls = userDao.queryAll(kw, dept_code, true, false, resolveScopeDepts(curUser), account);
         for (var i : ls) {
             i.setRole(roleDao.query(i.getRole_code()));
@@ -361,6 +406,8 @@ public class CCGHT {
             saved.setData_scope(scopeValue);
         }
         saved.setRole(roleDao.query(role_code));
+        // 姓名 / 角色 / 归属部门 / 数据范围 / 密码都可能变了，缓存必须失效
+        evictUserAfterCommit(account);
         return Result.success(saved);
     }
 
@@ -386,6 +433,8 @@ public class CCGHT {
         }
         final String newPwd = StringUtils.hasText(pwd) ? pwd : DEFAULT_INIT_PWD;
         userDao.resetPwd(account, newPwd);
+        // 重置成初始密码后 initPwd 会变 true，缓存不失效前端就不弹「请修改初始密码」
+        evictUserAfterCommit(account);
         return Result.success();
     }
 
@@ -429,6 +478,8 @@ public class CCGHT {
         }
 
         userDao.resetPwd(account, newPwd);
+        // 改密后 initPwd 变 false，缓存不失效前端会一直挂着「初始密码」提醒
+        evictUserAfterCommit(account);
         return Result.success();
     }
 
@@ -450,9 +501,10 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10307.getCode(), "目标账号的数据范围超出你的可管理范围");
         }
         boolean next = !u.isOpen_status();
-        // 业务约束：不允许停用当前登录账号自身（当无法获取当前登录人时，此约束由前端 v-notSelf 先行拦截）
-        // CJwt.resolveCurrentAccount 若可用，可在此做二次兜底；暂无 CJwt 解析方法则返回 OK，让前端 UI 继续生效
+        // 业务约束：不允许停用当前登录账号自身，仍由前端 v-notSelf 先行拦截（后端未做二次兜底，见 REF 遗留项）
         userDao.toggleStatus(account, next);
+        // 停用要立刻生效：清掉缓存后，下一个请求 byAccount 直接返回 null，前端被收回登录页
+        evictUserAfterCommit(account);
         return Result.success();
     }
 
@@ -533,11 +585,36 @@ public class CCGHT {
         if (curUser == null || !StringUtils.hasText(curUser.getAccount())) {
             return List.of();
         }
-        TCGHTUser db = userDao.query(curUser.getAccount());
-        if (db == null || !db.isOpen_status()) {
+        // 走 CurUserService，与 TokenInterceptor 填充 @Acc 用的是同一份缓存、同一份实现。
+        // 传进来的 curUser 本来就是它查出来的，这里再取一次是为了保证「哪怕调用方拿的是
+        // 别处拼出来的对象，范围解析也仍然以库为准」，代价只是一次 map 命中。
+        TCGHTUser db = curUserService.byAccount(curUser.getAccount());
+        if (db == null) {
+            // 账号不存在 / 已停用都被 byAccount 归成 null —— fail-closed，返回空集合
             return List.of();
         }
         return expandScope(dataScopeOf(db), db.getDept_code(), db.getAccount());
+    }
+
+    /**
+     * 让用户缓存失效，但推迟到**事务提交之后**。
+     * <p>
+     * 为什么不能在方法体里直接 evict：这些都是 @Transactional 写接口。提交前清缓存会留一个窗口 ——
+     * 另一个线程紧接着回源（byAccount -> reload），读到的还是本事务未提交的旧值，然后把它缓存一个 TTL，
+     * 等于把「改完立即生效」又打回去了。注册 afterCommit 才能保证：缓存失效发生在新数据可见之后。
+     */
+    private void evictUserAfterCommit(String account) {
+        if (!StringUtils.hasText(account)) return;
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    curUserService.evict(account);
+                }
+            });
+            return;
+        }
+        curUserService.evict(account);
     }
 
     /**
@@ -786,7 +863,9 @@ public class CCGHT {
         // 数据范围下推：null 不限 / 空列表=无可见部门 / 非空=仅这些部门。
         // 与筛选栏的 dept_code 以 AND 叠加：受限用户筛了范围外的部门，结果自然为空，而不是越权。
         var scopeDepts = resolveScopeDepts(curUser);
-        var username = curUser.getData_scope() == SCOPE_SELF ? curUser.getUsername() : null;
+        // 1 本人档：只放行 sign_person 等于我姓名的合同。
+        // curUser 是现查的实时账号行，改了姓名这里立刻跟上，不会拿登录时的旧姓名去比对。
+        var username = dataScopeOf(curUser) == SCOPE_SELF ? curUser.getUsername() : null;
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, dept_code, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day, scopeDepts, username);
         return Result.success(new PageSerializable<>(ls));

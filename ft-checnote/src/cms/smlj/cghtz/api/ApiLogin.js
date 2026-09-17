@@ -40,4 +40,26 @@ export class ApiLogin {
             onAfter?.(false, fail);
         });
     }
+
+    /**
+     * 当前登录用户的实时快照。
+     * token 里只有 account，用户名 / 角色 / 权限 / 数据范围都在服务端按 account 现查，
+     * 这里把它拉下来回填本地 ACCOUNT 缓存 —— admin 改过我的姓名/角色/权限后，
+     * 不需要重新登录，下一次进页面就会看到新值。
+     *
+     * 与其它方法的差别：**返回 Promise**。路由守卫要 await 它（见 SysX.ensureMe），
+     * 必须等刷新落地再放行，否则页面 setup 里读缓存的代码会读到刷新前的旧值。
+     */
+    static me(signal, onBefore, onAfter) {
+        onBefore?.();
+        return axiosR.post("cghtz/account/me", null, {
+            signal: signal,
+        }).then(succ => {
+            onAfter?.(true, succ.data);
+            return succ;
+        }).catch(fail => {
+            onAfter?.(false, fail);
+            throw fail;
+        });
+    }
 }

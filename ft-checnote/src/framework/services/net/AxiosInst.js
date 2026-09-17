@@ -189,8 +189,10 @@ axiosInst.interceptors.response.use(async (success) => {
     }
 
     // https://www.bilibili.com/video/BV1DKDMYBETU?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
-    // 处理其它错误码情况
-    nwCodeMap?.[code]?.(success);
+    // 处理其它错误码：只查表取 handler，命中的码走专用处理，
+    // 未命中的码由表内 fallback 兜底提示（文案/去重都在 NwCodeMap.js 里）。
+    // 这样即使视图层漏了失败分支（各类列表加载、启停账号等），用户也一定看得到提示。
+    (nwCodeMap?.[code] || nwCodeMap?.fallback)?.(success);
     // 也当做失败处理，让走catch分支
     return Promise.reject(success);
 }, fail => {
@@ -198,7 +200,8 @@ axiosInst.interceptors.response.use(async (success) => {
 
     const {status} = fail;
     // https://www.bilibili.com/video/BV1DKDMYBETU?spm_id_from=333.788.videopod.sections&vd_source=5c9f5bd891aee351c325bcf632b5550f
-    httpCodeMap?.[status]?.(fail);
+    // HTTP 层失败（网关/代理/后端异常）：同样只查表取 handler，未登记的码由表内 fallback 兜底提示
+    (httpCodeMap?.[status] || httpCodeMap?.fallback)?.(fail);
     // 异步状态转换为失败状态，走到catch分支
     return Promise.reject(fail);
 })
