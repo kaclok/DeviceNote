@@ -4,6 +4,7 @@ import cn.hutool.core.convert.NumberWithFormat;
 import cn.hutool.jwt.JWT;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.tuple.Triple;
+import org.springframework.http.server.ServerHttpResponse;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -89,19 +90,49 @@ public class JwtUtil {
 
     public static void setAccessTokenHeader(HttpServletResponse response, Map<String, Object> claims) {
         var at = JwtUtil.getToken(claims, JwtUtil.ACCESS_EXPIRE);
-
         // 将 Token 放入响应头（不改变返回体结构）
+        setAccessTokenHeader(response, at);
+    }
+
+    public static void setRefreshTokenHeader(HttpServletResponse response, Map<String, Object> claims) {
+        var rt = JwtUtil.getToken(claims, JwtUtil.RRFRESH_EXPIRE);
+        // 将 Token 放入响应头（不改变返回体结构）
+        setRefreshTokenHeader(response, rt);
+    }
+
+    public static void setAccessTokenHeader(HttpServletResponse response, Triple<Date, Date, String> at) {
+        if (at == null) {
+            return;
+        }
         response.setHeader(JwtUtil.AT_HEADER, at.getRight());
         response.setHeader(JwtUtil.AT_ISSUE_HEADER, String.valueOf(at.getLeft().getTime()));
         response.setHeader(JwtUtil.AT_EXPIRE_HEADER, String.valueOf(at.getMiddle().getTime()));
     }
 
-    public static void setRefreshTokenHeader(HttpServletResponse response, Map<String, Object> claims) {
-        var rt = JwtUtil.getToken(claims, JwtUtil.RRFRESH_EXPIRE);
-
-        // 将 Token 放入响应头（不改变返回体结构）
+    public static void setRefreshTokenHeader(HttpServletResponse response, Triple<Date, Date, String> rt) {
+        if (rt == null) {
+            return;
+        }
         response.setHeader(JwtUtil.RT_HEADER, rt.getRight());
         response.setHeader(JwtUtil.RT_ISSUE_HEADER, String.valueOf(rt.getLeft().getTime()));
         response.setHeader(JwtUtil.RT_EXPIRE_HEADER, String.valueOf(rt.getMiddle().getTime()));
+    }
+
+    public static void setAccessTokenHeader(ServerHttpResponse response, Triple<Date, Date, String> at) {
+        if (at == null) {
+            return;
+        }
+        response.getHeaders().set(JwtUtil.AT_HEADER, at.getRight());
+        response.getHeaders().set(JwtUtil.AT_ISSUE_HEADER, String.valueOf(at.getLeft().getTime()));
+        response.getHeaders().set(JwtUtil.AT_EXPIRE_HEADER, String.valueOf(at.getMiddle().getTime()));
+    }
+
+    public static void setRefreshTokenHeader(ServerHttpResponse response, Triple<Date, Date, String> rt) {
+        if (rt == null) {
+            return;
+        }
+        response.getHeaders().set(JwtUtil.RT_HEADER, rt.getRight());
+        response.getHeaders().set(JwtUtil.RT_ISSUE_HEADER, String.valueOf(rt.getLeft().getTime()));
+        response.getHeaders().set(JwtUtil.RT_EXPIRE_HEADER, String.valueOf(rt.getMiddle().getTime()));
     }
 }

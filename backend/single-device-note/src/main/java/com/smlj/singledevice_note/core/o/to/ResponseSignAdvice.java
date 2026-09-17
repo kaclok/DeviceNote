@@ -44,7 +44,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @RestControllerAdvice
 public class ResponseSignAdvice implements ResponseBodyAdvice<Object> {
-
     private final ObjectMapper objectMapper;
 
     /** 全局开关: application.yml 的 sign.response-enabled, 与前端 Config.js verify_response_sign 同步 */

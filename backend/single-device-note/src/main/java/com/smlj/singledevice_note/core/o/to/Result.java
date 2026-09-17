@@ -1,5 +1,6 @@
 package com.smlj.singledevice_note.core.o.to;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,6 +17,9 @@ import java.util.Objects;
 public class Result<T> extends Message<T> {
     @Schema(description = "业务逻辑提示信息")
     protected String message = null;
+
+    @JsonIgnore
+    protected boolean needRefreshAT;
 
     public Result(int code, T data) {
         super(code, data);

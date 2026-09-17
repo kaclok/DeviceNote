@@ -14,6 +14,9 @@ sign:
   request-enabled: false
   response-enabled: false
 
+token:
+  need-refresh: false
+
 # web服务器启动端口
 server:
   servlet:
