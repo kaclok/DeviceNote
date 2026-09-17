@@ -6,6 +6,7 @@ import {useRouter} from 'vue-router';
 import DeptPicker from "../components/DeptPicker.vue"
 import {deptScopeDepts, effectiveScope, scopeText, SCOPE} from "../utils/DeptX.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
+import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const router = useRouter();
 
@@ -115,7 +116,7 @@ async function handleFile(f) {
                     ElMessage.success(`导入成功 ${result.value.success} 条合同`)
                 }
             } else {
-                ElMessage.error(data?.msg || '导入失败')
+                notifyError(data, '导入失败')
             }
         })
     } catch (err) {

@@ -4,7 +4,7 @@ import {clearAccount, ECacheType, useSessionCache} from "@/framework/composable/
 import {ElMessage, ElMessageBox} from "element-plus";
 import {ApiLogin} from "@/cms/smlj/cghtz/api/ApiLogin.js";
 import {clearDictCache} from "@/cms/smlj/cghtz/system/SysX.js";
-import gd from "../data/gd.json"
+import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const router = useRouter();
 const route = useRoute();
@@ -60,7 +60,7 @@ function trueLogout() {
             clearAccount()
             router.push({name: 'login'})
         } else {
-            ElMessage.error(data?.data?.message || data?.msg || '登出失败')
+            notifyError(data, '登出失败')
         }
     });
 }
@@ -73,11 +73,10 @@ function onUserCommand(cmd) {
 
 /* ---------------- 修改密码（用户自助） ---------------- */
 // 管理员新建账号时写入的是初始密码，用户可在此凭原密码自行修改。
-// 登录响应把整个账号对象塞进了 JWT，因此这里能读到当前密码，
-// 用于识别"仍是初始密码"的状态并给出提醒（密码为明文存储，仅限内网 demo）。
-// 初始密码统一取自 gd.json，避免多处硬编码
-const INIT_PWD = gd.defaultPwd
-const isInitPwd = computed(() => String(account.value?.pwd ?? '') === INIT_PWD)
+// 是否"仍是初始密码"由后端在登录 / account/me 响应里给一个 initPwd 布尔值。
+// 原来读的是 account.pwd —— 但 pwd 上有 @JsonIgnore，响应体里根本不会出现该字段，
+// 所以这条提醒其实从来没生效过；token 里也不再放用户信息，改由后端算好布尔值下发。
+const isInitPwd = computed(() => account.value?.initPwd === true)
 
 const pwdDialogVisible = ref(false)
 const pwdFormRef = ref()
@@ -128,7 +127,7 @@ function submitChangePwd() {
                 clearAccount()
                 router.push({name: 'login'})
             } else {
-                ElMessage.error(data?.data?.message || data?.msg || '密码修改失败')
+                notifyError(data, '密码修改失败')
             }
         })
     })

@@ -22,6 +22,20 @@ public class JwtUtil {
     public static final String KEY = "smlj";
     public static final String AUTHORIZE = "Authorize";
     public static final byte[] KEY_BYTES = KEY.getBytes();
+
+    /**
+     * JWT payload 里唯一的业务字段：登录账号。
+     * <p>
+     * 刻意只放身份标识 —— username / role / perms / data_scope / open_status 全部由
+     * TokenInterceptor 按 account 现查 t_user（见 CurUserService）：
+     * admin 改了某人的姓名、角色、权限或数据范围后，这些字段若跟着 JWT 走，就得等用户重登才生效；
+     * 而 CJwt.refreshAccessToken 是"复制 RT payload 重签 AT"，旧快照甚至能被续命到 RT 过期（最长 4h）。
+     * <p>
+     * 另一个副作用是安全：hutool 的 JWT.addPayloads 走自家 BeanSerializer，**不认 Jackson 的 @JsonIgnore**
+     * （已用 5.8.16 实测），原来 claims.put("user", user) 会把明文 pwd 一起写进 payload（base64 可解）。
+     * 只放 account 之后这条泄露路径自然消失。
+     */
+    public static final String ACCOUNT_CLAIM = "account";
     // 动态延长token过期时间
     // https://mp.weixin.qq.com/s/juSk00SEKhYKb2IkG1NhSQ
     // https://mp.weixin.qq.com/s/fnmGRvE8JFPR5ZG6RfWbIg

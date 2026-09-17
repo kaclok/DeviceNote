@@ -5,6 +5,7 @@ import gd from "../data/gd.json"
 import DeptPicker from "../components/DeptPicker.vue"
 import {SCOPE, buildDeptPathMap, deptDisplay, deptShort, isUnknownDept, deptScopeDepts, effectiveScope, scopeText} from "../utils/DeptX.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
+import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const loading = ref(false)
 const list = ref([])
@@ -348,7 +349,7 @@ function saveAccount() {
                 dialogVisible.value = false
                 loadList()
             } else {
-                ElMessage.error(data?.data?.message || '保存失败')
+                notifyError(data, '保存失败')
             }
         })
     })
@@ -362,7 +363,7 @@ function resetPwd(row) {
             if (r) {
                 ElMessage.success(`密码已重置`)
             } else {
-                ElMessage.error('密码重置失败')
+                notifyError(data, '密码重置失败')
             }
         })
     }).catch(() => {
@@ -377,6 +378,8 @@ function toggleStatus(row) {
             if (r) {
                 ElMessage.success(`已${tip}`)
                 loadList()
+            } else {
+                notifyError(data, `${tip}失败`)
             }
         })
     }).catch(() => {

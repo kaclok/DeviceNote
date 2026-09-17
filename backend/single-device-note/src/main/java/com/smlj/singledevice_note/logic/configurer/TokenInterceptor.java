@@ -1,15 +1,17 @@
 package com.smlj.singledevice_note.logic.configurer;
 
-import cn.hutool.core.bean.BeanUtil;
 import com.smlj.singledevice_note.core.annotation.JwtIgnore;
 import com.smlj.singledevice_note.core.annotation.RequirePermission;
 import com.smlj.singledevice_note.core.annotation.RequireRole;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser;
+import com.smlj.singledevice_note.logic.service.CurUserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
@@ -20,14 +22,21 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class TokenInterceptor implements HandlerInterceptor {
+    /**
+     * 实时用户解析（account -> 用户 + 角色，带 30s TTL 缓存）。
+     * token 里只有 account，凡是"需要 username / role / perms / data_scope / 停用状态"的地方
+     * 都必须走它，不要再去读 JWT 里的快照。
+     */
+    private final CurUserService curUserService;
+
     @Override
     public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, @Nullable Exception ex) throws Exception {
         log.info("afterCompletion -> {}", handler);
@@ -103,35 +112,36 @@ public class TokenInterceptor implements HandlerInterceptor {
                 return false;
             }
 
-            var user = BeanUtil.toBean(claims.get("user"), TCGHTUser.class);
+            // token 里只有 account（见 JwtUtil.ACCOUNT_CLAIM），用户信息与权限一律按 account 现查 t_user。
+            // 这一条就是"admin 改了我的信息、本地 token 不及时"的解药：改姓名/角色/权限/数据范围后
+            // 最长 TTL 内生效，不需要用户重新登录；账号被停用或删除则下一个请求就被拒。
+            Object account = claims.get(JwtUtil.ACCOUNT_CLAIM);
+            if (account == null || account.toString().isBlank()) {
+                // 拿不到 account 的 token（含改造前签发、payload 里存整个 user 对象的旧 token）
+                // 一律判失效，让前端走重新登录，而不是猜一个字段出来继续用。
+                response.getWriter().write(Result.fail(ResultCode.RC10005).toJson());
+                return false;
+            }
+
+            TCGHTUser user = curUserService.byAccount(account.toString());
+            // fail-closed：解析不出用户（账号不存在 / 已停用）视为登录态失效。
+            // 用 RC10005 而不是 RC10301：对前端这与"token 校验不正确"是同一类处理
+            // （清登录态 + 跳登录页），同时不向拿着旧 token 的人暴露"该账号是否存在"。
+            if (user == null) {
+                response.getWriter().write(Result.fail(ResultCode.RC10005).toJson());
+                return false;
+            }
             request.setAttribute("Acc", user);
 
-            // 从 JWT payload 提取当前登录用户的 role_code 和 perms
-            // claims 结构: {user: {account, username, role_code, role: {role_code, perms: [...]}}}
-            String userRoleCode = null;
+            // 注意：这里 setAttribute 的 user 与 token 无关，是本次请求现查的实时账号行。
+            // 业务层通过 @Acc 拿到的 username / role_code / data_scope 因此都是实时的 ——
+            // 不再有"列表按 token 快照分档、expandScope 按库分档"这种口径分裂。
+            String userRoleCode = user.getRole_code();
             Set<String> userPerms = new HashSet<>();
-
-            Object userObj = claims.get("user");
-            if (userObj instanceof Map<?, ?> userMap) {
-                Object rc = userMap.get("role_code");
-                if (rc != null) userRoleCode = rc.toString();
-
-                Object roleObj = userMap.get("role");
-                if (roleObj instanceof Map<?, ?> roleMap) {
-                    Object permsObj = roleMap.get("perms");
-                    if (permsObj instanceof java.util.List<?> permList) {
-                        for (Object p : permList) {
-                            if (p != null) userPerms.add(p.toString());
-                        }
-                    } else if (permsObj != null) {
-                        // 兼容 JSON 反序列化为数组的情况
-                        if (permsObj.getClass().isArray()) {
-                            userPerms.addAll(Arrays.asList((Object[]) permsObj).stream()
-                                    .filter(java.util.Objects::nonNull)
-                                    .map(Object::toString)
-                                    .toList());
-                        }
-                    }
+            TCGHTRole role = user.getRole();
+            if (role != null && role.getPerms() != null) {
+                for (String p : role.getPerms()) {
+                    if (p != null) userPerms.add(p);
                 }
             }
 

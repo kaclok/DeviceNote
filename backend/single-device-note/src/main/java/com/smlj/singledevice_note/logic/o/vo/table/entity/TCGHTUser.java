@@ -48,5 +48,16 @@ public class TCGHTUser implements Serializable {
     private Integer data_scope;
     /** 角色对象：账号列表/登录响应都会把 role_code 关联查询出来并填充 */
     private TCGHTRole role;
+    /**
+     * 「是否仍是初始密码」标记 —— 不是库里的列，只在登录 / account/me 响应里填充。
+     * <p>
+     * 为什么不直接把 pwd 下发给前端：pwd 上有 @JsonIgnore（响应体已剔除），而且
+     * hutool 的 JWT.addPayloads 不认 @JsonIgnore（实测 5.8.16），明文密码曾因此进过 JWT payload。
+     * 前端真正需要的只是"该不该弹『请修改初始密码』"这一个布尔值，由 pwd 派生即可。
+     * <p>
+     * 注意：原有实现是前端读 account.pwd 判断的，但 pwd 早已被 @JsonIgnore 从响应体剔除，
+     * 所以那个提醒从来没生效过 —— 这个字段同时修掉该问题。
+     */
+    private boolean initPwd;
 }
 

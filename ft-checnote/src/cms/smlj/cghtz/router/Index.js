@@ -2,6 +2,7 @@ import {createRouter, createWebHashHistory} from 'vue-router'
 import {PREFIX, routers} from './Router.js'
 import {clearAccount, ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts";
 import {triggerAuthFailure} from "@/framework/services/net/AxiosInst.js";
+import {ensureMe} from "@/cms/smlj/cghtz/system/SysX.js";
 
 const {wsCache} = useSessionCache()
 
@@ -24,7 +25,9 @@ const router = createRouter({
  * 存进去的是数组，取出来直接就是数组，不要再做 JSON.parse！
  */
 function getPerms() {
-    const perms = wsCache.get(ECacheType.ACCOUNT).role.perms;
+    // 用可选链：刷新失败 / 登出清缓存后 ACCOUNT 可能为空，
+    // 原来直接 .role.perms 会抛 TypeError，把整个守卫打断（不是拦截，是崩）。
+    const perms = wsCache.get(ECacheType.ACCOUNT)?.role?.perms;
     if (!perms) {
         return [];
     }
@@ -130,7 +133,7 @@ function findFirstAccessibleRoute(to) {
     return null;
 }
 
-router.beforeEach((to, current, next) => {
+router.beforeEach(async (to, current, next) => {
     // 对于静态重定向的router定义不会触发beforeEach,只能redirect中打日志
     console.warn('goto ------ current: ' + current.fullPath + ' -> to:', to.fullPath/*, ' 当前hash:', window.location.hash*/)
     const isLoggedIn = !!wsCache.get(ECacheType.ACCOUNT)
@@ -159,6 +162,13 @@ router.beforeEach((to, current, next) => {
         }
         return
     }
+
+    // 已登录：先把「当前用户快照」刷新一遍，再判权限。
+    // token 里只放 account、服务端每请求现查，但本地 ACCOUNT 是上一次会话的快照；
+    // 不刷新的话，admin 改过我的角色/权限后，菜单和按钮会一直按旧权限渲染，甚至把路由拦在门外。
+    // 必须 await 而不是并发：守卫解析完才挂载组件，页面 setup 里读缓存的地方才不会读到旧值。
+    // ensureMe 自带 60s TTL 与在途去重，正常情况下每个页面只真正请求一次。
+    await ensureMe()
 
     // 权限拦截：无权限时重定向到目标所在容器下第一个有权限的子页，全无权限则登出
     if (canAccess(to)) {

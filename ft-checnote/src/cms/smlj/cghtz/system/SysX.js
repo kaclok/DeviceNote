@@ -1,4 +1,8 @@
 import {ApiX} from "../api/ApiX.js";
+import {ApiLogin} from "../api/ApiLogin.js";
+import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts";
+
+const {wsCache} = useSessionCache()
 
 /**
  * 从 axios catch 的 fail 对象中提取 {code, msg, data} 业务体。
@@ -71,6 +75,46 @@ export function clearDictCache() {
     _permCache = null
     _deptCache = null
     _deptLoading = null
+}
+
+/* ---------------- 当前用户快照 ---------------- */
+// MPA 每个页面是独立文档，模块状态不跨页共享，所以下面几个变量实际是「每页一次」的粒度。
+let _meAt = 0            // 上次成功刷新的时间戳
+let _meLoading = null    // 在途请求去重
+const ME_TTL = 60_000    // 60s 内不重复请求
+
+/**
+ * 确保本地 ACCOUNT 缓存是「当前用户最新的」。
+ *
+ * 为什么需要它：token 里只放 account，服务端每个请求都会按 account 现查实时用户；
+ * 但本地 ACCOUNT 是上一次会话的快照 —— admin 改过我的姓名/角色/权限后，
+ * 菜单、按钮、「本人」档的签订人预填都会继续按旧值渲染。
+ *
+ * 失败不 reject：调用方是路由守卫，刷新失败（例如 RT 已过期）由 axios 拦截器统一处理登出，
+ * 这里静默保留旧缓存即可，不能因为一次刷新失败把导航打断。
+ *
+ * @param force 忽略 TTL 强制刷新
+ * @returns Promise<boolean> 是否刷新成功
+ */
+export function ensureMe(force = false) {
+    if (!force && _meAt && Date.now() - _meAt < ME_TTL) return Promise.resolve(true)
+    if (_meLoading) return _meLoading
+    _meLoading = ApiLogin.me(null)
+        .then(succ => {
+            const acc = succ?.data?.data
+            if (!acc) return false
+            wsCache.set(ECacheType.ACCOUNT, acc)
+            // ALL_PERMS 与登录时同口径：合并去重后的权限码数组，v-hasPermission 等指令读它
+            const roles = Array.isArray(acc.role) ? acc.role : [acc.role]
+            wsCache.set(ECacheType.ALL_PERMS, [...new Set(roles.flatMap(r => r?.perms || []))])
+            _meAt = Date.now()
+            return true
+        })
+        .catch(() => false)
+        .finally(() => {
+            _meLoading = null
+        })
+    return _meLoading
 }
 
 class SysX {
