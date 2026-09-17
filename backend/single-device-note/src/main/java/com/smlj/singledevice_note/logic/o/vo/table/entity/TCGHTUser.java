@@ -1,5 +1,6 @@
 package com.smlj.singledevice_note.logic.o.vo.table.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,7 @@ public class TCGHTUser implements Serializable {
     /** 中文名/姓名；合同的 sign_person 直接存该姓名（自由文本，模糊匹配） */
     private String username;
     /** 登录密码（明文存储，仅限内网 demo） */
+    @JsonIgnore
     private String pwd;
     private String role_code;
     /**
