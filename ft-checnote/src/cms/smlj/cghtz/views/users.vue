@@ -3,7 +3,7 @@ import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
 import DeptPicker from "../components/DeptPicker.vue"
-import {SCOPE, buildDeptPathMap, deptDisplay, deptShort, isUnknownDept, deptScopeDepts, effectiveScope, scopeText} from "../utils/DeptX.js"
+import {SCOPE, buildDeptPathMap, buildScopedDeptTree, matchDept, deptDisplay, deptShort, isUnknownDept, deptScopeDepts, effectiveScope, scopeText} from "../utils/DeptX.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
@@ -132,6 +132,76 @@ function scopeLabel(row) {
 /** 范围标签配色：范围越宽警示度越高 */
 function scopeTagType(row) {
     return {'4': 'danger', '3': 'warning', '2': 'primary', '1': 'info'}[String(effectiveScope(row))] || 'info'
+}
+
+/* ---------------- 左侧常驻组织架构树 ---------------- */
+const treeRef = ref()
+const treeKeyword = ref('')
+
+/**
+ * 可见部门编码集，三态与 deptScopeDepts 一致：
+ *   null = 不限制（全集团，直接用全量字典）；空集 = 一个都不可见（数据范围 fail-closed）。
+ * ⚠️ 与 myVisibleDepts 一样不做全量 fallback —— 受限账号不能因为"恰好等于全量"被当成不限。
+ */
+const visibleDeptCodes = computed(() => {
+    const vis = myVisibleDepts.value
+    return vis === null ? null : new Set(vis.map(d => d.dept_code))
+})
+
+/** 虚拟根节点 key：点它 = 清空部门筛选（不带 dept_code 条件查全量） */
+const ALL_DEPT_KEY = '__all__'
+
+/**
+ * 默认展开的节点：只展开虚拟根，其余全部折叠（116 个部门一次铺开会把左栏撑成长条）。
+ * ⚠️ 刻意不用 defaultExpandAll：那是"永远全展开"，还会让搜索失去意义。
+ * 搜索不需要额外处理 —— Element Plus 的 tree-store.filter 会对每个**可见的非叶节点**
+ * 调 node.expand()（tree-store.mjs `if (node.visible && !node.isLeaf) node.expand()`），
+ * 自顶向下遍历，命中项的整条祖先路径会自动展开。
+ */
+const DEFAULT_EXPANDED_KEYS = [ALL_DEPT_KEY]
+
+/**
+ * 树数据：全量字典按可见集剪枝 + 补回祖先链。
+ * 直接拿可见集建树是不行的 —— 父节点不在集合里，每个部门都会变成根节点，看不出层级
+ * （所以必须传全量字典，只把祖先节点标成 selectable=false 作层级路径）。
+ * 顶部挂一个虚拟根「全部部门」，作为"取消部门筛选"的入口。
+ */
+const treeData = computed(() => {
+    const nodes = buildScopedDeptTree(deptOptions.value, visibleDeptCodes.value)
+    return [{dept_code: ALL_DEPT_KEY, dept_name: '全部部门', isAll: true, selectable: true, children: nodes}]
+})
+
+/** 树搜索：部门名 / 公司·部门全路径 / 部门编码 任一命中（父节点因有命中子节点而保留） */
+function filterNode(value, data) {
+    return data.isAll ? true : matchDept(data, value, deptPathMap.value)
+}
+
+watch(treeKeyword, v => {
+    treeRef.value?.filter(String(v || ''))
+})
+
+function nodeTitle(data) {
+    if (data.isAll) return '显示全部部门的账号'
+    return data.selectable ? deptPath(data.dept_code) : '该部门不在你的数据范围内，仅作为层级路径展示'
+}
+
+/**
+ * 点树节点 → 按该部门重新查询（服务端过滤，回到第一页）。
+ * 祖先节点只作层级路径、不在数据范围内，筛出来必然 0 行 → 提示而不筛选。
+ */
+function onTreeClick(data) {
+    if (!data.selectable) {
+        ElMessage.warning('该部门不在你的数据范围内，仅作为层级路径展示')
+        return
+    }
+    deptFilter.value = data.isAll ? '' : data.dept_code
+    applySearch()
+}
+
+/** 清空部门筛选：与点「全部部门」等价（current-node-key 会跟着 deptFilter 回到虚拟根） */
+function clearDeptFilter() {
+    deptFilter.value = ''
+    applySearch()
 }
 
 // 权限分组（基于动态 permDefs 计算）
@@ -394,79 +464,110 @@ function toggleStatus(row) {
             <div class="head-desc">为每个账号分配角色与归属部门；功能权限由角色决定，数据范围可按账号单独指定（仅集团管理员可调）</div>
         </div>
 
-        <el-card shadow="never" class="table-card">
-            <div class="toolbar">
-                <el-button v-hasPermission="['perm:assign']" type="primary" @click="openCreate">＋ 新建账号</el-button>
-                <div class="spacer"></div>
-                <!-- 「本人」档列表里只有自己，按部门筛选没有意义（见 onlySelf 注释） -->
-                <div v-if="!onlySelf" class="dept-filter">
-                    <DeptPicker v-model="deptFilter" :depts="scopedDeptOptions" placeholder="按部门筛选" @change="applySearch"/>
+        <div class="users-body">
+            <!-- 左侧：常驻组织架构。点部门 = 按该部门筛选右侧列表（服务端过滤，回到第一页）。
+                 「本人」档的可见面只有自己，筛部门必然 0 行 —— 与顶栏搜索一样直接不显示这栏。 -->
+            <el-card v-if="!onlySelf" shadow="never" class="dept-aside">
+                <div class="aside-head">
+                    <span class="aside-title">组织架构</span>
+                    <span v-if="deptFilter" class="aside-clear" @click="clearDeptFilter">清空</span>
                 </div>
-                <!-- 本人档：后端已把结果收窄成「只有自己」（scopeOwner 条件），搜索只是再筛一遍 -->
-                <el-input v-model="keyword" :placeholder="onlySelf ? '本人档位仅显示你自己' : '搜索账号 / 姓名'"
-                          clearable style="width:220px">
+                <el-input v-model="treeKeyword" placeholder="搜索部门" clearable size="small" class="aside-search">
                     <template #prefix><span style="color:#94a3b8">🔍</span></template>
                 </el-input>
-            </div>
-
-            <el-table :data="sortedList" v-loading="loading" border stripe style="width:100%" @sort-change="onSortChange">
-                <el-table-column type="index" label="序号" width="64" align="center"/>
-                <el-table-column prop="account" label="账号" width="120">
-                    <template #default="{row}"><b style="color:#2563eb">{{ row.account }}</b></template>
-                </el-table-column>
-                <el-table-column prop="username" label="姓名" width="110"/>
-                <el-table-column prop="dept_code" label="归属部门" min-width="140">
-                    <template #default="{row}">
-                        <span v-if="!row.dept_code" style="color:#cbd5e1">-</span>
-                        <el-tooltip v-else :content="deptPath(row.dept_code)" placement="top">
-                            <span :class="{'dept-unknown': deptUnknown(row.dept_code)}">{{ deptShortName(row.dept_code) }}</span>
-                        </el-tooltip>
-                    </template>
-                </el-table-column>
-                <el-table-column label="数据范围" width="150" align="center">
-                    <template #default="{row}">
-                        <el-tag :type="scopeTagType(row)" size="small" effect="plain">{{ scopeLabel(row) }}</el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="role_code" label="角色" width="110" align="center" sortable="custom">
-                    <template #default="{row}">
-                        <el-tag :type="roleTag(row.role.role_code)" size="small" effect="light">{{ row.role.role_name }}</el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="open_status" label="状态" width="90" align="center" sortable="custom">
-                    <template #default="{row}">
-                        <el-tag :type="statusTag(row.open_status).type" size="small">{{ statusTag(row.open_status).text }}</el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column label="操作" width="250" fixed="right" align="center">
-                    <template #default="{row}">
-                        <!-- 禁用态按钮不派发鼠标事件，必须由 span 承载 tooltip（Element Plus 的既有做法） -->
-                        <el-tooltip :disabled="canManage(row)" :content="manageBlockReason(row)" placement="top">
-                            <span>
-                                <el-button v-notSelf.readonly="row.account" :disabled="!canManage(row)" link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
-                                <el-button v-notSelf.readonly="row.account" :disabled="!canManage(row)" link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
-                                <el-button v-notSelf.readonly="row.account" :disabled="!canManage(row)" link :type="row.open_status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
-                                    {{ row.open_status ? '停用' : '启用' }}
-                                </el-button>
+                <div class="tree-box">
+                    <el-tree
+                        ref="treeRef"
+                        :data="treeData"
+                        node-key="dept_code"
+                        :props="{label: 'dept_name', children: 'children'}"
+                        :current-node-key="deptFilter || ALL_DEPT_KEY"
+                        :filter-node-method="filterNode"
+                        highlight-current
+                        :default-expanded-keys="DEFAULT_EXPANDED_KEYS"
+                        :expand-on-click-node="false"
+                        @node-click="onTreeClick"
+                    >
+                        <template #default="{ data }">
+                            <span class="tree-node" :class="{'node-plain': !data.selectable}" :title="nodeTitle(data)">
+                                {{ data.dept_name }}
                             </span>
-                        </el-tooltip>
-                    </template>
-                </el-table-column>
-            </el-table>
+                        </template>
+                    </el-tree>
+                </div>
+            </el-card>
 
-            <div class="pager">
-                <el-pagination
-                    :current-page="page"
-                    :page-size="pageSize"
-                    :page-sizes="[15, 30, 60, 100]"
-                    :total="total"
-                    layout="total, sizes, prev, pager, next, jumper"
-                    background
-                    @current-change="onPageChange"
-                    @size-change="onSizeChange"
-                />
-            </div>
-        </el-card>
+            <el-card shadow="never" class="table-card">
+                <div class="toolbar">
+                    <el-button v-hasPermission="['perm:assign']" type="primary" @click="openCreate">＋ 新建账号</el-button>
+                    <div class="spacer"></div>
+                    <!-- 部门维度由左侧组织架构树承担（同一维度不设第二个入口）；
+                         本人档：后端已把结果收窄成「只有自己」（scopeOwner 条件），搜索只是再筛一遍 -->
+                    <el-input v-model="keyword" :placeholder="onlySelf ? '本人档位仅显示你自己' : '搜索账号 / 姓名'"
+                              clearable style="width:220px">
+                        <template #prefix><span style="color:#94a3b8">🔍</span></template>
+                    </el-input>
+                </div>
+
+                <el-table :data="sortedList" v-loading="loading" border stripe style="width:100%" @sort-change="onSortChange">
+                    <el-table-column type="index" label="序号" width="64" align="center"/>
+                    <el-table-column prop="account" label="账号" width="120">
+                        <template #default="{row}"><b style="color:#2563eb">{{ row.account }}</b></template>
+                    </el-table-column>
+                    <el-table-column prop="username" label="姓名" width="110"/>
+                    <el-table-column prop="dept_code" label="归属部门" min-width="140">
+                        <template #default="{row}">
+                            <span v-if="!row.dept_code" style="color:#cbd5e1">-</span>
+                            <el-tooltip v-else :content="deptPath(row.dept_code)" placement="top">
+                                <span :class="{'dept-unknown': deptUnknown(row.dept_code)}">{{ deptShortName(row.dept_code) }}</span>
+                            </el-tooltip>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="数据范围" width="150" align="center">
+                        <template #default="{row}">
+                            <el-tag :type="scopeTagType(row)" size="small" effect="plain">{{ scopeLabel(row) }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="role_code" label="角色" width="110" align="center" sortable="custom">
+                        <template #default="{row}">
+                            <el-tag :type="roleTag(row.role.role_code)" size="small" effect="light">{{ row.role.role_name }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="open_status" label="状态" width="90" align="center" sortable="custom">
+                        <template #default="{row}">
+                            <el-tag :type="statusTag(row.open_status).type" size="small">{{ statusTag(row.open_status).text }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="250" fixed="right" align="center">
+                        <template #default="{row}">
+                            <!-- 禁用态按钮不派发鼠标事件，必须由 span 承载 tooltip（Element Plus 的既有做法） -->
+                            <el-tooltip :disabled="canManage(row)" :content="manageBlockReason(row)" placement="top">
+                                <span>
+                                    <el-button v-notSelf.readonly="row.account" :disabled="!canManage(row)" link type="primary" size="small" @click="openEdit(row)">编辑/授权</el-button>
+                                    <el-button v-notSelf.readonly="row.account" :disabled="!canManage(row)" link type="warning" size="small" @click="resetPwd(row)">重置密码</el-button>
+                                    <el-button v-notSelf.readonly="row.account" :disabled="!canManage(row)" link :type="row.open_status === 1 ? 'danger' : 'success'" size="small" @click="toggleStatus(row)">
+                                        {{ row.open_status ? '停用' : '启用' }}
+                                    </el-button>
+                                </span>
+                            </el-tooltip>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <div class="pager">
+                    <el-pagination
+                        :current-page="page"
+                        :page-size="pageSize"
+                        :page-sizes="[15, 30, 60, 100]"
+                        :total="total"
+                        layout="total, sizes, prev, pager, next, jumper"
+                        background
+                        @current-change="onPageChange"
+                        @size-change="onSizeChange"
+                    />
+                </div>
+            </el-card>
+        </div>
 
         <!-- 新建/编辑账号 + 权限预览弹窗 -->
         <el-dialog v-model="dialogVisible" :title="isEdit ? `编辑账号与权限：${form.account}` : '新建账号'" width="640px" destroy-on-close>
@@ -633,10 +734,91 @@ function toggleStatus(row) {
         .spacer {
             flex: 1
         }
+    }
 
-        /* DeptPicker 根节点是 100% 宽，工具栏里需要固定宽度 */
-        .dept-filter {
-            width: 240px;
+    /* 左树 + 右表：两栏等高，左侧定宽、右侧吃掉剩余宽度。
+       min-height 保证表格加载中（行数为 0）时左树不会被挤扁。 */
+    .users-body {
+        display: flex;
+        align-items: stretch;
+        gap: 12px;
+        min-height: 460px;
+
+        .dept-aside {
+            width: 236px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+
+            /* 卡片内部改成纵向 flex，让树区把剩余高度吃满（卡片由 stretch 撑到与右栏等高） */
+            :deep(.el-card__body) {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                padding: 12px;
+            }
+
+            .aside-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+
+                .aside-title {
+                    font-size: 13px;
+                    font-weight: 600;
+                }
+
+                .aside-clear {
+                    font-size: 12px;
+                    color: #2563eb;
+                    cursor: pointer;
+                }
+            }
+
+            .aside-search {
+                margin-top: 10px;
+            }
+
+            .tree-box {
+                flex: 1;
+                min-height: 0;
+                margin-top: 8px;
+                overflow: auto;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 4px 2px;
+
+                :deep(.el-tree) {
+                    font-size: 12px;
+                    background: transparent;
+                }
+
+                /* 节点内容行是 flex 容器：让文本项 flex:1 + min-width:0 才能真正触发省略号 */
+                :deep(.el-tree-node__content) {
+                    overflow: hidden;
+                }
+            }
+        }
+
+        .table-card {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    /* 树节点：窄栏里超长部门名省略，完整路径走 title */
+    .tree-node {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        /* 祖先路径节点：不在数据范围内，不可点，灰显 */
+        &.node-plain {
+            color: #c0c4cc;
+            cursor: not-allowed;
         }
     }
 
