@@ -95,7 +95,22 @@ spring:
     # https://github.com/alibaba/druid/blob/master/druid-spring-boot-3-starter/src/test/resources/application-multi-datasource.properties
     # https://github.com/alibaba/druid/tree/master/druid-spring-boot-3-starter
     type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      stat-view-servlet: # 监控页: http://localhost:7090/druid/index.html
+        enabled: true
+        url-pattern: /druid/*
+        reset-enable: false
+        login-username: root
+        login-password: root
+        # allow: 127.0.0.1 # 需要限定来源时打开
+      web-stat-filter: # Web/Session 统计（SQL 统计来自 dynamic.druid.filters=stat）
+        enabled: true
+        url-pattern: /*
+        exclusions: "*.js,*.gif,*.jpg,*.png,*.css,*.ico,/druid/*"
+        session-stat-enable: true
+        session-stat-max-count: 1000
     dynamic:
+      lazy: true
       druid: # https://developer.aliyun.com/article/1345610 如果不希望使用baomidou自带的连接池，我们可以更换连接池，例如更换为alibaba开源的Druid连接池
         initial-size: 5
         max-active: 20

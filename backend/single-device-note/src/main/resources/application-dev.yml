@@ -19,7 +19,6 @@ spring:
     dynamic:
       primary: main #设置默认的数据源或者数据源组,默认值即为master
       strict: false #严格匹配数据源,默认false. true未匹配到指定数据源时抛异常,false使用默认数据源
-      lazy: true
       datasource:
         main:
           # Docker从容器中项目如何访问到宿主机MYSQL https://blog.csdn.net/jcmj123456/article/details/131692252
