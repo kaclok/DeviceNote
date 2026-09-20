@@ -1,4 +1,4 @@
-export class MapUtil {
+export class ArrayUtil {
     static Map2KVArray(map, kName = 'key', vName = 'value') {
         return Object.entries(map).map(([key, value], index, array) => ({
             [kName]: key,    // 使用 [] 动态设置属性名
