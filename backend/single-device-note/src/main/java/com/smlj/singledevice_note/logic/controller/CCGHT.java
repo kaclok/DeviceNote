@@ -228,7 +228,8 @@ public class CCGHT {
     /**
      * 账号列表：服务端分页 + 关键字/部门筛选。
      * <p>
-     * 关键字 kw 同时匹配 account / username（模糊），dept_code 精确匹配归属部门。
+     * 关键字 kw 同时匹配 account / username（模糊）；dept_code 按**组织树节点**语义筛选 ——
+     * 选中某部门即含其整棵子树（点「金泰化学本部」看得到其下各部门的账号），见 deptFilterOf。
      * 之所以把原先「一次拉 200 条、前端本地过滤分页」改成服务端搜索：
      * 账号量级将来会到几万，整表下发+本地过滤不可持续。
      */
@@ -244,7 +245,7 @@ public class CCGHT {
         // curUser 是 TokenInterceptor 按 account 现查出来的实时账号行（不是 JWT 快照），
         // 所以这里读档位等于读库：admin 改了数据范围，不需要用户重登就按新档位收窄。
         var account = dataScopeOf(curUser) == SCOPE_SELF ? curUser.getAccount() : null;
-        var ls = userDao.queryAll(kw, dept_code, true, false, resolveScopeDepts(curUser), account);
+        var ls = userDao.queryAll(kw, deptFilterOf(dept_code, resolveScopeDepts(curUser)), true, false, account);
         for (var i : ls) {
             i.setRole(roleDao.query(i.getRole_code()));
         }
@@ -770,6 +771,41 @@ public class CCGHT {
     }
 
     /**
+     * 合并「部门筛选」与「数据范围白名单」→ 最终可见部门集，供 SQL 单一 in 下推。
+     * <p>
+     * 为什么筛选部门必须先展开子树：筛选栏/组织树给出的 dept_code 是**组织树节点**
+     * （如「金泰化学本部」1030015），语义天然含下级；而账号行与合同行的 dept_code 存的是
+     * **最小归属单元**（叶子部门，如「采供部」1030015006）。直接用 dept_code = ? 精确匹配，
+     * 点父节点必然 0 行 —— 用户看到的是"这个部门没有数据"，而不是"筛选条件太严"。
+     * <p>
+     * 为什么与可见范围求交、并成一条 in 而不是两条 in AND：
+     * 求交后语义唯一（最终可见集）—— 报表与注释都不必再解释"两个 in 是什么关系"；
+     * 且手输超出可见范围的 dept_code 时交集为空，与 resolveScopeDepts 的 fail-closed 一致，
+     * 不会因为"筛选"反而放大可见范围。
+     *
+     * @param deptCode   筛选部门（组织树节点）；空白 = 不筛部门，原样透传 scopeDepts
+     * @param scopeDepts 可见部门白名单三态：null 不限 / 空 = 无可见 / 非空 = 仅这些
+     * @return 三态同 scopeDepts：null = 不限制 / 空 = 查不到（XML 走 1=0）/ 非空 = in 这些部门
+     */
+    private List<String> deptFilterOf(String deptCode, List<String> scopeDepts) {
+        if (!StringUtils.hasText(deptCode)) {
+            return scopeDepts;
+        }
+        Set<String> sub = subtreeOf(deptCode);
+        if (scopeDepts == null) {
+            return new ArrayList<>(sub);
+        }
+        Set<String> visible = new HashSet<>(scopeDepts);
+        List<String> out = new ArrayList<>();
+        for (String d : sub) {
+            if (visible.contains(d)) {
+                out.add(d);
+            }
+        }
+        return out;
+    }
+
+    /**
      * 集团根：没有父节点、或父节点不在启用集合里的那个节点。取不到返回 null。
      */
     private String rootOf() {
@@ -861,13 +897,14 @@ public class CCGHT {
             @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize,
             @Acc TCGHTUser curUser) {
         // 数据范围下推：null 不限 / 空列表=无可见部门 / 非空=仅这些部门。
-        // 与筛选栏的 dept_code 以 AND 叠加：受限用户筛了范围外的部门，结果自然为空，而不是越权。
+        // 筛选栏的 dept_code 先按组织树展开成子树，再与可见范围求交（deptFilterOf，与账号列表同一口径）：
+        // 受限用户筛了范围外的部门，交集为空 → 结果为空，而不是越权。
         var scopeDepts = resolveScopeDepts(curUser);
         // 1 本人档：只放行 sign_person 等于我姓名的合同。
         // curUser 是现查的实时账号行，改了姓名这里立刻跟上，不会拿登录时的旧姓名去比对。
         var username = dataScopeOf(curUser) == SCOPE_SELF ? curUser.getUsername() : null;
         PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, dept_code, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day, scopeDepts, username);
+        var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day, deptFilterOf(dept_code, scopeDepts), username);
         return Result.success(new PageSerializable<>(ls));
     }
 

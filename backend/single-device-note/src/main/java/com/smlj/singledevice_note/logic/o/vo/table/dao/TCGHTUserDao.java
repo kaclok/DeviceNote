@@ -15,20 +15,19 @@ public interface TCGHTUserDao {
      * 账号列表（服务端搜索 + 分页，由调用方 PageHelper.startPage 控制分页）：
      *
      * @param kw               关键字：同时模糊匹配 account / username；为空表示不过滤
-     * @param dept_code        归属部门精确匹配；为空表示不过滤
+     * @param deptCodes        最终可见部门集 —— 「筛选部门（含其整棵子树）」∩「数据范围白名单」，
+     *                         由 CCGHT.deptFilterOf 合并后下推，三态与合同列表一致：
+     *                         null = 不限制（未筛部门且全集团）；空列表 = 什么都不返回（fail-closed）；非空 = 仅这些部门
      * @param includeAdmin     false=排除超级管理员，供签订人下拉使用；true=包含全部，账号管理/登录使用
      * @param filterOpenStatus true=只返回启用账号
-     * @param scopeDepts       数据范围白名单（由 CCGHT.resolveContractScope 解析后下推），三态与合同一致：
-     *                         null = 不限制（全集团）；空列表 = 什么都不返回（fail-closed）；非空 = 仅这些部门
      * @param scopeOwner       「本人」档（data_scope=1）的归属账号，对应合同侧的 creator 维度：
      *                         非空 = 只返回这个账号自己（1 本人）；null / 空 = 不叠加该条件（2/3/4 档）
      */
     ArrayList<TCGHTUser> queryAll(@Param("kw") String kw,
-                                 @Param("dept_code") String dept_code,
-                                 @Param("includeAdmin") boolean includeAdmin,
-                                 @Param("filterOpenStatus") boolean filterOpenStatus,
-                                 @Param("scopeDepts") List<String> scopeDepts,
-                                 @Param("scopeOwner") String scopeOwner);
+                                  @Param("deptCodes") List<String> deptCodes,
+                                  @Param("includeAdmin") boolean includeAdmin,
+                                  @Param("filterOpenStatus") boolean filterOpenStatus,
+                                  @Param("scopeOwner") String scopeOwner);
 
     TCGHTUser query(@Param("account") String account);
 

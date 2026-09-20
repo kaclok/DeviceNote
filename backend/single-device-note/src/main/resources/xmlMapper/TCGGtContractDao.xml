@@ -38,18 +38,16 @@
         <if test="supplier != null and supplier != ''">
             and supplier like concat('%', #{supplier}, '%')
         </if>
-        <!-- 归属部门筛选：精确匹配 dept_code -->
-        <if test="dept_code != null and dept_code != ''">
-            and dept_code = #{dept_code}
-        </if>
-        <!-- 数据范围（data_scope）下推：由 CCGHT.resolveContractScope 解析后传入。
-             null = 不限制（管理员/全集团）；非空 = 只允许这些部门；
-             空列表 = 该账号没有任何可见部门，用 1=0 兜底（不能生成 in () —— PG 语法错误）。 -->
-        <if test="scopeDepts != null">
+        <!-- 最终可见部门集下推（与账号列表同一口径）：由 CCGHT.deptFilterOf 合并后传入 ——
+             它已把「筛选部门（含其整棵子树）」与「数据范围白名单」求过交，这里只做单一 in。
+             null = 不限制（未筛部门且全集团）；非空 = 只允许这些部门；
+             空列表 = 交集为空（筛选部门超出可见范围 / 该账号无任何可见部门），用 1=0 兜底
+             （不能生成 in () —— PG 语法错误）。 -->
+        <if test="deptCodes != null">
             <choose>
-                <when test="scopeDepts.size() > 0">
+                <when test="deptCodes.size() > 0">
                     and dept_code in
-                    <foreach collection="scopeDepts" item="sd" open="(" separator="," close=")">#{sd}</foreach>
+                    <foreach collection="deptCodes" item="sd" open="(" separator="," close=")">#{sd}</foreach>
                 </when>
                 <otherwise>
                     and 1 = 0

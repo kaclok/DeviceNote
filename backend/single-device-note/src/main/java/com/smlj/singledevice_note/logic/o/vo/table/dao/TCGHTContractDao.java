@@ -17,9 +17,10 @@ public interface TCGHTContractDao {
      * 筛选参数空值视为不筛选。queryBegin/queryEnd 对应 date_sign 范围，rkBegin/rkEnd 对应 date_rk 范围。
      * date_rk 可能为 null：填了挂账区间时，null 的记录自然不命中范围条件，符合"按挂账日期筛选"语义。
      *
-     * @param scopeDepts 数据范围白名单，由 CCGHT 按当前登录账号的 data_scope 解析后下推：
-     *                   null = 不限制（data_scope=4 全集团）；空列表 = 无任何部门可见（fail-closed）；
-     *                   非空 = 仅这些 dept_code 可见。与 dept_code 的筛选条件以 AND 叠加。
+     * @param deptCodes 最终可见部门集 —— 「筛选部门（含其整棵子树）」∩「数据范围白名单」，
+     *                  由 CCGHT.deptFilterOf 合并后下推：
+     *                  null = 不限制（未筛部门且 data_scope=4 全集团）；空列表 = 无任何部门可见（fail-closed）；
+     *                  非空 = 仅这些 dept_code 可见。
      */
     ArrayList<TCGHTContract> queryAll(
             @Param("id") String id
@@ -28,14 +29,13 @@ public interface TCGHTContractDao {
             , @Param("sign_type") String sign_type
             , @Param("payment_type") Integer payment_type
             , @Param("supplier") String supplier
-            , @Param("dept_code") String dept_code
             , @Param("queryBegin") Date queryBegin
             , @Param("queryEnd") Date queryEnd
             , @Param("finish_step") Integer finish_step
             , @Param("rkBegin") Date rkBegin
             , @Param("rkEnd") Date rkEnd
             , @Param("warn_day") Integer warn_day
-            , @Param("scopeDepts") List<String> scopeDepts
+            , @Param("deptCodes") List<String> deptCodes
             , @Param("user_name") String user_name);
 
     TCGHTContract query(@Param("unique_id") String unique_id);
