@@ -1,4 +1,4 @@
-package com.smlj.singledevice_note.logic.configurer;
+package com.smlj.singledevice_note.core.configurer;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.MethodParameter;
@@ -11,7 +11,6 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 import java.lang.annotation.Annotation;
 
 public record AnnoArgResolver<T extends Annotation>(Class<T> clazz) implements HandlerMethodArgumentResolver {
-
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return parameter.hasParameterAnnotation(clazz);

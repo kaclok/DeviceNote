@@ -1,4 +1,4 @@
-package com.smlj.singledevice_note.logic.configurer;
+package com.smlj.singledevice_note.core.configurer;
 
 import com.smlj.singledevice_note.core.annotation.SignIgnore;
 import com.smlj.singledevice_note.core.o.to.Result;
