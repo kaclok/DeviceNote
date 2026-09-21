@@ -3,8 +3,7 @@ import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {downloadTemplate, parseContractExcel} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
-import DeptPicker from "../components/DeptPicker.vue"
-import {deptScopeDepts, effectiveScope, scopeText, SCOPE} from "../utils/DeptX.js"
+import {buildDeptPathMap, buildScopedDeptTree, matchDept, deptDisplay, deptScopeDepts, effectiveScope, scopeText, SCOPE} from "../utils/DeptX.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
@@ -28,10 +27,63 @@ const file = ref(null)
 // 受限账号只能导到自己范围内，直接预填归属部门省一步；全集团账号留空，必须显式选择
 const deptCode = ref(scopeAll ? '' : myDeptCode)
 const allDeptOptions = ref([])
-/** 可选部门：口径与后端 expandScope 一致（4 全量 / 3 本公司子树 / 2 起点子树 / 其余起点） */
-const deptOptions = computed(
-    () => deptScopeDepts(allDeptOptions.value, dataScope, myDeptCode) ?? allDeptOptions.value
-)
+const deptPathMap = computed(() => buildDeptPathMap(allDeptOptions.value))
+
+/** 归属部门展示文本：命中字典 → 「公司/部门」；未命中 → 「未知部门(code)」 */
+function deptPath(code) {
+    return deptDisplay(deptPathMap.value, code)
+}
+
+/* ---------------- 左侧常驻组织架构树 ---------------- */
+const treeRef = ref()
+const treeKeyword = ref('')
+
+/**
+ * 本账号「可见部门」的原样三态：null = 不限制（全集团）/ [] = 无可见部门（fail-closed）。
+ * 口径与后端 expandScope 一致（4 全量 / 3 本公司子树 / 2 起点子树 / 其余起点）。
+ * ⚠️ 不做全量 fallback —— 受限账号不能因为"恰好等于全量"被当成不限。
+ */
+const visibleDeptCodes = computed(() => {
+    const vis = deptScopeDepts(allDeptOptions.value, dataScope, myDeptCode)
+    return vis === null ? null : new Set(vis.map(d => d.dept_code))
+})
+
+/**
+ * 树数据：全量字典按可见集剪枝 + 补回祖先链（否则父节点缺失，每个部门都会变成根节点）。
+ * 祖先节点由 buildScopedDeptTree 标成 selectable=false —— 只作层级路径，不可选。
+ * 常态收缩：不设 default-expanded-keys，全部折叠（116 个部门一次铺开会把左栏撑成长条）。
+ * 搜索无需额外处理 —— Element Plus 的 tree-store.filter 会对每个可见非叶节点调 node.expand()，
+ * 自顶向下遍历，命中项的整条祖先路径会自动展开。
+ */
+const treeData = computed(() => buildScopedDeptTree(allDeptOptions.value, visibleDeptCodes.value))
+
+/** 树搜索：部门名 / 公司·部门全路径 / 部门编码 任一命中（父节点因有命中子节点而保留） */
+function filterNode(value, data) {
+    return matchDept(data, value, deptPathMap.value)
+}
+
+watch(treeKeyword, v => {
+    treeRef.value?.filter(String(v || ''))
+})
+
+function nodeTitle(data) {
+    return data.selectable ? deptPath(data.dept_code) : '该部门不在你的数据范围内，仅作为层级路径展示'
+}
+
+/** 点树节点即选定归属部门（本批合同统一归属它）；祖先节点只作层级路径，不可选 */
+function onTreeClick(data) {
+    if (!data.selectable) {
+        ElMessage.warning('该部门不在你的数据范围内，仅作为层级路径展示')
+        return
+    }
+    deptCode.value = data.dept_code
+}
+
+/** 清空选择：回到"未选择"（上传区随之禁用，必须重新选一个） */
+function clearDept() {
+    deptCode.value = ''
+    treeRef.value?.setCurrentKey(null)
+}
 
 const AC_import = new AbortController()
 const AC_dept = new AbortController()
@@ -153,31 +205,62 @@ function goLedger() {
             </div>
         </el-card>
 
-        <!-- 归属部门 -->
-        <el-card shadow="never" class="block-card">
-            <div class="block-title">
-                ② 选择归属部门（必填）
-                <el-tooltip v-if="!scopeAll"
-                            content="你的账号只能把合同导入到数据范围内的部门。需要更大范围请联系管理员调整数据范围。"
-                            placement="top">
-                    <el-tag size="small" type="info" effect="light"
-                            class="scope-tip">数据范围：{{ scopeText(dataScope) }}</el-tag>
-                </el-tooltip>
-            </div>
-            <div class="block-body">
-                <div class="dept-box">
-                    <DeptPicker v-model="deptCode" :depts="deptOptions" placeholder="输入部门名称，或点右侧按钮从组织架构选择"/>
+        <!-- ② 归属部门 + ③ 上传文件：左树右传（与账号管理页同构），左树常态收缩 -->
+        <div class="import-body">
+            <!-- 左侧：常驻组织架构。点部门即选定本批合同的归属部门（与账号页一样，点一次即生效） -->
+            <el-card shadow="never" class="dept-aside">
+                <div class="aside-head">
+                    <span class="aside-title">② 归属部门（必填）</span>
+                    <span v-if="deptCode" class="aside-clear" @click="clearDept">清空</span>
                 </div>
-                <div class="tip-text">
-                    本批合同将统一归属到该部门；未选择部门时无法上传。可输入文字模糊匹配，或点右侧按钮按组织架构逐层选择。
+                <el-input v-model="treeKeyword" placeholder="搜索部门" clearable size="small" class="aside-search">
+                    <template #prefix><span style="color:#94a3b8">🔍</span></template>
+                </el-input>
+                <div class="tree-box">
+                    <el-tree
+                        ref="treeRef"
+                        :data="treeData"
+                        node-key="dept_code"
+                        :props="{label: 'dept_name', children: 'children'}"
+                        :current-node-key="deptCode || null"
+                        :filter-node-method="filterNode"
+                        highlight-current
+                        :expand-on-click-node="false"
+                        @node-click="onTreeClick"
+                    >
+                        <template #default="{ data }">
+                            <span class="tree-node" :class="{'node-plain': !data.selectable}" :title="nodeTitle(data)">
+                                {{ data.dept_name }}
+                            </span>
+                        </template>
+                    </el-tree>
                 </div>
-            </div>
-        </el-card>
+                <div class="aside-foot">
+                    <div class="picked-line">
+                        <!-- 选中即"啪"地弹出绿勾、清空即"啪"地缩没（enter/leave 两套 animation，见样式）。
+                             勾本身也是清空入口：点它等同点右上角「清空」，点完勾自己"啪"地消失 -->
+                        <Transition name="check">
+                            <span v-if="deptCode" class="check-pop" role="button" tabindex="0"
+                                  title="清除已选部门" aria-label="清除已选部门"
+                                  @click="clearDept" @keydown.enter.prevent="clearDept" @keydown.space.prevent="clearDept">
+                                <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">
+                                    <path d="M4.5 12.6 L9.8 17.8 L19.5 7.2"/>
+                                </svg>
+                            </span>
+                        </Transition>
+                        <span class="picked-label">已选：</span>
+                        <b v-if="deptCode" :title="deptPath(deptCode)">{{ deptPath(deptCode) }}</b><span v-else class="picked-empty">未选择</span>
+                    </div>
+                    <div v-if="!scopeAll" class="scope-line"
+                         title="你的账号只能把合同导入到数据范围内的部门。需要更大范围请联系管理员调整数据范围。">
+                        数据范围：{{ scopeText(dataScope) }}
+                    </div>
+                </div>
+            </el-card>
 
-        <!-- 上传 -->
-        <el-card shadow="never" class="block-card">
-            <div class="block-title">③ 上传文件</div>
-            <div class="block-body">
+            <!-- 右侧：上传区。未选定部门时禁用（点击/拖拽都会给出明确提示） -->
+            <el-card shadow="never" class="upload-card">
+                <div class="block-title">③ 上传文件</div>
                 <div class="upload-zone" :class="{dragging: importing, disabled: !deptCode}"
                      @click="onUploadClick"
                      @dragover.prevent="importing = true" @dragleave.prevent="importing = false" @drop.prevent="onDrop">
@@ -186,13 +269,14 @@ function goLedger() {
                     <div class="u-sub">支持 .xlsx / .xls，单次最多 1000 行；导入前将进行必填、格式、编号唯一性校验</div>
                     <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileChange"/>
                 </div>
-                <div v-if="!deptCode" class="warn-tip">请先在上一步选择归属部门</div>
+                <div v-if="!deptCode" class="warn-tip">请先在左侧选择归属部门</div>
                 <div v-if="importing" class="importing-tip">
                     <el-icon class="is-loading" style="margin-right:6px"><i class="el-icon-loading"/></el-icon>
                     正在解析并校验...
                 </div>
-            </div>
-        </el-card>
+                <div class="tip-text">本批合同将统一归属到左侧选中的部门；未选择部门时无法上传。可在左侧搜索框按部门名称或编码模糊匹配。</div>
+            </el-card>
+        </div>
 
         <!-- 结果 -->
         <el-card v-if="result" shadow="never" class="block-card">
@@ -233,104 +317,329 @@ function goLedger() {
         }
     }
 
+    /* ① / ④ 仍是纵向堆叠的整块卡片 */
     .block-card {
         margin-bottom: 16px;
+    }
 
-        .block-title {
-            font-size: 15px;
-            font-weight: 600;
-            margin-bottom: 14px;
-            padding-left: 10px;
-            border-left: 4px solid #2563eb;
+    /* 区块标题：①②③④ 共用 */
+    .block-title {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 14px;
+        padding-left: 10px;
+        border-left: 4px solid #2563eb;
+    }
 
-            /* 受限数据范围提示：跟在标题后面，字号降到正文级别，不抢标题 */
-            .scope-tip {
-                margin-left: 8px;
-                font-size: 12px;
-                font-weight: 400;
-            }
-        }
+    .tip-text {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 10px;
+    }
 
-        .tip-text {
-            font-size: 12px;
-            color: #94a3b8;
-            margin-top: 10px;
-        }
+    .warn-tip {
+        margin-top: 12px;
+        font-size: 12px;
+        color: #e6a23c;
+    }
 
-        .warn-tip {
-            margin-top: 12px;
-            font-size: 12px;
-            color: #e6a23c;
-        }
+    .upload-zone {
+        /* 右侧卡片内撑满剩余高度，虚线框内容垂直居中 */
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 40px 20px;
+        text-align: center;
+        color: #64748b;
+        cursor: pointer;
+        transition: all .2s;
 
-        /* DeptPicker 根节点是 100% 宽，这里限一下宽度便于与上传区对齐 */
-        .dept-box {
-            width: 520px;
-            max-width: 100%;
-        }
-
-        .upload-zone {
-            border: 2px dashed #cbd5e1;
-            border-radius: 12px;
-            padding: 40px 20px;
-            text-align: center;
-            color: #64748b;
-            cursor: pointer;
-            transition: all .2s;
-
-            &:hover, &.dragging {
-                border-color: #2563eb;
-                background: #eff6ff;
-                color: #2563eb;
-
-                .uic {
-                    transform: scale(1.1)
-                }
-            }
-
-            /* 未选归属部门：视觉上提示不可用（点击仍会给出明确提示） */
-            &.disabled {
-                opacity: .6;
-
-                &:hover {
-                    border-color: #cbd5e1;
-                    background: transparent;
-                    color: #64748b;
-                }
-            }
+        &:hover, &.dragging {
+            border-color: #2563eb;
+            background: #eff6ff;
+            color: #2563eb;
 
             .uic {
-                font-size: 42px;
-                margin-bottom: 10px;
-                transition: transform .2s;
+                transform: scale(1.1)
+            }
+        }
+
+        /* 未选归属部门：视觉上提示不可用（点击仍会给出明确提示） */
+        &.disabled {
+            opacity: .6;
+
+            &:hover {
+                border-color: #cbd5e1;
+                background: transparent;
+                color: #64748b;
+            }
+        }
+
+        .uic {
+            font-size: 42px;
+            margin-bottom: 10px;
+            transition: transform .2s;
+        }
+
+        .u-main {
+            font-size: 15px;
+
+            b {
+                color: #2563eb
+            }
+        }
+
+        .u-sub {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+    }
+
+    .importing-tip {
+        margin-top: 12px;
+        font-size: 13px;
+        color: #2563eb;
+    }
+
+    .result-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    /* ② + ③：左树右传，两栏等高（左侧定宽、右侧吃掉剩余宽度）。
+       min-height 保证树与上传区都不会被内容挤扁。 */
+    .import-body {
+        display: flex;
+        align-items: stretch;
+        gap: 12px;
+        margin-bottom: 16px;
+        min-height: 440px;
+
+        .dept-aside {
+            width: 260px;
+            flex-shrink: 0;
+            /* 高度固定：不随右侧上传区内容伸缩；树内容超高时在 .tree-box 内部滚动 */
+            height: 440px;
+            display: flex;
+            flex-direction: column;
+
+            /* 卡片内部纵向 flex：把固定高度内的剩余空间全部让给树区（超高即在树区内滚动） */
+            :deep(.el-card__body) {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                padding: 12px;
             }
 
-            .u-main {
-                font-size: 15px;
+            .aside-head {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
 
-                b {
-                    color: #2563eb
+                .aside-title {
+                    font-size: 13px;
+                    font-weight: 600;
+                }
+
+                .aside-clear {
+                    font-size: 12px;
+                    color: #2563eb;
+                    cursor: pointer;
                 }
             }
 
-            .u-sub {
-                font-size: 12px;
-                color: #94a3b8;
+            .aside-search {
+                margin-top: 10px;
+            }
+
+            .tree-box {
+                flex: 1;
+                min-height: 0;
                 margin-top: 8px;
+                overflow: auto;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 4px 2px;
+
+                :deep(.el-tree) {
+                    font-size: 12px;
+                    background: transparent;
+                }
+
+                /* 节点内容行是 flex 容器：让文本项 flex:1 + min-width:0 才能真正触发省略号 */
+                :deep(.el-tree-node__content) {
+                    overflow: hidden;
+                }
+            }
+
+            .aside-foot {
+                margin-top: 10px;
+                font-size: 12px;
+                color: #64748b;
+
+                .picked-line {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 4px;
+
+                    .picked-label {
+                        flex-shrink: 0;
+                        line-height: 1.45;
+                    }
+
+                    /* 全路径可能长达两三行：最多折两行，超出才省略；完整路径挂 title，悬浮可看全 */
+                    b {
+                        flex: 1 1 auto;
+                        min-width: 0;
+                        display: -webkit-box;
+                        -webkit-box-orient: vertical;
+                        -webkit-line-clamp: 2;
+                        overflow: hidden;
+                        word-break: break-all;
+                        line-height: 1.45;
+                        color: #2563eb;
+                    }
+
+                    .picked-empty {
+                        color: #e6a23c;
+                    }
+                }
+
+                .scope-line {
+                    margin-top: 4px;
+                    color: #94a3b8;
+                    cursor: help;
+                }
+            }
+
+            /* 选中态绿勾：圆形底 + 白色描边勾。
+               enter/leave 用两套 animation（而非默认 opacity 过渡）—— "啪"的手感来自
+               过冲回弹曲线与勾的描线在同一收尾点结束。 */
+            .check-pop {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                margin-top: 1px; /* 顶部对齐首行文字（行高 1.45），视觉上落在文字中心 */
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                background: #16a34a;
+                cursor: pointer;
+                outline: none;
+                transition: transform .12s ease-out, background-color .15s;
+
+                /* 可点提示：hover 放大加深、按下回缩。只动 transform / 背景，不改布局尺寸 */
+                &:hover {
+                    background: #15803d;
+                    transform: scale(1.18);
+                }
+
+                &:active {
+                    transform: scale(.92);
+                }
+
+                &:focus-visible {
+                    box-shadow: 0 0 0 2px rgba(22, 163, 74, .35);
+                }
+
+                svg {
+                    display: block;
+                    transform: translateX(1px); /* 勾的视觉重心偏左，微调回圆中心 */
+                }
+
+                path {
+                    fill: none;
+                    stroke: #fff;
+                    stroke-width: 3;
+                    stroke-linecap: round;
+                    stroke-linejoin: round;
+                    stroke-dasharray: 22; /* 常态 dashoffset=0 → 完整显示；enter 时描出来 */
+                }
+            }
+
+            .check-enter-active {
+                animation: checkPopIn .34s cubic-bezier(.34, 1.56, .64, 1) both;
+
+                path {
+                    animation: checkDraw .26s ease-out both;
+                }
+            }
+
+            .check-leave-active {
+                animation: checkPopOut .15s cubic-bezier(.4, 0, 1, 1) both;
+            }
+
+            @keyframes checkPopIn {
+                0% {
+                    transform: scale(0) rotate(-40deg);
+                    opacity: 0;
+                }
+                60% {
+                    transform: scale(1.28) rotate(6deg);
+                    opacity: 1;
+                }
+                100% {
+                    transform: scale(1) rotate(0);
+                    opacity: 1;
+                }
+            }
+
+            @keyframes checkPopOut {
+                0% {
+                    transform: scale(1) rotate(0);
+                    opacity: 1;
+                }
+                100% {
+                    transform: scale(0) rotate(35deg);
+                    opacity: 0;
+                }
+            }
+
+            @keyframes checkDraw {
+                from {
+                    stroke-dashoffset: 22;
+                }
+                to {
+                    stroke-dashoffset: 0;
+                }
             }
         }
 
-        .importing-tip {
-            margin-top: 12px;
-            font-size: 13px;
-            color: #2563eb;
-        }
-
-        .result-actions {
+        .upload-card {
+            flex: 1;
+            min-width: 0;
             display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 16px;
+            flex-direction: column;
+
+            :deep(.el-card__body) {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+    }
+
+    /* 树节点：窄栏里超长部门名省略，完整路径走 title */
+    .tree-node {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        /* 祖先路径节点：不在数据范围内，不可点，灰显 */
+        &.node-plain {
+            color: #c0c4cc;
+            cursor: not-allowed;
         }
     }
 }

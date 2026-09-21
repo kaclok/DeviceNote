@@ -747,10 +747,13 @@ function toggleStatus(row) {
         .dept-aside {
             width: 236px;
             flex-shrink: 0;
+            /* 高度固定：卡片不随右侧表格的长短伸缩（原 min-height 只兜底、不封顶，
+               表格一长整栏就跟着变高）。树内容超高时在 .tree-box 内部滚动。 */
+            height: 620px;
             display: flex;
             flex-direction: column;
 
-            /* 卡片内部改成纵向 flex，让树区把剩余高度吃满（卡片由 stretch 撑到与右栏等高） */
+            /* 卡片内部纵向 flex：把固定高度内的剩余空间全部让给树区（超高即在树区内滚动） */
             :deep(.el-card__body) {
                 flex: 1;
                 min-height: 0;
