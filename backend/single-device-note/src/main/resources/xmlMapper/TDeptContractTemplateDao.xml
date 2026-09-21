@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptContractTemplateDao">
+    <!-- 部门绑定全量：数据量=部门数（百余行），一次取回后由前端按 dept_code 建索引，
+         组织树徽标、"生效模版"回溯、右侧表单回显三处都读这份数据，不再逐部门发请求 -->
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptContractTemplate">
+        select dept_code, tpl_id, bound_by, bound_at
+        from cght.t_dept_contract_template
+        order by dept_code asc
+    </select>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptContractTemplate">
+        select dept_code, tpl_id, bound_by, bound_at
+        from cght.t_dept_contract_template
+        where dept_code = #{dept_code}
+    </select>
+
+    <!-- 设置部门模版：dept_code 是主键，用 PG 的 upsert 一条语句完成「新增或覆盖」。
+         不写先 select 再 insert/update 的两步：两步之间存在并发窗口，两个请求可能同时判定"不存在"，
+         而唯一约束会把其中一个直接抛异常 —— upsert 下第二个请求就是一次正常覆盖。
+         bound_at 每次都以库时间刷新（不用客户端时间），bound_by 记录最后一次操作人。 -->
+    <insert id="save">
+        insert into cght.t_dept_contract_template (dept_code, tpl_id, bound_by, bound_at)
+        values (#{dept_code}, #{tpl_id}, #{bound_by}, now())
+        on conflict (dept_code) do update
+        set tpl_id   = excluded.tpl_id,
+            bound_by = excluded.bound_by,
+            bound_at = now()
+    </insert>
+
+    <!-- 解除绑定：删除记录后该部门回到「未绑定」 -->
+    <delete id="delete">
+        delete from cght.t_dept_contract_template where dept_code = #{dept_code}
+    </delete>
+</mapper>

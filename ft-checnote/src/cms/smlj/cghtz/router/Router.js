@@ -13,6 +13,8 @@ const _homeRouter = {
         // meta.perms：路由级权限控制，用户必须拥有其中任一权限码才能访问
         {path: 'ledger', name: 'home_ledger', component: () => import('../views/ledger.vue'), meta: {title: '合同台账'}},
         {path: 'import', name: 'home_import', component: () => import('../views/import.vue'), meta: {title: '批量导入'}},
+        // 部门合同模板：与账号与权限同一道权限门 —— 都是「配置类」页面，能调账号的人才能调模版绑定
+        {path: 'deptTpl', name: 'home_deptTpl', component: () => import('../views/deptTpl.vue'), meta: {title: '部门合同模板', perms: ['perm:assign']}},
         {path: 'users', name: 'home_users', component: () => import('../views/users.vue'), meta: {title: '账号与权限', perms: ['perm:assign']}},
     ],
 }

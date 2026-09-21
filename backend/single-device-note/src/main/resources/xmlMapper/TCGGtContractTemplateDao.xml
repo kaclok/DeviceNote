@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- mapper namespace作用是：代码和xml进行关联 -->
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractTemplateDao">
+    <!-- 模版全量：台账/导入页的「合同模版」下拉数据源（按 id 升序，下拉顺序稳定） -->
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContractTemplate">
+        select id, name, tb_name
+        from cght.t_contract_template
+        order by id asc
+    </select>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContractTemplate">
+        select id, name, tb_name
+        from cght.t_contract_template
+        where id = #{id}
+    </select>
+
+    <!-- 写入部门绑定前校验模版存在：让"模版不存在"返回可读提示，而不是把 FK 违例抛成 500 -->
+    <select id="exist" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM cght.t_contract_template WHERE id = #{id}
+    </select>
+</mapper>

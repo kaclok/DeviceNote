@@ -34,8 +34,11 @@ function hasPerm(code) {
 const menus = computed(() => {
     const list = [
         {path: '/home/ledger', title: '合同台账', icon: '📋', perm: 'contract:view'},
+        // 菜单顺序 = 实际链路顺序：部门得先有模板才导得进去（导入页会拦），
+        // 所以「部门合同模板」排在「批量导入」前面，别让用户先撞一次失败再回头找配置页。
+        {path: '/home/deptTpl', title: '合同模板', icon: '🔗', perm: 'perm:assign'},
         {path: '/home/import', title: '批量导入', icon: '📥', perm: 'contract:import'},
-        {path: '/home/users', title: '账号与权限', icon: '👥', perm: 'perm:assign'},
+        {path: '/home/users', title: '账号权限', icon: '👥', perm: 'perm:assign'},
     ]
     return list.filter(m => hasPerm(m.perm))
 })
@@ -300,7 +303,12 @@ function submitChangePwd() {
         min-height: 0;
 
         .sidebar {
-            width: 145px;
+            /* 宽度只需容纳最长菜单项（当前 4 个汉字，菜单名换来换去，这里不写死）。
+               空间是从菜单内距里省出来的，不是靠把侧栏撑宽：
+               .el-menu-item 外距收到 4px、内距收到 10px（见下），选中态的蓝色渐变底因此能完整包住文字。
+               ⚠️ 菜单名一改长就要回来重算宽度 —— 跑 .workbuddy/_verify_menu_geometry.py，
+               它直接从本文件解析宽度与菜单名，再用无头 Chrome + 真实 element-plus CSS 实量，不会和源码脱节。 */
+            width: 125px;
             flex-shrink: 0;
             box-sizing: border-box;
             background-color: #0f172a;
@@ -313,8 +321,13 @@ function submitChangePwd() {
 
                 .el-menu-item {
                     height: 46px;
-                    margin: 2px 8px;
+                    /* 外距 8px -> 4px、内距 20px（element-plus 默认）-> 10px：
+                       菜单到侧栏左右两侧的留白各收窄 14px，选中态的渐变底相应铺宽 */
+                    margin: 2px 4px;
+                    padding: 0 10px;
                     border-radius: 8px;
+                    /* 菜单名不折行：折行会撑破 46px 行高，也会让选中底形状变形 */
+                    white-space: nowrap;
 
                     &.is-active {
                         background: linear-gradient(90deg, #2563eb, #3b82f6) !important;

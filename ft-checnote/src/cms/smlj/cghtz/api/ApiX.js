@@ -47,8 +47,13 @@ export class ApiX {
     }
 
     /* ---------------- Excel 导入 / 导出 ---------------- */
-    static importContractExcel(paras, signal) {
-        return axiosR.post("cghtz/contract/import", paras, { signal })
+    // 入参刻意分成两半：body = 合同行数组，params = {tpl_id}。
+    // tpl_id 是「整批属于哪套模版」的声明，后端要拿它在写库前先比对部门绑定 ——
+    // 塞进每一行会让人误以为逐行可以不同，而部门与模版是一对一的，逐行声明没有意义。
+    static importContractExcel(rows, params, signal) {
+        return axiosR.post("cghtz/contract/import", rows, {
+            params: params, signal: signal,
+        })
     }
 
     /* ---------------- 账号与权限 ---------------- */
@@ -93,6 +98,44 @@ export class ApiX {
     // 数据源是 train.t_org（后端 @DS("train") 已切换），返回 dept_code/dept_name/dept_all_name/parent_dept_code
     static getDeptList(paras, signal) {
         return axiosR.post("cghtz/dept/list", null, {
+            params: paras, signal: signal,
+        })
+    }
+
+    /* ---------------- 合同模版 / 部门-模版映射 ---------------- */
+    // 模版全量（id/name/tb_name）：台账页与导入页的「合同模版」下拉数据源
+    static getTemplateList(paras, signal) {
+        return axiosR.post("cghtz/template/list", null, {
+            params: paras, signal: signal,
+        })
+    }
+
+    // 部门 → 模版 绑定全量（后端已按操作者的数据范围收窄，前端无需再过滤）
+    static getDeptTplList(paras, signal) {
+        return axiosR.post("cghtz/deptTpl/list", null, {
+            params: paras, signal: signal,
+        })
+    }
+
+    // 设置某部门的合同模版：一个部门一条记录（dept_code 主键），重复设置即覆盖
+    static saveDeptTpl(paras, signal) {
+        return axiosR.post("cghtz/deptTpl/save", null, {
+            params: paras, signal: signal,
+        })
+    }
+
+    // 解除某部门的合同模版绑定
+    static deleteDeptTpl(paras, signal) {
+        return axiosR.post("cghtz/deptTpl/delete", null, {
+            params: paras, signal: signal,
+        })
+    }
+
+    // 单个部门「实际生效」的合同模版（自身未绑定则沿组织树取最近的已绑定祖先）。
+    // 批量导入页用它在上传前核对绑定关系；刻意不复用 deptTpl/list ——
+    // 那个接口要 perm:assign，而导入页的用户持有的是 contract:import，两者不一定重合。
+    static getDeptTplEffective(paras, signal) {
+        return axiosR.post("cghtz/deptTpl/effective", null, {
             params: paras, signal: signal,
         })
     }

@@ -9,14 +9,18 @@ import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractTemplateDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTPermDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTRoleDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTUserDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptContractTemplateDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContractTemplate;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TDept;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TDeptContractTemplate;
 import com.smlj.singledevice_note.logic.service.CurUserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.PostConstruct;
@@ -52,6 +56,17 @@ import org.springframework.format.annotation.DateTimeFormat;
 public class CCGHT {
     private static final String DEFAULT_INIT_PWD = "123456";
 
+    /**
+     * 导入链路当前真正写入的物理表。
+     * <p>
+     * 模版的 tb_name 已经可以指向别的表（例如 t_contract_smds_sc），但台账的读路径
+     * （contract/list|get|update|delete）还没有按模版路由。此时若照着 tb_name 落表，
+     * 数据会写进一张台账页面永远读不到的表里，而且部门绑定还会被记成"已用该模版"——
+     * 事后想对齐只能手工搬数据。所以插入前先 fail-closed：表没接入就明确拒绝。
+     * 读路径接入后，把这个常量换成"按模版解析 tb_name"即可（另需定跨表编号唯一口径）。
+     */
+    private static final String IMPORT_TARGET_TABLE = "t_contract";
+
     /*
      * data_scope 档位：定义已收敛到 DataScope 枚举 —— 编号即包含序的说明、库值/入参解析、
      * 「不小于」比较都在那里。本类不再保留 int 常量：档位一旦散成字面量，新增一档时编译器不会
@@ -72,6 +87,15 @@ public class CCGHT {
      * 组织架构只读 DAO：queryOptions 走 train 库（@DS 打在方法上），其余方法走 main 库
      */
     private final TDeptDao deptDao;
+    /**
+     * 合同模版登记表（cght.t_contract_template）—— 只读，模版由建表脚本/运维登记
+     */
+    private final TCGHTContractTemplateDao tplDao;
+    /**
+     * 部门-合同模版映射（cght.t_dept_contract_template）—— dept_code 主键，
+     * 一个部门只能有一套模版，由数据库唯一约束硬保证
+     */
+    private final TDeptContractTemplateDao deptTplDao;
 
     // ================================================================
     // 组织架构缓存（进程内）
@@ -539,6 +563,206 @@ public class CCGHT {
             codes = this.deptCodes;
         }
         return codes.contains(deptCode);
+    }
+
+    // ================================================================
+    // 合同模版（t_contract_template / t_dept_contract_template）
+    // 一套模版 = 一套合同字段结构，由 t_contract_template.tb_name 指向一张真实物理表；
+    // 部门与模版是一对一（t_dept_contract_template.dept_code 主键），绑定关系在本页调整。
+    // 模版本体由建表脚本/运维登记，接口层只读不写 —— 页面能做的只有「给部门指定哪一套」。
+    // ================================================================
+
+    /**
+     * 模版全量列表（id / name / tb_name）。
+     * <p>
+     * 刻意不加 @RequirePermission：台账页与批量导入页都要靠它渲染「合同模版」下拉，
+     * 而这是系统配置（模版名 + 物理表名），不含任何合同数据 —— 凡是能进那两个页面的人都该看得到。
+     * 真正的写入口（deptTpl/save|delete）另有 perm:assign + 范围闸兜底。
+     */
+    @Transactional
+    @PostMapping(value = "/template/list")
+    public Result<?> templateList() {
+        var ls = tplDao.queryAll();
+        var out = new ArrayList<Map<String, Object>>();
+        for (TCGHTContractTemplate t : ls) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", t.getId());
+            m.put("name", t.getName());
+            m.put("tb_name", t.getTb_name());
+            // 把"这模版现在能不能导"提前交给前端：否则用户选完模版、挑完部门、传完文件，
+            // 才在最后一步被拒 —— 那一趟解析白跑，提示也来得太晚。
+            m.put("importable", IMPORT_TARGET_TABLE.equalsIgnoreCase(t.getTb_name()));
+            out.add(m);
+        }
+        return Result.success(out);
+    }
+
+    /**
+     * 部门 -> 模版 绑定列表（只读），供「部门合同模板」页渲染组织树徽标与右侧表单。
+     * <p>
+     * 只回传**当前操作者可见范围内**的部门绑定：范围受限的操作者连这些部门都看不到，
+     * 回传全量等于把别的公司的模版配置暴露给他 —— 读同样不能越权。
+     * 三态口径与合同/账号列表一致：scopeDepts == null（全集团档）才返回全量。
+     */
+    @RequirePermission("perm:assign")
+    @Transactional
+    @PostMapping(value = "/deptTpl/list")
+    public Result<?> deptTplList(@Acc TCGHTUser curUser) {
+        var ls = deptTplDao.queryAll();
+        var scopeDepts = resolveScopeDepts(curUser);
+        if (scopeDepts == null) {
+            return Result.success(ls);
+        }
+        Set<String> visible = new HashSet<>(scopeDepts);
+        var out = new ArrayList<TDeptContractTemplate>();
+        for (TDeptContractTemplate b : ls) {
+            if (b != null && visible.contains(b.getDept_code())) {
+                out.add(b);
+            }
+        }
+        return Result.success(out);
+    }
+
+    /**
+     * 设置某部门的合同模版（一个部门一条记录，重复设置即覆盖）。
+     * <p>
+     * 三道闸缺一不可：
+     * (1) 权限点 perm:assign —— 「能不能做这件事」；
+     * (2) minScope = DEPT —— 「本人」档的可见面只有自己，任何一个部门都比它大，不配调整部门配置；
+     * (3) inScope 范围校验 —— 「能不能管这个部门」，只判部门存在是不够的
+     *     （deptExists 只回答"存在吗"，不回答"归你管吗"，两者必须分开）。
+     */
+    @RequirePermission(value = "perm:assign", minScope = DataScope.DEPT)
+    @Transactional
+    @PostMapping(value = "/deptTpl/save")
+    public Result<?> deptTplSave(@RequestParam(name = "dept_code", required = false) String dept_code,
+                                 @RequestParam(name = "tpl_id", required = false) Integer tpl_id,
+                                 @Acc TCGHTUser curUser) {
+        if (!StringUtils.hasText(dept_code)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "归属部门(dept_code)不能为空");
+        }
+        if (tpl_id == null) {
+            return Result.fail(ResultCode.RC10101.getCode(), "合同模版(tpl_id)不能为空");
+        }
+        if (!deptExists(dept_code)) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", dept_code));
+        }
+        // 先判模版存在：否则 FK 违例会以 500 抛出去，用户看到的是一句无法理解的系统异常
+        if (tplDao.exist(tpl_id) <= 0) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("合同模版 %s 不存在", tpl_id));
+        }
+        if (!inScope(resolveScopeDepts(curUser), dept_code)) {
+            return Result.fail(ResultCode.RC10307.getCode(),
+                    String.format("无权调整部门 %s 的合同模版（超出你的数据范围）", dept_code));
+        }
+        deptTplDao.save(dept_code, tpl_id, accountOf(curUser));
+        return Result.success(deptTplDao.query(dept_code));
+    }
+
+    /**
+     * 解除某部门的合同模版绑定（回到「未绑定」，而不是改成"空模版"）。
+     * <p>
+     * 闸门与 save 完全一致 —— 能设置就要能解除，否则管理员遇到配错的绑定只能找运维删库。
+     * 未绑定时报"未绑定"而不是静默成功：这是页面上点出来的操作，给一句可读的话比幂等更好用。
+     */
+    @RequirePermission(value = "perm:assign", minScope = DataScope.DEPT)
+    @Transactional
+    @PostMapping(value = "/deptTpl/delete")
+    public Result<?> deptTplDelete(@RequestParam(name = "dept_code", required = false) String dept_code,
+                                   @Acc TCGHTUser curUser) {
+        if (!StringUtils.hasText(dept_code)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "归属部门(dept_code)不能为空");
+        }
+        if (!deptExists(dept_code)) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", dept_code));
+        }
+        if (!inScope(resolveScopeDepts(curUser), dept_code)) {
+            return Result.fail(ResultCode.RC10307.getCode(),
+                    String.format("无权调整部门 %s 的合同模版（超出你的数据范围）", dept_code));
+        }
+        if (deptTplDao.query(dept_code) == null) {
+            return Result.fail(ResultCode.RC10103.getCode(), String.format("部门 %s 未绑定合同模版", dept_code));
+        }
+        deptTplDao.delete(dept_code);
+        return Result.success();
+    }
+
+    /**
+     * 某个部门「实际生效」的合同模版（只读），供批量导入页在上传前核对绑定关系。
+     * <p>
+     * 为什么不复用 deptTpl/list：那个接口要 perm:assign（它是配置管理页的入口），
+     * 而导入页的用户持有的是 contract:import —— 两者的人不一定重合。
+     * 让导入的人因为"看不到模版配置"而被迫无脑上传，正是要避免的情形。
+     * 这里只回答"这一个部门用哪套模版"，且必须落在操作者自己的数据范围内（读同样不越权）。
+     * <p>
+     * data 为 null = 该部门及其所有上级都没有绑定，导入页据此提示"本次上传将建立绑定"。
+     */
+    @Transactional
+    @PostMapping(value = "/deptTpl/effective")
+    public Result<?> deptTplEffective(@RequestParam(name = "dept_code", required = false) String dept_code,
+                                      @Acc TCGHTUser curUser) {
+        if (!StringUtils.hasText(dept_code)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "归属部门(dept_code)不能为空");
+        }
+        if (!inScope(resolveScopeDepts(curUser), dept_code)) {
+            return Result.fail(ResultCode.RC10307.getCode(),
+                    String.format("部门 %s 超出你的数据范围", dept_code));
+        }
+        TDeptContractTemplate bind = effectiveDeptTpl(dept_code);
+        if (bind == null) {
+            return Result.success();
+        }
+        TCGHTContractTemplate tpl = tplDao.query(bind.getTpl_id());
+        Map<String, Object> data = new HashMap<>();
+        data.put("dept_code", dept_code);
+        data.put("tpl_id", bind.getTpl_id());
+        data.put("tpl_name", tpl == null ? tplNameOf(bind.getTpl_id()) : tpl.getName());
+        // 物理表名与"能不能导"一并下发：导入页据此就能说清"这批数据写进哪张表"，
+        // 不必再拉一次模版列表 —— 少一次请求，也少一份可能过期的副本。
+        data.put("tb_name", tpl == null ? null : tpl.getTb_name());
+        data.put("importable", tpl != null && IMPORT_TARGET_TABLE.equalsIgnoreCase(tpl.getTb_name()));
+        // owner：真正挂着这条绑定的部门。「部门合同模板」页也是这个口径（自身设置 / 继承自 xx），
+        // 两个页面必须给出一致的答案，否则用户会以为导入页认错了部门。
+        data.put("owner_dept_code", bind.getDept_code());
+        data.put("inherited", !dept_code.equals(bind.getDept_code()));
+        return Result.success(data);
+    }
+
+    /**
+     * 部门「实际生效」的合同模版绑定 = 自身绑定，否则沿组织树向上取最近的已绑定祖先。
+     * <p>
+     * 为什么是"继承"而不是"只看自己"：绑定通常只打在几个公司节点上，
+     * 末端部门靠继承生效 —— 逐个绑定既不现实，组织一调整就全失效。
+     * 返回 null 表示整条链上都没有绑定。
+     */
+    private TDeptContractTemplate effectiveDeptTpl(String deptCode) {
+        if (!StringUtils.hasText(deptCode)) {
+            return null;
+        }
+        if (this.deptParent.isEmpty()) {
+            refreshDeptCache();
+        }
+        Set<String> seen = new HashSet<>();          // 防脏数据成环
+        String cur = deptCode;
+        while (StringUtils.hasText(cur) && seen.add(cur)) {
+            TDeptContractTemplate bind = deptTplDao.query(cur);
+            if (bind != null) {
+                return bind;
+            }
+            String parent = this.deptParent.get(cur);
+            // 与 companyOf 同一判据：父为空、或父不在启用集合里，就是已经到顶
+            cur = (StringUtils.hasText(parent) && this.deptCodes.contains(parent)) ? parent : null;
+        }
+        return null;
+    }
+
+    /** 模版名展示口径：模版被删/被改时退化成 #id，不把 null 抛给页面 */
+    private String tplNameOf(Integer tplId) {
+        if (tplId == null) {
+            return "-";
+        }
+        TCGHTContractTemplate t = tplDao.query(tplId);
+        return t == null ? ("#" + tplId) : t.getName();
     }
 
     // ================================================================
@@ -1016,10 +1240,27 @@ public class CCGHT {
     @RequirePermission("contract:import")
     @Transactional
     @PostMapping(value = "/contract/import")
-    public Result<?> contractImport(@RequestBody List<TCGHTContract> rows, @Acc TCGHTUser curUser) {
+    public Result<?> contractImport(@RequestParam(name = "tpl_id", required = false) Integer tpl_id,
+                                    @RequestBody List<TCGHTContract> rows, @Acc TCGHTUser curUser) {
         if (rows == null || rows.isEmpty()) {
-            return Result.fail(ResultCode.RC10101, "导入数据为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "导入数据为空");
         }
+        // 模版必须在处理任何一行之前就确定：它既是"这批数据属于哪套模版"的声明，
+        // 也是下面比对部门绑定关系的基准。没有它，导入就是无据可依地往一张表里灌数据 ——
+        // 这正是"无脑导入"的根子，所以在入口一次拦掉，不留到逐行去猜。
+        TCGHTContractTemplate tpl = tpl_id == null ? null : tplDao.query(tpl_id);
+        if (tpl == null) {
+            return Result.fail(ResultCode.RC10101.getCode(),
+                    "合同模版未确定或已不存在，请确认所选部门已在「部门合同模板」页配置了有效的模板");
+        }
+        // 模版存在还不够：它的物理表必须是导入链路真正写的那张。
+        // 宁可在这里整批拒绝，也不能"选 A 表却把数据写进 B 表"——那是最难发现的一类错。
+        if (!IMPORT_TARGET_TABLE.equalsIgnoreCase(tpl.getTb_name())) {
+            return Result.fail(ResultCode.RC10101.getCode(),
+                    String.format("模版「%s」对应的物理表 %s 尚未接入导入链路（当前仅支持 %s），请联系管理员",
+                            tpl.getName(), tpl.getTb_name(), IMPORT_TARGET_TABLE));
+        }
+        String tplName = tpl.getName();
         int okCnt = 0;
         List<Map<String, Object>> failRows = new ArrayList<>();
         // 批次内即时结算类 id 去重
@@ -1027,6 +1268,9 @@ public class CCGHT {
         // 数据范围与录入人在整批里解析一次即可：同一登录账号，批次内不会变
         List<String> scopeDepts = resolveScopeDepts(curUser);
         String creator = accountOf(curUser);
+        // 部门 -> 生效绑定：整批里每个部门只解析一次（同一批通常只有一个部门，但不做这个假设）。
+        // 值为 null 是合法结果（该部门整条链都未绑定），所以判"是否查过"要用 containsKey。
+        Map<String, TDeptContractTemplate> bindOfDept = new HashMap<>();
         for (int i = 0; i < rows.size(); i++) {
             TCGHTContract c = rows.get(i);
             List<String> reasons = new ArrayList<>();
@@ -1053,12 +1297,32 @@ public class CCGHT {
                 reasons.add("供应商必填");
             }
             // 归属部门必填：逐行校验。缺部门、部门非法、或超出本人数据范围，都按行拦截（不静默丢数据）
-            if (!StringUtils.hasText(c.getDept_code())) {
+            String deptCode = c.getDept_code();
+            if (!StringUtils.hasText(deptCode)) {
                 reasons.add("归属部门必填");
-            } else if (!deptExists(c.getDept_code())) {
-                reasons.add(String.format("归属部门 %s 不存在或已停用", c.getDept_code()));
-            } else if (!inScope(scopeDepts, c.getDept_code())) {
-                reasons.add(String.format("归属部门 %s 超出你的数据范围", c.getDept_code()));
+            } else if (!deptExists(deptCode)) {
+                reasons.add(String.format("归属部门 %s 不存在或已停用", deptCode));
+            } else if (!inScope(scopeDepts, deptCode)) {
+                reasons.add(String.format("归属部门 %s 超出你的数据范围", deptCode));
+            } else {
+                // 部门确定了，才能核对它与合同模版的绑定关系。
+                // 一个部门只能有一套模版：已绑定别的模版就必须拦下，
+                // 否则等于借一次导入悄悄把这个部门的模版换掉（历史合同可就不认了）。
+                TDeptContractTemplate bind = bindOfDept.get(deptCode);
+                if (!bindOfDept.containsKey(deptCode)) {
+                    bind = effectiveDeptTpl(deptCode);
+                    bindOfDept.put(deptCode, bind);
+                }
+                if (bind == null) {
+                    // 部门没配模板 = 这批数据没有合法的落脚点。以前这里会"顺手"把本次模版绑上去，
+                    // 但那等于借一次导入改掉部门的配置口径；现在统一要求先去配置页设定，
+                    // 导入链路上不再有"隐式建绑定"这回事。
+                    reasons.add(String.format("归属部门 %s 未配置合同模板，请先到「部门合同模板」页为该部门指定模板",
+                            deptCode));
+                } else if (!tpl_id.equals(bind.getTpl_id())) {
+                    reasons.add(String.format("归属部门 %s 已绑定合同模版「%s」，与本次选择的模版「%s」不一致",
+                            deptCode, tplNameOf(bind.getTpl_id()), tplName));
+                }
             }
             if (c.getDate_sign() == null) {
                 reasons.add("签订时间必填");
@@ -1077,10 +1341,14 @@ public class CCGHT {
                 failRows.add(fail);
             }
         }
+        // 部门与模版的关系只在「部门合同模板」页建立：导入链路不再写绑定，
+        // 未配置就是整行拦截（见上方 bind == null 分支）。
         Map<String, Object> data = new HashMap<>();
         data.put("success", okCnt);
         data.put("fail", failRows.size());
         data.put("failRows", failRows);
+        data.put("tpl_id", tpl_id);
+        data.put("tpl_name", tplName);
         return Result.success(data);
     }
 }

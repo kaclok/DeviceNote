@@ -102,6 +102,16 @@ const FIELD_DEFS = [
     {field: 'payment_type', header: '付款类型'},
 ]
 
+/**
+ * 导入模板的列清单（供页面上"预览模板表头"用）：只暴露展示必需的三项，不泄露 type/转换规则。
+ * 与 downloadTemplate 同源（都读 FIELD_DEFS），所以"预览到的"＝"下载下来的"，不会两处漂移。
+ * ⚠️ 多模版接入点：将来由后端按 t_contract_template.tb_name 的实际表结构下发该清单，
+ *    届时只需把本函数改成读入参 tpl，调用方（import.vue）无需改动。
+ */
+export function templateColumns() {
+    return FIELD_DEFS.map(({field, header, required}) => ({field, header, required: !!required}))
+}
+
 /* ---------------- 导出 ---------------- */
 /**
  * 将合同数据导出为 xlsx 并触发浏览器下载
@@ -210,7 +220,12 @@ export function exportFinanceExcel(rows, filename = '导给财务') {
 }
 
 /* ---------------- 模板下载 ---------------- */
-export function downloadTemplate() {
+/**
+ * 下载导入模板
+ * @param tplName 所选合同模版名。只进文件名，让不同模版下载下来的文件互不覆盖；
+ *                列定义仍取 FIELD_DEFS（当前唯一模版 t_contract 的列），与预览共用同一份清单。
+ */
+export function downloadTemplate(tplName) {
     const fieldRow = FIELD_DEFS.map(d => d.field)
     const headerRow = FIELD_DEFS.map(d => d.header)
     const exampleRow = FIELD_DEFS.map(({field, type}) => {
@@ -231,7 +246,8 @@ export function downloadTemplate() {
     })
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, sheet, '导入模板')
-    XLSX.writeFile(wb, '合同台账导入模板.xlsx')
+    const suffix = tplName ? `_${tplName}` : ''
+    XLSX.writeFile(wb, `合同台账导入模板${suffix}.xlsx`)
 }
 
 const EXAMPLE_ROW = {

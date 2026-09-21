@@ -28,6 +28,8 @@ let _roleCache = null    // 角色列表
 let _permCache = null    // 权限定义列表
 let _deptCache = null    // 组织架构（部门字典，来自 train.t_org）
 let _deptLoading = null  // 组织架构请求去重：登录预加载与首屏页面可能同时触发
+let _tplCache = null     // 合同模版列表（模板是低频变更的系统配置，仅「部门合同模板」页用到，
+                         // 因此不进登录预加载，只在首次访问该页时拉一次并缓存）
 
 /**
  * 组织架构只拉一次：命中缓存直接返回，否则复用同一个在途请求。
@@ -75,6 +77,7 @@ export function clearDictCache() {
     _permCache = null
     _deptCache = null
     _deptLoading = null
+    _tplCache = null
 }
 
 /* ---------------- 当前用户快照 ---------------- */
@@ -173,9 +176,10 @@ class SysX {
         });
     }
 
-    async importContractExcel(rows, signal, onBefore, onAfter) {
+    // params = {tpl_id}：模版是整批数据的身份，后端据此比对部门绑定后才允许落库
+    async importContractExcel(rows, params, signal, onBefore, onAfter) {
         onBefore?.();
-        ApiX.importContractExcel(rows, signal).then(succ => {
+        ApiX.importContractExcel(rows, params, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
             onAfter?.(false, _failBody(fail));
@@ -265,6 +269,71 @@ class SysX {
         } catch (fail) {
             onAfter?.(false, _failBody(fail));
         }
+    }
+
+    /* ---------------- 合同模版 / 部门-模版映射 ---------------- */
+    // 模版列表是低频变更的系统配置（只由「部门合同模板」页使用；
+    // 导入页的模版来自 /deptTpl/effective，不再拉这份列表），
+    // 首次拉取后缓存；与其它字典一样由 clearDictCache 在登出时清掉 —— 换账号不能沿用上一个人的字典。
+    async getTemplateList(paras, signal, onBefore, onAfter) {
+        if (_tplCache) {
+            onAfter?.(true, {code: __OK__, data: _tplCache})
+            return
+        }
+        onBefore?.();
+        try {
+            const succ = await ApiX.getTemplateList(paras, signal)
+            _tplCache = succ?.data?.data || []
+            onAfter?.(true, {code: __OK__, data: _tplCache})
+        } catch (fail) {
+            onAfter?.(false, _failBody(fail));
+        }
+    }
+
+    /**
+     * 部门 → 模版 绑定全量。刻意不做本地缓存：
+     * 绑定刚刚才在本页改过，拿旧快照渲染会让用户以为没保存成功；
+     * 保存/解除后重新拉一次就是真实回源，代价只是一次百余行的查询。
+     */
+    async getDeptTplList(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        ApiX.getDeptTplList(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, _failBody(fail));
+        });
+    }
+
+    async saveDeptTpl(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        ApiX.saveDeptTpl(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, _failBody(fail));
+        });
+    }
+
+    async deleteDeptTpl(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        ApiX.deleteDeptTpl(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, _failBody(fail));
+        });
+    }
+
+    /**
+     * 单个部门的「生效模版」（读，不缓存）。
+     * 不缓存的理由和 getDeptTplList 一样：刚在「部门合同模板」页改过绑定，
+     * 导入页却拿旧快照去拦用户，会得到一个与事实相反的结论。
+     */
+    async getDeptTplEffective(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        ApiX.getDeptTplEffective(paras, signal).then(succ => {
+            onAfter?.(true, succ.data);
+        }).catch(fail => {
+            onAfter?.(false, _failBody(fail));
+        });
     }
 }
 

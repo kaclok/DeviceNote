@@ -1,11 +1,12 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
-import {downloadTemplate, parseContractExcel} from "../utils/ExcelX.js"
+import {parseContractExcel} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
 import {buildDeptPathMap, buildScopedDeptTree, matchDept, deptDisplay, deptScopeDepts, effectiveScope, scopeText, SCOPE} from "../utils/DeptX.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
+import {ElMessage, ElMessageBox} from "element-plus"
 
 const router = useRouter();
 
@@ -19,13 +20,25 @@ const dataScope = effectiveScope(_acc)
 const scopeAll = dataScope === SCOPE.ALL
 // 展开起点：账号自己的归属部门 —— 与后端 expandScope 的入参同口径
 const myDeptCode = _acc.dept_code || ''
+/**
+ * 有没有配置类权限（perm:assign）：决定"没有模板"那个弹窗给不给「前往配置」的出口。
+ * 导入岗只持 contract:import，点了「前往配置」也会被路由守卫弹回来 ——
+ * 与其让用户撞一次空门，不如直接告诉他"找管理员配"。
+ */
+const canAssign = Array.isArray(_acc.role?.perms) && _acc.role.perms.includes('perm:assign')
 
 const importing = ref(false)
 const result = ref(null)          // {success, fail, failRows:[{row,id,title,reason}]}
 const file = ref(null)
-// 归属部门：导入的整批合同统一归属该部门（必填，导入前先选定）
-// 受限账号只能导到自己范围内，直接预填归属部门省一步；全集团账号留空，必须显式选择
-const deptCode = ref(scopeAll ? '' : myDeptCode)
+
+/* ---------------- ① 归属部门（本页第一步） ----------------
+ * 流程反过来了：先定部门 → 部门用的合同模板由后端沿组织树算出来 → 有模板才允许传文件。
+ * 为什么把"选模板"从这一页整个拿掉：模板是部门级的系统配置（一个部门只能有一套），
+ * 让导入的人自己挑模板，等于给他留着绕开配置页改口径的口子。现在模板由部门决定，
+ * 本页只如实呈现"这个部门用的是哪套、写进哪张表"。
+ * 模板的预览与下载都搬到「部门合同模板」页了 —— 配之前先看一眼，顺序也更自然。
+ * 刻意不预填归属部门：预填会在进页面时就弹出"该部门没配模板"，白白惊用户一下。 */
+const deptCode = ref('')
 const allDeptOptions = ref([])
 const deptPathMap = computed(() => buildDeptPathMap(allDeptOptions.value))
 
@@ -94,6 +107,117 @@ function clearDept() {
     treeRef.value?.setCurrentKey(null)
 }
 
+/* ---------------- 部门 → 合同模版（后端算，前端只呈现） ----------------
+ * 绑定关系打在部门上、沿组织树可继承（通常只绑在公司节点，末端部门继承生效），
+ * 所以"这个部门到底用哪套模板"只有后端能给准话 —— 它同时握手了组织父链和绑定表。
+ * ⚠️ 这一层只负责"别让用户白跑一趟解析"；真正的拦截在后端 contract/import 的逐行校验 ——
+ *    前端可以被绕过（改包、直连），后端不能。 */
+const effBind = ref(null)          // 该部门生效的绑定；null = 整条组织链上都没有绑定
+const effLoading = ref(false)
+const effLoadOk = ref(true)        // 核对请求是否成功：失败时不给结论，只提示稍后重试
+const AC_eff = new AbortController()
+
+/**
+ * 该部门实际生效的模板（后端沿组织树向上找最近的已绑定祖先，与「部门合同模板」页同口径）。
+ * 后端把 tb_name / importable 一并下发：本页因此不必再拉一次模板列表，
+ * 也少了一份可能过期的副本 —— 页面显示的"写进哪张表"就是后端认定的那张。
+ */
+const curTpl = computed(() => {
+    const b = effBind.value
+    if (!b || b.tpl_id == null) return null
+    return {
+        id: b.tpl_id,
+        name: b.tpl_name || ('#' + b.tpl_id),
+        tb_name: b.tb_name || '',
+        // 判据写成 "!== false"：后端没下发该字段（例如命中旧缓存）时不拦，由后端 fail-closed 兜底
+        importable: b.importable !== false,
+    }
+})
+
+/** 该部门用的模板是否可用；不可用时给出具体原因（'' = 可用） */
+const tplBlockMsg = computed(() => {
+    const t = curTpl.value
+    if (!t || t.importable) return ''
+    return t.tb_name
+        ? `模版「${t.name}」对应的物理表 ${t.tb_name} 尚未接入导入链路，暂时无法导入`
+        : `模版「${t.name}」已失效（模板记录不存在），请联系管理员`
+})
+
+/** 拉取某部门实际生效的模版；顺带给"没配置"的情况弹一次提示 */
+function loadEffective(code) {
+    if (!code) {
+        effBind.value = null
+        effLoadOk.value = true
+        return
+    }
+    effLoading.value = true
+    Singleton.getInstance(SysX).getDeptTplEffective({dept_code: code}, AC_eff.signal, () => {
+    }, (r, data) => {
+        // 快速连点两个部门时，先发的请求可能后到 —— 回来时部门已经换了，就别再改界面了
+        if (code !== deptCode.value) return
+        effLoading.value = false
+        // 核对失败时按"未绑定"处理会误导用户去建立绑定，所以这里只把结论置空，
+        // 由 effLoadOk 让 bindState 退回 idle（不给结论）
+        effBind.value = r ? (data.data || null) : null
+        effLoadOk.value = !!r
+        if (r && !effBind.value) promptConfigure(code)
+    })
+}
+
+/** 部门变更即重新核对；清空时直接归零，不发无意义请求 */
+watch(deptCode, code => {
+    effBind.value = null
+    effLoadOk.value = true
+    loadEffective(code)
+}, {immediate: true})
+
+/**
+ * 绑定状态，四态：
+ *   idle     还没选定部门（没什么可核对的）；或核对请求失败（不给结论）
+ *   checking 正在核对
+ *   unbound  该部门（及其全部上级）都没有配置模板 → 无法导入，必须先去配置
+ *   ready    该部门认下了某套模板 → 放行（这套模板本身能不能导另由 tplBlockMsg 判）
+ */
+const bindState = computed(() => {
+    if (!deptCode.value) return 'idle'
+    if (effLoading.value) return 'checking'
+    if (!effLoadOk.value) return 'idle'
+    if (!curTpl.value) return 'unbound'
+    return 'ready'
+})
+
+/** 绑定是打在本部门还是继承自上级（与「部门合同模板」页的「当前生效」同一说法） */
+const effFromSelf = computed(() => !!effBind.value && !effBind.value.inherited)
+
+/**
+ * 「该部门没有合同模板」的弹窗：不做静默处理 —— 用户点了个部门却什么都不发生，
+ * 只会让他反复点、或者干脆去猜为什么不给传文件。
+ * 有配置权限的人给一个直达出口；没有的人只能被告知去找管理员（见 canAssign）。
+ */
+function promptConfigure(code) {
+    const head = `部门「${deptPath(code)}」还没有配置合同模板，因此无法导入数据。`
+    if (!canAssign) {
+        // 没有 perm:assign 的人点了「前往配置」只会被路由守卫弹回来，索性不给这个按钮
+        ElMessageBox.alert(
+            head + '请联系管理员到「部门合同模板」页为该部门指定模板。',
+            '该部门没有合同模板',
+            {type: 'warning', confirmButtonText: '知道了'}
+        ).catch(() => {
+        })
+        return
+    }
+    ElMessageBox.confirm(
+        head + '请先到「部门合同模板」页为它指定模板（可以直接沿用上级部门的模板）。',
+        '该部门没有合同模板',
+        {type: 'warning', confirmButtonText: '前往配置模板', cancelButtonText: '知道了'}
+    ).then(() => goDeptTpl()).catch(() => {
+    })
+}
+
+function goDeptTpl() {
+    router.push({name: 'home_deptTpl'})
+}
+
 const AC_import = new AbortController()
 const AC_dept = new AbortController()
 
@@ -104,6 +228,7 @@ onMounted(() => {
 onUnmounted(() => {
     AC_import.abort()
     AC_dept.abort()
+    AC_eff.abort()
 })
 
 // 归属部门字典：登录后已由 SysX 预加载缓存，这里命中缓存即刻返回
@@ -118,14 +243,40 @@ function loadDepts() {
 const fileInput = ref()
 
 /**
- * 点点击上传区：未选归属部门时连文件选择框都不打开。
- * 归属部门是必填项，先选后传能避免用户选完文件才被拦（那一趟已白跑一次解析）。
+ * 上传前置闸门：归属部门 → 核对中 → 核对失败 → 该部门没配模板 → 模板本身不可用。
+ * 顺序即步骤顺序（先说最早缺的那个），避免用户补完一个又撞下一个。
+ */
+function uploadGate() {
+    if (!deptCode.value) {
+        ElMessage.warning('请先在左侧选择归属部门，再上传文件')
+        return false
+    }
+    if (bindState.value === 'checking') {
+        ElMessage.warning('正在核对该部门的合同模板，请稍候再试')
+        return false
+    }
+    if (bindState.value === 'idle' && !effLoadOk.value) {
+        ElMessage.warning('部门合同模板核对失败，请稍后重试或联系管理员')
+        return false
+    }
+    if (bindState.value === 'unbound') {
+        ElMessage.error(`部门「${deptPath(deptCode.value)}」没有配置合同模板，无法导入数据；` +
+            `请先到「部门合同模板」页为该部门指定模板`)
+        return false
+    }
+    if (tplBlockMsg.value) {
+        ElMessage.error(tplBlockMsg.value)
+        return false
+    }
+    return true
+}
+
+/**
+ * 点击上传区：闸门不过就连文件选择框都不打开 ——
+ * 先过闸再选文件，能避免用户选完文件才被拦（那一趟解析已经白跑）。
  */
 function onUploadClick() {
-    if (!deptCode.value) {
-        ElMessage.warning('请先选择归属部门，再上传文件')
-        return
-    }
+    if (!uploadGate()) return
     fileInput.value.click()
 }
 
@@ -136,19 +287,14 @@ function onFileChange(e) {
 }
 
 function onDrop(e) {
-    if (!deptCode.value) {
-        ElMessage.warning('请先选择归属部门，再上传文件')
-        return
-    }
+    // 先把文件取出来：下面可能提前 return，而 DataTransfer 在事件回调返回后会被清空
     const f = e.dataTransfer.files[0]
+    if (!uploadGate()) return
     if (f) handleFile(f)
 }
 
 async function handleFile(f) {
-    if (!deptCode.value) {
-        ElMessage.warning('请先选择归属部门，再上传文件')
-        return
-    }
+    if (!uploadGate()) return
     if (!/\.(xlsx|xls)$/i.test(f.name)) {
         ElMessage.error('仅支持 .xlsx / .xls 文件')
         return
@@ -162,11 +308,14 @@ async function handleFile(f) {
             importing.value = false
             return
         }
-        // 整批统一打上所选归属部门（后端逐行强校验：缺部门或部门非法都按行拦截）
+        // 整批统一打上所选归属部门（后端逐行强校验：缺部门、部门非法、或超出数据范围都按行拦截）。
         rows.forEach(r => {
             r.dept_code = deptCode.value
         })
-        Singleton.getInstance(SysX).importContractExcel(rows, AC_import.signal, () => {
+        // tpl_id 随 params 一起传：它声明"这批数据属于哪套模版"，值来自该部门的生效绑定。
+        // 前端选的模版不是权威 —— 后端会拿它跟部门绑定比对，对不上就逐行拦下，
+        // 所以这里即使传错，也换不来一次"落错表"的成功导入。
+        Singleton.getInstance(SysX).importContractExcel(rows, {tpl_id: curTpl.value.id}, AC_import.signal, () => {
         }, (r, data) => {
             importing.value = false
             if (r) {
@@ -201,25 +350,18 @@ function goLedger() {
     <div class="import-page">
         <div class="page-head">
             <div class="head-title">Excel 批量导入</div>
-            <div class="head-desc">下载模板 → 填写数据 → 选择归属部门 → 上传校验 → 查看导入结果（支持 .xlsx / .xls，单次最多 1000 行）</div>
+            <div class="head-desc">
+                选择归属部门（该部门须已配置合同模板）→ 上传文件 → 查看导入结果；模板的预览与下载在「部门合同模板」页
+                （支持 .xlsx / .xls，单次最多 1000 行）
+            </div>
         </div>
 
-        <!-- 模板 -->
-        <el-card shadow="never" class="block-card">
-            <div class="block-title">① 下载模板</div>
-            <div class="block-body">
-                <el-button @click="downloadTemplate">⬇️ 下载导入模板</el-button>
-                <!--                <el-button @click="downloadTemplate">📄 查看填写说明</el-button>-->
-                <div class="tip-text">模板包含全部字段与示例行，带 * 的为必填项；合同编号重复将整行拦截</div>
-            </div>
-        </el-card>
-
-        <!-- ② 归属部门 + ③ 上传文件：左树右传（与账号管理页同构），左树默认全展开 -->
+        <!-- ①② 归属部门 + 上传文件：左树右传（与账号管理页同构），左树默认全展开 -->
         <div class="import-body">
             <!-- 左侧：常驻组织架构。点部门即选定本批合同的归属部门（与账号页一样，点一次即生效） -->
             <el-card shadow="never" class="dept-aside">
                 <div class="aside-head">
-                    <span class="aside-title">② 归属部门（必填）</span>
+                    <span class="aside-title">① 归属部门（必填）</span>
                     <span v-if="deptCode" class="aside-clear" @click="clearDept">清空</span>
                 </div>
                 <el-input v-model="treeKeyword" placeholder="搜索部门" clearable size="small" class="aside-search">
@@ -262,6 +404,17 @@ function goLedger() {
                         <!-- 一层一行：部门所处层级 = 展示行数 = 该行高度（不再固定折两行截断） -->
                         <b v-if="deptCode" :title="deptPath(deptCode)"><span v-for="(seg, i) in deptPathSegments" :key="i" class="picked-seg">{{ seg }}<i v-if="i < deptPathSegments.length - 1" class="picked-slash">/</i></span></b><span v-else class="picked-empty">未选择</span>
                     </div>
+                    <!-- 选定部门后，这里给出"这个部门用的哪套模板"的结论：绿=配置到位可导、红=没配置不能导 -->
+                    <div v-if="deptCode" class="bind-line" :class="bindState">
+                        <template v-if="bindState === 'checking'">正在核对该部门的合同模板…</template>
+                        <template v-else-if="bindState === 'unbound'">
+                            该部门没有配置合同模板 → 无法导入
+                            <span v-if="canAssign" class="bind-link" @click="goDeptTpl">前往配置 →</span>
+                        </template>
+                        <template v-else-if="bindState === 'ready'">
+                            该部门使用「{{ curTpl ? curTpl.name : '' }}」（{{ effFromSelf ? '本部门设置' : '继承自上级' }}）
+                        </template>
+                    </div>
                     <div v-if="!scopeAll" class="scope-line"
                          title="你的账号只能把合同导入到数据范围内的部门。需要更大范围请联系管理员调整数据范围。">
                         数据范围：{{ scopeText(dataScope) }}
@@ -269,10 +422,11 @@ function goLedger() {
                 </div>
             </el-card>
 
-            <!-- 右侧：上传区。未选定部门时禁用（点击/拖拽都会给出明确提示） -->
+            <!-- 右侧：上传区。未选定部门、或该部门没有模板时禁用（点击/拖拽都会给出明确提示） -->
             <el-card shadow="never" class="upload-card">
-                <div class="block-title">③ 上传文件</div>
-                <div class="upload-zone" :class="{dragging: importing, disabled: !deptCode}"
+                <div class="block-title">② 上传文件</div>
+                <div class="upload-zone"
+                     :class="{dragging: importing, disabled: !deptCode || bindState !== 'ready' || !!tplBlockMsg}"
                      @click="onUploadClick"
                      @dragover.prevent="importing = true" @dragleave.prevent="importing = false" @drop.prevent="onDrop">
                     <div class="uic">📂</div>
@@ -281,17 +435,30 @@ function goLedger() {
                     <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileChange"/>
                 </div>
                 <div v-if="!deptCode" class="warn-tip">请先在左侧选择归属部门</div>
+                <div v-else-if="bindState === 'checking'" class="warn-tip">正在核对该部门的合同模板…</div>
+                <div v-else-if="bindState === 'idle' && !effLoadOk" class="warn-tip danger">
+                    ⛔ 部门合同模板核对失败，请稍后重试或联系管理员
+                </div>
+                <div v-else-if="bindState === 'unbound'" class="warn-tip danger">
+                    ⛔ 该部门没有配置合同模板，无法导入
+                    <span v-if="canAssign" class="bind-link" @click="goDeptTpl">前往「部门合同模板」配置 →</span>
+                    <span v-else>请联系管理员到「部门合同模板」页为该部门指定模板</span>
+                </div>
+                <div v-else-if="tplBlockMsg" class="warn-tip danger">⛔ {{ tplBlockMsg }}</div>
+                <div v-else-if="bindState === 'ready'" class="warn-tip ok">
+                    ✅ 该部门使用「{{ curTpl.name }}」，本次将写入 {{ curTpl.tb_name }}
+                </div>
                 <div v-if="importing" class="importing-tip">
                     <el-icon class="is-loading" style="margin-right:6px"><i class="el-icon-loading"/></el-icon>
                     正在解析并校验...
                 </div>
-                <div class="tip-text">本批合同将统一归属到左侧选中的部门；未选择部门时无法上传。可在左侧搜索框按部门名称或编码模糊匹配。</div>
+                <div class="tip-text">本批合同将统一归属到左侧选中的部门。合同模板由该部门决定（在「部门合同模板」页配置），本页不能改；模板的预览与下载也在那一页。可在左侧搜索框按部门名称或编码模糊匹配。</div>
             </el-card>
         </div>
 
         <!-- 结果 -->
         <el-card v-if="result" shadow="never" class="block-card">
-            <div class="block-title">④ 导入结果</div>
+            <div class="block-title">③ 导入结果</div>
             <el-alert :type="result.fail > 0 ? 'warning' : 'success'" :closable="false" show-icon
                       :title="`成功 ${result.success} 条${result.fail > 0 ? `，失败 ${result.fail} 条（见下方明细）` : '，全部通过'}`"
                       style="margin-bottom:14px"/>
@@ -328,12 +495,12 @@ function goLedger() {
         }
     }
 
-    /* ① / ④ 仍是纵向堆叠的整块卡片 */
+    /* ③ 仍是纵向堆叠的整块卡片 */
     .block-card {
         margin-bottom: 16px;
     }
 
-    /* 区块标题：①②③④ 共用 */
+    /* 区块标题：②③ 共用 */
     .block-title {
         font-size: 15px;
         font-weight: 600;
@@ -352,6 +519,25 @@ function goLedger() {
         margin-top: 12px;
         font-size: 12px;
         color: #e6a23c;
+
+        /* 结论沿用同一套语义色：绿=配置到位可放行、红=已阻断 */
+        &.ok {
+            color: #16a34a;
+        }
+
+        &.danger {
+            color: #dc2626;
+            font-weight: 600;
+        }
+    }
+
+    /* 被阻断时的一键出口：不让用户对着红条干瞪眼 */
+    .bind-link {
+        margin-left: 6px;
+        color: #2563eb;
+        cursor: pointer;
+        font-weight: 400;
+        text-decoration: underline;
     }
 
     .upload-zone {
@@ -378,7 +564,7 @@ function goLedger() {
             }
         }
 
-        /* 未选归属部门：视觉上提示不可用（点击仍会给出明确提示） */
+        /* 未选归属部门 / 部门没配模板：视觉上提示不可用（点击仍会给出明确提示） */
         &.disabled {
             opacity: .6;
 
@@ -423,7 +609,7 @@ function goLedger() {
         margin-top: 16px;
     }
 
-    /* ② + ③：左树右传，两栏等高（左侧定宽、右侧吃掉剩余宽度）。
+    /* ① + ②：左树右传，两栏等高（左侧定宽、右侧吃掉剩余宽度）。
        min-height 保证树与上传区都不会被内容挤扁。 */
     .import-body {
         display: flex;
@@ -537,6 +723,24 @@ function goLedger() {
                     margin-top: 4px;
                     color: #94a3b8;
                     cursor: help;
+                }
+
+                /* 该部门用的哪套模板（紧贴部门信息，就地回答"能不能导"） */
+                .bind-line {
+                    margin-top: 6px;
+                    line-height: 1.5;
+
+                    &.checking {
+                        color: #94a3b8;
+                    }
+
+                    &.unbound {
+                        color: #dc2626;
+                    }
+
+                    &.ready {
+                        color: #16a34a;
+                    }
                 }
             }
 
