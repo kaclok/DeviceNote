@@ -34,6 +34,15 @@ function deptPath(code) {
     return deptDisplay(deptPathMap.value, code)
 }
 
+/**
+ * 已选路径按层级拆行：部门在第几层就占几行，一行一层（窄侧栏里固定折 2 行会把第 3 层吃掉）。
+ * 高度不再写死 —— 行数即层数，由 .picked-seg 的 block 自然撑开。
+ */
+const deptPathSegments = computed(() => {
+    if (!deptCode.value) return []
+    return deptPath(deptCode.value).split('/').filter(Boolean)
+})
+
 /* ---------------- 左侧常驻组织架构树 ---------------- */
 const treeRef = ref()
 const treeKeyword = ref('')
@@ -51,7 +60,7 @@ const visibleDeptCodes = computed(() => {
 /**
  * 树数据：全量字典按可见集剪枝 + 补回祖先链（否则父节点缺失，每个部门都会变成根节点）。
  * 祖先节点由 buildScopedDeptTree 标成 selectable=false —— 只作层级路径，不可选。
- * 常态收缩：不设 default-expanded-keys，全部折叠（116 个部门一次铺开会把左栏撑成长条）。
+ * 默认全展开（模板上的 default-expand-all），超出栏高时由 .tree-box 滚动。
  * 搜索无需额外处理 —— Element Plus 的 tree-store.filter 会对每个可见非叶节点调 node.expand()，
  * 自顶向下遍历，命中项的整条祖先路径会自动展开。
  */
@@ -205,7 +214,7 @@ function goLedger() {
             </div>
         </el-card>
 
-        <!-- ② 归属部门 + ③ 上传文件：左树右传（与账号管理页同构），左树常态收缩 -->
+        <!-- ② 归属部门 + ③ 上传文件：左树右传（与账号管理页同构），左树默认全展开 -->
         <div class="import-body">
             <!-- 左侧：常驻组织架构。点部门即选定本批合同的归属部门（与账号页一样，点一次即生效） -->
             <el-card shadow="never" class="dept-aside">
@@ -225,6 +234,7 @@ function goLedger() {
                         :current-node-key="deptCode || null"
                         :filter-node-method="filterNode"
                         highlight-current
+                        default-expand-all
                         :expand-on-click-node="false"
                         @node-click="onTreeClick"
                     >
@@ -249,7 +259,8 @@ function goLedger() {
                             </span>
                         </Transition>
                         <span class="picked-label">已选：</span>
-                        <b v-if="deptCode" :title="deptPath(deptCode)">{{ deptPath(deptCode) }}</b><span v-else class="picked-empty">未选择</span>
+                        <!-- 一层一行：部门所处层级 = 展示行数 = 该行高度（不再固定折两行截断） -->
+                        <b v-if="deptCode" :title="deptPath(deptCode)"><span v-for="(seg, i) in deptPathSegments" :key="i" class="picked-seg">{{ seg }}<i v-if="i < deptPathSegments.length - 1" class="picked-slash">/</i></span></b><span v-else class="picked-empty">未选择</span>
                     </div>
                     <div v-if="!scopeAll" class="scope-line"
                          title="你的账号只能把合同导入到数据范围内的部门。需要更大范围请联系管理员调整数据范围。">
@@ -494,17 +505,27 @@ function goLedger() {
                         line-height: 1.45;
                     }
 
-                    /* 全路径可能长达两三行：最多折两行，超出才省略；完整路径挂 title，悬浮可看全 */
+                    /* 一行一层：部门在第几层就展示几行，高度随层级自适应（不写死行数）。
+                       单层名字过长只在本行内省略，完整路径另挂 title 悬浮可看全。 */
                     b {
                         flex: 1 1 auto;
                         min-width: 0;
-                        display: -webkit-box;
-                        -webkit-box-orient: vertical;
-                        -webkit-line-clamp: 2;
-                        overflow: hidden;
-                        word-break: break-all;
+                        display: block;
                         line-height: 1.45;
                         color: #2563eb;
+
+                        .picked-seg {
+                            display: block;
+                            overflow: hidden;
+                            white-space: nowrap;
+                            text-overflow: ellipsis;
+                        }
+
+                        .picked-slash {
+                            margin-left: 1px;
+                            font-style: normal;
+                            color: #94a3b8;
+                        }
                     }
 
                     .picked-empty {

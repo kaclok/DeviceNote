@@ -165,32 +165,18 @@ const visibleDeptCodes = computed(() => {
     return vis === null ? null : new Set(vis.map(d => d.dept_code))
 })
 
-/** 虚拟根节点 key：点它 = 清空部门筛选（不带 dept_code 条件查全量） */
-const ALL_DEPT_KEY = '__all__'
-
-/**
- * 默认展开的节点：只展开虚拟根，其余全部折叠（116 个部门一次铺开会把左栏撑成长条）。
- * ⚠️ 刻意不用 defaultExpandAll：那是"永远全展开"，还会让搜索失去意义。
- * 搜索不需要额外处理 —— Element Plus 的 tree-store.filter 会对每个**可见的非叶节点**
- * 调 node.expand()（tree-store.mjs `if (node.visible && !node.isLeaf) node.expand()`），
- * 自顶向下遍历，命中项的整条祖先路径会自动展开。
- */
-const DEFAULT_EXPANDED_KEYS = [ALL_DEPT_KEY]
-
 /**
  * 树数据：全量字典按可见集剪枝 + 补回祖先链。
  * 直接拿可见集建树是不行的 —— 父节点不在集合里，每个部门都会变成根节点，看不出层级
  * （所以必须传全量字典，只把祖先节点标成 selectable=false 作层级路径）。
- * 顶部挂一个虚拟根「全部部门」，作为"取消部门筛选"的入口。
+ * 顶层直接是真实根节点（不再挂虚拟根）——"取消部门筛选"由头部「清空」承担。
+ * 展开状态交给模板的 default-expand-all（见其处的说明）。
  */
-const treeData = computed(() => {
-    const nodes = buildScopedDeptTree(deptOptions.value, visibleDeptCodes.value)
-    return [{dept_code: ALL_DEPT_KEY, dept_name: '全部部门', isAll: true, selectable: true, children: nodes}]
-})
+const treeData = computed(() => buildScopedDeptTree(deptOptions.value, visibleDeptCodes.value))
 
 /** 树搜索：部门名 / 公司·部门全路径 / 部门编码 任一命中（父节点因有命中子节点而保留） */
 function filterNode(value, data) {
-    return data.isAll ? true : matchDept(data, value, deptPathMap.value)
+    return matchDept(data, value, deptPathMap.value)
 }
 
 watch(treeKeyword, v => {
@@ -198,7 +184,6 @@ watch(treeKeyword, v => {
 })
 
 function nodeTitle(data) {
-    if (data.isAll) return '显示全部部门的账号'
     return data.selectable ? deptPath(data.dept_code) : '该部门不在你的数据范围内，仅作为层级路径展示'
 }
 
@@ -211,13 +196,14 @@ function onTreeClick(data) {
         ElMessage.warning('该部门不在你的数据范围内，仅作为层级路径展示')
         return
     }
-    deptFilter.value = data.isAll ? '' : data.dept_code
+    deptFilter.value = data.dept_code
     applySearch()
 }
 
-/** 清空部门筛选：与点「全部部门」等价（current-node-key 会跟着 deptFilter 回到虚拟根） */
+/** 清空部门筛选：回到"不筛选"（显示可见范围内的全部账号），并取消树上的高亮 */
 function clearDeptFilter() {
     deptFilter.value = ''
+    treeRef.value?.setCurrentKey(null)
     applySearch()
 }
 
@@ -478,7 +464,7 @@ function toggleStatus(row) {
     <div class="users-page">
         <div class="page-head">
             <div class="head-title">账号与权限管理</div>
-            <div class="head-desc">为每个账号分配角色与归属部门；功能权限由角色决定，数据范围可按账号单独指定（仅集团管理员可调）</div>
+            <div class="head-desc">为每个账号分配角色与归属部门；功能权限由角色决定，数据范围可按账号单独指定</div>
         </div>
 
         <div class="users-body">
@@ -498,10 +484,10 @@ function toggleStatus(row) {
                         :data="treeData"
                         node-key="dept_code"
                         :props="{label: 'dept_name', children: 'children'}"
-                        :current-node-key="deptFilter || ALL_DEPT_KEY"
+                        :current-node-key="deptFilter || null"
                         :filter-node-method="filterNode"
                         highlight-current
-                        :default-expanded-keys="DEFAULT_EXPANDED_KEYS"
+                        default-expand-all
                         :expand-on-click-node="false"
                         @node-click="onTreeClick"
                     >
