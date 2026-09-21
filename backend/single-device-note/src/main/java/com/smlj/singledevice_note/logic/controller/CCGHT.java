@@ -4,6 +4,7 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageSerializable;
 import com.smlj.singledevice_note.core.annotation.Acc;
 import com.smlj.singledevice_note.core.annotation.RequirePermission;
+import com.smlj.singledevice_note.core.o.to.DataScope;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
@@ -38,7 +39,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -52,30 +52,12 @@ import org.springframework.format.annotation.DateTimeFormat;
 public class CCGHT {
     private static final String DEFAULT_INIT_PWD = "123456";
 
-    /**
-     * data_scope 档位。范围的唯一来源是 cght.t_user.data_scope（NOT NULL，新建必填），
-     * 角色侧不再有任何范围字段，所以取值注释只跟 t_user 对表。
-     * <p>
-     * ⚠️ 编号本身就是「包含序」，而且这里是**严格**包含序：
-     * {归属部门子树} ⊂ {所属公司子树} ⊂ {全集}。
-     * <p>
-     * 「本部门」档自带下级，所以不存在单独的「本部门及下级」档 —— 同一个 dept_code 下
-     * 两者都展开成 subtreeOf(dept_code)，结果完全一致，多留一档只会让人以为有得选。
-     * 一级真正包含一级之后，"该配哪一档"只剩一个问题：这个人管到部门、公司，还是整个集团。
-     * <p>
-     * 前端「只能分配不高于自身档位」的收窄下拉按它判断（只是体验层，真正的拦截在后端的集合包含校验）。
-     * 新增档位必须插在包含序的正确位置上，不要图省事追加到末尾 —— 否则收窄会静默失效。
+    /*
+     * data_scope 档位：定义已收敛到 DataScope 枚举 —— 编号即包含序的说明、库值/入参解析、
+     * 「不小于」比较都在那里。本类不再保留 int 常量：档位一旦散成字面量，新增一档时编译器不会
+     * 提醒你漏了哪个分支；换成枚举后 expandScope 的 switch 是穷尽的，漏掉档位直接编译不过。
+     * 前端「只能分配不高于自身档位」的收窄下拉按编号判断（只是体验层，真正的拦截在后端的集合包含校验）。
      */
-    private static final int SCOPE_SELF = 1;      // 本人
-    private static final int SCOPE_DEPT = 2;      // 本部门（含全部下级部门 / 分厂 / 中心）
-    private static final int SCOPE_COMPANY = 3;   // 本公司（含全部下级部门）
-    private static final int SCOPE_ALL = 4;       // 全集团
-
-    /**
-     * 合法档位集合。用集合判断而非区间判断：档位增删时不会被编号顺序误导。
-     */
-    private static final Set<Integer> SCOPE_VALID = Set.of(
-            SCOPE_SELF, SCOPE_DEPT, SCOPE_COMPANY, SCOPE_ALL);
     /**
      * 当前登录用户解析（account -> 实时用户 + 角色，带 TTL 缓存）。
      * token 里只剩 account，凡是要判 data_scope / username / 停用状态的地方都走它，
@@ -244,7 +226,7 @@ public class CCGHT {
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         // curUser 是 TokenInterceptor 按 account 现查出来的实时账号行（不是 JWT 快照），
         // 所以这里读档位等于读库：admin 改了数据范围，不需要用户重登就按新档位收窄。
-        var account = dataScopeOf(curUser) == SCOPE_SELF ? curUser.getAccount() : null;
+        var account = dataScopeOf(curUser) == DataScope.SELF ? curUser.getAccount() : null;
         var ls = userDao.queryAll(kw, deptFilterOf(dept_code, resolveScopeDepts(curUser)), true, false, account);
         for (var i : ls) {
             i.setRole(roleDao.query(i.getRole_code()));
@@ -262,8 +244,13 @@ public class CCGHT {
      * <p>
      * data_scope 数据范围为新建必填：它是范围的唯一来源（t_role 侧已无该字段），留空没有东西能兜底。
      * 编辑时不传 = 保持原样；无论新建还是修改，给出的范围都必须落在操作者自己的可见范围内。
+     * <p>
+     * ⚠️ 本接口额外要求操作者自己至少具备「本部门」档（minScope = DataScope.DEPT）：
+     * 账号写入是**管理他人**的操作，而「本人」档的账号可见面只有自己 ——
+     * 即使角色里带着 perm:assign 也不该能建号/改号，否则「数据范围」这一层等于没有。
+     * 范围不足由 TokenInterceptor 直接拒（RC10307），下面各道闸都来不及看。
      */
-    @RequirePermission("perm:assign")
+    @RequirePermission(value = "perm:assign", minScope = DataScope.DEPT)
     @Transactional
     @PostMapping(value = "/account/save")
     public Result<?> accountSave(
@@ -329,25 +316,21 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10101.getCode(), "新建账号必须指定数据范围（1/2/3/4）");
         }
         final boolean scopeProvided = StringUtils.hasText(data_scope);
-        Integer scopeValue = null;
+        // 合法档位只有 1/2/3/4。DataScope.of 把「空串 / 不是数字 / 是数字但不在合法集合内」统一归成
+        // NONE，所以这里一次判定就够，不必分三种情况报不同文案 —— 对调用方它们是同一件事。
+        DataScope scopeValue = null;
         if (scopeProvided) {
-            final int v;
-            try {
-                v = Integer.parseInt(data_scope.trim());
-            } catch (NumberFormatException e) {
+            scopeValue = DataScope.of(data_scope);
+            if (!scopeValue.isValid()) {
                 return Result.fail(ResultCode.RC10101.getCode(), "数据范围取值必须为 1/2/3/4");
             }
-            if (!SCOPE_VALID.contains(v)) {
-                return Result.fail(ResultCode.RC10101.getCode(), "数据范围取值必须为 1/2/3/4");
-            }
-            scopeValue = v;
         }
         // (5) 不能给出「超出自己可管理范围」的数据范围。
         //     判据是精确集合包含（新范围的展开 ⊆ 我的可见部门），比数值比大小严谨。
         //     只在新账号、或范围真的发生变化时校验：编辑既有账号而范围原样不动时不该被拦，
         //     否则低权限操作者连"改个姓名"都做不了（那一行的范围值本来就超出他）。
         final boolean scopeChanged = old == null
-                || !Objects.equals(scopeValue, old.getData_scope());
+                || scopeValue != DataScope.of(old.getData_scope());
         if (scopeChanged && scopeValue != null && scopeDepts != null) {
             List<String> targetDepts = expandScope(scopeValue, dept_code, account);
             // ⚠️ expandScope 对「4 全集团」返回 null（null = 不限制），不是空集合。
@@ -403,8 +386,8 @@ public class CCGHT {
         }
         // 只有传了范围才写（编辑不传 = 保持原样）。新建必传，所以新账号一定有范围，无需任何兜底。
         if (scopeProvided) {
-            userDao.updateScope(account, scopeValue);
-            saved.setData_scope(scopeValue);
+            userDao.updateScope(account, scopeValue.getCode());
+            saved.setData_scope(scopeValue.getCode());
         }
         saved.setRole(roleDao.query(role_code));
         // 姓名 / 角色 / 归属部门 / 数据范围 / 密码都可能变了，缓存必须失效
@@ -572,11 +555,11 @@ public class CCGHT {
     // 档位来源：只有账号行自己的 data_scope（NOT NULL、新建必填），角色侧不再参与范围解析。
     // 「全集团 VIEWER」「分公司管理员」这类组合因此不必新建角色行，perms 也不用复制多份。
     //
-    // 档位 = 怎么展开，展开起点固定为账号自己的 dept_code（组织归属，与人事一致）：
-    //   1 本人      -> 按 t_contract.creator 过滤（列已建，过滤尚未接入，暂降级为「本部门」）
-    //   2 本部门    -> 起点整棵子树（含下级部门 / 分厂 / 中心，BFS 不写死层数）
-    //   3 本公司    -> 起点向上定位到的公司节点，取其整棵子树
-    //   4 全集团    -> 不限制
+    // 档位 = 怎么展开（枚举见 DataScope），展开起点固定为账号自己的 dept_code（组织归属，与人事一致）：
+    //   DataScope.SELF    -> 按 t_contract.creator 过滤（列已建，过滤尚未接入，暂降级为「本部门」）
+    //   DataScope.DEPT    -> 起点整棵子树（含下级部门 / 分厂 / 中心，BFS 不写死层数）
+    //   DataScope.COMPANY -> 起点向上定位到的公司节点，取其整棵子树
+    //   DataScope.ALL     -> 不限制
     //
     // 返回约定（三态，调用方必须区分）：
     //   null   → 不做范围限制（data_scope=4 全集团）
@@ -630,47 +613,59 @@ public class CCGHT {
      * 把「档位」展开成可见部门集合 —— 全模块唯一的范围展开实现。
      * resolveScopeDepts（执法）与 accountSave 的「不许分配高于自身的范围」（判定）都走它，
      * 保证"判定范围"与"执法范围"永远同源。
+     * <p>
+     * ⚠️ 用 switch 表达式穷尽全部档位、<strong>不写 default</strong>：新增一档时这里编译不过，
+     * 逼着人把"这一档展开成什么"想清楚。档位是范围的唯一口径，静默落进兜底分支就是静默越权。
      *
-     * @param scope      档位；见 SCOPE_*
+     * @param scope      档位；null 或 {@link DataScope#NONE} 一律按无可见数据兜底
      * @param deptCode   展开起点部门（账号归属部门）
      * @param logAccount 仅用于日志
      * @return 三态：null = 不限制 / 空列表 = 无可见部门(fail-closed) / 非空 = 白名单
      */
-    private List<String> expandScope(int scope, String deptCode, String logAccount) {
-        if (scope == SCOPE_ALL) {
-            return null;
-        }
-        if (!SCOPE_VALID.contains(scope)) {
-            log.warn("账号 {} 的 data_scope={} 不是已知档位，按无可见数据兜底", logAccount, scope);
-            return List.of();
-        }
-        if (!StringUtils.hasText(deptCode)) {
-            log.warn("账号 {} 的 data_scope={} 但没有归属部门，按无可见数据兜底", logAccount, scope);
-            return List.of();
-        }
-        // 3 本公司：以「起点向上定位到的公司节点」为根，展开整棵子树。
-        //   公司节点 = 集团根（没有父、或父不在启用集合里的那个节点）的直接子。
-        //   例：1030015006（本部/采购供应部）-> 公司 1030015（金泰化学本部）-> 其下 14 个部门。
-        if (scope == SCOPE_COMPANY) {
-            Set<String> sub = subtreeOf(companyOf(deptCode));
-            if (sub.isEmpty()) {
-                log.warn("账号 {} 本公司范围展开为空(dept_code={})，按归属部门收敛", logAccount, deptCode);
-                return List.of(deptCode);
+    private List<String> expandScope(DataScope scope, String deptCode, String logAccount) {
+        return switch (scope == null ? DataScope.NONE : scope) {
+            // 4 全集团：返回 null（"不限制"），调用方必须与"空集合"区别对待 —— 见方法上方三态说明。
+            case ALL -> null;
+            // 未知档位 / 字段缺失：fail-closed，一个部门都不给。
+            case NONE -> {
+                log.warn("账号 {} 的 data_scope={} 不是已知档位，按无可见数据兜底", logAccount,
+                        scope == null ? null : scope.getCode());
+                yield List.of();
             }
-            return List.copyOf(sub);
-        }
-        // 1 本人：依据是 t_contract.creator（录入人）。该列已于 2026-09-16 建立，但接入过滤要换一个
-        //        维度下推（creator = ? 而不是 dept_code in (...)），且历史数据 creator 为空 ——
-        //        接入前先降级为「本部门」而不是放行，比原档位更严格，不会造成越权。见 PRD §4.5.7。
-        if (scope == SCOPE_SELF) {
-            log.warn("账号 {} 的 data_scope=1(本人) 尚未接入 creator 过滤，暂按本部门收敛", logAccount);
-        }
-        // 2 本部门：起点自身 + 全部递归下级（BFS，不写死层数）。
-        //   部门天然包含下级 —— 这正是不再单设「本部门及下级」一档的原因：
-        //   同一个 dept_code 下两者都展开成 subtreeOf(dept_code)，完全重合，留两档只会让人以为有得选。
-        //   注意它不是「本公司」的别名 —— 起点=生产技术部时本档 12 个，本公司档是整公司 24 个。
-        Set<String> deptTree = subtreeOf(deptCode);
-        return deptTree.isEmpty() ? List.of() : List.copyOf(deptTree);
+            // 3 本公司：以「起点向上定位到的公司节点」为根，展开整棵子树。
+            //   公司节点 = 集团根（没有父、或父不在启用集合里的那个节点）的直接子。
+            //   例：1030015006（本部/采购供应部）-> 公司 1030015（金泰化学本部）-> 其下 14 个部门。
+            case COMPANY -> {
+                if (!StringUtils.hasText(deptCode)) {
+                    log.warn("账号 {} 的 data_scope=3(本公司) 但没有归属部门，按无可见数据兜底", logAccount);
+                    yield List.of();
+                }
+                Set<String> sub = subtreeOf(companyOf(deptCode));
+                if (sub.isEmpty()) {
+                    log.warn("账号 {} 本公司范围展开为空(dept_code={})，按归属部门收敛", logAccount, deptCode);
+                    yield List.of(deptCode);
+                }
+                yield List.copyOf(sub);
+            }
+            // 2 本部门：起点自身 + 全部递归下级（BFS，不写死层数）。
+            //   部门天然包含下级 —— 这正是不再单设「本部门及下级」一档的原因：
+            //   同一个 dept_code 下两者都展开成 subtreeOf(dept_code)，完全重合，留两档只会让人以为有得选。
+            //   注意它不是「本公司」的别名 —— 起点=生产技术部时本档 12 个，本公司档是整公司 24 个。
+            // 1 本人：依据是 t_contract.creator（录入人）。该列已于 2026-09-16 建立，但接入过滤要换一个
+            //        维度下推（creator = ? 而不是 dept_code in (...)），且历史数据 creator 为空 ——
+            //        接入前先降级为「本部门」而不是放行，比原档位更严格，不会造成越权。见 PRD §4.5.7。
+            case SELF, DEPT -> {
+                if (scope == DataScope.SELF) {
+                    log.warn("账号 {} 的 data_scope=1(本人) 尚未接入 creator 过滤，暂按本部门收敛", logAccount);
+                }
+                if (!StringUtils.hasText(deptCode)) {
+                    log.warn("账号 {} 的 data_scope={} 但没有归属部门，按无可见数据兜底", logAccount, scope.getCode());
+                    yield List.of();
+                }
+                Set<String> deptTree = subtreeOf(deptCode);
+                yield deptTree.isEmpty() ? List.<String>of() : List.copyOf(deptTree);
+            }
+        };
     }
 
     /**
@@ -711,12 +706,12 @@ public class CCGHT {
      * 角色的 data_scope 已删除（列已 drop）：范围是「这个人在组织里的位置」的函数，
      * 挂在角色上时「全集团 VIEWER」「分公司管理员」必须为每档范围复制一份角色行（连带复制整份 perms）。
      * <p>
-     * 取不到（账号不存在 / 该列为空）一律返回 0：不在 SCOPE_VALID 内 → expandScope 返回空集合 → fail-closed。
-     * 写入侧已把该列设为 NOT NULL 且新建必填，所以 0 只可能出现在脏数据上，按最严处理。
+     * 取不到（账号不存在 / 该列为空 / 未知编号）统一得到 {@link DataScope#NONE}：
+     * NONE 不是合法档位 → expandScope 返回空集合 → fail-closed。
+     * 写入侧已把该列设为 NOT NULL 且新建必填，所以 NONE 只可能出现在脏数据上，按最严处理。
      */
-    private int dataScopeOf(TCGHTUser db) {
-        if (db == null || db.getData_scope() == null) return 0;
-        return db.getData_scope();
+    private DataScope dataScopeOf(TCGHTUser db) {
+        return db == null ? DataScope.NONE : DataScope.of(db.getData_scope());
     }
 
     /**
@@ -902,7 +897,7 @@ public class CCGHT {
         var scopeDepts = resolveScopeDepts(curUser);
         // 1 本人档：只放行 sign_person 等于我姓名的合同。
         // curUser 是现查的实时账号行，改了姓名这里立刻跟上，不会拿登录时的旧姓名去比对。
-        var username = dataScopeOf(curUser) == SCOPE_SELF ? curUser.getUsername() : null;
+        var username = dataScopeOf(curUser) == DataScope.SELF ? curUser.getUsername() : null;
         PageHelper.startPage(pageNum, pageSize, true, true, true);
         var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day, deptFilterOf(dept_code, scopeDepts), username);
         return Result.success(new PageSerializable<>(ls));

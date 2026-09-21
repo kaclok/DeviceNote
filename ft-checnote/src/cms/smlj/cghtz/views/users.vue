@@ -74,6 +74,13 @@ const myAccount = _acc.account || ''
 // 「本人」档（1）的账号可见面只有自己（后端按 account 下推），按部门筛选此时必然 0 行 —— 隐藏。
 // 与 canManage 的本人档分支同口径，真正的收窄在后端 userDao.queryAll 的 scopeOwner 条件。
 const onlySelf = myScope === SCOPE.SELF
+/**
+ * 能否新建账号：除了要有 perm:assign，自己的数据范围还必须至少到「本部门」。
+ * 「本人」档的可见面只有自己，账号管理是**管理他人**的操作 —— 光有权限点没有范围等于放权。
+ * 后端 accountSave 的 minScope 闸与此同口径（那里才是安全边界，这里只是不给出误导性的按钮）。
+ */
+const canCreateAccount = myScope >= SCOPE.DEPT
+const createBlockReason = '数据范围为「本人」的账号不能新建账号 —— 你的可见范围只有自己'
 
 // 档位下拉：编号与文案的唯一来源 = gd.json（与 DeptX.SCOPE / scopeText 同源）
 const SCOPE_OPTIONS = gd.dataScope.levels.map(l => ({value: String(l.id), label: `${l.id} ${l.desc}`}))
@@ -81,6 +88,16 @@ const SCOPE_OPTIONS = gd.dataScope.levels.map(l => ({value: String(l.id), label:
 function canGrantScope(v) {
     return myScope === SCOPE.ALL || Number(v) <= myScope
 }
+
+/**
+ * 新建账号时「数据范围」的默认值 = **当前操作者自己的档位**。
+ * 默认值不该越权：给新账号一个比操作者更大的范围等于放权，而操作者自己的档位一定合法
+ * （必然通过 canGrantScope 的包含序校验），所以拿它当默认最直观也最安全。
+ * myScope < 1 表示连自己的档位都取不到（ACCOUNT 缓存缺失的异常态）：留空交给必填校验拦住，
+ * 而不是塞一个非法值进表单。
+ */
+const defaultScope = myScope >= SCOPE.SELF ? String(myScope) : ''
+
 /**
  * 本账号「可见的部门」—— 账号页两个部门选择器共用这一份，与后端 inScope 同口径：
  *   · 归属部门   ：只能把人挂到自己范围内的部门（后端 accountSave 第 (2) 条会校验）
@@ -342,7 +359,7 @@ const formRef = ref()
 const saving = ref(false)
 const form = ref({
     account: '', username: '', role_code: 'EDITOR', dept_code: '', password: '',
-    data_scope: '2',   // 数据范围必填，默认 2 本部门（含下级）
+    data_scope: defaultScope,   // 数据范围必填，默认 = 操作者自己的档位（见 defaultScope）
 })
 
 const rules = {
@@ -359,7 +376,7 @@ function openCreate() {
     isEdit.value = false
     form.value = {
         account: '', username: '', role_code: 'EDITOR', dept_code: '', password: '',
-        data_scope: '2',
+        data_scope: defaultScope,
     }
     dialogVisible.value = true
 }
@@ -499,7 +516,13 @@ function toggleStatus(row) {
 
             <el-card shadow="never" class="table-card">
                 <div class="toolbar">
-                    <el-button v-hasPermission="['perm:assign']" type="primary" @click="openCreate">＋ 新建账号</el-button>
+                    <!-- 禁用态按钮不派发鼠标事件，tooltip 必须由 span 承载（与表格行内按钮同做法） -->
+                    <el-tooltip :disabled="canCreateAccount" :content="createBlockReason" placement="bottom">
+                        <span>
+                            <el-button v-hasPermission="['perm:assign']" :disabled="!canCreateAccount"
+                                       type="primary" @click="openCreate">＋ 新建账号</el-button>
+                        </span>
+                    </el-tooltip>
                     <div class="spacer"></div>
                     <!-- 部门维度由左侧组织架构树承担（同一维度不设第二个入口）；
                          本人档：后端已把结果收窄成「只有自己」（scopeOwner 条件），搜索只是再筛一遍 -->

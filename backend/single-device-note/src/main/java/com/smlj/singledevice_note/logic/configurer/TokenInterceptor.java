@@ -3,6 +3,7 @@ package com.smlj.singledevice_note.logic.configurer;
 import com.smlj.singledevice_note.core.annotation.JwtIgnore;
 import com.smlj.singledevice_note.core.annotation.RequirePermission;
 import com.smlj.singledevice_note.core.annotation.RequireRole;
+import com.smlj.singledevice_note.core.o.to.DataScope;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
@@ -176,6 +177,18 @@ public class TokenInterceptor implements HandlerInterceptor {
                     }
                 }
                 if (!hasPerm) {
+                    response.getWriter().write(Result.fail(ResultCode.RC10307).toJson());
+                    return false;
+                }
+                // 范围闸：有权限点还不够，有些接口还要求操作者至少具备某个数据范围。
+                // 典型是账号写入 —— 「本人」档的账号可见面只有自己，不该能管别人（建号/改号），
+                // 哪怕它的角色里带着 perm:assign。判据用本次请求现查的账号行（不是 token 快照），
+                // 所以管理员改了档位后最长一个缓存 TTL 内就生效。
+                // minScope 默认 DataScope.NONE = 本接口不额外要求范围；比较走 atLeast（编号即包含序）。
+                // fail-closed：DataScope.of 对空值 / 未知编号一律回 NONE，而 NONE 不满足任何真实档位，
+                // 于是"档位取不到"与"档位不足"走同一条拒绝路径，不需要单独判空。
+                DataScope minScope = ann.minScope();
+                if (minScope != DataScope.NONE && !DataScope.of(user.getData_scope()).atLeast(minScope)) {
                     response.getWriter().write(Result.fail(ResultCode.RC10307).toJson());
                     return false;
                 }

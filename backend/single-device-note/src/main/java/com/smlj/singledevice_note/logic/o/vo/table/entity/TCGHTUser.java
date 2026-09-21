@@ -42,8 +42,9 @@ public class TCGHTUser implements Serializable {
      * 挂在角色上时「全集团 VIEWER」「分公司管理员」这类组合必须为每档范围复制一份角色行
      * （连带复制整份 perms，改一次权限要改 N 行）。放账号上后，同一份角色模板可以任意配范围。
      * <p>
-     * 保留包装类型 Integer 是为了让"取不到值"可识别：取不到时 dataScopeOf 返回 0，
-     * 不在 SCOPE_VALID 内 → fail-closed。写入侧已设 NOT NULL，正常路径不会有 null。
+     * 保留包装类型 Integer 是为了让"取不到值"可识别：解析统一走 DataScope.of()，
+     * 取不到值 / 未知编号 → DataScope.NONE（不是合法档位）→ fail-closed。
+     * 写入侧已设 NOT NULL 且新建必填，正常路径不会有 null。
      */
     private Integer data_scope;
     /** 角色对象：账号列表/登录响应都会把 role_code 关联查询出来并填充 */
