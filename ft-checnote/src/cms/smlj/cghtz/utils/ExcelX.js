@@ -83,23 +83,114 @@ const FINISHED_STR_TO_INT = (v) => {
 // 当前导入落表的物理表，与后端 CCGHT.IMPORT_TARGET_TABLE 对齐（台账读路径也只认这一张表）
 const IMPORT_TABLE = 't_contract'
 
-/** 取某张物理表的列清单；未登记该表时回落到当前导入表，保证老调用方零改动 */
-function columnsOf(tbName) {
+/** 取某张物理表的登记项（columns / examples）；未登记该表时回落到当前导入表，保证老调用方零改动 */
+function tableOf(tbName) {
     const all = gd.contractTables || {}
-    const t = all[tbName] || all[IMPORT_TABLE]
-    return (t && t.columns) || []
+    return all[tbName] || all[IMPORT_TABLE] || {}
+}
+
+function columnsOf(tbName) {
+    return tableOf(tbName).columns || []
+}
+
+/** 该表登记的示范行（模板里给用户照着填的样例）。样例值一律写在 gd.json，本文件不写死任何值 */
+function examplesOf(tbName) {
+    return tableOf(tbName).examples || []
+}
+
+/** 页面"预览模板表头"要展示的示范行：原样返回 gd.json 里登记的样例，不做任何改写 */
+export function templateExamples(tbName) {
+    return examplesOf(tbName)
 }
 
 // 导出 / 导入模板 / 导入解析三处共用（= 当前导入表 t_contract 的列）
 const FIELD_DEFS = columnsOf(IMPORT_TABLE)
 
 /**
- * 导入模板的列清单（供页面上"预览模板表头"用）：只暴露展示必需的三项，不泄露 type/转换规则。
+ * 类型字典也来自 gd.json 的 fieldTypes：label = 单元格类型名，sample = 该类型的格式样例。
+ * 本文件只做拼装，不写死「文本/数字/日期」这些中文 —— 以后新增一种类型只改 JSON。
+ */
+const TYPE_DEFS = gd.fieldTypes || {}
+
+/** 单元格类型名；未登记的类型按"文本"处理，而不是抛错（老数据里没有 type 的列也一样） */
+export function typeLabelOf(type) {
+    const d = TYPE_DEFS[type]
+    return (d && d.label) || (TYPE_DEFS.text && TYPE_DEFS.text.label) || String(type || '')
+}
+
+/**
+ * 模板第 3 行的「填写说明」：每列一句话，说清这格该填什么形状。
+ * 形如「数字（必填），如 3836.92」「选项：预付款待付／到货款待付／质保款待付／全付」。
+ * 每个单元格都以类型名开头 —— 导入解析据此认出这一行并跳过（见 isHintLike）。
+ */
+export function templateHints(tbName) {
+    return columnsOf(tbName).map(({type, required, options}) => {
+        const d = TYPE_DEFS[type] || {}
+        let s = typeLabelOf(type)
+        if (required) s += '（必填）'
+        if (options && options.length) s += '：' + options.join('／')
+        else if (d.sample) s += '，如 ' + d.sample
+        return s
+    })
+}
+
+/** 说明行识别：单元格以某个已登记的类型名开头，且类型名后面不是汉字。
+ *  类型名来自 gd.json（新增类型无需改这里）；用"后面不是汉字"而不是列举（/：/，——
+ *  因为说明文案里既有「数字（必填），如 …」也有「选项：A／B」，硬列分隔符迟早漏一个；
+ *  同时「日期未定」这类自由文本不会被误判成说明格。 */
+const HINT_HEAD_RE = new RegExp('^(' + Object.keys(TYPE_DEFS)
+    .map(k => String((TYPE_DEFS[k] || {}).label || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .filter(Boolean).join('|') + ')(?![一-龥])')
+
+/** 整行都长成"类型说明"的样子 → 判定为模板自带的填写说明行 */
+function isHintLike(row) {
+    const cells = row.map(c => String(c ?? '').trim()).filter(Boolean)
+    if (!cells.length) return false
+    return cells.filter(c => HINT_HEAD_RE.test(c)).length >= Math.ceil(cells.length * 0.6)
+}
+
+/**
+ * 导入模板的列清单（供页面上"预览模板表头"用）。
  * 与 downloadTemplate 同源（同一份 gd.json 的同一张表），所以"预览到的"＝"下载下来的"，不会两处漂移。
  * @param tbName 该模板引用的物理表名（t_contract_template.tb_name）；不传则用当前导入表
  */
 export function templateColumns(tbName) {
-    return columnsOf(tbName).map(({field, header, required}) => ({field, header, required: !!required}))
+    return columnsOf(tbName).map(({field, header, type, required, options}) => ({
+        field,
+        header,
+        type: type || 'text',
+        typeLabel: typeLabelOf(type),
+        required: !!required,
+        options: options || null,
+    }))
+}
+
+/** 比较用归一：去掉空白，避免用户文件里"合同 名称"这类排版差异导致认不出 */
+function norm(v) {
+    return String(v ?? '').replace(/\s+/g, '')
+}
+
+/**
+ * 已知中文表头文案 = gd.json 里所有登记表的 header（+ 台账常见的"序号"列）。
+ * 用途是"认出上传文件里的中文表头行"。
+ * ⚠️ 刻意用**全等**而不是"包含关键词"：前者认错只会把表头行当成数据（抛必填错误，看得见），
+ *   后者会反过来 —— 数据行里出现「某某供应商有限公司」+「备注」这类值就命中多个关键词，
+ *   整行被当成表头静默跳过。宁可见报错，不可丢数据。
+ */
+const KNOWN_HEADERS = new Set(['序号'])
+Object.keys(gd.contractTables || {}).forEach(k => {
+    ;((gd.contractTables[k] || {}).columns || []).forEach(c => KNOWN_HEADERS.add(norm(c.header)))
+})
+
+/** 「示范行」的比对键：id + title。两个字段同时命中才认，避免误伤真实数据 */
+function exampleKeys() {
+    const out = []
+    Object.keys(gd.contractTables || {}).forEach(k => {
+        ;(gd.contractTables[k].examples || []).forEach(ex => {
+            out.push([String(ex.id ?? '').trim(), String(ex.title ?? '').trim()])
+        })
+    })
+    return out
 }
 
 /* ---------------- 导出 ---------------- */
@@ -215,21 +306,26 @@ export function exportFinanceExcel(rows, filename = '导给财务') {
  * @param tplName 所选合同模版名。只进文件名，让不同模版下载下来的文件互不覆盖。
  * @param tbName  该模版引用的物理表名（t_contract_template.tb_name）。列定义按表取，
  *                与「预览模板表头」读的是同一份 gd.json，两边永远一致；不传则用当前导入表。
+ *
+ * 版式（前三行是骨架，第 4 行起是照着填的样例）：
+ *   第 1 行 英文字段名 —— 导入按这一行认列，勿改
+ *   第 2 行 中文表头   —— 供人阅读，勿改
+ *   第 3 行 填写说明   —— 每列的类型 / 是否必填 / 格式样例（gd.json 的 fieldTypes）
+ *   第 4 行起 示范行   —— gd.json 的 examples；导入时按 id + title 自动忽略，不必手工删
  */
 export function downloadTemplate(tplName, tbName) {
     const defs = columnsOf(tbName)
     const fieldRow = defs.map(d => d.field)
     const headerRow = defs.map(d => d.header)
-    const exampleRow = defs.map(({field, type}) => {
-        const ex = EXAMPLE_ROW[field]
-        if (ex === undefined) return ''
-        if (field === 'payment_type') return PAYMENT_TYPE_CODE_TO_STR(ex)
-        if (field === 'finish_step') return FINISHED_INT_TO_STR(ex)
-        if (type === 'date') return formatExportDate(ex)
-        return ex
-    })
+    // 第 3 行：填写说明（类型 / 必填 / 格式样例），列列对齐
+    const hintRow = templateHints(tbName)
+    // 第 4 行起：示范行，值照抄 gd.json（日期按用户习惯写成 2025/09/04；解析器 - 与 / 都认）
+    const exampleRows = examplesOf(tbName).map(ex => defs.map(({field}) => {
+        const v = ex[field]
+        return v === undefined || v === null ? '' : v
+    }))
 
-    const aoa = [fieldRow, headerRow, exampleRow]
+    const aoa = [fieldRow, headerRow, hintRow, ...exampleRows]
     const sheet = XLSX.utils.aoa_to_sheet(aoa)
     sheet['!cols'] = defs.map(d => {
         if (d.header.includes('供应商') || d.header.includes('备注') || d.header.includes('移交物资')) return {wch: 28}
@@ -242,32 +338,6 @@ export function downloadTemplate(tplName, tbName) {
     XLSX.writeFile(wb, `合同台账导入模板${suffix}.xlsx`)
 }
 
-const EXAMPLE_ROW = {
-    id: 'SMLJ-CG-CL-26330',
-    title: '螺栓',
-    amount: 3836.92,
-    date_sign: '2026-08-01',
-    sign_person: '薛少军',
-    sign_type: '定向商定',
-    supplier: '榆林景云五金机电设备有限公司',
-    pay_type: '货到票到3个月付款',
-    payment_type: 1,
-    paycycle_dh: 3,
-    paycycle_zb: 12,
-    date_yfk: '',
-    date_dhk: '2026-11-01',
-    date_zbj: '2027-11-01',
-    date_rk: '',
-    bz: '标准件采购',
-    settle_amount: 3836.92,
-    has_amount: 0,
-    hq: 30,
-    date_htyj: '2026-08-08',
-    date_fpyj: '',
-    date_actual_dh: '',
-    date_ruzlyj: '',
-    finish_step: 0,
-}
 
 /* ---------------- 导入解析 ---------------- */
 /**
@@ -277,6 +347,10 @@ const EXAMPLE_ROW = {
  *   格式 A：第 1 行中文表头，第 2 行英文字段名，第 3 行起数据
  *   格式 B：第 1 行英文字段名，第 2 行中文表头，第 3 行起数据
  *   格式 C：仅英文字段名一行表头，下一行起数据
+ *   下载下来的模板是「格式 D」：字段名 / 中文表头 / 填写说明 / 若干示范行，随后才是用户数据；
+ *   说明行与示范行都会被自动跳过（前者按"类型说明"签名，后者按 gd.json 登记的 id+title 比对），
+ *   所以用户拿到模板后可以直接在示范行下面接着填，不必先手工删样例。
+ *   表头行识别用"与 gd.json 登记的 header 全等"而不是"包含关键词"—— 见 KNOWN_HEADERS 处的注释；
  *   代码自动识别英文字段名行（包含 id 和 title），并跳过紧随其后的表头行
  *
  * @param file File 对象
@@ -319,22 +393,31 @@ export function parseContractExcel(file) {
                     if (def) colMap[def.field] = idx
                 })
 
-                // 跳过英文字段名行之后的表头行（中文表头/说明行），找到真正的数据起始行
-                // 判断依据：行中包含中文表头关键词 → 视为表头，跳过
-                const HEADER_KEYWORDS = ['合同编号', '合同名称', '签订人', '供应商', '合同金额', '签订时间',
-                    '付款方式', '付款类型', '签订方式', '到货付款', '质保付款', '结算金额', '已付款', '货期', '移交日期', '到货日期', '挂账日期',
-                    '预付款日期', '到货款日期', '质保金付款日期', '备注', '序号',
-                    '财务完结', '合同签订方式']
-                const isHeaderLike = (row) => {
-                    const cells = row.map(c => String(c || '').trim())
-                    const hit = cells.filter(c => HEADER_KEYWORDS.some(k => c.includes(k)))
-                    // 命中 2 个以上中文表头关键词 → 判定为表头行
-                    return hit.length >= 2
+                // 模板自带的示范行：id + title 命中 gd.json 里登记的样例 → 是样例不是业务数据
+                const EX_KEYS = exampleKeys()
+                const isExampleRow = (row) => {
+                    if (!EX_KEYS.length) return false
+                    const ci = colMap.id, ct = colMap.title
+                    if (ci === undefined || ct === undefined) return false
+                    const k0 = String(row[ci] ?? '').trim(), k1 = String(row[ct] ?? '').trim()
+                    return EX_KEYS.some(([i, t]) => k0 === i && k1 === t)
                 }
 
-                // 从 fieldRowIdx + 1 开始，跳过表头行，定位真实数据起始位置
+                // 跳过英文字段名行之后的表头行 / 填写说明行 / 示范行，找到真正的数据起始行
+                // 判断依据：整行是中文表头 → 表头行；整行都是类型说明 → 说明行；id+title 命中样例 → 示范行
+                // 整行就是中文表头（与 gd.json 登记的 header 全等）→ 表头行。
+                // 不要退回"包含关键词"：数据行里的「某某供应商有限公司」「备注」会命中关键词被误吞。
+                const isHeaderLike = (row) => {
+                    const cells = row.map(c => norm(c)).filter(Boolean)
+                    if (cells.length < 2) return false
+                    return cells.filter(c => KNOWN_HEADERS.has(c)).length >= Math.max(2, Math.ceil(cells.length * 0.6))
+                }
+
+                // 从 fieldRowIdx + 1 开始，跳过"模板头部区"（表头行 / 填写说明行 / 模板自带示范行），
+                // 定位真实数据起始位置。只在这一段连续区块里按样例键跳过示范行 —— 用户写在示范行
+                // 之后的数据一律视为业务数据，绝不按样例键丢弃（避免真实合同与样例同名时被吃掉）。
                 let startIdx = fieldRowIdx + 1
-                while (startIdx < aoa.length && isHeaderLike(aoa[startIdx])) {
+                while (startIdx < aoa.length && (isHeaderLike(aoa[startIdx]) || isHintLike(aoa[startIdx]) || isExampleRow(aoa[startIdx]))) {
                     startIdx++
                 }
 
@@ -343,8 +426,11 @@ export function parseContractExcel(file) {
                     const rawRow = aoa[i]
                     // 跳过完全空的行
                     if (rawRow.every(c => String(c ?? '').trim() === '')) continue
-                    // 跳过看起来像表头的行（中文表头关键词命中 ≥2）
-                    if (isHeaderLike(rawRow)) continue
+                    // 跳过表头行 / 填写说明行
+                    // ⚠️ 示范行刻意不在这里判：示范行的 id+title 可能真的与库里某条合同同名
+                    //    （模板原有的样例就是真实数据），只有"紧跟表头的连续区块"才允许按样例键跳过，
+                    //    否则用户导出一份真台账再导回来会被静默丢数据。见上面 startIdx 处的循环。
+                    if (isHeaderLike(rawRow) || isHintLike(rawRow)) continue
 
                     const row = {}
                     FIELD_DEFS.forEach(({field, type}) => {
@@ -357,9 +443,10 @@ export function parseContractExcel(file) {
                             v = formatDate(v)
                         } else if (type === 'bool') {
                             v = YES_NO_TO_BOOL(v)
-                        } else if (type === 'float' || type === 'int') {
+                        } else if (type === 'number' || type === 'int') {
+                            // 数字类型：空值补 0（与库里的 NOT NULL DEFAULT 0 口径一致）
                             if (v === '' || v === null) v = 0
-                            if (type === 'float') v = Number(v) || 0
+                            if (type === 'number') v = Number(v) || 0
                             else v = parseInt(v, 10) || 0
                         } else {
                             // 字符串字段

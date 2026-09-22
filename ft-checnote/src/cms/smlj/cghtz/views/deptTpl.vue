@@ -2,7 +2,7 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {buildDeptPathMap, buildScopedDeptTree, matchDept, deptDisplay, deptScopeDepts, effectiveScope} from "../utils/DeptX.js"
-import {downloadTemplate, templateColumns} from "../utils/ExcelX.js"
+import {downloadTemplate, templateColumns, templateExamples, templateHints} from "../utils/ExcelX.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 import {ElMessage, ElMessageBox} from "element-plus"
@@ -38,13 +38,24 @@ const previewReady = computed(() => !!previewTpl.value)
 /**
  * 该模板的物理表是否已接入导入链路（后端 template/list 下发的 importable）。
  * 台账读路径还没按模板路由，所以登记了别的物理表的模板"下载了也导不进去"，
- * 与其让用户下完模板再在导入页被拒，不如在这里就把下载关掉。
+ * 注意：这里只用来在卡片上出红字提示，**不拦下载** —— 模板本身是可离线填报、可转发的表格，
+ * 拦住下载既解决不了"导入没打通"，又断掉唯一可用的线下途径（下载页 onDownload 处有详述）。
  * 判据写成 "!== false"：后端没下发该字段（例如命中旧缓存）时不拦，由后端 fail-closed 兜底。
  */
 const previewImportable = computed(() => !previewTpl.value || previewTpl.value.importable !== false)
 // 表头清单按"该模板引用的物理表"取，与下载模板同源（都读 gd.json 的 contractTables），不会两处漂移
 const previewColumns = computed(() => (previewReady.value ? templateColumns(previewTpl.value.tb_name) : []))
 const previewRequired = computed(() => previewColumns.value.filter(c => c.required).map(c => c.header))
+// 填写说明（每列一句：类型 / 是否必填 / 格式样例）与示范行同样来自 gd.json，
+// 与下载下来的模板逐格同源 —— 页面上看到什么，下载下来的就是什么
+const previewHints = computed(() => (previewReady.value ? templateHints(previewTpl.value.tb_name) : []))
+const previewExamples = computed(() => (previewReady.value ? templateExamples(previewTpl.value.tb_name) : []))
+/** 该列在第 1 条示范行里的取值：一眼看到"这格该长什么样" */
+function demoOf(field) {
+    const ex = previewExamples.value[0]
+    const v = ex ? ex[field] : ''
+    return v === undefined || v === null || v === '' ? '—' : v
+}
 const previewOpen = ref(false)
 
 // 只有一套模板时不至于让上半区看起来"没东西可点"：这里给个初值。
@@ -53,14 +64,15 @@ watch(templates, ls => {
     if (!previewTplId.value && ls && ls.length) previewTplId.value = String(ls[0].id)
 })
 
-/** 下载导入模板：列按该模板引用的物理表取；文件名带上模板名，多模板下载下来的文件不会互相覆盖 */
+/**
+ * 下载导入模板：列按该模板引用的物理表取；文件名带上模板名，多模板下载下来的文件不会互相覆盖。
+ * 物理表尚未接入导入链路时**照样允许下载**：模板本身就是一张可离线填报、可发给业务同事的表格，
+ * 拦住下载既解决不了"导入没打通"，又断掉了唯一可用的线下途径。风险改为卡片上的红字提示；
+ * 真到线上导入那一步，后端 fail-closed 会整批拒绝，不会写坏数据。
+ */
 function onDownload() {
     if (!previewReady.value) {
         ElMessage.warning('请先选择要下载的合同模板')
-        return
-    }
-    if (!previewImportable.value) {
-        ElMessage.error(`模板「${previewTpl.value.name}」对应的物理表 ${previewTpl.value.tb_name} 尚未接入导入链路，下载的模板暂时无法导入`)
         return
     }
     downloadTemplate(previewTpl.value.name, previewTpl.value.tb_name)
@@ -353,7 +365,7 @@ function fmtTime(v) {
                                 <span class="opt-name">{{ t.name }}</span>
                             </el-option>
                         </el-select>
-                        <el-button type="primary" :disabled="!previewReady || !previewImportable" @click="onDownload">
+                        <el-button type="primary" :disabled="!previewReady" @click="onDownload">
                             ⬇️ 下载导入模板
                         </el-button>
                         <el-button :disabled="!previewReady" @click="onPreview">👁 预览模板表头</el-button>
@@ -361,18 +373,19 @@ function fmtTime(v) {
                     <div class="pv-meta">
                         <template v-if="previewTpl">
                             写入物理表 <b>{{ previewTpl.tb_name }}</b> · 共 {{ previewColumns.length }} 列 · 其中必填
-                            <b>{{ previewRequired.length }}</b> 项
+                            <b>{{ previewRequired.length }}</b> 项 · 随附 <b>{{ previewExamples.length }}</b> 条示范行
                         </template>
                         <span v-else class="pv-empty">未选择模板，可先在下拉里挑一套看看</span>
                         <span v-if="previewTpl && !previewImportable" class="pv-blocked">
-                            该物理表尚未接入导入链路，下载的模板暂时无法导入
+                            该物理表尚未接入导入链路：模板可下载填写，线上导入暂不可用
                         </span>
                     </div>
                     <div v-if="previewRequired.length" class="pv-req">
                         必填字段：{{ previewRequired.join('、') }}
                     </div>
                     <div class="pv-tip">
-                        下载的模板：第 1 行为字段名、第 2 行为中文表头、第 3 行为示例数据，请勿改动前两行
+                        下载的模板共 4 段：第 1 行字段名、第 2 行中文表头、第 3 行填写说明（每列的类型 / 是否必填 / 格式样例）、
+                        第 4 行起为示范行。直接在示范行下面接着填即可，说明行与示范行导入时自动忽略
                     </div>
                 </el-card>
 
@@ -429,19 +442,35 @@ function fmtTime(v) {
         </div>
 
         <!-- 模板表头预览：列清单与下载下来的 Excel 同源，先在页面上对一眼 -->
-        <el-dialog v-model="previewOpen" :title="`导入模板表头 · ${previewTpl ? previewTpl.name : ''}`" width="720px">
-            <el-table :data="previewColumns" border size="small" max-height="420">
-                <el-table-column type="index" label="#" width="50" align="center"/>
-                <el-table-column prop="field" label="字段名" width="180"/>
-                <el-table-column prop="header" label="Excel 表头" min-width="150"/>
-                <el-table-column label="必填" width="70" align="center">
+        <el-dialog v-model="previewOpen" :title="`导入模板表头 · ${previewTpl ? previewTpl.name : ''}`" width="900px">
+            <el-table :data="previewColumns" border size="small" max-height="440">
+                <el-table-column type="index" label="#" width="46" align="center"/>
+                <el-table-column prop="field" label="字段名" width="150"/>
+                <el-table-column prop="header" label="Excel 表头" min-width="130"/>
+                <el-table-column label="类型" width="72" align="center">
+                    <template #default="{row}">
+                        <span class="type-tag">{{ row.typeLabel }}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="必填" width="56" align="center">
                     <template #default="{row}">
                         <span v-if="row.required" style="color:#dc2626;font-weight:600">是</span>
                     </template>
                 </el-table-column>
+                <el-table-column label="填写说明" min-width="176">
+                    <template #default="{$index}">
+                        <span>{{ previewHints[$index] }}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="示范值" min-width="150">
+                    <template #default="{row}">
+                        <span class="demo-val">{{ demoOf(row.field) }}</span>
+                    </template>
+                </el-table-column>
             </el-table>
-            <div style="font-size:12px;color:#94a3b8;margin-top:12px">
-                下载的模板：第 1 行为字段名、第 2 行为中文表头、第 3 行为示例数据，请勿改动前两行。
+            <div style="font-size:12px;color:#94a3b8;margin-top:12px;line-height:1.8">
+                下载的模板与上表逐格同源：第 1 行字段名、第 2 行中文表头、第 3 行填写说明、第 4 行起为示范行<template
+                    v-if="previewExamples.length">（共 {{ previewExamples.length }} 条）</template>；说明行与示范行导入时自动忽略，请勿改动前三行。
             </div>
         </el-dialog>
     </div>
@@ -749,6 +778,22 @@ function fmtTime(v) {
             font-size: 12px;
             color: #64748b;
         }
+    }
+
+    /* 预览弹窗里的类型标签与示范值 */
+    .type-tag {
+        display: inline-block;
+        padding: 0 6px;
+        border-radius: 8px;
+        font-size: 11px;
+        line-height: 18px;
+        color: #2563eb;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+    }
+
+    .demo-val {
+        color: #64748b;
     }
 
     /* 下拉选项：左边模版名，右边物理表名（让管理员知道这套模板落在哪张表） */
