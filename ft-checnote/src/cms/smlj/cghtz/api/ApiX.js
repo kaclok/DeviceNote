@@ -103,9 +103,18 @@ export class ApiX {
     }
 
     /* ---------------- 合同模版 / 部门-模版映射 ---------------- */
-    // 模版全量（id/name/tb_name）：台账页与导入页的「合同模版」下拉数据源
+    // 模版全量（id/name/tb_name/col_order/dept_codes）：台账页与导入页的「合同模版」下拉数据源。
+    // dept_codes = 持有该模版（含继承）的部门编码，台账页用它把组织树收窄到相关部门。
     static getTemplateList(paras, signal) {
         return axiosR.post("cghtz/template/list", null, {
+            params: paras, signal: signal,
+        })
+    }
+
+    // 保存模版的 Excel 列顺序（模板表头预览里拖拽后的结果）。
+    // col_order 是逗号分隔的字段名；传空串 = 清除覆盖、回到 gd.json 的登记顺序。
+    static saveTplColOrder(paras, signal) {
+        return axiosR.post("cghtz/template/colOrder", null, {
             params: paras, signal: signal,
         })
     }

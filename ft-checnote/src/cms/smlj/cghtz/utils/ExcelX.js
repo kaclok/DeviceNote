@@ -8,23 +8,21 @@ import gd from '../data/gd.json'
  *
  * v5 变更：sign_type（签订方式）在库中已是 varchar 自由文本，
  *         Excel 与前后端统一使用中文原文，不再做 int 编码互转。
+ *
+ * v6 变更：类型字典收敛为「文字 text / 小数 float / 整数 int / 日期 date / 是-否 bool」，
+ *         可选值改为列上的 options:[{v,label}]（v = 入库值）。
+ *         同时本文件成为「模板配置」的唯一读取入口：台账筛选栏读 filtersOf()，
+ *         编辑表单读 formGroupsOf()/formColumnsOf()，Excel 三件套读 columnsOf()（不含 system 列）。
+ *
+ * v7 变更：导出与导入解析不再按**字段名**特判（付款类型、财务环节都曾写死在代码里），
+ *         改由列上的 type + options 驱动 —— 列怎么配，两个方向就怎么转，新增表零改动。
+ *         两者都接受 tbName：模板指向哪张表，就按哪张表的列走。
+ *
+ * v8 变更：① 列顺序可被模版级覆盖 —— order 参数接受 t_contract_template.col_order
+ *            （逗号分隔字段名），导出与导入模板都按它排；不传 / 传空则用 gd.json 的登记顺序。
+ *         ② 「导给财务」的列清单与取值方式整块搬进 gd.json 的 financeExport（见下），
+ *            本文件只提供几种通用取值 kind，不再写死任何列名与文案。
  */
-
-/* 付款类型 int ↔ 文本：1-即时结算类 2-周期结算类 */
-const PAYMENT_TYPE_CODE_TO_STR = (i) => {
-    const n = Number(i)
-    if (n === 1) return '即时结算类'
-    if (n === 2) return '周期结算类'
-    return ''
-}
-const PAYMENT_TYPE_STR_TO_CODE = (v) => {
-    const num = Number(v)
-    if (num === 1 || num === 2) return num
-    const s = String(v ?? '').trim()
-    if (s.includes('即时')) return 1
-    if (s.includes('周期')) return 2
-    return null
-}
 
 /* 是/否 → boolean，空值默认 false */
 const YES_NO_TO_BOOL = (v) => {
@@ -42,29 +40,6 @@ const BOOL_TO_YES_NO = (b) => {
     if (b === false) return '否'
     return ''
 }
-/* 财务环节 finish_step int ↔ 文本：0预付款待付 1到货款待付 2质保款待付 3全付 */
-const FINISHED_INT_TO_STR = (n) => {
-    const v = Number(n) || 0
-    if (v === 0) return '预付款待付'
-    if (v === 1) return '到货款待付'
-    if (v === 2) return '质保款待付'
-    return '全付'
-}
-const FINISHED_STR_TO_INT = (v) => {
-    const num = Number(v)
-    if (!Number.isNaN(num) && Number.isFinite(num)) {
-        const n = parseInt(num, 10)
-        if (n >= 0 && n <= 3) return n
-    }
-    const s = String(v ?? '').trim()
-    if (!s) return 0
-    if (s === '0' || s.includes('预付款待付') || s.includes('预付') && s.includes('待')) return 0
-    if (s === '1' || s.includes('到货款待付') || s.includes('到货') && s.includes('待')) return 1
-    if (s === '2' || s.includes('质保款待付') || s.includes('质保') && s.includes('待')) return 2
-    if (s === '3' || s.includes('全付') || s.includes('已付完') || s.includes('完结') || s.includes('未开始')) return 3
-    return 0
-}
-
 /**
  * 合同表字段清单的唯一来源 = data/gd.json 的 contractTables（按物理表名索引入口）。
  *
@@ -80,17 +55,137 @@ const FINISHED_STR_TO_INT = (v) => {
  *   · dept_code   归属部门，导入时由页面上的部门选择器逐行注入（见 import.vue）
  *   · unique_id / open_status   后端主键与逻辑删除标记
  */
-// 当前导入落表的物理表，与后端 CCGHT.IMPORT_TARGET_TABLE 对齐（台账读路径也只认这一张表）
+/**
+ * 默认物理表：未显式传 tbName 时的回落值（= 标准采购合同表）。
+ * 台账（列表/编辑/读取）与**批量导入**都已按 t_contract_template.tb_name 路由，
+ * 所以各处都应显式传 tbName；这里只是"没传"时的兜底，保证老调用方零改动。
+ */
 const IMPORT_TABLE = 't_contract'
 
-/** 取某张物理表的登记项（columns / examples）；未登记该表时回落到当前导入表，保证老调用方零改动 */
-function tableOf(tbName) {
+/** 取某张物理表的登记项（columns / examples / filters / formGroups）；
+ *  未登记该表时回落到当前导入表，保证老调用方零改动 */
+export function tableOf(tbName) {
     const all = gd.contractTables || {}
     return all[tbName] || all[IMPORT_TABLE] || {}
 }
 
-function columnsOf(tbName) {
+/**
+ * 该表的**全部**列（含 system 列，如归属部门 dept_code）—— 台账筛选栏与编辑表单按它渲染。
+ * system 列只活在页面上：Excel 的导出/模板/解析都不带它（合同归属由导入页逐行注入）。
+ */
+export function formColumnsOf(tbName) {
     return tableOf(tbName).columns || []
+}
+
+/**
+ * 列顺序的覆盖值归一化：接受逗号串（库里 t_contract_template.col_order）或数组。
+ * 空 / 非法一律返回空数组 = 不做覆盖，按 gd.json 的登记顺序。
+ */
+export function orderListOf(v) {
+    if (Array.isArray(v)) return v.map(x => String(x ?? '').trim()).filter(Boolean)
+    if (typeof v === 'string') return v.split(',').map(x => x.trim()).filter(Boolean)
+    return []
+}
+
+/**
+ * 按覆盖顺序重排列定义。order 里没提到的列按原相对顺序排在最后 ——
+ * "顺而不丢"：顺序配置不完整（或库里后来新增了列）时，多出来的列只会在末尾出现，不会消失。
+ * 用显式下标做次级比较（不是依赖 sort 的稳定性），保证同一份配置每次排出来都一样。
+ */
+function applyOrder(defs, order) {
+    const list = orderListOf(order)
+    if (!list.length) return defs
+    const rank = new Map(list.map((f, i) => [f, i]))
+    const at = d => (rank.has(d.field) ? rank.get(d.field) : Number.MAX_SAFE_INTEGER)
+    return defs
+        .map((d, i) => ({d, i}))
+        .sort((a, b) => (at(a.d) === at(b.d) ? a.i - b.i : at(a.d) - at(b.d)))
+        .map(x => x.d)
+}
+
+/**
+ * Excel 视角的列（导出 / 导入模板 / 导入解析三处共用）= 全部列去掉 system 列。
+ * @param order 可选的列顺序覆盖值（见 applyOrder）；不传则按 gd.json 的登记顺序
+ */
+function columnsOf(tbName, order) {
+    return applyOrder(formColumnsOf(tbName).filter(c => !c.system), order)
+}
+
+/** 按字段名取某表的一列登记项；找不到返回 null（调用方自己决定怎么兜底，不抛错） */
+export function columnOf(tbName, field) {
+    return formColumnsOf(tbName).find(c => c.field === field) || null
+}
+
+/**
+ * 列的可选值归一化为 [{v, label}]（v = 入库值，label = 显示文案）。
+ * gd.json 统一写成对象；这里兜底裸值（v 与 label 相同），免得一处写错就让页面崩掉。
+ */
+export function optionsOf(col) {
+    const src = (col && col.options) || null
+    if (!src || !src.length) return null
+    return src.map(o => (o && typeof o === 'object')
+        ? {v: o.v, label: o.label == null ? String(o.v) : String(o.label), tag: o.tag || ''}
+        : {v: o, label: String(o), tag: ''})
+}
+
+/**
+ * 入库值 → 显示文案（导出用）。认不出来返回 null，由调用方按类型兜底 —— 不猜。
+ * 比对用字符串：库里是数字(1)、表里写的是文本('1')这类的偏差不该让单元格变空。
+ */
+export function optionLabelOf(col, v) {
+    const opts = optionsOf(col)
+    if (!opts) return null
+    const hit = opts.find(o => String(o.v) === String(v))
+    return hit ? hit.label : null
+}
+
+/**
+ * 显示文案 / 入库值 → 入库值（导入解析用）。认不出来返回 undefined，由调用方决定怎么办。
+ * 匹配顺序：先按入库值、再按文案全等，最后退一步做"包含"匹配 ——
+ * 用户常写「即时结算」而不是「即时结算类」，旧代码的写死分支也是这么松。
+ */
+export function optionValueOf(col, cell) {
+    const opts = optionsOf(col)
+    if (!opts) return undefined
+    const s = String(cell ?? '').trim()
+    if (s === '') return undefined
+    const hit = opts.find(o => String(o.v) === s)
+        || opts.find(o => o.label === s)
+        || opts.find(o => o.label.includes(s) || s.includes(o.label))
+    return hit ? hit.v : undefined
+}
+
+/**
+ * 空单元格的落库值，按"库里的约束"定，不由前端发挥：
+ *   数字 -> 0（这些列多是 NOT NULL DEFAULT 0，留 null 会直接撞 NOT NULL）
+ *   是/否 -> false
+ *   日期 -> null（日期列都可空）
+ *   文本 -> ''（varchar 的 NOT NULL 只约束"不能是 NULL"，空串是合法值 —— 旧解析器也是这么写的）
+ *           标了 nullWhenEmpty 的列例外（如 sign_type）：空值统一归一 null，与"未填写"语义一致
+ */
+function emptyOf(col) {
+    if (col.type === 'float' || col.type === 'int') return 0
+    if (col.type === 'bool') return false
+    if (col.type === 'date') return null
+    return col.nullWhenEmpty ? null : ''
+}
+
+/** 该模板的筛选栏定义（每张表自己的筛选条件，全在 gd.json 的 filters 里） */
+export function filtersOf(tbName) {
+    return tableOf(tbName).filters || []
+}
+
+/**
+ * 该模板的编辑表单分组（[{title, fields[]}]）—— 每个模板的编辑页都从自己这份配置渲染。
+ * 兜底：没被任何分组引用的列统一追加到「其他」，绝不因为漏配 groups 就悄悄丢字段。
+ */
+export function formGroupsOf(tbName) {
+    const groups = (tableOf(tbName).formGroups || [])
+        .map(g => ({title: g.title, fields: [...(g.fields || [])]}))
+    const grouped = new Set(groups.flatMap(g => g.fields))
+    const rest = formColumnsOf(tbName).filter(c => !grouped.has(c.field)).map(c => c.field)
+    if (rest.length) groups.push({title: '其他', fields: rest})
+    return groups
 }
 
 /** 该表登记的示范行（模板里给用户照着填的样例）。样例值一律写在 gd.json，本文件不写死任何值 */
@@ -103,16 +198,13 @@ export function templateExamples(tbName) {
     return examplesOf(tbName)
 }
 
-// 导出 / 导入模板 / 导入解析三处共用（= 当前导入表 t_contract 的列）
-const FIELD_DEFS = columnsOf(IMPORT_TABLE)
-
 /**
  * 类型字典也来自 gd.json 的 fieldTypes：label = 单元格类型名，sample = 该类型的格式样例。
- * 本文件只做拼装，不写死「文本/数字/日期」这些中文 —— 以后新增一种类型只改 JSON。
+ * 本文件只拼装文案，不写死「文字/小数/整数/日期」这些中文 —— 以后新增一种类型只改 JSON。
  */
 const TYPE_DEFS = gd.fieldTypes || {}
 
-/** 单元格类型名；未登记的类型按"文本"处理，而不是抛错（老数据里没有 type 的列也一样） */
+/** 单元格类型名；未登记的类型按「文字」处理，而不是抛错（老数据里没有 type 的列也一样） */
 export function typeLabelOf(type) {
     const d = TYPE_DEFS[type]
     return (d && d.label) || (TYPE_DEFS.text && TYPE_DEFS.text.label) || String(type || '')
@@ -120,23 +212,34 @@ export function typeLabelOf(type) {
 
 /**
  * 模板第 3 行的「填写说明」：每列一句话，说清这格该填什么形状。
- * 形如「数字（必填），如 3836.92」「选项：预付款待付／到货款待付／质保款待付／全付」。
+ * 形如「小数（必填），如 3836.92」「整数：预付款待付／到货款待付／质保款待付／全付」。
  * 每个单元格都以类型名开头 —— 导入解析据此认出这一行并跳过（见 isHintLike）。
  */
-export function templateHints(tbName) {
-    return columnsOf(tbName).map(({type, required, options}) => {
-        const d = TYPE_DEFS[type] || {}
-        let s = typeLabelOf(type)
-        if (required) s += '（必填）'
-        if (options && options.length) s += '：' + options.join('／')
-        else if (d.sample) s += '，如 ' + d.sample
-        return s
-    })
+/** 单列的「填写说明」：类型 / 是否必填 / 可填项或格式样例（模板第 3 行那一格） */
+function hintOfCol(col) {
+    let s = typeLabelOf(col.type)
+    if (col.required) s += '（必填）'
+    // 登记了可选值的列（财务环节 / 是否挂账 / 付款类型）直接列出可填项 ——
+    // 比塞给用户一个格式样例有用得多。
+    const opts = optionsOf(col)
+    if (opts) {
+        s += '：' + opts.map(o => o.label).join('／')
+    } else {
+        // 样例优先取列自己登记的（如"已支付比例"该是 0.7，而不是金额样例 3836.92）
+        const sp = col.sample || (TYPE_DEFS[col.type] || {}).sample
+        if (sp) s += '，如 ' + sp
+    }
+    return s
+}
+
+/** 模板第 3 行的「填写说明」整行（逐列一句话），顺序与 downloadTemplate 的列一致 */
+export function templateHints(tbName, order) {
+    return columnsOf(tbName, order).map(hintOfCol)
 }
 
 /** 说明行识别：单元格以某个已登记的类型名开头，且类型名后面不是汉字。
  *  类型名来自 gd.json（新增类型无需改这里）；用"后面不是汉字"而不是列举（/：/，——
- *  因为说明文案里既有「数字（必填），如 …」也有「选项：A／B」，硬列分隔符迟早漏一个；
+ *  因为说明文案里既有「小数（必填），如 …」也有「整数：A／B」，硬列分隔符迟早漏一个；
  *  同时「日期未定」这类自由文本不会被误判成说明格。 */
 const HINT_HEAD_RE = new RegExp('^(' + Object.keys(TYPE_DEFS)
     .map(k => String((TYPE_DEFS[k] || {}).label || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
@@ -153,15 +256,18 @@ function isHintLike(row) {
  * 导入模板的列清单（供页面上"预览模板表头"用）。
  * 与 downloadTemplate 同源（同一份 gd.json 的同一张表），所以"预览到的"＝"下载下来的"，不会两处漂移。
  * @param tbName 该模板引用的物理表名（t_contract_template.tb_name）；不传则用当前导入表
+ * @param order  可选的列顺序覆盖值（t_contract_template.col_order）；不传则用登记顺序
  */
-export function templateColumns(tbName) {
-    return columnsOf(tbName).map(({field, header, type, required, options}) => ({
-        field,
-        header,
-        type: type || 'text',
-        typeLabel: typeLabelOf(type),
-        required: !!required,
-        options: options || null,
+export function templateColumns(tbName, order) {
+    return columnsOf(tbName, order).map(c => ({
+        field: c.field,
+        header: c.header,
+        type: c.type || 'text',
+        typeLabel: typeLabelOf(c.type),
+        required: !!c.required,
+        options: optionsOf(c),
+        // 填写说明挂到列上：预览弹窗按列渲染，不必再按下标去另一份数组里取（重排后极易错位）
+        hint: hintOfCol(c),
     }))
 }
 
@@ -179,7 +285,7 @@ function norm(v) {
  */
 const KNOWN_HEADERS = new Set(['序号'])
 Object.keys(gd.contractTables || {}).forEach(k => {
-    ;((gd.contractTables[k] || {}).columns || []).forEach(c => KNOWN_HEADERS.add(norm(c.header)))
+    columnsOf(k).forEach(c => KNOWN_HEADERS.add(norm(c.header)))
 })
 
 /** 「示范行」的比对键：id + title。两个字段同时命中才认，避免误伤真实数据 */
@@ -200,27 +306,30 @@ function exampleKeys() {
  * 导出文件可直接当导入文件使用
  * @param rows 合同数组
  * @param filename 文件名
+ * @param tbName 该模板引用的物理表名（决定用哪份列清单）
+ * @param order  可选的列顺序覆盖值（t_contract_template.col_order）
  */
-export function exportContractExcel(rows, filename = '合同台账_导出') {
+export function exportContractExcel(rows, filename = '合同台账_导出', tbName, order) {
+    const defs = columnsOf(tbName, order)
     // 第 1 行：英文字段名
-    const fieldRow = FIELD_DEFS.map(d => d.field)
+    const fieldRow = defs.map(d => d.field)
     // 第 2 行：中文表头（不再加 * 号）
-    const headerRow = FIELD_DEFS.map(d => d.header)
-    // 数据行
-    const dataRows = rows.map(c => {
-        return FIELD_DEFS.map(({field, type}) => {
-            let v = c[field]
-            if (v === undefined || v === null) v = ''
-            if (field === 'payment_type') v = PAYMENT_TYPE_CODE_TO_STR(v)
-            else if (field === 'finish_step') v = FINISHED_INT_TO_STR(v)
-            else if (type === 'date') v = formatExportDate(v)
-            return v
-        })
-    })
+    const headerRow = defs.map(d => d.header)
+    // 数据行：显示值一律由"该列的类型 + 可选值"推出来，不按字段名特判
+    const dataRows = rows.map(c => defs.map(({field, type, options}) => {
+        let v = c[field]
+        if (v === undefined || v === null) v = ''
+        // 可选值列（付款类型 / 财务环节 / 是否挂账…）导出成中文文案：读表的人不必认识内部编码
+        const label = optionLabelOf({options}, v)
+        if (label !== null) return label
+        if (type === 'date') return formatExportDate(v)
+        if (type === 'bool') return BOOL_TO_YES_NO(v)
+        return v
+    }))
 
     const aoa = [fieldRow, headerRow, ...dataRows]
     const sheet = XLSX.utils.aoa_to_sheet(aoa)
-    sheet['!cols'] = FIELD_DEFS.map(d => {
+    sheet['!cols'] = defs.map(d => {
         if (d.header.includes('供应商') || d.header.includes('备注') || d.header.includes('移交物资')) return {wch: 28}
         if (d.header.includes('合同') || d.header.includes('日期') || d.header.includes('时间') || d.header.includes('方式')) return {wch: 16}
         return {wch: 12}
@@ -239,65 +348,97 @@ const FIX2 = (n) => {
     return v.toFixed(2)
 }
 
+/** 原样取值为字符串（null / undefined → 空串），给"直接取字段"的列用 */
+function strOf(v) {
+    return v === null || v === undefined ? '' : String(v)
+}
+
 /**
- * 导给财务：按制定 12 列表头编排导出（角色 >= EDITOR 才能调用）
- * 列：序号、付款类型、供应商单位名称、付款事由、结算金额、已付金额、未付金额、
- *     本次计划付款金额、计划电汇金额、计划承兑金额、备注、业务员
- * 所有金额均保留两位小数
+ * 「导给财务」报表定义（按物理表取）。返回 null = 这张表没有这套报表 ——
+ * 台账页据此决定显不显示「导给财务」按钮，不再靠一份写死的字段清单。
+ *
+ * 为什么整块搬进 gd.json：这是一张给财务的**固定口径**报表，列名、顺序、列宽、
+ * 以及"金额怎么算"都是业务约定；写死在 JS 里，改一个字都要跟着发一次前端版本。
+ * 搬进配置后，新增/调整列只动 gd.json —— 本文件只负责几种通用的取值方式（kind）。
  */
-export function exportFinanceExcel(rows, filename = '导给财务') {
-    const headerRow = [
-        '序号', '付款类型', '供应商单位名称', '付款事由',
-        '结算金额', '已付金额', '未付金额',
-        '本次计划付款金额', '计划电汇金额', '计划承兑金额',
-        '备注', '业务员',
-    ]
-    const dataRows = rows.map((c, idx) => {
-        const settle = Number(c.settle_amount) || 0
-        const has = Number(c.has_amount) || 0
-        const remain = Math.max(0, settle - has)
-        // 即时结算类(1)：备注=id；周期结算类(2)：备注=id + bz
-        const remark = Number(c.payment_type) === 1
-            ? String(c.id || '')
-            : String(c.id || '') + String(c.bz || '')
-        return [
-            idx + 1,                              // 序号 1 起
-            '备品备件',                           // 付款类型固定
-            String(c.supplier || ''),             // 供应商
-            String(c.title || ''),                // 付款事由 = 合同 title
-            FIX2(settle),                         // 结算金额
-            FIX2(has),                            // 已付金额
-            FIX2(remain),                         // 未付金额 = 结算 - 已付
-            FIX2(remain),                         // 本次计划付款 = 未付金额
-            FIX2(remain),                         // 计划电汇 = 未付金额
-            FIX2(0),                              // 计划承兑 = 0
-            remark,                               // 备注
-            String(c.sign_person || ''),          // 业务员 = 签订人（存的就是姓名，无需转码）
-        ]
-    })
+export function financeExportOf(tbName) {
+    return tableOf(tbName).financeExport || null
+}
+
+/**
+ * 取值条件（可选）：{field, ne} / {field, eq}，只做等值比较 —— 够表达"某一类才带备注"这类规则。
+ * 字段缺失或没写 when 一律视为成立。两边都按字符串比：库里是数字 1、
+ * 配置里写 1 或 "1"，都不该让单元格变空。
+ */
+function whenOk(row, when) {
+    if (!when || !when.field) return true
+    const v = strOf(row[when.field])
+    if (when.ne !== undefined && v === strOf(when.ne)) return false
+    if (when.eq !== undefined && v !== strOf(when.eq)) return false
+    return true
+}
+
+/**
+ * 「导给财务」单元格取值：只认 gd.json 里登记的这几种 kind，本文件不写死任何列名与文案。
+ *   index   序号（1 起）
+ *   const   固定文案
+ *   field   直接取字段
+ *   money   取字段，保留两位小数
+ *   diff    两个字段相减（下限 0），保留两位小数
+ *   zero    固定 0.00
+ *   concat  多个片段首尾相接，片段可用 when 控制是否参与
+ */
+function financeCell(row, idx, col) {
+    switch (col.kind) {
+        case 'index':
+            return idx + 1
+        case 'const':
+            return strOf(col.value)
+        case 'money':
+            return FIX2(row[col.field])
+        case 'diff': {
+            const f = col.fields || []
+            const a = Number(row[f[0]]) || 0
+            const b = Number(row[f[1]]) || 0
+            return FIX2(Math.max(0, a - b))
+        }
+        case 'zero':
+            return FIX2(0)
+        case 'concat':
+            return (col.parts || [])
+                .filter(p => whenOk(row, p.when))
+                .map(p => strOf(row[p.field]))
+                .join('')
+        case 'field':
+        default:
+            return strOf(row[col.field])
+    }
+}
+
+/**
+ * 导给财务：表名、列清单、列宽、文件名全部来自 gd.json 的 financeExport
+ * （角色 >= EDITOR 才能调用，见台账页按钮上的 v-hasRole）。
+ * 返回 false = 该表没登记这套报表配置 —— 调用方据此提示，而不是导出一张空表。
+ * 金额一律保留两位小数（写字符串，避免 xlsx 把 0 显示成空）。
+ * @param rows   合同数组（当前筛选条件下的全量）
+ * @param tbName 该模版引用的物理表名
+ */
+export function exportFinanceExcel(rows, tbName) {
+    const cfg = financeExportOf(tbName)
+    if (!cfg) return false
+    const defs = cfg.columns || []
+    const headerRow = defs.map(c => c.header)
+    const dataRows = rows.map((c, idx) => defs.map(col => financeCell(c, idx, col)))
 
     const aoa = [headerRow, ...dataRows]
     const sheet = XLSX.utils.aoa_to_sheet(aoa)
-    // 列宽
-    sheet['!cols'] = [
-        {wch: 6},  // 序号
-        {wch: 12}, // 付款类型
-        {wch: 32}, // 供应商单位名称
-        {wch: 36}, // 付款事由
-        {wch: 14}, // 结算金额
-        {wch: 14}, // 已付金额
-        {wch: 14}, // 未付金额
-        {wch: 18}, // 本次计划付款金额
-        {wch: 16}, // 计划电汇金额
-        {wch: 16}, // 计划承兑金额
-        {wch: 22}, // 备注
-        {wch: 12}, // 业务员
-    ]
-    // 金额列按数字类型写入会更贴业务习惯，但用户明确"保留两位小数"，写字符串更保险
+    sheet['!cols'] = defs.map(c => ({wch: c.width || 12}))
+
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, sheet, '导给财务')
+    XLSX.utils.book_append_sheet(wb, sheet, cfg.sheet || '导给财务')
     const stamp = new Date().toISOString().slice(0, 10)
-    XLSX.writeFile(wb, `${filename}_${stamp}.xlsx`)
+    XLSX.writeFile(wb, `${cfg.filename || '导给财务'}_${stamp}.xlsx`)
+    return true
 }
 
 /* ---------------- 模板下载 ---------------- */
@@ -306,6 +447,8 @@ export function exportFinanceExcel(rows, filename = '导给财务') {
  * @param tplName 所选合同模版名。只进文件名，让不同模版下载下来的文件互不覆盖。
  * @param tbName  该模版引用的物理表名（t_contract_template.tb_name）。列定义按表取，
  *                与「预览模板表头」读的是同一份 gd.json，两边永远一致；不传则用当前导入表。
+ * @param order   该模版登记的列顺序覆盖值（t_contract_template.col_order）。
+ *                与「导出 Excel」共用同一份顺序，保证"预览 = 下载 = 导出"始终一致。
  *
  * 版式（前三行是骨架，第 4 行起是照着填的样例）：
  *   第 1 行 英文字段名 —— 导入按这一行认列，勿改
@@ -313,12 +456,12 @@ export function exportFinanceExcel(rows, filename = '导给财务') {
  *   第 3 行 填写说明   —— 每列的类型 / 是否必填 / 格式样例（gd.json 的 fieldTypes）
  *   第 4 行起 示范行   —— gd.json 的 examples；导入时按 id + title 自动忽略，不必手工删
  */
-export function downloadTemplate(tplName, tbName) {
-    const defs = columnsOf(tbName)
+export function downloadTemplate(tplName, tbName, order) {
+    const defs = columnsOf(tbName, order)
     const fieldRow = defs.map(d => d.field)
     const headerRow = defs.map(d => d.header)
     // 第 3 行：填写说明（类型 / 必填 / 格式样例），列列对齐
-    const hintRow = templateHints(tbName)
+    const hintRow = templateHints(tbName, order)
     // 第 4 行起：示范行，值照抄 gd.json（日期按用户习惯写成 2025/09/04；解析器 - 与 / 都认）
     const exampleRows = examplesOf(tbName).map(ex => defs.map(({field}) => {
         const v = ex[field]
@@ -356,7 +499,9 @@ export function downloadTemplate(tplName, tbName) {
  * @param file File 对象
  * @returns Promise<Array> 行对象数组
  */
-export function parseContractExcel(file) {
+export function parseContractExcel(file, tbName) {
+    // 列按**目标物理表**取：导入模板 / 导出 / 解析三处同源，模板一换这里跟着换
+    const defs = columnsOf(tbName)
     return new Promise((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = e => {
@@ -389,7 +534,7 @@ export function parseContractExcel(file) {
                 const colMap = {}  // field → colIdx
                 fieldNames.forEach((name, idx) => {
                     const lower = name.toLowerCase()
-                    const def = FIELD_DEFS.find(d => d.field === lower)
+                    const def = defs.find(d => d.field === lower)
                     if (def) colMap[def.field] = idx
                 })
 
@@ -433,34 +578,39 @@ export function parseContractExcel(file) {
                     if (isHeaderLike(rawRow) || isHintLike(rawRow)) continue
 
                     const row = {}
-                    FIELD_DEFS.forEach(({field, type}) => {
+                    defs.forEach(col => {
+                        const {field, type, required} = col
                         const colIdx = colMap[field]
                         let v = colIdx !== undefined ? rawRow[colIdx] : ''
                         if (v === undefined || v === null) v = ''
+                        const empty = String(v).trim() === ''
+                        const hasOpt = !!optionsOf(col)
 
-                        // 类型转换
-                        if (type === 'date') {
-                            v = formatDate(v)
-                        } else if (type === 'bool') {
-                            v = YES_NO_TO_BOOL(v)
-                        } else if (type === 'number' || type === 'int') {
-                            // 数字类型：空值补 0（与库里的 NOT NULL DEFAULT 0 口径一致）
-                            if (v === '' || v === null) v = 0
-                            if (type === 'number') v = Number(v) || 0
-                            else v = parseInt(v, 10) || 0
-                        } else {
-                            // 字符串字段
-                            if (v !== '') v = String(v).trim()
+                        // ① 可选值列：中文文案 → 入库值（付款类型 / 财务环节 / 是否挂账…）。
+                        //    能认出就直接用；认不出来的非空值落 null，交给后端按行报错 ——
+                        //    猜一个值写进库，比报错更难发现。
+                        if (hasOpt && !empty) {
+                            const ov = optionValueOf(col, v)
+                            row[field] = ov === undefined ? null : ov
+                            return
                         }
-
-                        // sign_type：DB 允许 NULL，空串统一归一为 null（与"未填写"语义一致，不落空串）
-                        if (field === 'sign_type' && v === '') v = null
-                        // payment_type：收中文，转成 int code
-                        if (field === 'payment_type') v = v !== '' && v !== null ? PAYMENT_TYPE_STR_TO_CODE(v) : null
-                        // finish_step：收中文/数字，转成 int 进度
-                        if (field === 'finish_step') v = FINISHED_STR_TO_INT(v)
-
-                        row[field] = v
+                        // 可选值列空着：必填列留 null（后端报"缺 XX"），非必填列按类型补兜底值
+                        // （库里的 finish_step 是 NOT NULL DEFAULT 0，不补会直接撞 NOT NULL）。
+                        if (hasOpt) {
+                            row[field] = required ? null : emptyOf(col)
+                            return
+                        }
+                        // ② 其余空值按库约束补（见 emptyOf 的说明）
+                        if (empty) {
+                            row[field] = emptyOf(col)
+                            return
+                        }
+                        // ③ 有值：按类型转
+                        if (type === 'date') row[field] = formatDate(v)
+                        else if (type === 'bool') row[field] = YES_NO_TO_BOOL(v)
+                        else if (type === 'float') row[field] = Number(v) || 0
+                        else if (type === 'int') row[field] = parseInt(v, 10) || 0
+                        else row[field] = String(v).trim()
                     })
                     rows.push(row)
                 }

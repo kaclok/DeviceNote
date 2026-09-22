@@ -1,47 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- mapper namespace作用是：代码和xml进行关联 -->
-<!-- https://blog.csdn.net/xu962336414/article/details/105624371 -->
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractDao">
 
-    <!-- ============ 公共字段集合 ============ -->
-    <sql id="base_cols">
-        unique_id, id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type, payment_type,
-        paycycle_dh, paycycle_zb,
-        date_yfk, date_dhk, date_zbj, date_rk,
-        bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        dept_code, finish_step, open_status, creator
-    </sql>
+    <!-- 导入链路同样按模版路由（见下）：CCGHT 核对 t_contract_template.tb_name 后调用 insertRow，
+         本文件不再有写死 cght.t_contract 的语句。 -->
 
-    <!-- ============ 列表查询：动态 where ============ -->
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
-        select
-        <include refid="base_cols"/>
-        from cght.t_contract
-        where open_status = TRUE
-        <if test="id != null and id != ''">
-            and id like concat('%', #{id}, '%')
-        </if>
-        <if test="title != null and title != ''">
-            and title like concat('%', #{title}, '%')
-        </if>
-        <if test="sign_person != null and sign_person != ''">
-            and sign_person like concat('%', #{sign_person}, '%')
-        </if>
-        <!-- 签订方式：DB 为 varchar 自由文本（定向商定/续签/竞价…），与 sign_person 一致走模糊匹配 -->
-        <if test="sign_type != null and sign_type != ''">
-            and sign_type like concat('%', #{sign_type}, '%')
-        </if>
-        <if test="payment_type != null">
-            and payment_type = #{payment_type}
-        </if>
-        <if test="supplier != null and supplier != ''">
-            and supplier like concat('%', #{supplier}, '%')
-        </if>
-        <!-- 最终可见部门集下推（与账号列表同一口径）：由 CCGHT.deptFilterOf 合并后传入 ——
-             它已把「筛选部门（含其整棵子树）」与「数据范围白名单」求过交，这里只做单一 in。
-             null = 不限制（未筛部门且全集团）；非空 = 只允许这些部门；
-             空列表 = 交集为空（筛选部门超出可见范围 / 该账号无任何可见部门），用 1=0 兜底
+    <!-- ==================================================================
+         按物理表路由的台账读写与导入
+         ⚠️ ${tb} 与 ${p.col} / ${c.col} 是拼接进 SQL 的**标识符**：
+            · tb  已由 CCGHT 用 t_contract_template 登记过的 tb_name 核对，并传回登记时的规范表名；
+            · col 已由 CCGHT 用 ^[a-z_][a-z0-9_]{0,62}$ 核对，且确认存在于该表、不在只读黑名单。
+         值一律 #{...} 预编译绑定，从不参与拼接。
+         不同物理表列不同，所以结果统一用 LinkedHashMap 承载（select *）。
+         ================================================================== -->
+
+    <!-- 物理表列清单（PG 元数据，只读）：表名是 #{} 绑定的值，不拼接 -->
+    <select id="columnMeta" resultType="java.util.LinkedHashMap">
+        select column_name as name, data_type as type
+        from information_schema.columns
+        where table_schema = 'cght'
+          and table_name = #{tb}
+        order by ordinal_position
+    </select>
+
+    <select id="queryRows" resultType="java.util.LinkedHashMap">
+        select * from cght.${tb}
+        where open_status = true
+        <!-- 通用筛选：op 已由 Java 侧限定为 like|eq|gte|lte|ne -->
+        <foreach collection="conds" item="c">
+            <choose>
+                <when test="c.op == 'like'">
+                    and ${c.col} like concat('%', #{c.v}, '%')
+                </when>
+                <when test="c.op == 'gte'">
+                    and ${c.col} &gt;= #{c.v}
+                </when>
+                <when test="c.op == 'lte'">
+                    and ${c.col} &lt;= #{c.v}
+                </when>
+                <when test="c.op == 'ne'">
+                    and ${c.col} &lt;&gt; #{c.v}
+                </when>
+                <otherwise>
+                    and ${c.col} = #{c.v}
+                </otherwise>
+            </choose>
+        </foreach>
+        <!-- 最终可见部门集下推：null = 不限制；非空 = in 这些部门；
+             空列表 = 交集为空（选中部门超出可见范围 / 账号无任何可见部门），用 1=0 兜底
              （不能生成 in () —— PG 语法错误）。 -->
         <if test="deptCodes != null">
             <choose>
@@ -54,31 +60,15 @@
                 </otherwise>
             </choose>
         </if>
-        <!-- 「本人」档（data_scope=1）：只放行「我签的」合同 —— sign_person 含我的姓名。
-             与上面的部门白名单是 AND，两者一起构成「本部门子树 ∩ 签订人=我」。
-             **不能只按签订人过滤**：那会让「本人」比「本部门」更宽（本人在别的部门签的合同会漏出来），
-             档位编号就不再是包含序。scopeSign 为空表示该档位不叠加此条件（2/3/4 档）。
-             匹配方式必须与 CCGHT.contractVisible 的 String.contains 严格同口径，否则会出现
-             「列表查不到、直连 unique_id 却能读/改/删」的单条越权。 -->
+        <!-- 「本人」档（data_scope=1）：只放行「我签的」合同 —— sign_person = 我的姓名。
+             已登记的两张表都有 sign_person；匹配方式与 CCGHT 的范围判定严格同口径，
+             否则会出现「列表查不到、直连 unique_id 却能读/改/删」的单条越权。 -->
         <if test="user_name != null and user_name != ''">
             and sign_person = #{user_name}
         </if>
-        <if test="queryBegin != null">
-            AND date_sign &gt;= #{queryBegin}
-        </if>
-        <if test="queryEnd != null">
-            AND date_sign &lt;= #{queryEnd}
-        </if>
-        <if test="rkBegin != null">
-            AND date_rk &gt;= #{rkBegin}
-        </if>
-        <if test="rkEnd != null">
-            AND date_rk &lt;= #{rkEnd}
-        </if>
-        <if test="finish_step != null">
-            and finish_step = #{finish_step}
-        </if>
-        <!-- 预警筛选：预警天数 < warn_day。与前端 calcRemainingDays 算法一致 -->
+        <!-- 预警筛选：预警天数 &lt; warn_day。算法与旧 queryAll 一致
+             （date_rk + paycycle*30 天 - 今天）。只有含 date_rk/paycycle_dh/paycycle_zb
+             的表才允许传非空 warn_day（Java 侧拦），否则这里引用的列不存在。 -->
         <if test="warn_day != null">
             AND (
                 (finish_step = 1
@@ -94,80 +84,31 @@
         order by id asc
     </select>
 
-    <!-- ============ 单条查询（按 unique_id） ============ -->
-    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
-        select
-        <include refid="base_cols"/>
-        from cght.t_contract
+    <select id="queryRow" resultType="java.util.LinkedHashMap">
+        select * from cght.${tb}
         where unique_id = #{unique_id}
     </select>
 
-    <!-- ============ 存在校验：即时结算类按 id 唯一校验 ============ -->
-    <select id="exist" resultType="java.lang.Integer">
-        SELECT COUNT(*) FROM cght.t_contract WHERE id = #{id} and open_status = true
+    <select id="existId" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM cght.${tb} WHERE id = #{id} and open_status = true
     </select>
 
-    <!-- ============ 新增 ============ -->
-    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
-        insert into cght.t_contract (
-        unique_id, id, title, amount, date_sign, sign_person, sign_type, supplier, pay_type, payment_type,
-        paycycle_dh, paycycle_zb,
-        date_yfk, date_dhk, date_zbj, date_rk,
-        bz, settle_amount, has_amount, hq, date_htyj, date_fpyj, date_actual_dh, date_ruzlyj,
-        dept_code, finish_step, open_status, creator
+    <insert id="insertRow">
+        insert into cght.${tb} (
+        <foreach collection="pairs" item="p" separator=",">${p.col}</foreach>
         ) values (
-        #{c.unique_id}, #{c.id}, #{c.title}, #{c.amount}, #{c.date_sign}, #{c.sign_person}, #{c.sign_type},
-        #{c.supplier}, #{c.pay_type}, #{c.payment_type},
-        #{c.paycycle_dh}, #{c.paycycle_zb},
-        #{c.date_yfk}, #{c.date_dhk}, #{c.date_zbj}, #{c.date_rk},
-        #{c.bz}, #{c.settle_amount}, #{c.has_amount}, #{c.hq},
-        #{c.date_htyj}, #{c.date_fpyj}, #{c.date_actual_dh}, #{c.date_ruzlyj},
-        #{c.dept_code}, #{c.finish_step}, true, #{c.creator}
+        <foreach collection="pairs" item="p" separator=",">#{p.val}</foreach>
         )
     </insert>
 
-    <!-- ============ 更新（全量）：按 unique_id 更新所有业务字段 ============ -->
-    <!-- ⚠️ creator（录入人）刻意不在此列：它是审计字段，更新时保持原值 ——
-         若允许随表单改写，客户端就能伪造「谁录的」，按录入人过滤的「本人」档随之失效。 -->
-    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract">
-        update cght.t_contract
-        <set>
-            id = #{c.id},
-            title = #{c.title},
-            amount = #{c.amount},
-            date_sign = #{c.date_sign},
-            sign_person = #{c.sign_person},
-            sign_type = #{c.sign_type},
-            supplier = #{c.supplier},
-            pay_type = #{c.pay_type},
-            payment_type = #{c.payment_type},
-            paycycle_dh = #{c.paycycle_dh},
-            paycycle_zb = #{c.paycycle_zb},
-            date_yfk = #{c.date_yfk},
-            date_dhk = #{c.date_dhk},
-            date_zbj = #{c.date_zbj},
-            date_rk = #{c.date_rk},
-            bz = #{c.bz},
-            settle_amount = #{c.settle_amount},
-            has_amount = #{c.has_amount},
-            hq = #{c.hq},
-            date_htyj = #{c.date_htyj},
-            date_fpyj = #{c.date_fpyj},
-            date_actual_dh = #{c.date_actual_dh},
-            date_ruzlyj = #{c.date_ruzlyj},
-            dept_code = #{c.dept_code},
-            finish_step = #{c.finish_step}
-        </set>
-        where unique_id = #{c.unique_id}
+    <update id="updateRow">
+        update cght.${tb}
+        set
+        <foreach collection="pairs" item="p" separator=",">${p.col} = #{p.val}</foreach>
+        where unique_id = #{unique_id}
     </update>
 
-    <!-- ============ 逻辑作废（不物理删除）：按 unique_id ============ -->
-    <update id="markInvalid">
-        update cght.t_contract set open_status = false where unique_id = #{unique_id}
-    </update>
-
-    <!-- ============ 重新启用：按 unique_id ============ -->
-    <update id="reactivate">
-        update cght.t_contract set open_status = true where unique_id = #{unique_id}
+    <update id="markInvalidRow">
+        update cght.${tb} set open_status = false where unique_id = #{unique_id}
     </update>
 </mapper>

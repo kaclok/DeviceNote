@@ -1,64 +1,236 @@
 {
 	"defaultPwd": "123456",
-	"payment_type": [
-		{
-			"id": 1,
-			"desc": "即时结算类"
-		},
-		{
-			"id": 2,
-			"desc": "周期结算类"
-		}
-	],
-	"finishedOptions": [
-		"预付款待付",
-		"到货款待付",
-		"质保款待付",
-		"全付"
-	],
 	"dataScope": {
 		"levels": [
-			{"id": 1, "name": "SELF", "desc": "本人"},
-			{"id": 2, "name": "DEPT", "desc": "本部门"},
-			{"id": 3, "name": "COMPANY", "desc": "本公司"},
-			{"id": 4, "name": "ALL", "desc": "全集团"}
+			{
+				"id": 1,
+				"name": "SELF",
+				"desc": "本人"
+			},
+			{
+				"id": 2,
+				"name": "DEPT",
+				"desc": "本部门"
+			},
+			{
+				"id": 3,
+				"name": "COMPANY",
+				"desc": "本公司"
+			},
+			{
+				"id": 4,
+				"name": "ALL",
+				"desc": "全集团"
+			}
 		]
 	},
 	"fieldTypes": {
-		"text": {"label": "文本", "sample": ""},
-		"number": {"label": "数字", "sample": "3836.92"},
-		"int": {"label": "整数", "sample": "30"},
-		"date": {"label": "日期", "sample": "2025/09/04"},
-		"bool": {"label": "是/否", "sample": "是"},
-		"enum": {"label": "选项", "sample": ""}
+		"text": {
+			"label": "文字",
+			"sample": ""
+		},
+		"float": {
+			"label": "小数",
+			"sample": "3836.92"
+		},
+		"int": {
+			"label": "整数",
+			"sample": "30"
+		},
+		"date": {
+			"label": "日期",
+			"sample": "2025/09/04"
+		},
+		"bool": {
+			"label": "是/否",
+			"sample": "是"
+		}
 	},
 	"contractTables": {
 		"t_contract": {
 			"columns": [
-				{"field": "id", "header": "合同编号", "type": "text", "required": true},
-				{"field": "title", "header": "合同名称", "type": "text", "required": true},
-				{"field": "sign_person", "header": "签订人", "type": "text", "required": true},
-				{"field": "sign_type", "header": "合同签订方式", "type": "text", "required": true},
-				{"field": "supplier", "header": "供应商", "type": "text", "required": true},
-				{"field": "amount", "header": "合同金额(元)", "type": "number", "required": true},
-				{"field": "date_sign", "header": "签订时间", "type": "date", "required": true},
-				{"field": "pay_type", "header": "付款方式", "type": "text"},
-				{"field": "paycycle_dh", "header": "到货付款周期(月)", "type": "number"},
-				{"field": "paycycle_zb", "header": "质保付款周期(月)", "type": "number"},
-				{"field": "settle_amount", "header": "结算金额(元)", "type": "number"},
-				{"field": "hq", "header": "货期(天)", "type": "int"},
-				{"field": "date_htyj", "header": "合同移交日期", "type": "date"},
-				{"field": "date_fpyj", "header": "发票移交日期", "type": "date"},
-				{"field": "date_actual_dh", "header": "实际到货日期", "type": "date"},
-				{"field": "date_ruzlyj", "header": "入库资料移交物资日期", "type": "date"},
-				{"field": "date_rk", "header": "挂账日期", "type": "date"},
-				{"field": "date_yfk", "header": "预付款日期", "type": "date"},
-				{"field": "date_dhk", "header": "到货款日期", "type": "date"},
-				{"field": "date_zbj", "header": "质保金付款日期", "type": "date"},
-				{"field": "bz", "header": "备注", "type": "text"},
-				{"field": "finish_step", "header": "财务环节", "type": "enum", "options": ["预付款待付", "到货款待付", "质保款待付", "全付"]},
-				{"field": "has_amount", "header": "已付款(元)", "type": "number"},
-				{"field": "payment_type", "header": "付款类型", "type": "enum", "required": true, "options": ["即时结算类", "周期结算类"]}
+				{
+					"field": "id",
+					"header": "合同编号",
+					"type": "text",
+					"required": true,
+					"width": 160,
+					"fixed": "left"
+				},
+				{
+					"field": "title",
+					"header": "合同名称",
+					"type": "text",
+					"required": true,
+					"minWidth": 180
+				},
+				{
+					"field": "amount",
+					"header": "合同金额(元)",
+					"type": "float",
+					"required": true
+				},
+				{
+					"field": "date_sign",
+					"header": "签订时间",
+					"type": "date",
+					"required": true
+				},
+				{
+					"field": "sign_person",
+					"header": "签订人",
+					"type": "text",
+					"required": true,
+					"width": 88
+				},
+				{
+					"field": "sign_type",
+					"header": "合同签订方式",
+					"type": "text",
+					"required": true,
+					"width": 110,
+					"nullWhenEmpty": true
+				},
+				{
+					"field": "supplier",
+					"header": "供应商",
+					"type": "text",
+					"required": true,
+					"minWidth": 200
+				},
+				{
+					"field": "paycycle_dh",
+					"header": "到货付款周期(月)",
+					"type": "float",
+					"sample": "3"
+				},
+				{
+					"field": "paycycle_zb",
+					"header": "质保付款周期(月)",
+					"type": "float",
+					"sample": "12"
+				},
+				{
+					"field": "date_yfk",
+					"header": "预付款日期",
+					"type": "date",
+					"mirror": "date_sign"
+				},
+				{
+					"field": "date_dhk",
+					"header": "到货款日期",
+					"type": "date"
+				},
+				{
+					"field": "date_zbj",
+					"header": "质保金付款日期",
+					"type": "date"
+				},
+				{
+					"field": "date_rk",
+					"header": "挂账日期",
+					"type": "date"
+				},
+				{
+					"field": "bz",
+					"header": "备注",
+					"type": "text",
+					"span": 24,
+					"minWidth": 200
+				},
+				{
+					"field": "pay_type",
+					"header": "付款方式",
+					"type": "text",
+					"minWidth": 180
+				},
+				{
+					"field": "settle_amount",
+					"header": "结算金额(元)",
+					"type": "float"
+				},
+				{
+					"field": "hq",
+					"header": "货期(天)",
+					"type": "int"
+				},
+				{
+					"field": "date_htyj",
+					"header": "合同移交日期",
+					"type": "text"
+				},
+				{
+					"field": "date_fpyj",
+					"header": "发票移交日期",
+					"type": "text"
+				},
+				{
+					"field": "date_actual_dh",
+					"header": "实际到货日期",
+					"type": "text"
+				},
+				{
+					"field": "date_ruzlyj",
+					"header": "入库资料移交物资日期",
+					"type": "text"
+				},
+				{
+					"field": "finish_step",
+					"header": "财务环节",
+					"type": "int",
+					"options": [
+						{
+							"v": 0,
+							"label": "预付款待付",
+							"tag": "info"
+						},
+						{
+							"v": 1,
+							"label": "到货款待付",
+							"tag": "warning"
+						},
+						{
+							"v": 2,
+							"label": "质保款待付",
+							"tag": "primary"
+						},
+						{
+							"v": 3,
+							"label": "全付",
+							"tag": "success"
+						}
+					]
+				},
+				{
+					"field": "has_amount",
+					"header": "已付款(元)",
+					"type": "float"
+				},
+				{
+					"field": "payment_type",
+					"header": "付款类型",
+					"type": "int",
+					"required": true,
+					"options": [
+						{
+							"v": 1,
+							"label": "即时结算类"
+						},
+						{
+							"v": 2,
+							"label": "周期结算类"
+						}
+					]
+				},
+				{
+					"field": "dept_code",
+					"header": "归属部门",
+					"type": "text",
+					"required": true,
+					"system": true,
+					"widget": "dept",
+					"minWidth": 150
+				}
 			],
 			"examples": [
 				{
@@ -108,26 +280,279 @@
 					"has_amount": 115200,
 					"payment_type": "周期结算类"
 				}
-			]
+			],
+			"filters": [
+				{
+					"field": "id",
+					"label": "合同编号",
+					"type": "text",
+					"op": "like",
+					"placeholder": "如 SMLJ-CG-CL",
+					"width": 160
+				},
+				{
+					"field": "title",
+					"label": "合同名称",
+					"type": "text",
+					"op": "like",
+					"placeholder": "合同名称",
+					"width": 150
+				},
+				{
+					"field": "sign_person",
+					"label": "签订人",
+					"type": "text",
+					"op": "like",
+					"placeholder": "签订人",
+					"width": 130,
+					"hideForSelf": true
+				},
+				{
+					"field": "sign_type",
+					"label": "签订方式",
+					"type": "text",
+					"op": "like",
+					"placeholder": "签订方式",
+					"width": 130
+				},
+				{
+					"field": "supplier",
+					"label": "供应商",
+					"type": "text",
+					"op": "like",
+					"placeholder": "供应商",
+					"width": 160
+				},
+				{
+					"field": "payment_type",
+					"label": "付款类型",
+					"type": "select",
+					"op": "eq",
+					"width": 130
+				},
+				{
+					"field": "finish_step",
+					"label": "财务环节",
+					"type": "select",
+					"op": "eq",
+					"width": 110
+				},
+				{
+					"field": "date_sign",
+					"label": "签订日期",
+					"type": "range",
+					"op": "range",
+					"width": 130
+				},
+				{
+					"field": "date_rk",
+					"label": "挂账日期",
+					"type": "range",
+					"op": "range",
+					"width": 130
+				},
+				{
+					"field": "warn_day",
+					"label": "预警",
+					"type": "warn",
+					"value": 10,
+					"text": "预警10天",
+					"tip": "筛选预警天数小于10天"
+				}
+			],
+			"formGroups": [
+				{
+					"title": "基本信息",
+					"fields": [
+						"id",
+						"title",
+						"amount",
+						"date_sign",
+						"sign_person",
+						"sign_type",
+						"supplier",
+						"dept_code",
+						"pay_type",
+						"payment_type"
+					]
+				},
+				{
+					"title": "付款周期",
+					"fields": [
+						"paycycle_dh",
+						"paycycle_zb"
+					]
+				},
+				{
+					"title": "货期、移交与备注",
+					"fields": [
+						"settle_amount",
+						"has_amount",
+						"hq",
+						"date_htyj",
+						"date_fpyj",
+						"date_actual_dh",
+						"date_ruzlyj",
+						"bz"
+					]
+				},
+				{
+					"title": "付款日期",
+					"fields": [
+						"date_yfk",
+						"date_dhk",
+						"date_zbj"
+					]
+				},
+				{
+					"title": "入库、财务",
+					"fields": [
+						"date_rk",
+						"finish_step"
+					]
+				}
+			],
+			"financeExport": {
+				"sheet": "导给财务",
+				"filename": "导给财务",
+				"columns": [
+					{"header": "序号", "kind": "index", "width": 6},
+					{"header": "付款类型", "kind": "const", "value": "备品备件", "width": 12},
+					{"header": "供应商单位名称", "kind": "field", "field": "supplier", "width": 32},
+					{"header": "付款事由", "kind": "field", "field": "title", "width": 36},
+					{"header": "结算金额", "kind": "money", "field": "settle_amount", "width": 14},
+					{"header": "已付金额", "kind": "money", "field": "has_amount", "width": 14},
+					{"header": "未付金额", "kind": "diff", "fields": ["settle_amount", "has_amount"], "width": 14},
+					{"header": "本次计划付款金额", "kind": "diff", "fields": ["settle_amount", "has_amount"], "width": 18},
+					{"header": "计划电汇金额", "kind": "diff", "fields": ["settle_amount", "has_amount"], "width": 16},
+					{"header": "计划承兑金额", "kind": "zero", "width": 16},
+					{"header": "备注", "kind": "concat", "parts": [{"field": "id"}, {"field": "bz", "when": {"field": "payment_type", "ne": 1}}], "width": 22},
+					{"header": "业务员", "kind": "field", "field": "sign_person", "width": 12}
+				]
+			}
 		},
 		"t_contract_smds_sc": {
 			"columns": [
-				{"field": "id", "header": "合同编号", "type": "text", "required": true},
-				{"field": "title", "header": "合同名称", "type": "text", "required": true},
-				{"field": "amount", "header": "合同金额(元)", "type": "number", "required": true},
-				{"field": "date_sign", "header": "签订时间", "type": "date", "required": true},
-				{"field": "sign_person", "header": "签订人", "type": "text", "required": true},
-				{"field": "category", "header": "项目类别归属", "type": "text"},
-				{"field": "supplier", "header": "供应商", "type": "text", "required": true},
-				{"field": "has_gz", "header": "是否挂账", "type": "bool", "required": true},
-				{"field": "bz", "header": "备注", "type": "text"},
-				{"field": "pay_type", "header": "付款方式", "type": "text"},
-				{"field": "has_amount", "header": "已付款(元)", "type": "number"},
-				{"field": "rate_has_amount", "header": "已支付比例", "type": "number", "required": true},
-				{"field": "remain_money", "header": "余款金额", "type": "number", "required": true},
-				{"field": "tax_rate", "header": "税率", "type": "text"},
-				{"field": "duration_day", "header": "合同有效期", "type": "text"},
-				{"field": "remain_pay_dt", "header": "余额付款日期", "type": "date"}
+				{
+					"field": "id",
+					"header": "合同编号",
+					"type": "text",
+					"required": true,
+					"width": 160,
+					"fixed": "left"
+				},
+				{
+					"field": "title",
+					"header": "合同名称",
+					"type": "text",
+					"required": true,
+					"minWidth": 180
+				},
+				{
+					"field": "amount",
+					"header": "合同金额(元)",
+					"type": "text"
+				},
+				{
+					"field": "date_sign",
+					"header": "签订时间",
+					"type": "date",
+					"required": true
+				},
+				{
+					"field": "sign_person",
+					"header": "签订人",
+					"type": "text",
+					"required": true,
+					"width": 88
+				},
+				{
+					"field": "category",
+					"header": "项目类别归属",
+					"type": "text",
+					"minWidth": 140
+				},
+				{
+					"field": "supplier",
+					"header": "供应商",
+					"type": "text",
+					"required": true,
+					"minWidth": 200
+				},
+				{
+					"field": "bz",
+					"header": "备注",
+					"type": "text",
+					"span": 24,
+					"minWidth": 200
+				},
+				{
+					"field": "pay_type",
+					"header": "付款方式",
+					"type": "text",
+					"minWidth": 180
+				},
+				{
+					"field": "has_amount",
+					"header": "已付款(元)",
+					"type": "float"
+				},
+				{
+					"field": "dept_code",
+					"header": "归属部门",
+					"type": "text",
+					"required": true,
+					"system": true,
+					"widget": "dept",
+					"minWidth": 150
+				},
+				{
+					"field": "tax_rate",
+					"header": "税率",
+					"type": "text",
+					"sample": "13%",
+					"width": 100
+				},
+				{
+					"field": "duration_day",
+					"header": "合同有效期",
+					"type": "text",
+					"sample": "60",
+					"width": 100
+				},
+				{
+					"field": "remain_pay_dt",
+					"header": "余额付款日期",
+					"type": "date"
+				},
+				{
+					"field": "has_gz",
+					"header": "是否挂账",
+					"type": "bool",
+					"options": [
+						{
+							"v": true,
+							"label": "是",
+							"tag": "success"
+						},
+						{
+							"v": false,
+							"label": "否",
+							"tag": "info"
+						}
+					]
+				},
+				{
+					"field": "remain_money",
+					"header": "余款金额",
+					"type": "float"
+				},
+				{
+					"field": "rate_has_amount",
+					"header": "已支付比例",
+					"type": "text",
+					"sample": "0.7"
+				}
 			],
 			"examples": [
 				{
@@ -183,6 +608,97 @@
 					"tax_rate": "13%",
 					"duration_day": "60",
 					"remain_pay_dt": "2026/08/01"
+				}
+			],
+			"filters": [
+				{
+					"field": "id",
+					"label": "合同编号",
+					"type": "text",
+					"op": "like",
+					"placeholder": "如 SMLJ-CG",
+					"width": 160
+				},
+				{
+					"field": "title",
+					"label": "合同名称",
+					"type": "text",
+					"op": "like",
+					"placeholder": "合同名称",
+					"width": 150
+				},
+				{
+					"field": "sign_person",
+					"label": "签订人",
+					"type": "text",
+					"op": "like",
+					"placeholder": "签订人",
+					"width": 130,
+					"hideForSelf": true
+				},
+				{
+					"field": "supplier",
+					"label": "供应商",
+					"type": "text",
+					"op": "like",
+					"placeholder": "供应商",
+					"width": 160
+				},
+				{
+					"field": "category",
+					"label": "项目类别归属",
+					"type": "text",
+					"op": "like",
+					"placeholder": "如 技改",
+					"width": 130
+				},
+				{
+					"field": "has_gz",
+					"label": "是否挂账",
+					"type": "select",
+					"op": "eq",
+					"width": 110
+				},
+				{
+					"field": "date_sign",
+					"label": "签订日期",
+					"type": "range",
+					"op": "range",
+					"width": 130
+				}
+			],
+			"formGroups": [
+				{
+					"title": "基本信息",
+					"fields": [
+						"id",
+						"title",
+						"amount",
+						"date_sign",
+						"sign_person",
+						"category",
+						"supplier",
+						"dept_code",
+						"pay_type",
+						"tax_rate",
+						"duration_day"
+					]
+				},
+				{
+					"title": "付款与结算",
+					"fields": [
+						"has_amount",
+						"rate_has_amount",
+						"remain_money",
+						"remain_pay_dt",
+						"has_gz"
+					]
+				},
+				{
+					"title": "备注",
+					"fields": [
+						"bz"
+					]
 				}
 			]
 		}

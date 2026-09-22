@@ -15,7 +15,6 @@ import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTRoleDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTUserDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptContractTemplateDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TDeptDao;
-import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContract;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContractTemplate;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser;
@@ -41,10 +40,12 @@ import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.springframework.format.annotation.DateTimeFormat;
 
@@ -55,17 +56,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 @Tag(name = "CCGHT", description = "采购合同")
 public class CCGHT {
     private static final String DEFAULT_INIT_PWD = "123456";
-
-    /**
-     * 导入链路当前真正写入的物理表。
-     * <p>
-     * 模版的 tb_name 已经可以指向别的表（例如 t_contract_smds_sc），但台账的读路径
-     * （contract/list|get|update|delete）还没有按模版路由。此时若照着 tb_name 落表，
-     * 数据会写进一张台账页面永远读不到的表里，而且部门绑定还会被记成"已用该模版"——
-     * 事后想对齐只能手工搬数据。所以插入前先 fail-closed：表没接入就明确拒绝。
-     * 读路径接入后，把这个常量换成"按模版解析 tb_name"即可（另需定跨表编号唯一口径）。
-     */
-    private static final String IMPORT_TARGET_TABLE = "t_contract";
 
     /*
      * data_scope 档位：定义已收敛到 DataScope 枚举 —— 编号即包含序的说明、库值/入参解析、
@@ -573,28 +563,101 @@ public class CCGHT {
     // ================================================================
 
     /**
-     * 模版全量列表（id / name / tb_name）。
+     * 模版全量列表（id / name / tb_name / col_order / dept_codes）。
      * <p>
      * 刻意不加 @RequirePermission：台账页与批量导入页都要靠它渲染「合同模版」下拉，
      * 而这是系统配置（模版名 + 物理表名），不含任何合同数据 —— 凡是能进那两个页面的人都该看得到。
-     * 真正的写入口（deptTpl/save|delete）另有 perm:assign + 范围闸兜底。
+     * 真正的写入口（deptTpl/save|delete、template/colOrder）另有 perm:assign 兜底。
+     * <p>
+     * 同样刻意不加 @Transactional（与 /dept/list 同一理由）：本方法要读内存里的组织树索引，
+     * 而事务开启时 dynamic-datasource 会把连接绑到主库，事务内再切 @DS("train") 拿不到 train 的数据。
      */
-    @Transactional
     @PostMapping(value = "/template/list")
-    public Result<?> templateList() {
+    public Result<?> templateList(@Acc TCGHTUser curUser) {
         var ls = tplDao.queryAll();
+        // 部门 → 生效模版 的分组：台账页据此把组织树收窄到"持有该模版"的部门。
+        // 一次算好按模版分发，避免每个模版各遍历一遍组织树。
+        Map<Integer, List<String>> holders = effectiveHolders(resolveScopeDepts(curUser));
         var out = new ArrayList<Map<String, Object>>();
         for (TCGHTContractTemplate t : ls) {
             Map<String, Object> m = new HashMap<>();
             m.put("id", t.getId());
             m.put("name", t.getName());
             m.put("tb_name", t.getTb_name());
-            // 把"这模版现在能不能导"提前交给前端：否则用户选完模版、挑完部门、传完文件，
+            // Excel 列顺序的覆盖值（空 = 按前端 gd.json 的登记顺序）：导出与导入模板都按它排
+            m.put("col_order", t.getCol_order());
+            // 该模版下"生效"的部门编码（已按操作者数据范围收窄）：台账页用它剪组织树。
+            // ⚠️ 但空数组会被全局 NON_EMPTY 丢掉（见下），所以"空集"另由 holder_count=0 表达，前端不能靠"数组在不在"判断。
+            List<String> holderCodes = holders.getOrDefault(t.getId(), List.of());
+            m.put("dept_codes", holderCodes);
+            // ⚠️ 必须再补一个"永不为空"的数字当权威开关：全局 spring.jackson.default-property-inclusion=NON_EMPTY
+            // 会把**空数组整条丢掉**（已用真实 Jackson 复刻验证），于是"可见范围内没人用这套模版"（空集）
+            // 与"该字段不存在"到了前端长得一模一样 —— 前端只能退回"不收窄"，组织树于是显示全量部门。
+            // holder_count 是 int，NON_EMPTY 不会吞 0；前端以它为准：拿得到数字才认 dept_codes 的三态。
+            m.put("holder_count", holderCodes.size());
+            // 把"这模版现在能不能用"提前交给前端：否则用户选完模板、挑完部门、传完文件，
             // 才在最后一步被拒 —— 那一趟解析白跑，提示也来得太晚。
-            m.put("importable", IMPORT_TARGET_TABLE.equalsIgnoreCase(t.getTb_name()));
+            m.put("importable", usableTable(t.getTb_name()));
             out.add(m);
         }
         return Result.success(out);
+    }
+
+    /**
+     * 保存某套模版的 Excel 列顺序（= 模板表头预览里拖拽后的结果）。
+     * <p>
+     * 为什么要有这个写口：列清单本身仍在 gd.json（导出 / 导入模板 / 导入解析 / 表头预览四处同源），
+     * 但"希望按什么顺序出表"是会变的业务口径 —— 如果只能改 gd.json，改一次就得跟着发一次前端。
+     * 于是把它落到 t_contract_template.col_order 这一份覆盖值上；前端读不到覆盖值时按登记顺序。
+     * <p>
+     * 入参 col_order 是逗号分隔的字段名，逐个核对**真实属于该模版指向的物理表**
+     * （形态正则 + information_schema），与台账拼 SQL 前那三道核对同一思路：
+     * 绝不把一个库里不存在的列名写进配置 —— 写进去之后每个打开模板页的人都会拿到坏配置。
+     * <p>
+     * 刻意不做"必须覆盖全部列"的校验：只有前端知道"哪些列进 Excel"（system 列不进），
+     * 后端强行要求全集只会把两边的配置耦死；漏掉的列由前端按登记顺序补在末尾，不会丢。
+     * 传空串 = 清除覆盖、回到登记顺序。
+     */
+    @RequirePermission("perm:assign")
+    @Transactional
+    @PostMapping(value = "/template/colOrder")
+    public Result<?> templateColOrder(@RequestParam(name = "tpl_id", required = false) Integer tpl_id,
+                                      @RequestParam(name = "col_order", required = false) String col_order) {
+        if (tpl_id == null) {
+            return Result.fail(ResultCode.RC10101.getCode(), "合同模版(tpl_id)不能为空");
+        }
+        TCGHTContractTemplate tpl = tplDao.query(tpl_id);
+        if (tpl == null) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("合同模版 %s 不存在", tpl_id));
+        }
+        final String tb = registeredTable(tpl.getTb_name());
+        if (tb == null) {
+            return Result.fail(ResultCode.RC10101.getCode(),
+                    String.format("模版「%s」对应的物理表 %s 未登记，请联系管理员", tpl.getName(), tpl.getTb_name()));
+        }
+        Map<String, String> cols = colsOf(tb);
+        List<String> ordered = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        if (StringUtils.hasText(col_order)) {
+            for (String raw : col_order.split(",")) {
+                String f = raw == null ? "" : raw.trim().toLowerCase();
+                if (!StringUtils.hasText(f)) continue;
+                if (!SQL_IDENT.matcher(f).matches() || !cols.containsKey(f)) {
+                    return Result.fail(ResultCode.RC10101.getCode(),
+                            String.format("列 %s 不属于物理表 %s", f, tb));
+                }
+                if (!seen.add(f)) {
+                    return Result.fail(ResultCode.RC10101.getCode(), String.format("列 %s 重复出现", f));
+                }
+                ordered.add(f);
+            }
+        }
+        String saved = ordered.isEmpty() ? null : String.join(",", ordered);
+        tplDao.updateColOrder(tpl_id, saved);
+        Map<String, Object> data = new HashMap<>();
+        data.put("tpl_id", tpl_id);
+        data.put("col_order", saved);
+        return Result.success(data);
     }
 
     /**
@@ -720,7 +783,7 @@ public class CCGHT {
         // 物理表名与"能不能导"一并下发：导入页据此就能说清"这批数据写进哪张表"，
         // 不必再拉一次模版列表 —— 少一次请求，也少一份可能过期的副本。
         data.put("tb_name", tpl == null ? null : tpl.getTb_name());
-        data.put("importable", tpl != null && IMPORT_TARGET_TABLE.equalsIgnoreCase(tpl.getTb_name()));
+        data.put("importable", tpl != null && usableTable(tpl.getTb_name()));
         // owner：真正挂着这条绑定的部门。「部门合同模板」页也是这个口径（自身设置 / 继承自 xx），
         // 两个页面必须给出一致的答案，否则用户会以为导入页认错了部门。
         data.put("owner_dept_code", bind.getDept_code());
@@ -751,6 +814,61 @@ public class CCGHT {
             }
             String parent = this.deptParent.get(cur);
             // 与 companyOf 同一判据：父为空、或父不在启用集合里，就是已经到顶
+            cur = (StringUtils.hasText(parent) && this.deptCodes.contains(parent)) ? parent : null;
+        }
+        return null;
+    }
+
+    /**
+     * 每个部门「实际生效」的模版（自身绑定，否则沿组织树上溯最近的已绑定祖先），按模版 id 分组。
+     * <p>
+     * 台账页据此把组织树收窄到「持有该模版」的部门 —— 收窄口径与 effectiveDeptTpl 逐字一致，
+     * 所以"树上能选的部门"与"导入时能过绑定校验的部门"天然同源，不会一个说行一个说不行。
+     * 继承也算持有：绑定通常只打在几个公司节点上，只认显式绑定会让下级部门在树上彻底消失。
+     *
+     * @param scopeDepts 操作者的可见部门白名单三态（null = 不限制）；只回传范围内的部门，读同样不越权
+     */
+    private Map<Integer, List<String>> effectiveHolders(List<String> scopeDepts) {
+        if (this.deptParent.isEmpty()) {
+            refreshDeptCache();
+        }
+        Set<String> allow = scopeDepts == null ? null : new HashSet<>(scopeDepts);
+        // 绑定表只有几十行：一次取回建索引，别为了上百个部门逐个查库
+        Map<String, Integer> bindTpl = new HashMap<>();
+        for (TDeptContractTemplate b : deptTplDao.queryAll()) {
+            if (b != null && StringUtils.hasText(b.getDept_code()) && b.getTpl_id() != null) {
+                bindTpl.put(b.getDept_code(), b.getTpl_id());
+            }
+        }
+        Map<Integer, List<String>> out = new LinkedHashMap<>();
+        for (String code : this.deptCodes) {
+            if (allow != null && !allow.contains(code)) {
+                continue;
+            }
+            Integer tplId = nearestTplOf(bindTpl, code);
+            if (tplId != null) {
+                out.computeIfAbsent(tplId, k -> new ArrayList<>()).add(code);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 部门 → 生效模版 id：自身绑定，否则沿组织树上溯最近的已绑定祖先；整条链都没有则返回 null。
+     * <p>
+     * 判据与 effectiveDeptTpl 完全一致（含"父为空、或父不在启用集合里即为到顶"），
+     * 只是数据源换成一次取回的索引 —— 遍历上百个部门时不能反复查库。
+     */
+    private Integer nearestTplOf(Map<String, Integer> bindTpl, String deptCode) {
+        Set<String> seen = new HashSet<>();          // 防脏数据成环
+        String cur = deptCode;
+        while (StringUtils.hasText(cur) && seen.add(cur)) {
+            Integer t = bindTpl.get(cur);
+            if (t != null) {
+                return t;
+            }
+            String parent = this.deptParent.get(cur);
+            // 与 companyOf / effectiveDeptTpl 同一判据：父为空或父不在启用集合里，就是已经到顶
             cur = (StringUtils.hasText(parent) && this.deptCodes.contains(parent)) ? parent : null;
         }
         return null;
@@ -1092,54 +1210,87 @@ public class CCGHT {
     }
 
     // ================================================================
-    // 合同台账 CRUD（TCGHTContract 24 个业务字段 + open_status 逻辑删除）
-    // 查询参数名与前端 query 参数一致；date_sign 日期范围用 queryBegin/queryEnd，date_rk 挂账日期范围用 rkBegin/rkEnd
+    // 合同台账 CRUD —— 按「部门 → 生效模版 → 物理表」路由
     // ================================================================
+    // 一个部门的合同落在哪张物理表，由该部门绑定的合同模版决定（t_contract_template.tb_name），
+    // 所以台账不再固定读写 cght.t_contract：请求带 tb，后端核对（见下面「按模版路由」一节）后路由过去，
+    // 列随表走 —— 前端按 gd.json 里该表的列与筛选配置渲染，后端不预设任何一张表的列。
+    //
+    // 筛选条件用 f_ 前缀 + 列名 + _ + 比较符 的查询参数下推（如 f_id_like=SMLJ、f_date_sign_gte=2025-01-01）：
+    // 每个模版有哪些筛选条件写在 gd.json 的 filters 里，前端照着拼参数；后端不信任这些参数 ——
+    // 列名必须真实存在于该表、比较符必须在白名单内、like 只能落在字符列上，任何一条不合法就整请求拒绝
+    // （静默丢掉一条筛选，用户会以为"这就是全部数据"）。
 
     @Transactional
     @PostMapping(value = "/contract/list")
-    public Result<?> contractList(
-            @RequestParam(name = "id", required = false) String id,
-            @RequestParam(name = "title", required = false) String title,
-            @RequestParam(name = "sign_person", required = false) String sign_person,
-            @RequestParam(name = "sign_type", required = false) String sign_type,
-            @RequestParam(name = "payment_type", required = false) Integer payment_type,
-            @RequestParam(name = "supplier", required = false) String supplier,
-            @RequestParam(name = "dept_code", required = false) String dept_code,
-            @RequestParam(name = "queryBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryBegin,
-            @RequestParam(name = "queryEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date queryEnd,
-            @RequestParam(name = "finish_step", required = false) Integer finish_step,
-            @RequestParam(name = "rkBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date rkBegin,
-            @RequestParam(name = "rkEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date rkEnd,
-            @RequestParam(name = "warn_day", required = false) Integer warn_day,
-            @RequestParam(name = "pageNum", required = false, defaultValue = "0") Integer pageNum,
-            @RequestParam(name = "pageSize", required = false, defaultValue = "0") Integer pageSize,
-            @Acc TCGHTUser curUser) {
+    public Result<?> contractList(@RequestParam Map<String, String> params, @Acc TCGHTUser curUser) {
+        final String tb = registeredTable(params.get("tb"));
+        if (tb == null) {
+            return Result.fail(ResultCode.RC10101.getCode(),
+                    "合同模板未确定或该物理表未登记，请先在「部门合同模板」页为该部门指定模板");
+        }
+        Map<String, String> cols = colsOf(tb);
+        List<Map<String, Object>> conds = new ArrayList<>();
+        for (Map.Entry<String, String> e : params.entrySet()) {
+            String k = e.getKey();
+            if (k == null || !k.startsWith(FILTER_PREFIX)) continue;
+            String v = e.getValue();
+            if (!StringUtils.hasText(v)) continue;                 // 空值 = 不筛这一项
+            int i = k.lastIndexOf('_');
+            String col = i > FILTER_PREFIX.length() ? k.substring(FILTER_PREFIX.length(), i).toLowerCase() : "";
+            String op = i > FILTER_PREFIX.length() ? k.substring(i + 1).toLowerCase() : "";
+            if (!SQL_IDENT.matcher(col).matches() || !FILTER_OPS.contains(op)) {
+                return Result.fail(ResultCode.RC10101.getCode(), String.format("不支持的筛选条件 %s", k));
+            }
+            if (!cols.containsKey(col)) {
+                return Result.fail(ResultCode.RC10101.getCode(), String.format("字段 %s 不属于当前合同模板", col));
+            }
+            if (!opFitsType(op, cols.get(col))) {
+                return Result.fail(ResultCode.RC10101.getCode(), String.format("字段 %s 不支持模糊匹配", col));
+            }
+            Map<String, Object> cond = new HashMap<>(4);
+            cond.put("col", col);
+            cond.put("op", op);
+            cond.put("v", v);
+            conds.add(cond);
+        }
+        // 预警筛选要 date_rk + paycycle_dh/zb 三列齐全，不是每张表都有；没有就明确拒绝，
+        // 而不是让 SQL 去引用一个不存在的列（那会以 500 收场，用户看到的是"系统坏了"）。
+        Integer warnDay = intOrNull(params.get("warn_day"));
+        if (warnDay != null && !supportsWarn(cols)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "当前合同模板不支持按预警天数筛选");
+        }
         // 数据范围下推：null 不限 / 空列表=无可见部门 / 非空=仅这些部门。
-        // 筛选栏的 dept_code 先按组织树展开成子树，再与可见范围求交（deptFilterOf，与账号列表同一口径）：
-        // 受限用户筛了范围外的部门，交集为空 → 结果为空，而不是越权。
+        // 选中部门的 dept_code 先按组织树展开成子树，再与可见范围求交（deptFilterOf，与账号列表同一口径）：
+        // 受限用户选了范围外的部门，交集为空 → 结果为空，而不是越权。
         var scopeDepts = resolveScopeDepts(curUser);
         // 1 本人档：只放行 sign_person 等于我姓名的合同。
         // curUser 是现查的实时账号行，改了姓名这里立刻跟上，不会拿登录时的旧姓名去比对。
         var username = dataScopeOf(curUser) == DataScope.SELF ? curUser.getUsername() : null;
-        PageHelper.startPage(pageNum, pageSize, true, true, true);
-        var ls = contractDao.queryAll(id, title, sign_person, sign_type, payment_type, supplier, queryBegin, queryEnd, finish_step, rkBegin, rkEnd, warn_day, deptFilterOf(dept_code, scopeDepts), username);
+        PageHelper.startPage(intOrNull(params.get("pageNum"), 0), intOrNull(params.get("pageSize"), 0), true, true, true);
+        var ls = contractDao.queryRows(tb, conds, deptFilterOf(params.get("dept_code"), scopeDepts), username, warnDay);
         return Result.success(new PageSerializable<>(ls));
     }
 
     @Transactional
     @PostMapping(value = "/contract/get")
-    public Result<?> contractGet(@RequestParam(name = "unique_id", required = false) String unique_id,
+    public Result<?> contractGet(@RequestParam(name = "tb", required = false) String tb,
+                                 @RequestParam(name = "unique_id", required = false) String unique_id,
                                  @Acc TCGHTUser curUser) {
-        if (unique_id == null || unique_id.isBlank()) {
-            return Result.fail(ResultCode.RC10101, "unique_id 不能为空");
+        final String table = registeredTable(tb);
+        if (table == null) {
+            return Result.fail(ResultCode.RC10101.getCode(),
+                    "合同模板未确定或该物理表未登记，请先在「部门合同模板」页为该部门指定模板");
         }
-        TCGHTContract c = contractDao.query(unique_id);
-        if (c == null || !c.isOpen_status()) {
-            return Result.fail(ResultCode.RC10103, "目标合同不存在");
+        if (!StringUtils.hasText(unique_id)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "unique_id 不能为空");
+        }
+        Map<String, Object> c = contractDao.queryRow(table, unique_id);
+        if (c == null || !truthy(c.get("open_status"))) {
+            return Result.fail(ResultCode.RC10103.getCode(), "目标合同不存在");
         }
         // 单条读取同样受数据范围约束：否则换个 unique_id 就能读到别人部门的合同
-        if (!inScope(resolveScopeDepts(curUser), c.getDept_code())) {
+        if (!inScope(resolveScopeDepts(curUser), str(c.get("dept_code")))) {
             return outOfScope();
         }
         return Result.success(c);
@@ -1148,100 +1299,309 @@ public class CCGHT {
     @RequirePermission("contract:create")
     @Transactional
     @PostMapping(value = "/contract/create")
-    public Result<?> contractCreate(@RequestBody TCGHTContract c, @Acc TCGHTUser curUser) {
-        if (c == null || c.getId() == null || c.getId().isBlank()) {
-            return Result.fail(ResultCode.RC10101, "合同编号(id)不能为空");
+    public Result<?> contractCreate(@RequestBody Map<String, Object> body, @Acc TCGHTUser curUser) {
+        final String tb = registeredTable(body == null ? null : str(body.get("tb")));
+        if (tb == null) {
+            return Result.fail(ResultCode.RC10101.getCode(),
+                    "合同模板未确定或该物理表未登记，请先在「部门合同模板」页为该部门指定模板");
         }
-        // 归属部门必填：空值拒绝，非空必须在组织架构中真实存在
-        if (!StringUtils.hasText(c.getDept_code())) {
-            return Result.fail(ResultCode.RC10101, "归属部门(dept_code)不能为空");
+        final String id = body == null ? null : str(body.get("id"));
+        if (!StringUtils.hasText(id)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "合同编号(id)不能为空");
         }
-        if (!deptExists(c.getDept_code())) {
-            return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", c.getDept_code()));
-        }
-        // 数据范围：只能录入到自己有权看的部门。
+        // 归属部门必填：空值拒绝，非空必须在组织架构中真实存在。
         // deptExists 只回答"这个部门存在吗"，不回答"归你管吗" —— 两者必须分开校验。
-        if (!inScope(resolveScopeDepts(curUser), c.getDept_code())) {
+        final String deptCode = str(body.get("dept_code"));
+        if (!StringUtils.hasText(deptCode)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "归属部门(dept_code)不能为空");
+        }
+        if (!deptExists(deptCode)) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", deptCode));
+        }
+        if (!inScope(resolveScopeDepts(curUser), deptCode)) {
             return Result.fail(ResultCode.RC10307.getCode(),
-                    String.format("无权将合同录入到部门 %s（超出你的数据范围）", c.getDept_code()));
+                    String.format("无权将合同录入到部门 %s（超出你的数据范围）", deptCode));
         }
-
-        // 即时结算类(1)：id 必须唯一；周期结算类(2)：id 可重复
-        if (c.getPayment_type() != null && c.getPayment_type() == 1) {
-            if (contractDao.exist(c.getId()) > 0) {
-                return Result.fail(ResultCode.RC10102.getCode(),
-                        String.format("即时结算类合同编号 %s 已存在，禁止重复录入", c.getId()));
-            }
+        Map<String, String> cols = colsOf(tb);
+        // 即时结算类(1)：id 必须唯一；周期结算类(2)：id 可重复。
+        // 这条规则依赖 payment_type 列，只有带该列的表才适用（别的模板表没有这一列）。
+        if (cols.containsKey("payment_type") && Integer.valueOf(1).equals(asInt(body.get("payment_type")))
+                && contractDao.existId(tb, id) > 0) {
+            return Result.fail(ResultCode.RC10102.getCode(),
+                    String.format("即时结算类合同编号 %s 已存在，禁止重复录入", id));
         }
-
-        // 生成 unique_id 作为主键
-        c.setUnique_id(UUID.randomUUID().toString().replace("-", ""));
+        List<Map<String, Object>> pairs = pairsOf(body, cols);
+        String uid = UUID.randomUUID().toString().replace("-", "");
+        pairs.add(pair("unique_id", uid));          // 主键由服务端生成
+        pairs.add(pair("open_status", Boolean.TRUE));
         // 录入人按登录态写入（覆盖请求体里的任何值）：客户端不可伪造
-        c.setCreator(accountOf(curUser));
-        contractDao.insert(c);
-        return Result.success(c);
+        pairs.add(pair("creator", accountOf(curUser)));
+        contractDao.insertRow(tb, pairs);
+        // 回读写库后的真实一行（含库默认值）：把请求体原样回显，会让前端以为"没填的默认值也存进去了"
+        return Result.success(contractDao.queryRow(tb, uid));
     }
 
     @RequirePermission("contract:update")
     @Transactional
     @PostMapping(value = "/contract/update")
-    public Result<?> contractUpdate(@RequestBody TCGHTContract c, @Acc TCGHTUser curUser) {
-        if (c == null || c.getUnique_id() == null || c.getUnique_id().isBlank()) {
-            return Result.fail(ResultCode.RC10101, "unique_id 不能为空");
+    public Result<?> contractUpdate(@RequestBody Map<String, Object> body, @Acc TCGHTUser curUser) {
+        final String tb = registeredTable(body == null ? null : str(body.get("tb")));
+        if (tb == null) {
+            return Result.fail(ResultCode.RC10101.getCode(),
+                    "合同模板未确定或该物理表未登记，请先在「部门合同模板」页为该部门指定模板");
         }
-        TCGHTContract old = contractDao.query(c.getUnique_id());
+        final String uniqueId = body == null ? null : str(body.get("unique_id"));
+        if (!StringUtils.hasText(uniqueId)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "unique_id 不能为空");
+        }
+        Map<String, Object> old = contractDao.queryRow(tb, uniqueId);
         if (old == null) {
-            return Result.fail(ResultCode.RC10103, "目标合同不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "目标合同不存在");
         }
         // 归属部门必填：空值拒绝，非空必须在组织架构中真实存在
-        if (!StringUtils.hasText(c.getDept_code())) {
-            return Result.fail(ResultCode.RC10101, "归属部门(dept_code)不能为空");
+        final String deptCode = str(body.get("dept_code"));
+        if (!StringUtils.hasText(deptCode)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "归属部门(dept_code)不能为空");
         }
-        if (!deptExists(c.getDept_code())) {
-            return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", c.getDept_code()));
+        if (!deptExists(deptCode)) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", deptCode));
         }
         // 数据范围双向校验，两种情况提示不同：
         //   ① 合同「改前」归属不可见 -> 在动别人的数据，用统一「不存在」措辞，不暴露存在性（PRD §7）
         //   ② 合同「改后」归属不可见 -> 属于表单输入越权，必须说清是哪个部门不行，否则用户无法纠正
         List<String> scopeDepts = resolveScopeDepts(curUser);
-        if (!inScope(scopeDepts, old.getDept_code())) {
+        if (!inScope(scopeDepts, str(old.get("dept_code")))) {
             return outOfScope();
         }
-        if (!inScope(scopeDepts, c.getDept_code())) {
+        if (!inScope(scopeDepts, deptCode)) {
             return Result.fail(ResultCode.RC10307.getCode(),
-                    String.format("无权将合同归属到部门 %s（超出你的数据范围）", c.getDept_code()));
+                    String.format("无权将合同归属到部门 %s（超出你的数据范围）", deptCode));
         }
-        // 保留 unique_id 和 open_status，其余从 c 拷贝
-        // creator（录入人）不在拷贝范围：审计字段不随表单改，否则可伪造归属
-        BeanUtils.copyProperties(c, old, "unique_id", "open_status", "creator");
-        contractDao.update(old);
-        return Result.success(old);
+        // unique_id / open_status / creator 在 pairsOf 里已被挡掉：审计字段不随表单改写，
+        // 否则客户端能伪造「谁录的」，按录入人过滤的档位随之失效。
+        List<Map<String, Object>> pairs = pairsOf(body, colsOf(tb));
+        if (pairs.isEmpty()) {
+            return Result.fail(ResultCode.RC10101.getCode(), "没有需要更新的字段");
+        }
+        contractDao.updateRow(tb, pairs, uniqueId);
+        return Result.success(contractDao.queryRow(tb, uniqueId));
     }
 
     @RequirePermission("contract:delete")
     @Transactional
     @PostMapping(value = "/contract/delete")
-    public Result<?> contractDelete(@RequestParam(name = "unique_id", required = false) String unique_id,
+    public Result<?> contractDelete(@RequestParam(name = "tb", required = false) String tb,
+                                    @RequestParam(name = "unique_id", required = false) String unique_id,
                                     @Acc TCGHTUser curUser) {
-        if (unique_id == null || unique_id.isBlank()) {
-            return Result.fail(ResultCode.RC10101, "unique_id 不能为空");
+        final String table = registeredTable(tb);
+        if (table == null) {
+            return Result.fail(ResultCode.RC10101.getCode(),
+                    "合同模板未确定或该物理表未登记，请先在「部门合同模板」页为该部门指定模板");
         }
-        TCGHTContract c = contractDao.query(unique_id);
+        if (!StringUtils.hasText(unique_id)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "unique_id 不能为空");
+        }
+        Map<String, Object> c = contractDao.queryRow(table, unique_id);
         if (c == null) {
-            return Result.fail(ResultCode.RC10103, "目标合同不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "目标合同不存在");
         }
-        if (!inScope(resolveScopeDepts(curUser), c.getDept_code())) {
+        if (!inScope(resolveScopeDepts(curUser), str(c.get("dept_code")))) {
             return outOfScope();
         }
-        contractDao.markInvalid(unique_id);
+        contractDao.markInvalidRow(table, unique_id);
         return Result.success();
+    }
+
+    // ================================================================
+    // 台账「按模版路由到物理表」—— 表名与列名的核对都收在这一节
+    // ================================================================
+    // 背景：合同不再只存在 cght.t_contract 一张表里。部门绑哪套模版，合同就落在哪张表
+    // （t_contract_template.tb_name），而不同表的列并不相同 —— 于是 SQL 里的表名/列名只能拼接。
+    // 拼接的东西**绝不能**直接来自请求，下面三道核对是唯一的防线：
+    //   ① tb ：形态正则 + t_contract_template 已登记白名单（回答"这张表归不归台账管"）
+    //   ② col：形态正则 + 真实存在于该物理表（PG information_schema）
+    //   ③ 可写性：unique_id / open_status / creator 只由服务端写
+    // 值一律走 #{} 预编译绑定，从不参与拼接 —— 本模块只有这一处拼 SQL。
+
+    /** 通用筛选的参数前缀：f_ + 列名 + _ + 比较符 = 值（列名里本就有下划线，所以比较符取最后一个下划线之后） */
+    private static final String FILTER_PREFIX = "f_";
+    /** 表名/列名的合法形态：形态不对的直接拒，不进后续核对 */
+    private static final Pattern SQL_IDENT = Pattern.compile("^[a-z_][a-z0-9_]{0,62}$");
+    /** 支持的比较符。前端按 gd.json 的 filters 拼参数，这里只认这五个 */
+    private static final Set<String> FILTER_OPS = Set.of("like", "eq", "gte", "lte", "ne");
+    /** 请求端不可写的列：主键 / 逻辑删除标记 / 录入人审计字段 */
+    private static final Set<String> READONLY_COLS = Set.of("unique_id", "open_status", "creator");
+
+    /**
+     * 请求里的 tb 命中了哪张"已接入台账"的物理表；返回**库里登记的原样表名**（大小写以登记为准），
+     * 未命中返回 null。
+     * <p>
+     * 判据 = cght.t_contract_template 登记过这个 tb_name（运维在库里登记一张表，它才算接入）。
+     * 刻意每次回源查一次：登记/解除登记是低频运维动作，而缓存一份"表清单"会让刚登记好的模板
+     * 在重启前一直读不到 —— "配了却没生效"是最难排查的一类现象。
+     */
+    /**
+     * 该模版指向的物理表"能不能用"：表名形态合法，且库里真有这张表（information_schema 读得到列）。
+     * <p>
+     * template/list 与 deptTpl/effective 用它下发 importable —— 用户选完模板、挑完部门、传完文件
+     * 才在最后一步被拒，那一趟解析白跑，提示也来得太晚，所以这个结论要提前给到前端。
+     * 不查 t_contract_template 的白名单：调用方传进来的本来就是登记过的 tb_name。
+     */
+    private boolean usableTable(String tbName) {
+        return StringUtils.hasText(tbName)
+                && SQL_IDENT.matcher(tbName.toLowerCase()).matches()
+                && !colsOf(tbName).isEmpty();
+    }
+
+    private String registeredTable(String tb) {
+        if (!StringUtils.hasText(tb) || !SQL_IDENT.matcher(tb.toLowerCase()).matches()) {
+            return null;
+        }
+        for (TCGHTContractTemplate t : tplDao.queryAll()) {
+            if (t != null && tb.equalsIgnoreCase(t.getTb_name())) {
+                return t.getTb_name();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 物理表的列清单（列名 → 数据类型），来自 PG 的 information_schema（表名走 #{} 绑定，不拼接）。
+     * 刻意不缓存：表结构是真的会改的（本模块刚经历过一次改表），缓存一份列清单只会让改完库的人
+     * 面对"明明是合法列，却被报说不属于当前模板"的诡异现象。
+     */
+    private Map<String, String> colsOf(String tb) {
+        Map<String, String> out = new LinkedHashMap<>();
+        var ls = contractDao.columnMeta(tb);
+        if (ls == null) {
+            return out;
+        }
+        for (var r : ls) {
+            Object n = r.get("name");
+            if (n == null) continue;
+            Object t = r.get("type");
+            out.put(String.valueOf(n).toLowerCase(), t == null ? "" : String.valueOf(t).toLowerCase());
+        }
+        return out;
+    }
+
+    /** like 只能落在字符列上：PG 里 real ~~ unknown 会直接报错，与其让用户看到 500，不如提前给一句人话 */
+    private boolean opFitsType(String op, String dataType) {
+        if (!"like".equals(op)) {
+            return true;
+        }
+        String t = dataType == null ? "" : dataType;
+        return t.contains("char") || t.contains("text");
+    }
+
+    /** 该表支不支持「预警天数」口径：需要挂账日期 + 两个付款周期三列齐全（目前只有标准采购合同表有） */
+    private boolean supportsWarn(Map<String, String> cols) {
+        return cols.containsKey("date_rk") && cols.containsKey("paycycle_dh") && cols.containsKey("paycycle_zb");
+    }
+
+    /**
+     * 请求体 → 待写入的列值对 [{col, val}]。
+     * 三道核对：形态正则 → 真实存在于该表 → 不在只读黑名单。
+     * tb / unique_id 不是业务列：前者已在入口消费，后者只作为 WHERE 条件，都不进 pairs。
+     * 不合法一律抛 IllegalArgumentException，由本类的 @ExceptionHandler 转成可读的业务错误（而不是 500）。
+     */
+    private List<Map<String, Object>> pairsOf(Map<String, Object> body, Map<String, String> cols) {
+        List<Map<String, Object>> pairs = new ArrayList<>();
+        if (body == null) {
+            return pairs;
+        }
+        for (Map.Entry<String, Object> e : body.entrySet()) {
+            String col = e.getKey() == null ? "" : e.getKey().toLowerCase();
+            if ("tb".equals(col) || "unique_id".equals(col)) continue;
+            if (!SQL_IDENT.matcher(col).matches()) {
+                throw new IllegalArgumentException(String.format("不支持的字段：%s", col));
+            }
+            if (!cols.containsKey(col)) {
+                throw new IllegalArgumentException(String.format("字段 %s 不属于当前合同模板", col));
+            }
+            if (READONLY_COLS.contains(col)) {
+                throw new IllegalArgumentException(String.format("字段 %s 不可由前端写入", col));
+            }
+            pairs.add(pair(col, e.getValue()));
+        }
+        return pairs;
+    }
+
+    /** 列值对：列名已核对过，值交给 #{} 绑定 */
+    private Map<String, Object> pair(String col, Object val) {
+        Map<String, Object> p = new HashMap<>(4);
+        p.put("col", col);
+        p.put("val", val);
+        return p;
+    }
+
+    /**
+     * 台账请求参数不合法（列名不属于该表 / 比较符不支持 / 试图写只读列…）统一转成可读的业务错误。
+     * 放在本类里而不是抽全局：这些校验只服务于台账路由，且"参数错"必须是 400 类的可读提示，
+     * 不能落进 500 让用户以为系统坏了。
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public Result<?> cghtBadRequest(IllegalArgumentException e) {
+        log.warn("台账请求参数不合法: {}", e.getMessage());
+        return Result.fail(ResultCode.RC10101.getCode(), e.getMessage());
+    }
+
+    /** 请求体里的值可能是 String / Number / Boolean / null，统一取字符串形态 */
+    private String str(Object v) {
+        return v == null ? null : String.valueOf(v);
+    }
+
+    private Integer asInt(Object v) {
+        if (v instanceof Number n) {
+            return n.intValue();
+        }
+        if (v == null) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(String.valueOf(v).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** 库里的 boolean 经不同驱动可能是 Boolean / "t" / 1，统一按"真"判定 */
+    private boolean truthy(Object v) {
+        if (v instanceof Boolean b) {
+            return b;
+        }
+        if (v instanceof Number n) {
+            return n.intValue() != 0;
+        }
+        if (v == null) {
+            return false;
+        }
+        String s = String.valueOf(v).trim();
+        return s.equalsIgnoreCase("true") || s.equalsIgnoreCase("t") || s.equals("1");
+    }
+
+    private Integer intOrNull(String v) {
+        if (!StringUtils.hasText(v)) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(v.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** 页面上"没填"的分页参数按 0 处理（PageHelper 的老口径：0 表示不拦截） */
+    private Integer intOrNull(String v, int def) {
+        Integer n = intOrNull(v);
+        return n == null ? def : n;
     }
 
     @RequirePermission("contract:import")
     @Transactional
     @PostMapping(value = "/contract/import")
     public Result<?> contractImport(@RequestParam(name = "tpl_id", required = false) Integer tpl_id,
-                                    @RequestBody List<TCGHTContract> rows, @Acc TCGHTUser curUser) {
+                                    @RequestBody List<Map<String, Object>> rows, @Acc TCGHTUser curUser) {
         if (rows == null || rows.isEmpty()) {
             return Result.fail(ResultCode.RC10101.getCode(), "导入数据为空");
         }
@@ -1253,12 +1613,18 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10101.getCode(),
                     "合同模版未确定或已不存在，请确认所选部门已在「部门合同模板」页配置了有效的模板");
         }
-        // 模版存在还不够：它的物理表必须是导入链路真正写的那张。
-        // 宁可在这里整批拒绝，也不能"选 A 表却把数据写进 B 表"——那是最难发现的一类错。
-        if (!IMPORT_TARGET_TABLE.equalsIgnoreCase(tpl.getTb_name())) {
+        // 模版的物理表就是这批数据的落点：导入按它路由（不再写死 t_contract）。
+        // 表名在这里一次核对 ——"选 A 表却把数据写进 B 表"是最难发现的一类错。
+        final String tb = registeredTable(tpl.getTb_name());
+        if (tb == null) {
             return Result.fail(ResultCode.RC10101.getCode(),
-                    String.format("模版「%s」对应的物理表 %s 尚未接入导入链路（当前仅支持 %s），请联系管理员",
-                            tpl.getName(), tpl.getTb_name(), IMPORT_TARGET_TABLE));
+                    String.format("模版「%s」对应的物理表 %s 未登记，请联系管理员", tpl.getName(), tpl.getTb_name()));
+        }
+        // 列清单有两个用途：逐行必填只针对真实存在的列；下面构造列值对时也用它过滤
+        Map<String, String> cols = colsOf(tb);
+        if (cols.isEmpty()) {
+            return Result.fail(ResultCode.RC10101.getCode(),
+                    String.format("模版「%s」对应的物理表 %s 不存在或结构未就绪，请联系管理员", tpl.getName(), tb));
         }
         String tplName = tpl.getName();
         int okCnt = 0;
@@ -1271,35 +1637,43 @@ public class CCGHT {
         // 部门 -> 生效绑定：整批里每个部门只解析一次（同一批通常只有一个部门，但不做这个假设）。
         // 值为 null 是合法结果（该部门整条链都未绑定），所以判"是否查过"要用 containsKey。
         Map<String, TDeptContractTemplate> bindOfDept = new HashMap<>();
+        // 逐行必填校验只针对**该模版表里真实存在的列**：不同模版的列不同，
+        // 断言一个不存在的列只会让整批数据无谓地失败。
+        final String[][] REQUIRED_COLS = {
+                {"id", "合同编号"}, {"title", "合同名称"}, {"supplier", "供应商"},
+                {"dept_code", "归属部门"}, {"date_sign", "签订时间"},
+        };
         for (int i = 0; i < rows.size(); i++) {
-            TCGHTContract c = rows.get(i);
+            Map<String, Object> c = rows.get(i);
+            if (c == null) {
+                c = new HashMap<>();
+            }
             List<String> reasons = new ArrayList<>();
-            String id = c.getId();
-            if (id == null || id.isBlank()) {
-                reasons.add("合同编号为空");
-            } else {
-                // 即时结算类(1)：id 唯一校验（DB + 批次内）；周期结算类(2)：跳过 id 唯一校验
-                boolean isInstant = c.getPayment_type() != null && c.getPayment_type() == 1;
-                if (isInstant) {
-                    if (contractDao.exist(id) > 0) {
-                        reasons.add("即时结算类合同编号已存在");
-                    } else if (batchInstantIds.contains(id)) {
-                        reasons.add("即时结算类合同编号在本批次中重复");
-                    } else {
-                        batchInstantIds.add(id);
-                    }
+            for (String[] f : REQUIRED_COLS) {
+                if (cols.containsKey(f[0]) && !StringUtils.hasText(str(c.get(f[0])))) {
+                    reasons.add(f[1] + "必填");
                 }
             }
-            if (c.getTitle() == null || c.getTitle().isBlank()) {
-                reasons.add("合同名称必填");
+            String id = str(c.get("id"));
+            // 即时结算类(1)：id 唯一校验（DB + 批次内）；周期结算类(2)：跳过 id 唯一校验。
+            // payment_type 只有标准采购合同表有，"即时结算"这条规则也只在那张表上成立。
+            // ⚠️ 唯一性只在**本表**内判定：两张模版表历史上已存在同号（如 SMLJ-CG-BJ-26119），
+            //    改成跨表去重会把既有数据判成冲突，口径变更须先与业务对齐。
+            if (cols.containsKey("payment_type") && Integer.valueOf(1).equals(asInt(c.get("payment_type")))
+                    && StringUtils.hasText(id)) {
+                if (contractDao.existId(tb, id) > 0) {
+                    reasons.add("即时结算类合同编号已存在");
+                } else if (batchInstantIds.contains(id)) {
+                    reasons.add("即时结算类合同编号在本批次中重复");
+                } else {
+                    batchInstantIds.add(id);
+                }
             }
-            if (c.getSupplier() == null || c.getSupplier().isBlank()) {
-                reasons.add("供应商必填");
-            }
-            // 归属部门必填：逐行校验。缺部门、部门非法、或超出本人数据范围，都按行拦截（不静默丢数据）
-            String deptCode = c.getDept_code();
+            // 归属部门：先判"填没填 / 合不合法 / 在不在我的范围内"，再判它与本次模版的绑定关系。
+            // 各档提示分开写 —— 用户得知道该去改哪里。
+            String deptCode = str(c.get("dept_code"));
             if (!StringUtils.hasText(deptCode)) {
-                reasons.add("归属部门必填");
+                // "必填"已由上面的 REQUIRED_COLS 给出，这里不重复追加
             } else if (!deptExists(deptCode)) {
                 reasons.add(String.format("归属部门 %s 不存在或已停用", deptCode));
             } else if (!inScope(scopeDepts, deptCode)) {
@@ -1324,19 +1698,27 @@ public class CCGHT {
                             deptCode, tplNameOf(bind.getTpl_id()), tplName));
                 }
             }
-            if (c.getDate_sign() == null) {
-                reasons.add("签订时间必填");
-            }
             if (reasons.isEmpty()) {
-                c.setUnique_id(UUID.randomUUID().toString().replace("-", ""));
-                c.setCreator(creator);   // 导入的合同同样记「谁导的」
-                contractDao.insert(c);
-                okCnt++;
-            } else {
+                try {
+                    // 列值对复用台账"新增"的同一条路径（pairsOf）：列名核对、只读列屏蔽都在那里，
+                    // 导入与手录因此不会出现两套写入口径。
+                    // dept_code 由前端逐行注入，所以"合同记了部门信息"是落库事实，不是页面约定。
+                    List<Map<String, Object>> pairs = pairsOf(c, cols);
+                    pairs.add(pair("unique_id", UUID.randomUUID().toString().replace("-", "")));
+                    pairs.add(pair("open_status", Boolean.TRUE));
+                    pairs.add(pair("creator", creator));   // 导入的合同同样记「谁导的」
+                    contractDao.insertRow(tb, pairs);
+                    okCnt++;
+                } catch (IllegalArgumentException e) {
+                    // 某一行的列不合法（前端配置与库里列对不上）：按行拦截，不牵连同批其它行
+                    reasons.add(e.getMessage());
+                }
+            }
+            if (!reasons.isEmpty()) {
                 Map<String, Object> fail = new HashMap<>();
                 fail.put("row", i + 2);
-                fail.put("id", id == null ? "-" : id);
-                fail.put("title", c.getTitle() == null ? "" : c.getTitle());
+                fail.put("id", StringUtils.hasText(id) ? id : "-");
+                fail.put("title", str(c.get("title")) == null ? "" : str(c.get("title")));
                 fail.put("reason", String.join("；", reasons));
                 failRows.add(fail);
             }

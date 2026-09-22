@@ -2,7 +2,7 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {buildDeptPathMap, buildScopedDeptTree, matchDept, deptDisplay, deptScopeDepts, effectiveScope} from "../utils/DeptX.js"
-import {downloadTemplate, templateColumns, templateExamples, templateHints} from "../utils/ExcelX.js"
+import {downloadTemplate, templateColumns, templateExamples} from "../utils/ExcelX.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 import {ElMessage, ElMessageBox} from "element-plus"
@@ -36,20 +36,36 @@ const previewTplId = ref('')          // 配合 el-select 用字符串值，'' =
 const previewTpl = computed(() => tplByKey.value[previewTplId.value] || null)
 const previewReady = computed(() => !!previewTpl.value)
 /**
- * 该模板的物理表是否已接入导入链路（后端 template/list 下发的 importable）。
- * 台账读路径还没按模板路由，所以登记了别的物理表的模板"下载了也导不进去"，
+ * 该模板指向的物理表是否可用（后端 template/list 下发的 importable = 表名合法、库里真有这张表）。
+ * 台账读写与批量导入都已按 tpl.tb_name 路由，所以这个提示只覆盖"表被删 / 表名写错"这类运维事故。
  * 注意：这里只用来在卡片上出红字提示，**不拦下载** —— 模板本身是可离线填报、可转发的表格，
- * 拦住下载既解决不了"导入没打通"，又断掉唯一可用的线下途径（下载页 onDownload 处有详述）。
+ * 拦住下载既解决不了线上的问题，又断掉唯一可用的线下途径（下载页 onDownload 处有详述）。
  * 判据写成 "!== false"：后端没下发该字段（例如命中旧缓存）时不拦，由后端 fail-closed 兜底。
  */
 const previewImportable = computed(() => !previewTpl.value || previewTpl.value.importable !== false)
-// 表头清单按"该模板引用的物理表"取，与下载模板同源（都读 gd.json 的 contractTables），不会两处漂移
-const previewColumns = computed(() => (previewReady.value ? templateColumns(previewTpl.value.tb_name) : []))
+/**
+ * 表头顺序与三份"顺序"的关系：
+ *   previewAll    gd.json 里登记的顺序 —— 「恢复默认顺序」的基准
+ *   savedOrder    库里已保存的覆盖顺序（t_contract_template.col_order）—— 判断有没有未保存的改动
+ *   colsOrder     当前页面上展示的顺序（拖拽后即变），点保存才写回库里
+ * 列清单本身仍唯一来自 gd.json；这一页改的只是**顺序**，不改列、不改表头文案。
+ */
+const previewAll = computed(() => (previewReady.value ? templateColumns(previewTpl.value.tb_name) : []))
+const savedOrder = computed(() => (previewReady.value
+    ? templateColumns(previewTpl.value.tb_name, previewTpl.value.col_order).map(c => c.field)
+    : []))
+const colsOrder = ref([])
+/** 表格里展示的行 = 按 colsOrder 排好的列（填写说明挂在列上，重排后不会与"必填 / 示范值"错位） */
+const previewColumns = computed(() => {
+    const byField = new Map(previewAll.value.map(c => [c.field, c]))
+    return colsOrder.value.map(f => byField.get(f)).filter(Boolean)
+})
 const previewRequired = computed(() => previewColumns.value.filter(c => c.required).map(c => c.header))
-// 填写说明（每列一句：类型 / 是否必填 / 格式样例）与示范行同样来自 gd.json，
-// 与下载下来的模板逐格同源 —— 页面上看到什么，下载下来的就是什么
-const previewHints = computed(() => (previewReady.value ? templateHints(previewTpl.value.tb_name) : []))
+const previewHints = computed(() => previewColumns.value.map(c => c.hint))
+// 示范行同样来自 gd.json，与下载下来的模板逐格同源 —— 页面上看到什么，下载下来的就是什么
 const previewExamples = computed(() => (previewReady.value ? templateExamples(previewTpl.value.tb_name) : []))
+/** 顺序是否有未保存的改动 —— 与"库里已保存的那一份"比，而不是与登记顺序比 */
+const dirty = computed(() => colsOrder.value.join(',') !== savedOrder.value.join(','))
 /** 该列在第 1 条示范行里的取值：一眼看到"这格该长什么样" */
 function demoOf(field) {
     const ex = previewExamples.value[0]
@@ -57,6 +73,15 @@ function demoOf(field) {
     return v === undefined || v === null || v === '' ? '—' : v
 }
 const previewOpen = ref(false)
+const savingOrder = ref(false)
+
+/** 选中模版（或模版列表刷新）后，把页面顺序同步成"库里已保存的那一份" */
+function syncOrder() {
+    colsOrder.value = [...savedOrder.value]
+}
+
+// immediate：模版列表是异步到的，首屏没有模版时先落一个空顺序，等列表回来再同步
+watch(previewTpl, syncOrder, {immediate: true})
 
 // 只有一套模板时不至于让上半区看起来"没东西可点"：这里给个初值。
 // 与导入页的"不替用户默认选中"不同 —— 预览没有任何落库语义，默认值不会造成误解。
@@ -65,9 +90,10 @@ watch(templates, ls => {
 })
 
 /**
- * 下载导入模板：列按该模板引用的物理表取；文件名带上模板名，多模板下载下来的文件不会互相覆盖。
- * 物理表尚未接入导入链路时**照样允许下载**：模板本身就是一张可离线填报、可发给业务同事的表格，
- * 拦住下载既解决不了"导入没打通"，又断掉了唯一可用的线下途径。风险改为卡片上的红字提示；
+ * 下载导入模板：列按该模板引用的物理表取、顺序按该模板已保存的顺序（与「导出 Excel」同一份）；
+ * 文件名带上模板名，多模板下载下来的文件不会互相覆盖。
+ * 物理表不可用时**照样允许下载**：模板本身就是一张可离线填报、可发给业务同事的表格，
+ * 拦住下载既解决不了线上的问题，又断掉了唯一可用的线下途径。风险改为卡片上的红字提示；
  * 真到线上导入那一步，后端 fail-closed 会整批拒绝，不会写坏数据。
  */
 function onDownload() {
@@ -75,7 +101,7 @@ function onDownload() {
         ElMessage.warning('请先选择要下载的合同模板')
         return
     }
-    downloadTemplate(previewTpl.value.name, previewTpl.value.tb_name)
+    downloadTemplate(previewTpl.value.name, previewTpl.value.tb_name, previewTpl.value.col_order)
 }
 
 /** 在页面上先对一眼表头（并给出列数/必填清单），省一次"下完才发现拿错模板" */
@@ -85,6 +111,77 @@ function onPreview() {
         return
     }
     previewOpen.value = true
+}
+
+/* ---------------- 表头拖拽排序 ----------------
+ * 为什么用原生 HTML5 拖拽而不引第三方库：整页只需要"把一个数组元素挪到另一个位置"，
+ * 为它装一个 sortable 依赖不划算（本项目至今零拖拽依赖），而原生 dragover / drop 足够表达。
+ * 拖拽只改本地顺序，点「保存顺序」才落库 —— 误拖一下不至于改变所有人的导出。
+ */
+const dragFrom = ref(-1)
+const dragOver = ref(-1)
+
+function onDragStart(i, e) {
+    dragFrom.value = i
+    // 必须 setData：Firefox 下不设置数据就不会真正进入拖拽
+    if (e && e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', String(i))
+    }
+}
+
+function onDragOver(i) {
+    dragOver.value = i
+}
+
+function endDrag() {
+    dragFrom.value = -1
+    dragOver.value = -1
+}
+
+/** 把第 from 行挪到第 to 行（其余顺移），只改本地顺序 */
+function onDrop(i) {
+    const from = dragFrom.value
+    if (from < 0 || from === i) {
+        endDrag()
+        return
+    }
+    const arr = [...colsOrder.value]
+    const moved = arr.splice(from, 1)[0]
+    arr.splice(i, 0, moved)
+    colsOrder.value = arr
+    endDrag()
+}
+
+/** 回到 gd.json 的登记顺序（同样要点「保存顺序」才落库） */
+function resetOrder() {
+    colsOrder.value = previewAll.value.map(c => c.field)
+}
+
+/**
+ * 保存顺序：保存后**对所有人生效** —— 导出 Excel 与下载导入模板都按它排。
+ * 顺序与登记顺序一致时传空串，后端把覆盖值清掉、回到登记顺序（少一份无意义的覆盖数据）。
+ */
+function saveOrder() {
+    if (!previewReady.value || !dirty.value) return
+    const order = colsOrder.value.join(',')
+    savingOrder.value = true
+    Singleton.getInstance(SysX).saveTplColOrder({
+        tpl_id: previewTpl.value.id,
+        col_order: order,
+    }, null, () => {
+    }, (r, data) => {
+        savingOrder.value = false
+        if (r) {
+            // 后端返回的就是落库后的值（空串会被归一成 null）；本地列表也要跟着换，
+            // 否则切走再切回来又变回旧顺序 —— 缓存里那一项由 SysX 同步，这里补齐页面这一份。
+            const hit = templates.value.find(x => String(x.id) === String(previewTpl.value.id))
+            if (hit) hit.col_order = (data?.data?.col_order ?? null)
+            ElMessage.success('列顺序已保存：导出 Excel 与下载导入模板都按这个顺序出')
+        } else {
+            notifyError(data, '保存列顺序失败')
+        }
+    })
 }
 
 /* ---------------- 部门 → 模版 绑定 ---------------- */
@@ -377,7 +474,7 @@ function fmtTime(v) {
                         </template>
                         <span v-else class="pv-empty">未选择模板，可先在下拉里挑一套看看</span>
                         <span v-if="previewTpl && !previewImportable" class="pv-blocked">
-                            该物理表尚未接入导入链路：模板可下载填写，线上导入暂不可用
+                            该物理表不存在或未就绪：模板可下载填写，线上导入暂不可用
                         </span>
                     </div>
                     <div v-if="previewRequired.length" class="pv-req">
@@ -443,31 +540,50 @@ function fmtTime(v) {
 
         <!-- 模板表头预览：列清单与下载下来的 Excel 同源，先在页面上对一眼 -->
         <el-dialog v-model="previewOpen" :title="`导入模板表头 · ${previewTpl ? previewTpl.name : ''}`" width="900px">
-            <el-table :data="previewColumns" border size="small" max-height="440">
-                <el-table-column type="index" label="#" width="46" align="center"/>
-                <el-table-column prop="field" label="字段名" width="150"/>
-                <el-table-column prop="header" label="Excel 表头" min-width="130"/>
-                <el-table-column label="类型" width="72" align="center">
-                    <template #default="{row}">
-                        <span class="type-tag">{{ row.typeLabel }}</span>
-                    </template>
-                </el-table-column>
-                <el-table-column label="必填" width="56" align="center">
-                    <template #default="{row}">
-                        <span v-if="row.required" style="color:#dc2626;font-weight:600">是</span>
-                    </template>
-                </el-table-column>
-                <el-table-column label="填写说明" min-width="176">
-                    <template #default="{$index}">
-                        <span>{{ previewHints[$index] }}</span>
-                    </template>
-                </el-table-column>
-                <el-table-column label="示范值" min-width="150">
-                    <template #default="{row}">
-                        <span class="demo-val">{{ demoOf(row.field) }}</span>
-                    </template>
-                </el-table-column>
-            </el-table>
+            <div class="drag-tip">
+                <span>按住任意一行可上下拖动 ⠿ ，排好后点「保存顺序」</span>
+                <span class="drag-sub">保存后的顺序作用于「导出 Excel」与「下载导入模板」；导入解析按字段名认列，不受顺序影响</span>
+            </div>
+            <div class="drag-list">
+                <div class="drag-row drag-head">
+                    <span class="dg-idx">#</span>
+                    <span class="dg-grip"></span>
+                    <span class="dg-field">字段名</span>
+                    <span class="dg-header">Excel 表头</span>
+                    <span class="dg-type">类型</span>
+                    <span class="dg-req">必填</span>
+                    <span class="dg-hint">填写说明</span>
+                    <span class="dg-demo">示范值</span>
+                </div>
+                <div class="drag-body">
+                    <div v-for="(row, i) in previewColumns" :key="row.field"
+                         class="drag-row"
+                         :class="{dragging: dragFrom === i, over: dragOver === i}"
+                         draggable="true"
+                         @dragstart="onDragStart(i, $event)"
+                         @dragover.prevent="onDragOver(i)"
+                         @drop.prevent="onDrop(i)"
+                         @dragend="endDrag">
+                        <span class="dg-idx">{{ i + 1 }}</span>
+                        <span class="dg-grip" title="按住拖动排序">⠿</span>
+                        <span class="dg-field" :title="row.field">{{ row.field }}</span>
+                        <span class="dg-header" :title="row.header">{{ row.header }}</span>
+                        <span class="dg-type"><span class="type-tag">{{ row.typeLabel }}</span></span>
+                        <span class="dg-req"><b v-if="row.required">是</b></span>
+                        <span class="dg-hint" :title="row.hint">{{ row.hint }}</span>
+                        <span class="dg-demo">{{ demoOf(row.field) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="drag-foot">
+                <span class="dirty-tip" :class="{on: dirty}">
+                    {{ dirty ? '顺序有改动，尚未保存' : '当前顺序与已保存的一致' }}
+                </span>
+                <el-button size="small" :disabled="!dirty" @click="resetOrder">恢复默认顺序</el-button>
+                <el-button size="small" type="primary" :loading="savingOrder" :disabled="!dirty" @click="saveOrder">
+                    保存顺序
+                </el-button>
+            </div>
             <div style="font-size:12px;color:#94a3b8;margin-top:12px;line-height:1.8">
                 下载的模板与上表逐格同源：第 1 行字段名、第 2 行中文表头、第 3 行填写说明、第 4 行起为示范行<template
                     v-if="previewExamples.length">（共 {{ previewExamples.length }} 条）</template>；说明行与示范行导入时自动忽略，请勿改动前三行。
@@ -660,7 +776,7 @@ function fmtTime(v) {
                 color: #e6a23c;
             }
 
-            /* 物理表没接入导入链路：红字阻断，与"未选择"的橙色区分开 */
+            /* 物理表不可用：红字阻断，与"未选择"的橙色区分开 */
             .pv-blocked {
                 margin-left: 10px;
                 color: #dc2626;
@@ -780,32 +896,134 @@ function fmtTime(v) {
         }
     }
 
-    /* 预览弹窗里的类型标签与示范值 */
-    .type-tag {
-        display: inline-block;
-        padding: 0 6px;
-        border-radius: 8px;
-        font-size: 11px;
-        line-height: 18px;
-        color: #2563eb;
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-    }
-
-    .demo-val {
-        color: #64748b;
-    }
-
-    /* 下拉选项：左边模版名，右边物理表名（让管理员知道这套模板落在哪张表） */
+    /* 下拉选项：模版名（物理表名不在这里展示，避免下拉里出现一列技术名词） */
     .opt-name {
         float: left;
     }
+}
 
-    .opt-tb {
-        float: right;
+/* ---------------- 模板表头预览弹窗：拖拽排序 ----------------
+   刻意写在 .dept-tpl-page 之外：el-dialog 的内容会被 teleport 到 body，
+   若挂在该祖先下面，编译出的 `.dept-tpl-page .drag-row` 永远匹配不到弹窗里的元素。 */
+.drag-tip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #64748b;
+
+    .drag-sub {
         color: #94a3b8;
-        font-size: 11px;
-        margin-left: 16px;
+    }
+}
+
+.drag-list {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+
+    /* 表头行留在上面，列表体单独滚动 */
+    .drag-body {
+        max-height: 420px;
+        overflow: auto;
+    }
+
+    .drag-row {
+        display: grid;
+        grid-template-columns: 30px 20px 132px 116px 60px 44px minmax(140px, 1fr) 124px;
+        align-items: center;
+        gap: 0 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        line-height: 1.5;
+        background: #fff;
+        border-bottom: 1px solid #f1f5f9;
+        cursor: grab;
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        &.drag-head {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            cursor: default;
+        }
+
+        /* 被拖起的那一行淡出、落点行整行高亮 —— 用户不必猜"会插到哪一行" */
+        &.dragging {
+            opacity: .4;
+        }
+
+        &.over {
+            background: #eff6ff;
+            box-shadow: inset 0 0 0 1px #bfdbfe;
+        }
+
+        .dg-idx {
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        .dg-grip {
+            color: #cbd5e1;
+            text-align: center;
+            letter-spacing: -2px;
+        }
+
+        /* 窄列统一省略号，完整内容走 title */
+        .dg-field,
+        .dg-header,
+        .dg-hint,
+        .dg-demo {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .dg-field {
+            color: #0f172a;
+        }
+
+        .dg-hint,
+        .dg-demo {
+            color: #64748b;
+        }
+
+        .dg-req b {
+            color: #dc2626;
+        }
+    }
+}
+
+/* 预览弹窗里的类型标签（与 .drag-list 同级放在顶层，理由同上） */
+.type-tag {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 8px;
+    font-size: 11px;
+    line-height: 18px;
+    color: #2563eb;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+
+.drag-foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+
+    .dirty-tip {
+        margin-right: auto;
+        font-size: 12px;
+        color: #94a3b8;
+
+        &.on {
+            color: #e6a23c;
+        }
     }
 }
 </style>

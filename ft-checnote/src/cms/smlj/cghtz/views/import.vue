@@ -139,7 +139,7 @@ const tplBlockMsg = computed(() => {
     const t = curTpl.value
     if (!t || t.importable) return ''
     return t.tb_name
-        ? `模版「${t.name}」对应的物理表 ${t.tb_name} 尚未接入导入链路，暂时无法导入`
+        ? `模版「${t.name}」对应的物理表 ${t.tb_name} 不存在或结构未就绪，暂时无法导入`
         : `模版「${t.name}」已失效（模板记录不存在），请联系管理员`
 })
 
@@ -302,7 +302,8 @@ async function handleFile(f) {
     file.value = f
     importing.value = true
     try {
-        const rows = await parseContractExcel(f)
+        // 列按"该部门生效模板指向的物理表"解析：不同模板列不同，解析口径必须跟着模板走
+        const rows = await parseContractExcel(f, curTpl.value.tb_name)
         if (rows.length === 0) {
             ElMessage.warning('文件中没有可导入的数据')
             importing.value = false
@@ -412,7 +413,7 @@ function goLedger() {
                             <span v-if="canAssign" class="bind-link" @click="goDeptTpl">前往配置 →</span>
                         </template>
                         <template v-else-if="bindState === 'ready'">
-                            该部门使用「{{ curTpl ? curTpl.name : '' }}」（{{ effFromSelf ? '本部门设置' : '继承自上级' }}）
+                            该部门模板校验通过（{{ effFromSelf ? '本部门设置' : '继承自上级' }}）
                         </template>
                     </div>
                     <div v-if="!scopeAll" class="scope-line"
@@ -446,7 +447,7 @@ function goLedger() {
                 </div>
                 <div v-else-if="tplBlockMsg" class="warn-tip danger">⛔ {{ tplBlockMsg }}</div>
                 <div v-else-if="bindState === 'ready'" class="warn-tip ok">
-                    ✅ 该部门使用「{{ curTpl.name }}」，本次将写入 {{ curTpl.tb_name }}
+                    ✅ 模板校验通过，本次将写入 {{ curTpl.tb_name }}
                 </div>
                 <div v-if="importing" class="importing-tip">
                     <el-icon class="is-loading" style="margin-right:6px"><i class="el-icon-loading"/></el-icon>

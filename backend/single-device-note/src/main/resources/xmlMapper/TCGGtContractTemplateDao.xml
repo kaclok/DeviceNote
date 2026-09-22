@@ -4,13 +4,13 @@
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractTemplateDao">
     <!-- 模版全量：台账/导入页的「合同模版」下拉数据源（按 id 升序，下拉顺序稳定） -->
     <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContractTemplate">
-        select id, name, tb_name
+        select id, name, tb_name, col_order
         from cght.t_contract_template
         order by id asc
     </select>
 
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTContractTemplate">
-        select id, name, tb_name
+        select id, name, tb_name, col_order
         from cght.t_contract_template
         where id = #{id}
     </select>
@@ -19,4 +19,15 @@
     <select id="exist" resultType="java.lang.Integer">
         SELECT COUNT(*) FROM cght.t_contract_template WHERE id = #{id}
     </select>
+
+    <!--
+      保存 Excel 列顺序（模板表头预览里拖拽后的结果）。
+      col_order = null 即"清除覆盖、回到 gd.json 的登记顺序"，所以不用区分空串与 null。
+      字段名已在 CCGHT 里对着该模版指向的物理表逐个核对过，这里不做二次校验（值走 #{} 绑定）。
+    -->
+    <update id="updateColOrder">
+        update cght.t_contract_template
+        set col_order = #{col_order}
+        where id = #{id}
+    </update>
 </mapper>

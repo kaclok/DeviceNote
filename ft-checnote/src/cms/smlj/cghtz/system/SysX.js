@@ -272,8 +272,8 @@ class SysX {
     }
 
     /* ---------------- 合同模版 / 部门-模版映射 ---------------- */
-    // 模版列表是低频变更的系统配置（只由「部门合同模板」页使用；
-    // 导入页的模版来自 /deptTpl/effective，不再拉这份列表），
+    // 模版列表是低频变更的系统配置（台账页的模版下拉、模板页的预览与绑定都用它；
+    // 导入页的单个部门模版来自 /deptTpl/effective，不拉这份列表），
     // 首次拉取后缓存；与其它字典一样由 clearDictCache 在登出时清掉 —— 换账号不能沿用上一个人的字典。
     async getTemplateList(paras, signal, onBefore, onAfter) {
         if (_tplCache) {
@@ -285,6 +285,28 @@ class SysX {
             const succ = await ApiX.getTemplateList(paras, signal)
             _tplCache = succ?.data?.data || []
             onAfter?.(true, {code: __OK__, data: _tplCache})
+        } catch (fail) {
+            onAfter?.(false, _failBody(fail));
+        }
+    }
+
+    /**
+     * 保存某套模版的 Excel 列顺序（模板页拖拽排序的结果）。
+     * 成功后把**缓存里的那一项**一并改掉：台账页/模板页读的都是 _tplCache 里的 col_order，
+     * 不跟着改的话"拖完、切到台账页导出"还是旧顺序，看着像没保存上（而缓存本来就是本页读的地方）。
+     * 只改这一项、不整体失效：模版列表刷新会顺带把"哪些部门持有该模版"重新算一遍，
+     * 而顺序改动不影响绑定关系，没必要为此多一次请求。
+     */
+    async saveTplColOrder(paras, signal, onBefore, onAfter) {
+        onBefore?.();
+        try {
+            const succ = await ApiX.saveTplColOrder(paras, signal)
+            const saved = succ?.data?.data?.col_order ?? null
+            const tplId = String(paras?.tpl_id ?? '')
+            if (Array.isArray(_tplCache) && tplId) {
+                _tplCache = _tplCache.map(t => (String(t.id) === tplId ? {...t, col_order: saved} : t))
+            }
+            onAfter?.(true, succ.data)
         } catch (fail) {
             onAfter?.(false, _failBody(fail));
         }

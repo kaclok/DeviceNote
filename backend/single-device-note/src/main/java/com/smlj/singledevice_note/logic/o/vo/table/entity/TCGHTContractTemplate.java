@@ -27,4 +27,14 @@ public class TCGHTContractTemplate implements Serializable {
 
     /** 该模版引用的合同物理表名（cght schema 下），如 t_contract / t_contract_1 */
     private String tb_name;
+
+    /**
+     * Excel 列顺序的**覆盖值**：逗号分隔的字段名，如 "id,title,amount"。
+     * <p>
+     * 空 = 按前端 gd.json 的登记顺序。刻意只是一份覆盖值，而不是列清单本身 ——
+     * 列清单仍唯一地放在 gd.json（导出 / 导入模板 / 导入解析 / 表头预览四处共用同一份），
+     * 这里只回答"管理员希望按什么顺序出表"。由「部门合同模板」页拖拽表头后保存
+     * （POST /cghtz/template/colOrder）。
+     */
+    private String col_order;
 }
