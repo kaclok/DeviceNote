@@ -23,5 +23,53 @@
 			{"id": 3, "name": "COMPANY", "desc": "本公司"},
 			{"id": 4, "name": "ALL", "desc": "全集团"}
 		]
+	},
+	"contractTables": {
+		"t_contract": {
+			"columns": [
+				{"field": "id", "header": "合同编号", "required": true},
+				{"field": "title", "header": "合同名称", "required": true},
+				{"field": "sign_person", "header": "签订人", "required": true},
+				{"field": "sign_type", "header": "合同签订方式", "required": true},
+				{"field": "supplier", "header": "供应商", "required": true},
+				{"field": "amount", "header": "合同金额(元)", "required": true, "type": "float"},
+				{"field": "date_sign", "header": "签订时间", "required": true, "type": "date"},
+				{"field": "pay_type", "header": "付款方式"},
+				{"field": "paycycle_dh", "header": "到货付款周期(月)", "type": "float"},
+				{"field": "paycycle_zb", "header": "质保付款周期(月)", "type": "float"},
+				{"field": "settle_amount", "header": "结算金额(元)", "type": "float"},
+				{"field": "hq", "header": "货期(天)", "type": "int"},
+				{"field": "date_htyj", "header": "合同移交日期", "type": "date"},
+				{"field": "date_fpyj", "header": "发票移交日期", "type": "date"},
+				{"field": "date_actual_dh", "header": "实际到货日期", "type": "date"},
+				{"field": "date_ruzlyj", "header": "入库资料移交物资日期", "type": "date"},
+				{"field": "date_rk", "header": "挂账日期", "type": "date"},
+				{"field": "date_yfk", "header": "预付款日期", "type": "date"},
+				{"field": "date_dhk", "header": "到货款日期", "type": "date"},
+				{"field": "date_zbj", "header": "质保金付款日期", "type": "date"},
+				{"field": "bz", "header": "备注"},
+				{"field": "finish_step", "header": "财务环节"},
+				{"field": "has_amount", "header": "已付款(元)", "type": "float"},
+				{"field": "payment_type", "header": "付款类型", "required": true}
+			]
+		},
+		"t_contract_smds_sc": {
+			"columns": [
+				{"field": "id", "header": "合同编号", "required": true},
+				{"field": "title", "header": "合同名称", "required": true},
+				{"field": "amount", "header": "合同金额(元)", "required": true, "type": "float"},
+				{"field": "date_sign", "header": "签订时间", "required": true, "type": "date"},
+				{"field": "sign_person", "header": "签订人", "required": true},
+				{"field": "category", "header": "项目类别归属"},
+				{"field": "supplier", "header": "供应商", "required": true},
+				{"field": "date_rk", "header": "挂账日期", "type": "date"},
+				{"field": "bz", "header": "备注"},
+				{"field": "pay_type", "header": "付款方式"},
+				{"field": "has_amount", "header": "已付款(元)", "type": "float"},
+				{"field": "tax_rate", "header": "税率"},
+				{"field": "duration_day", "header": "合同有效期(天)", "type": "int"},
+				{"field": "remain_pay_dt", "header": "余额付款日期", "type": "date"}
+			]
+		}
 	}
 }

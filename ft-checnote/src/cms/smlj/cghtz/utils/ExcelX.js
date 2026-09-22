@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import gd from '../data/gd.json'
 
 /**
  * 合同台账 - Excel 导入/导出工具（v5 - 2026-09-15）
@@ -65,51 +66,40 @@ const FINISHED_STR_TO_INT = (v) => {
 }
 
 /**
- * 字段定义表：field（后端字段名/英文字段名）、header（中文表头）、type
- * 列顺序与导入 Excel 保持一致，保证导出文件可直接导入
- * 导出格式：第 1 行英文字段名，第 2 行中文表头，第 3 行起为数据
+ * 合同表字段清单的唯一来源 = data/gd.json 的 contractTables（按物理表名索引入口）。
  *
- * ⚠️ 本表同时是「导出列 / 导入模板列 / 导入解析列」三处的唯一清单，改它等于三处一起改。
- *    系统字段刻意不进本表：
- *      · creator     录入人，后端按登录态写入 —— 导出（含导给财务）不带录入人信息
- *      · dept_code   归属部门，导入时由页面上的部门选择器逐行注入（见 import.vue）
- *      · unique_id / open_status   后端主键与逻辑删除标记
+ * 为什么不写在本文件里：同一份列清单有四个使用者 —— 导出列 / 导入模板列 / 导入解析列 / 模板预览表头，
+ * 而"哪张物理表有哪些列"是**表结构知识**，不该埋在工具函数里。放进 gd.json 后按 tb_name 取，
+ * 模板（`t_contract_template.tb_name`）一换，四处一起换。
+ * 表头文案 = PG 列注释（col_description）精简后的结果：注释里有的太长
+ * （如「入库日期(标识是否已入库),即挂账日期」）、有的带冗余单位（如「(单位:月)」），
+ * 这里沿用用户已在用的简称；改文案前先确认现有 Excel 文件对得上（导入按 field 名匹配，不受影响）。
+ *
+ * ⚠️ 系统字段刻意不进本表：
+ *   · creator     录入人，后端按登录态写入 —— 导出（含导给财务）不带录入人信息
+ *   · dept_code   归属部门，导入时由页面上的部门选择器逐行注入（见 import.vue）
+ *   · unique_id / open_status   后端主键与逻辑删除标记
  */
-const FIELD_DEFS = [
-    {field: 'id', header: '合同编号', required: true},
-    {field: 'title', header: '合同名称', required: true},
-    {field: 'sign_person', header: '签订人', required: true},
-    {field: 'sign_type', header: '合同签订方式', required: true},
-    {field: 'supplier', header: '供应商', required: true},
-    {field: 'amount', header: '合同金额(元)', required: true, type: 'float'},
-    {field: 'date_sign', header: '签订时间', required: true, type: 'date'},
-    {field: 'pay_type', header: '付款方式'},
-    {field: 'paycycle_dh', header: '到货付款周期(月)', type: 'float'},
-    {field: 'paycycle_zb', header: '质保付款周期(月)', type: 'float'},
-    {field: 'settle_amount', header: '结算金额(元)', type: 'float'},
-    {field: 'hq', header: '货期(天)', type: 'int'},
-    {field: 'date_htyj', header: '合同移交日期', type: 'date'},
-    {field: 'date_fpyj', header: '发票移交日期', type: 'date'},
-    {field: 'date_actual_dh', header: '实际到货日期', type: 'date'},
-    {field: 'date_ruzlyj', header: '入库资料移交物资日期', type: 'date'},
-    {field: 'date_rk', header: '挂账日期', type: 'date'},
-    {field: 'date_yfk', header: '预付款日期', type: 'date'},
-    {field: 'date_dhk', header: '到货款日期', type: 'date'},
-    {field: 'date_zbj', header: '质保金付款日期', type: 'date'},
-    {field: 'bz', header: '备注'},
-    {field: 'finish_step', header: '财务环节'},
-    {field: 'has_amount', header: '已付款(元)', type: 'float'},
-    {field: 'payment_type', header: '付款类型'},
-]
+// 当前导入落表的物理表，与后端 CCGHT.IMPORT_TARGET_TABLE 对齐（台账读路径也只认这一张表）
+const IMPORT_TABLE = 't_contract'
+
+/** 取某张物理表的列清单；未登记该表时回落到当前导入表，保证老调用方零改动 */
+function columnsOf(tbName) {
+    const all = gd.contractTables || {}
+    const t = all[tbName] || all[IMPORT_TABLE]
+    return (t && t.columns) || []
+}
+
+// 导出 / 导入模板 / 导入解析三处共用（= 当前导入表 t_contract 的列）
+const FIELD_DEFS = columnsOf(IMPORT_TABLE)
 
 /**
  * 导入模板的列清单（供页面上"预览模板表头"用）：只暴露展示必需的三项，不泄露 type/转换规则。
- * 与 downloadTemplate 同源（都读 FIELD_DEFS），所以"预览到的"＝"下载下来的"，不会两处漂移。
- * ⚠️ 多模版接入点：将来由后端按 t_contract_template.tb_name 的实际表结构下发该清单，
- *    届时只需把本函数改成读入参 tpl，调用方（import.vue）无需改动。
+ * 与 downloadTemplate 同源（同一份 gd.json 的同一张表），所以"预览到的"＝"下载下来的"，不会两处漂移。
+ * @param tbName 该模板引用的物理表名（t_contract_template.tb_name）；不传则用当前导入表
  */
-export function templateColumns() {
-    return FIELD_DEFS.map(({field, header, required}) => ({field, header, required: !!required}))
+export function templateColumns(tbName) {
+    return columnsOf(tbName).map(({field, header, required}) => ({field, header, required: !!required}))
 }
 
 /* ---------------- 导出 ---------------- */
@@ -222,13 +212,15 @@ export function exportFinanceExcel(rows, filename = '导给财务') {
 /* ---------------- 模板下载 ---------------- */
 /**
  * 下载导入模板
- * @param tplName 所选合同模版名。只进文件名，让不同模版下载下来的文件互不覆盖；
- *                列定义仍取 FIELD_DEFS（当前唯一模版 t_contract 的列），与预览共用同一份清单。
+ * @param tplName 所选合同模版名。只进文件名，让不同模版下载下来的文件互不覆盖。
+ * @param tbName  该模版引用的物理表名（t_contract_template.tb_name）。列定义按表取，
+ *                与「预览模板表头」读的是同一份 gd.json，两边永远一致；不传则用当前导入表。
  */
-export function downloadTemplate(tplName) {
-    const fieldRow = FIELD_DEFS.map(d => d.field)
-    const headerRow = FIELD_DEFS.map(d => d.header)
-    const exampleRow = FIELD_DEFS.map(({field, type}) => {
+export function downloadTemplate(tplName, tbName) {
+    const defs = columnsOf(tbName)
+    const fieldRow = defs.map(d => d.field)
+    const headerRow = defs.map(d => d.header)
+    const exampleRow = defs.map(({field, type}) => {
         const ex = EXAMPLE_ROW[field]
         if (ex === undefined) return ''
         if (field === 'payment_type') return PAYMENT_TYPE_CODE_TO_STR(ex)
@@ -239,7 +231,7 @@ export function downloadTemplate(tplName) {
 
     const aoa = [fieldRow, headerRow, exampleRow]
     const sheet = XLSX.utils.aoa_to_sheet(aoa)
-    sheet['!cols'] = FIELD_DEFS.map(d => {
+    sheet['!cols'] = defs.map(d => {
         if (d.header.includes('供应商') || d.header.includes('备注') || d.header.includes('移交物资')) return {wch: 28}
         if (d.header.includes('合同') || d.header.includes('日期') || d.header.includes('时间') || d.header.includes('方式')) return {wch: 16}
         return {wch: 12}

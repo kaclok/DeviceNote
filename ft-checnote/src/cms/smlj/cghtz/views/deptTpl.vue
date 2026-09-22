@@ -42,8 +42,8 @@ const previewReady = computed(() => !!previewTpl.value)
  * 判据写成 "!== false"：后端没下发该字段（例如命中旧缓存）时不拦，由后端 fail-closed 兜底。
  */
 const previewImportable = computed(() => !previewTpl.value || previewTpl.value.importable !== false)
-// 表头清单与下载的模板同源（都读 ExcelX 的 FIELD_DEFS），不会两处漂移
-const previewColumns = computed(() => (previewReady.value ? templateColumns() : []))
+// 表头清单按"该模板引用的物理表"取，与下载模板同源（都读 gd.json 的 contractTables），不会两处漂移
+const previewColumns = computed(() => (previewReady.value ? templateColumns(previewTpl.value.tb_name) : []))
 const previewRequired = computed(() => previewColumns.value.filter(c => c.required).map(c => c.header))
 const previewOpen = ref(false)
 
@@ -53,7 +53,7 @@ watch(templates, ls => {
     if (!previewTplId.value && ls && ls.length) previewTplId.value = String(ls[0].id)
 })
 
-/** 下载导入模板：文件名带上模板名，多模板下载下来的文件不会互相覆盖 */
+/** 下载导入模板：列按该模板引用的物理表取；文件名带上模板名，多模板下载下来的文件不会互相覆盖 */
 function onDownload() {
     if (!previewReady.value) {
         ElMessage.warning('请先选择要下载的合同模板')
@@ -63,7 +63,7 @@ function onDownload() {
         ElMessage.error(`模板「${previewTpl.value.name}」对应的物理表 ${previewTpl.value.tb_name} 尚未接入导入链路，下载的模板暂时无法导入`)
         return
     }
-    downloadTemplate(previewTpl.value.name)
+    downloadTemplate(previewTpl.value.name, previewTpl.value.tb_name)
 }
 
 /** 在页面上先对一眼表头（并给出列数/必填清单），省一次"下完才发现拿错模板" */
