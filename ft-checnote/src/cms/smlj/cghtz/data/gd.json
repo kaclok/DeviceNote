@@ -54,6 +54,7 @@
 					"header": "合同编号",
 					"type": "text",
 					"required": true,
+					"readonly": "edit",
 					"width": 160,
 					"fixed": "left"
 				},
@@ -438,6 +439,7 @@
 					"header": "合同编号",
 					"type": "text",
 					"required": true,
+					"readonly": "edit",
 					"width": 160,
 					"fixed": "left"
 				},
@@ -552,6 +554,12 @@
 					"header": "已支付比例",
 					"type": "text",
 					"sample": "0.7"
+				},
+				{
+					"field": "own_dept_name",
+					"header": "项目所属单位",
+					"type": "text",
+					"minWidth": 200
 				}
 			],
 			"examples": [
@@ -571,7 +579,8 @@
 					"remain_money": 23,
 					"tax_rate": "13%",
 					"duration_day": "60",
-					"remain_pay_dt": "2026/08/01"
+					"remain_pay_dt": "2026/08/01",
+					"own_dept_name": "陕西金泰化学神木电石有限公司"
 				},
 				{
 					"id": "SMLJ-CG-BJ-26124",
@@ -589,7 +598,8 @@
 					"remain_money": 23,
 					"tax_rate": "13%",
 					"duration_day": "60",
-					"remain_pay_dt": "2026/08/01"
+					"remain_pay_dt": "2026/08/01",
+					"own_dept_name": "陕西金泰化学神木电石有限公司"
 				},
 				{
 					"id": "SMLJ-CG-DS-26001",
@@ -607,7 +617,8 @@
 					"remain_money": 23,
 					"tax_rate": "13%",
 					"duration_day": "60",
-					"remain_pay_dt": "2026/08/01"
+					"remain_pay_dt": "2026/08/01",
+					"own_dept_name": "陕西金泰化学神木电石有限公司"
 				}
 			],
 			"filters": [
@@ -665,6 +676,14 @@
 					"type": "range",
 					"op": "range",
 					"width": 130
+				},
+				{
+					"field": "own_dept_name",
+					"label": "项目所属单位",
+					"type": "text",
+					"op": "like",
+					"placeholder": "如 金泰化学",
+					"width": 180
 				}
 			],
 			"formGroups": [
@@ -681,7 +700,8 @@
 						"dept_code",
 						"pay_type",
 						"tax_rate",
-						"duration_day"
+						"duration_day",
+						"own_dept_name"
 					]
 				},
 				{

@@ -17,7 +17,12 @@ public class TCGHTUser implements Serializable {
     private String account;
     /** 中文名/姓名；合同的 sign_person 直接存该姓名（自由文本，模糊匹配） */
     private String username;
-    /** 登录密码（明文存储，仅限内网 demo） */
+    /**
+     * 登录密码 —— 库中存 BCrypt 加盐哈希（口径见 core/utils/PwdUtil）：不是明文，也不是可逆密文。
+     * 每行独立盐，所以同一个密码的密文各不相同；读出来只能用于校验，不能用于展示或回填。
+     * <p>
+     * @JsonIgnore：密文同样不该出网（JWT 的 addPayloads 不认这个注解，所以 token 里刻意只放 account）。
+     */
     @JsonIgnore
     private String pwd;
     private String role_code;

@@ -65,7 +65,8 @@
         SELECT COUNT(*) FROM cght.t_user WHERE account = #{account}
     </select>
 
-    <!-- 新增账号：account/username/pwd/role_code/dept_code 为核心必填；data_scope 由随后的 updateScope 写入 -->
+    <!-- 新增账号：account/username/pwd/role_code/dept_code 为核心必填；pwd 传 PwdUtil 加密后的 BCrypt 密文
+         （本层只做 #{} 绑定，不做加密）；data_scope 由随后的 updateScope 写入 -->
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser">
         insert into cght.t_user (
             account, username, pwd, role_code, dept_code, open_status
@@ -97,6 +98,7 @@
         where account = #{account}
     </update>
 
+    <!-- 重置密码：pwd 由调用方（PwdUtil.encrypt）加密后传入 -->
     <update id="resetPwd">
         update cght.t_user set pwd = #{pwd} where account = #{account}
     </update>

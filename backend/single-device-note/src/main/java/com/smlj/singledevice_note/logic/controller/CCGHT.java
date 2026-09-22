@@ -8,6 +8,7 @@ import com.smlj.singledevice_note.core.o.to.DataScope;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
+import com.smlj.singledevice_note.core.utils.PwdUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractTemplateDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTPermDao;
@@ -159,15 +160,17 @@ public class CCGHT {
         if (!user.isOpen_status()) {
             return Result.fail(ResultCode.RC10301, String.format("账号 %s 已停用，请联系管理员", account));
         }
-        if (!user.getPwd().equals(pwd)) {
+        // 库里是 BCrypt 密文（每行独立随机盐）：只能校验，不能比字符串。请求参数仍是明文。
+        if (!PwdUtil.matches(pwd, user.getPwd())) {
             return Result.fail(ResultCode.RC10303);
         }
 
         TCGHTRole role = roleDao.query(user.getRole_code());
         if (role == null) return Result.fail(ResultCode.RC10305);
         user.setRole(role);
-        // 只告诉前端「是不是初始密码」，不下发明文密码（pwd 上有 @JsonIgnore，本来就到不了前端）
-        user.setInitPwd(DEFAULT_INIT_PWD.equals(user.getPwd()));
+        // 只告诉前端「是不是初始密码」，不下发明文密码（pwd 上有 @JsonIgnore，本来就到不了前端）。
+        // pwd 是密文：同一明文每次加密结果都不同，'是不是初始密码'只能走校验比对，比字符串必错。
+        user.setInitPwd(PwdUtil.matches(DEFAULT_INIT_PWD, user.getPwd()));
 
         // 登录成功，创建JWT令牌。
         // token 里**只放 account**：username / role / perms / data_scope 全部由 TokenInterceptor
@@ -217,7 +220,7 @@ public class CCGHT {
         // 只补一个派生字段（pwd 本身有 @JsonIgnore，不会下发）。
         // 注意 curUser 是 CurUserService 缓存里的实例，这里给它写一个由 pwd 派生的布尔值是幂等的，
         // 不改变任何鉴权判据；其它响应里的账号行都是各自 query 出来的独立对象。
-        curUser.setInitPwd(DEFAULT_INIT_PWD.equals(curUser.getPwd()));
+        curUser.setInitPwd(PwdUtil.matches(DEFAULT_INIT_PWD, curUser.getPwd()));
         return Result.success(curUser);
     }
 
@@ -252,6 +255,7 @@ public class CCGHT {
      * 账号保存：统一新增/修改入口。
      * 前端 users.vue 不区分新建/编辑，一律调用同一接口；后端根据 account 是否存在做 insert / update。
      * 密码只在“新增”且前端提交了 password 时写入；否则使用默认 123456。编辑不改密码（密码另走 resetPwd）。
+     * 落库前一律过 PwdUtil.encrypt（BCrypt 加盐哈希）：库里不允许出现明文口令，接口参数仍是明文。
      * <p>
      * dept_code 归属部门为必填：必须是非空、且组织架构(train.t_org)中启用中的真实部门。
      * 数据隔离以该字段为基准点，因此新建/编辑都必须明确归属。
@@ -361,11 +365,12 @@ public class CCGHT {
         if (old == null) {
             // 全新账号：新建
             if (!StringUtils.hasText(username)) return Result.fail(ResultCode.RC10101, "姓名(username)不能为空");
-            final String pwd = StringUtils.hasText(password) ? password : DEFAULT_INIT_PWD;
+            final String rawPwd = StringUtils.hasText(password) ? password : DEFAULT_INIT_PWD;
             TCGHTUser u = new TCGHTUser();
             u.setAccount(account);
             u.setUsername(username);
-            u.setPwd(pwd);
+            // 只在落库前加密：请求体里的 password 仍是明文（否则前端得自己实现 bcrypt）
+            u.setPwd(PwdUtil.encrypt(rawPwd));
             u.setRole_code(role_code);
             u.setDept_code(dept_code);
             u.setOpen_status(true);
@@ -392,7 +397,10 @@ public class CCGHT {
             old.setDept_code(dept_code);
             userDao.update(old);
             userDao.toggleStatus(account, true);
-            final String pwd = StringUtils.hasText(password) ? password : DEFAULT_INIT_PWD;
+            final String rawPwd = StringUtils.hasText(password) ? password : DEFAULT_INIT_PWD;
+            // 变量名 pwd 表「已是密文」：下面两处消费的都是密文 —— DAO 直接落库，
+            // 实体只是陪跑（pwd 上有 @JsonIgnore，不会出网）
+            final String pwd = PwdUtil.encrypt(rawPwd);
             userDao.resetPwd(account, pwd);
             old.setOpen_status(true);
             old.setPwd(pwd);
@@ -430,7 +438,8 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10307.getCode(), "目标账号的数据范围超出你的可管理范围");
         }
         final String newPwd = StringUtils.hasText(pwd) ? pwd : DEFAULT_INIT_PWD;
-        userDao.resetPwd(account, newPwd);
+        // 落库前加密：重置密码同样是写密文（重置为初始密码后 initPwd 才判得出来）
+        userDao.resetPwd(account, PwdUtil.encrypt(newPwd));
         // 重置成初始密码后 initPwd 会变 true，缓存不失效前端就不弹「请修改初始密码」
         evictUserAfterCommit(account);
         return Result.success();
@@ -468,14 +477,14 @@ public class CCGHT {
         if (!user.isOpen_status()) {
             return Result.fail(ResultCode.RC10301.getCode(), String.format("账号 %s 已停用，请联系管理员", account));
         }
-        if (!user.getPwd().equals(oldPwd)) {
+        if (!PwdUtil.matches(oldPwd, user.getPwd())) {
             return Result.fail(ResultCode.RC10303.getCode(), "原密码不正确");
         }
         if (newPwd.equals(oldPwd)) {
             return Result.fail(ResultCode.RC10101.getCode(), "新密码不能与原密码相同");
         }
 
-        userDao.resetPwd(account, newPwd);
+        userDao.resetPwd(account, PwdUtil.encrypt(newPwd));
         // 改密后 initPwd 变 false，缓存不失效前端会一直挂着「初始密码」提醒
         evictUserAfterCommit(account);
         return Result.success();
@@ -1380,6 +1389,10 @@ public class CCGHT {
         // unique_id / open_status / creator 在 pairsOf 里已被挡掉：审计字段不随表单改写，
         // 否则客户端能伪造「谁录的」，按录入人过滤的档位随之失效。
         List<Map<String, Object>> pairs = pairsOf(body, colsOf(tb));
+        // 合同编号(id) 只在编辑表单置灰（gd.json 的 readonly:"edit"），本接口不做 id 特判：
+        // 编辑态前端仍会回传 id，按原值写回 = 无变更。编号不可改是**体验层**口径，不是服务端边界。
+        // 若日后要升级成边界，另设一个 update 专用只读集，**不要**并进 READONLY_COLS
+        // （那个集合对 create / import 同样生效，而新增与 Excel 导入必须能写合同编号）。
         if (pairs.isEmpty()) {
             return Result.fail(ResultCode.RC10101.getCode(), "没有需要更新的字段");
         }

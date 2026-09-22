@@ -33,7 +33,7 @@ public interface TCGHTUserDao {
 
     int exist(@Param("account") String account);
 
-    /** 新增账号：account/username/pwd/role_code/dept_code/open_status 必填；data_scope 由 updateScope 紧接着写入 */
+    /** 新增账号：account/username/pwd/role_code/dept_code/open_status 必填（pwd 传密文）；data_scope 由 updateScope 紧接着写入 */
     int insert(@Param("u") TCGHTUser u);
 
     /** 更新账号：username/role_code/dept_code 等业务字段（密码另走 resetPwd，状态另走 toggleStatus） */
@@ -47,7 +47,7 @@ public interface TCGHTUserDao {
     int updateScope(@Param("account") String account,
                     @Param("data_scope") Integer data_scope);
 
-    /** 重置密码：将指定账号的 pwd 重置为新值 */
+    /** 重置密码：pwd 必须**已是 PwdUtil.encrypt 的密文**（本层只绑定，不做加密 —— 加密口径只在 PwdUtil 一处） */
     int resetPwd(@Param("account") String account, @Param("pwd") String pwd);
 
     /** 启停状态切换：将 open_status 置为目标值 */

@@ -26,7 +26,9 @@ import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.t
  *       query.dept_code             新增时的默认归属部门（从台账页带过来）
  *
  * 三个配置来源（都在 gd.json，本文件不硬编码任何字段名或文案）：
- *   columns[]      字段清单：type / required / options / span / mirror / system+widget
+ *   columns[]      字段清单：type / required / options / span / mirror / system+widget / readonly
+ *                  （readonly 三态：true 恒只读 / "edit" 仅编辑时只读 / 缺省可写；
+ *                    合同编号用它锁住「改」，新增时仍要能填）
  *   formGroups[]   表单分组（标题 + 字段顺序）；没被任何分组引用的列会自动并入「其他」
  */
 const route = useRoute();
@@ -121,6 +123,19 @@ function widgetOf(c) {
 }
 
 /**
+ * 该列在当前形态下是否只读 —— 由列上的 readonly 声明决定，页面不认字段名：
+ *   readonly: true    恒只读
+ *   readonly: "edit"  仅编辑时只读（新增可填）—— 合同编号用它：它是这条合同的业务标识，
+ *                     编号唯一性校验与付款预警都以它为键，编辑时改掉等于悄悄换了一条合同
+ *   缺省              可写
+ * 口径：只读是**体验层**的 —— 后端 contractUpdate 不特判 id（编辑态按原值写回 = 无变更），
+ * 挡的是"手滑改掉编号"，不挡直调接口。
+ */
+function readOnlyOf(c) {
+    return c.readonly === true || (c.readonly === 'edit' && isEdit)
+}
+
+/**
  * 分组后的渲染字段。missing = 分组配置里引用了但该表没有的字段（配置写错时不静默吞掉）。
  */
 const groups = computed(() => {
@@ -139,7 +154,8 @@ const groups = computed(() => {
                     opts: optionsOf(c),
                     // 「本人」档：归属判据是 sign_person = 登录者姓名（后端精确比对），
                     // 自由填写（空格 / 别人的名字）会让这条合同从自己的列表里消失 —— 预填并锁只读。
-                    disabled: c.field === 'sign_person' && onlySelf,
+                    // readonly 列（合同编号）同理：只在编辑态锁，新增时它是空白、必须能填。
+                    disabled: (c.field === 'sign_person' && onlySelf) || readOnlyOf(c),
                     mirrorOn: !!(c.mirror && mirrorOn.value[c.field]),
                 })),
         }))
