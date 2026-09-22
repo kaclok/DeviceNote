@@ -1260,7 +1260,9 @@ public class CCGHT {
             Map<String, Object> cond = new HashMap<>(4);
             cond.put("col", col);
             cond.put("op", op);
-            cond.put("v", v);
+            // 值按该列的库内类型转一下：query 参数是字符串，直接 setString 会以 varchar 发出去，
+            // 而 PG 不肯拿 varchar 去和 date/数值列比较（见下面「值类型转换」一节）。
+            cond.put("v", coerce(cols.get(col), v));
             conds.add(cond);
         }
         // 预警筛选要 date_rk + paycycle_dh/zb 三列齐全，不是每张表都有；没有就明确拒绝，
@@ -1445,6 +1447,9 @@ public class CCGHT {
     /** 请求端不可写的列：主键 / 逻辑删除标记 / 录入人审计字段 */
     private static final Set<String> READONLY_COLS = Set.of("unique_id", "open_status", "creator");
 
+    /** 日期串的宽松形态：yyyy-M-d / yyyy/M/d / 带时间的 ISO 串都认（前端固定发 yyyy-MM-dd） */
+    private static final Pattern YMD = Pattern.compile("^(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})");
+
     /**
      * 请求里的 tb 命中了哪张"已接入台账"的物理表；返回**库里登记的原样表名**（大小写以登记为准），
      * 未命中返回 null。
@@ -1512,6 +1517,158 @@ public class CCGHT {
         return cols.containsKey("date_rk") && cols.containsKey("paycycle_dh") && cols.containsKey("paycycle_zb");
     }
 
+    // ================================================================
+    // 值类型转换 —— 把请求里的字符串转成"该列的真实类型"
+    // ================================================================
+    // 请求里的值天然都是字符串：query 参数是，Excel 单元格也是（前端两处日期控件都配了
+    // value-format="YYYY-MM-DD"，发过来的就是 "2026-06-01"）。而 MyBatis 的 StringTypeHandler 会走
+    // PreparedStatement.setString —— PgJDBC 的 stringtype 默认取 **varchar**，于是这个参数以
+    // varchar(OID 1043) 发给服务端；可 PG 对 varchar↔date、varchar↔数值**不做隐式转换**。
+    // 实测（10.8.54.24/device-note，见 .workbuddy/_pg_evidence.txt）：
+    //   insert into cght.t_contract (date_sign) values ('2026-06-01'::varchar)
+    //     → 字段 "date_sign" 的类型为 date, 但表达式的类型为 character varying
+    //   select … where date_sign >= '2026-01-01'::varchar
+    //     → 操作符不存在: date >= character varying
+    //   select … where date_sign >= '2026-01-01'          （参数不带类型标注）
+    //     → 19 行 —— PG 把 unknown 自行推断成了 date
+    // 所以正解是**落参前显式转成目标类型**（让驱动发 date/int4/bool 的 OID），而不是去改
+    // 连接串的 stringtype（那是全局行为变更，会影响所有库所有语句）。
+    //
+    // 列类型来自 colsOf(tb)（PG information_schema），因此本方法对**任意已登记的模版表**都成立，
+    // 不需要为某张表写特例 —— 换一张表、加一个 date 列都不会漏。
+    // 注意判据必须是**库里的真实类型**而不是字段名：smds_sc.remain_pay_dt / amount / tax_rate
+    // 名字像日期或数值，库里其实是 varchar，按类型派发才不会把它们误转。
+
+    /**
+     * 请求值 → 该列真实类型对应的 Java 类型。
+     * <p>
+     * 转不动一律抛 IllegalArgumentException：手录/编辑由本类 {@code @ExceptionHandler} 转成可读的
+     * 400 级提示；导入被逐行 try 捕获，只拦这一行并给出「日期格式不正确」这类人话，而不是整批 500。
+     */
+    private Object coerce(String dataType, Object val) {
+        if (val == null) {
+            return null;
+        }
+        String t = dataType == null ? "" : dataType.toLowerCase();
+        if (t.contains("char") || t.contains("text") || t.contains("uuid") || t.equals("name") || t.contains("bytea")) {
+            return val instanceof String ? val : String.valueOf(val);
+        }
+        if (t.equals("date")) {
+            return toSqlDate(val);
+        }
+        if (t.startsWith("timestamp")) {
+            return toSqlTimestamp(val);
+        }
+        if (t.equals("boolean") || t.equals("bool")) {
+            return toBooleanValue(val);
+        }
+        if (t.equals("real") || t.equals("double precision")) {
+            return toDoubleValue(val);
+        }
+        if (t.equals("numeric") || t.equals("decimal")) {
+            return toBigDecimalValue(val);
+        }
+        if (t.equals("smallint") || t.equals("integer") || t.equals("bigint")) {
+            return toWhole(val);
+        }
+        // 未登记类型：原样交给驱动。为一张没见过的表无谓报错，比放过一个值更糟。
+        return val;
+    }
+
+    /** 'YYYY-MM-DD' / 'YYYY/M/D' / 带时间的 ISO 串 / 已是 Date 都归一成 java.sql.Date（date 列没有时间部分） */
+    private java.sql.Date toSqlDate(Object v) {
+        if (v instanceof java.sql.Date d) {
+            return d;
+        }
+        if (v instanceof Date d) {                        // java.util.Date（java.sql.Timestamp 也是它的子类）
+            return new java.sql.Date(d.getTime());
+        }
+        String s = String.valueOf(v).trim();
+        var m = YMD.matcher(s);
+        if (m.find()) {
+            try {
+                return java.sql.Date.valueOf(java.time.LocalDate.of(
+                        Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(3))));
+            } catch (RuntimeException ignore) {
+                // 落到下面统一报错（例如 2026-02-31 这种日历上不存在的日期）
+            }
+        }
+        throw new IllegalArgumentException(String.format("日期格式不正确：%s（应为 yyyy-MM-dd）", s));
+    }
+
+    /** 同上，落到 timestamp 列（本模块目前没有这类列，留着以免日后加列又踩同一个坑） */
+    private java.sql.Timestamp toSqlTimestamp(Object v) {
+        if (v instanceof java.sql.Timestamp ts) {
+            return ts;
+        }
+        if (v instanceof Date d) {
+            return new java.sql.Timestamp(d.getTime());
+        }
+        String s = String.valueOf(v).trim().replace('T', ' ');
+        if (s.length() == 10) {
+            s = s + " 00:00:00";
+        }
+        try {
+            return java.sql.Timestamp.valueOf(s.length() > 19 ? s.substring(0, 19) : s);
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException(String.format("时间格式不正确：%s", s));
+        }
+    }
+
+    /** true/false、t/f、1/0 都认；别的值明确拒绝 —— 静默当成 false 会让一条筛选悄悄失效 */
+    private Boolean toBooleanValue(Object v) {
+        if (v instanceof Boolean b) {
+            return b;
+        }
+        String s = String.valueOf(v).trim();
+        if (s.equalsIgnoreCase("true") || s.equalsIgnoreCase("t") || s.equals("1")) {
+            return Boolean.TRUE;
+        }
+        if (s.equalsIgnoreCase("false") || s.equalsIgnoreCase("f") || s.equals("0")) {
+            return Boolean.FALSE;
+        }
+        throw new IllegalArgumentException(String.format("是/否值不正确：%s", s));
+    }
+
+    private Double toDoubleValue(Object v) {
+        if (v instanceof Number n) {
+            return n.doubleValue();
+        }
+        try {
+            return Double.valueOf(String.valueOf(v).trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(String.format("数值格式不正确：%s", v));
+        }
+    }
+
+    private java.math.BigDecimal toBigDecimalValue(Object v) {
+        if (v instanceof java.math.BigDecimal d) {
+            return d;
+        }
+        try {
+            return new java.math.BigDecimal(v instanceof Number n ? n.toString() : String.valueOf(v).trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(String.format("数值格式不正确：%s", v));
+        }
+    }
+
+    /** smallint/integer/bigint 共用：装得下就用 int4（PG 允许 int4 向 int2/int8 隐式放宽） */
+    private Object toWhole(Object v) {
+        long n;
+        if (v instanceof Number num) {
+            n = num.longValue();
+        } else {
+            String s = String.valueOf(v).trim();
+            try {
+                n = Long.parseLong(s);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(String.format("整数格式不正确：%s", s));
+            }
+        }
+        return n >= Integer.MIN_VALUE && n <= Integer.MAX_VALUE
+                ? (Object) Integer.valueOf((int) n) : (Object) Long.valueOf(n);
+    }
+
     /**
      * 请求体 → 待写入的列值对 [{col, val}]。
      * 三道核对：形态正则 → 真实存在于该表 → 不在只读黑名单。
@@ -1535,7 +1692,7 @@ public class CCGHT {
             if (READONLY_COLS.contains(col)) {
                 throw new IllegalArgumentException(String.format("字段 %s 不可由前端写入", col));
             }
-            pairs.add(pair(col, e.getValue()));
+            pairs.add(pair(col, coerce(cols.get(col), e.getValue())));
         }
         return pairs;
     }
