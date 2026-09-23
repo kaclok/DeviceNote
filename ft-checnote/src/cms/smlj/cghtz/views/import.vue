@@ -3,7 +3,7 @@ import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import {parseContractExcel} from "../utils/ExcelX.js"
 import {useRouter} from 'vue-router';
-import {buildDeptPathMap, buildScopedDeptTree, matchDept, deptDisplay, deptScopeDepts, effectiveScope, scopeText, SCOPE} from "../utils/DeptX.js"
+import {buildDeptPathMap, buildScopedDeptTree, matchDept, deptDisplay, deptScopeDepts, effectiveScope, scopeText, SCOPE, tplHolderCodes, deptTplBadges} from "../utils/DeptX.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 import {ElMessage, ElMessageBox} from "element-plus"
@@ -70,14 +70,79 @@ const visibleDeptCodes = computed(() => {
     return vis === null ? null : new Set(vis.map(d => d.dept_code))
 })
 
+/* ---------------- 「仅看有模板」：组织树右上角的过滤开关 ----------------
+ * 勾选（默认）：树上只留**持有合同模板**的部门；不勾选：退回"权限与数据范围内可展示的全部部门"。
+ * ⚠️ 两态都落在数据范围内 —— 过滤只会更窄，不会因为勾选而看到范围外的部门。
+ * ⚠️ 这只是"别让用户选到不该选的部门"的体验优化，**不构成安全边界**：
+ *    真正的写入边界在后端 contract/import 的逐行校验，前端可以被绕过。 */
+const onlyTplDept = ref(true)
+
+/** 模版清单：本页只用来算"哪些部门持有模版"，不给用户挑模版（模版由归属部门决定） */
+const tplList = ref([])
+const tplLoaded = ref(false)   // 成功拿到清单才有结论；失败时 tplHolderCodes 的三态链一路退回可见集
+const tplFail = ref(false)
+const AC_tpl = new AbortController()
+
+/** 全部「持有合同模板」的部门（三态：null = 清单未取到，给不出结论 → 不收窄） */
+const anyHolderCodes = computed(() => (tplLoaded.value ? tplHolderCodes(tplList.value) : null))
+
 /**
- * 树数据：全量字典按可见集剪枝 + 补回祖先链（否则父节点缺失，每个部门都会变成根节点）。
+ * 部门 → 持有的模版名：树节点右侧的模板名徽标（与「部门合同模板」页同构）。
+ * 与 anyHolderCodes 同源（都走 DeptX 的同一份口径），所以"勾选后树上的部门"必然**都**有标签。
+ * 清单没取到时只少挂标签、不报错：标签是装饰，不该因为一次取数失败就不让选部门。
+ */
+const tplBadgeMap = computed(() => deptTplBadges(tplList.value))
+/** 该部门持有的模板名；'' = 未配置（不挂徽标，保持树面干净） */
+function tplBadge(code) {
+    return (code && tplBadgeMap.value[String(code)]) || ''
+}
+
+/**
+ * 树的可选集。三态与 visibleDeptCodes 保持一致（null = 不限 / 空集 = 全不可选）——
+ * buildScopedDeptTree 正是按这个约定解的。
+ *   · 不勾选           → 可见集原样（本页原有表现形式）
+ *   · 勾选但清单没取到 → 同样退回可见集（收窄失效好过把树清空）
+ *   · 勾选且拿到清单   → 持有集 ∩ 可见集（取交：只会更窄，不会越权）
+ */
+const treeCodes = computed(() => {
+    if (!onlyTplDept.value) return visibleDeptCodes.value
+    const hold = anyHolderCodes.value
+    if (hold === null) return visibleDeptCodes.value
+    const vis = visibleDeptCodes.value
+    // 可见集 null = 不限（全集团档）：持有集本身已按范围收窄，直接用
+    return vis === null ? hold : new Set([...hold].filter(c => vis.has(c)))
+})
+
+/** 勾选态收窄失效（清单没取到，实际仍是全部部门）—— 静默失效会让人以为"勾了没用" */
+const tplFilterOff = computed(() => onlyTplDept.value && tplFail.value)
+
+/** 树为空时的原因：勾选态与未勾选态的成因不同，别只用一句"没有数据"打发 */
+const treeEmptyText = computed(() => (onlyTplDept.value && anyHolderCodes.value !== null
+    ? '你的数据范围内没有已配置合同模板的部门'
+    : '你的数据范围内没有可选部门'))
+
+/** 拉模版清单（走 SysX 共享缓存，只拉一次） */
+function loadTpls() {
+    Singleton.getInstance(SysX).getTemplateList(null, AC_tpl.signal, () => {
+    }, (r, data) => {
+        if (!r) {
+            // 失败不给结论：treeCodes 退回可见集，由 tplFilterOff 如实提示"勾选暂未生效"
+            tplFail.value = true
+            return
+        }
+        tplList.value = data.data || []
+        tplLoaded.value = true
+    })
+}
+
+/**
+ * 树数据：全量字典按**可选集**（treeCodes）剪枝 + 补回祖先链（否则父节点缺失，每个部门都会变成根节点）。
  * 祖先节点由 buildScopedDeptTree 标成 selectable=false —— 只作层级路径，不可选。
  * 默认全展开（模板上的 default-expand-all），超出栏高时由 .tree-box 滚动。
  * 搜索无需额外处理 —— Element Plus 的 tree-store.filter 会对每个可见非叶节点调 node.expand()，
  * 自顶向下遍历，命中项的整条祖先路径会自动展开。
  */
-const treeData = computed(() => buildScopedDeptTree(allDeptOptions.value, visibleDeptCodes.value))
+const treeData = computed(() => buildScopedDeptTree(allDeptOptions.value, treeCodes.value))
 
 /** 树搜索：部门名 / 公司·部门全路径 / 部门编码 任一命中（父节点因有命中子节点而保留） */
 function filterNode(value, data) {
@@ -106,6 +171,18 @@ function clearDept() {
     deptCode.value = ''
     treeRef.value?.setCurrentKey(null)
 }
+
+/**
+ * 切换勾选（或模版清单到达）会改变可选集，已选部门可能被过滤掉 —— 必须顺手清掉，
+ * 否则会留下"选了个树上找不到的部门、上传区却放行"的怪状态。
+ */
+watch(treeCodes, () => {
+    const codes = treeCodes.value
+    if (!deptCode.value || codes === null) return
+    if (codes.has(deptCode.value)) return
+    clearDept()
+    ElMessage.info('该部门未配置合同模板，已被过滤，请重新选择归属部门')
+})
 
 /* ---------------- 部门 → 合同模版（后端算，前端只呈现） ----------------
  * 绑定关系打在部门上、**不向下继承**（一个部门用哪套模板就是它自己配的那套），
@@ -220,12 +297,14 @@ const AC_dept = new AbortController()
 
 onMounted(() => {
     loadDepts()
+    loadTpls()
 })
 
 onUnmounted(() => {
     AC_import.abort()
     AC_dept.abort()
     AC_eff.abort()
+    AC_tpl.abort()
 })
 
 // 归属部门字典：登录后已由 SysX 预加载缓存，这里命中缓存即刻返回
@@ -359,14 +438,21 @@ function goLedger() {
             <!-- 左侧：常驻组织架构。点部门即选定本批合同的归属部门（与账号页一样，点一次即生效） -->
             <el-card shadow="never" class="dept-aside">
                 <div class="aside-head">
-                    <span class="aside-title">① 归属部门（必填）</span>
-                    <span v-if="deptCode" class="aside-clear" @click="clearDept">清空</span>
+                    <span class="aside-title">① 归属部门</span>
+                    <!-- 组织架构右上角：勾选（默认）只留"持有合同模板"的部门；不勾选退回权限与数据范围内的全部部门 -->
+                    <div class="aside-tools">
+                        <el-checkbox v-model="onlyTplDept" class="aside-only-tpl"
+                                     title="只显示已配置合同模板的部门（仍限制在你的权限与数据范围内）">仅看有模板</el-checkbox>
+                        <span v-if="deptCode" class="aside-clear" @click="clearDept">清空</span>
+                    </div>
                 </div>
                 <el-input v-model="treeKeyword" placeholder="搜索部门" clearable size="small" class="aside-search">
                     <template #prefix><span style="color:#94a3b8">🔍</span></template>
                 </el-input>
+                <!-- 勾了但清单没取到 → 收窄失效，状态与"不勾选"一致：如实说一句，别让人以为勾了没用 -->
+                <div v-if="tplFilterOff" class="tree-hint">合同模板清单未取到，暂展示全部部门</div>
                 <div class="tree-box">
-                    <el-tree
+                    <el-tree v-if="treeData.length"
                         ref="treeRef"
                         :data="treeData"
                         node-key="dept_code"
@@ -380,10 +466,15 @@ function goLedger() {
                     >
                         <template #default="{ data }">
                             <span class="tree-node" :class="{'node-plain': !data.selectable}" :title="nodeTitle(data)">
-                                {{ data.dept_name }}
+                                <span class="node-name">{{ data.dept_name }}</span>
+                                <!-- 已配置合同模板的部门在名字后挂模板名徽标（与「部门合同模板」页同构）；
+                                     未配置的保持树面干净。徽标自身另挂 title，截断时悬停可看全名 -->
+                                <span v-if="tplBadge(data.dept_code)" class="node-tpl"
+                                      :title="'合同模板：' + tplBadge(data.dept_code)">{{ tplBadge(data.dept_code) }}</span>
                             </span>
                         </template>
                     </el-tree>
+                    <div v-else class="tree-none">{{ treeEmptyText }}</div>
                 </div>
                 <div class="aside-foot">
                     <div class="picked-line">
@@ -637,10 +728,27 @@ function goLedger() {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                gap: 8px;
 
                 .aside-title {
                     font-size: 13px;
                     font-weight: 600;
+                    flex-shrink: 0;
+                }
+
+                /* 右上角工具区：勾选框管"树显示哪些"、清空管"清掉已选" —— 同属树的顶部操作 */
+                .aside-tools {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-shrink: 0;
+
+                    /* 侧栏只有 260px：勾选框字号压到 12px 才不至于把标题挤去换行 */
+                    :deep(.el-checkbox__label) {
+                        font-size: 12px;
+                        padding-left: 4px;
+                        color: #475569;
+                    }
                 }
 
                 .aside-clear {
@@ -652,6 +760,13 @@ function goLedger() {
 
             .aside-search {
                 margin-top: 10px;
+            }
+
+            /* 勾选态收窄失效时的一行说明（不占树区高度） */
+            .tree-hint {
+                margin-top: 8px;
+                font-size: 12px;
+                color: #e6a23c;
             }
 
             .tree-box {
@@ -671,6 +786,17 @@ function goLedger() {
                 /* 节点内容行是 flex 容器：让文本项 flex:1 + min-width:0 才能真正触发省略号 */
                 :deep(.el-tree-node__content) {
                     overflow: hidden;
+                }
+
+                /* 空树占位（范围内没有可选部门 / 没有已配置合同模板的部门）。
+                   ⚠️ 排在 :deep(.el-tree) 之后是刻意的：既有断言按"从 .tree-box 起 400 字符内
+                      出现 font-size: 12px"判树字号，把这段插到开头会把窗口挤爆（踩过一次）。 */
+                .tree-none {
+                    padding: 16px 8px;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #94a3b8;
+                    line-height: 1.6;
                 }
             }
 
@@ -851,13 +977,37 @@ function goLedger() {
         }
     }
 
-    /* 树节点：窄栏里超长部门名省略，完整路径走 title */
+    /* 树节点：部门名占满剩余宽度并省略，已配模板的部门右侧挂模板名徽标（与「部门合同模板」页同构） */
     .tree-node {
         flex: 1;
         min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+
+        .node-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .node-tpl {
+            flex-shrink: 0;
+            max-width: 96px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 11px;
+            line-height: 16px;
+            padding: 0 5px;
+            border-radius: 8px;
+            color: #2563eb;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+        }
 
         /* 祖先路径节点：不在数据范围内，不可点，灰显 */
         &.node-plain {

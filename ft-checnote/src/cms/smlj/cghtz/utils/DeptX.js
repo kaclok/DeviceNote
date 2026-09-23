@@ -262,3 +262,67 @@ export function effectiveScope(acct) {
 export function scopeText(scope) {
     return SCOPE_TEXT[Number(scope)] || '未配置'
 }
+
+/* ---------------- 合同模版 × 部门：组织树过滤 + 节点标签 ---------------- */
+
+/**
+ * 各模版 → 持有部门的**原始配对** —— 「合同模板 × 部门」这一口径的唯一来源。
+ *
+ * 口径：一个部门持有模板 ⇔ 它**自己**绑定了某套模板（t_dept_contract_template 的 PK 是 dept_code，
+ * 故一个部门至多一套）。系统**不存在**部门间继承（见 CCGHT.holderGroups）—— 上级配了模板不会
+ * 顺延给下级，所以这里就是把各模版的 dept_codes 收集起来，不做任何组织树扩散。
+ * 与后端 /template/list 同源 —— 于是"树上能选的部门"「节点上挂的模板名」与"后端认的持有部门"
+ * 天然一致，不会一个说行一个说不行。
+ *
+ * 返回 null = **给不出可信结论**（旧缓存 / 后端漏发），调用方自行决定退让策略：
+ * 收窄（tplHolderCodes）宁可不收窄，装饰（deptTplBadges）宁可不挂标签。
+ *
+ * 为什么不能只看 dept_codes 在不在：后端全局 NON_EMPTY 会把**空数组整条丢掉**，
+ * 于是"没人持有"与"字段没下发"在 JSON 里长得一模一样 —— 只能靠永不为空的 holder_count 判。
+ */
+function tplDeptPairs(tplList) {
+    const src = Array.isArray(tplList) ? tplList : []
+    const pairs = []
+    for (const t of src) {
+        const n = Number(t?.holder_count)
+        if (!Number.isFinite(n)) return null       // 旧缓存 / 后端漏发：不给结论
+        if (n <= 0) continue                       // 这套模版没人持有（dept_codes 已被 NON_EMPTY 吞掉）
+        const codes = t?.dept_codes
+        if (!Array.isArray(codes)) return null     // 说有 n 个却没给数组 —— 自相矛盾，同样不给结论
+        codes.forEach(c => {
+            if (c) pairs.push([String(c), t])
+        })
+    }
+    return pairs
+}
+
+/**
+ * 「持有合同模板」的部门全集 —— 组织树的「仅看有模板」用它收窄。
+ *
+ * 三态（与 buildScopedDeptTree 第 2 参同语义）：
+ *   Set  —— 拿得到结论；**空集**表示"范围内没有任何部门配置模板"（调用方据此显示空树）
+ *   null —— 给不出结论；调用方**不要收窄**（退回可见集），否则一次取数失败就把整棵树清空
+ */
+export function tplHolderCodes(tplList) {
+    const pairs = tplDeptPairs(tplList)
+    return pairs === null ? null : new Set(pairs.map(p => p[0]))
+}
+
+/**
+ * 部门 → 持有的合同模版名 —— 组织树**节点标签**用它。
+ *
+ * 与 tplHolderCodes 同源同口径（同一个 tplDeptPairs），区别只是这里要保留"哪个部门对应哪套模版"。
+ * 一处部门至多一套模版（PK = dept_code），映射本应单值；万一上游真出现冲突，取先到者，
+ * 免得被后到的覆盖成不稳定结果（同一次取数两次渲染挂出不同的名字）。
+ *
+ * 返回普通对象而非三态：标签是**装饰**，取不到就少挂几个标签，绝不会因此把树画错。
+ */
+export function deptTplBadges(tplList) {
+    const pairs = tplDeptPairs(tplList)
+    const m = {}
+    if (pairs === null) return m
+    for (const [code, t] of pairs) {
+        if (t?.name && !(code in m)) m[code] = t.name
+    }
+    return m
+}
