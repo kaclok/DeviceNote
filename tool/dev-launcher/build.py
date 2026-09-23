@@ -23,10 +23,12 @@ REFS = [
     "/r:System.Management.dll",
 ]
 
-# (临时英文名, 主文件, 最终中文名)
+# (临时英文名, 最终中文名, 主文件, 附加源文件, 入口类)
 TARGETS = [
-    ("SpringBootLauncher.exe", "SpringBootLauncher.cs", "启动后端.exe"),
-    ("ViteLauncher.exe", "ViteLauncher.cs", "启动前端.exe"),
+    ("SpringBootLauncher.exe", "启动后端.exe", "SpringBootLauncher.cs", [], None),
+    ("ViteLauncher.exe", "启动前端.exe", "ViteLauncher.cs", [], None),
+    ("DevLauncher.exe", "启动台.exe", "CombinedLauncher.cs",
+     ["SpringBootLauncher.cs", "ViteLauncher.cs"], "DevLaunch.Program0"),
 ]
 
 
@@ -37,12 +39,19 @@ def find_csc():
     return None
 
 
-def build(csc, out_name, main_file):
+def build(csc, out_name, main_file, extra_sources, main_type):
     out_path = os.path.join(BIN, out_name)
     args = [
         csc, "/nologo", "/codepage:65001", "/target:winexe", "/platform:anycpu",
         "/optimize+", "/warn:4", "/out:" + out_path,
-    ] + REFS + [os.path.join(SRC, "Shared.cs"), os.path.join(SRC, main_file)]
+    ]
+    if main_type:
+        args.append("/main:" + main_type)
+    args += REFS
+    args.append(os.path.join(SRC, "Shared.cs"))
+    args.append(os.path.join(SRC, main_file))
+    for s in extra_sources:
+        args.append(os.path.join(SRC, s))
     r = subprocess.run(args, capture_output=True)
     so = r.stdout.decode("gbk", errors="replace") if r.stdout else ""
     se = r.stderr.decode("gbk", errors="replace") if r.stderr else ""
@@ -57,9 +66,13 @@ def main():
         print("ERROR: 未找到 csc.exe")
         return 1
     print("csc =", csc)
+    # 可选：命令行给出关键字（如「启动台」或 DevLauncher）时只编译匹配的目标
+    filt = sys.argv[1] if len(sys.argv) > 1 else None
     fail = 0
-    for tmp_name, main_file, final_name in TARGETS:
-        rc, log, out_path = build(csc, tmp_name, main_file)
+    for tmp_name, final_name, main_file, extra_sources, main_type in TARGETS:
+        if filt and filt not in tmp_name and filt not in final_name and filt not in main_file:
+            continue
+        rc, log, out_path = build(csc, tmp_name, main_file, extra_sources, main_type)
         ok = rc == 0 and os.path.exists(out_path)
         print("---- %-22s %s" % (tmp_name, "OK" if ok else "FAIL"))
         if log:
