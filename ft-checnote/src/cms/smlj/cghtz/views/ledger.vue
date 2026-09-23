@@ -16,6 +16,8 @@ import {
     deptScopeDepts,
     effectiveScope,
     scopeText,
+    deptTplBadges,
+    deptTplMap,
     SCOPE
 } from "../utils/DeptX.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts"
@@ -155,6 +157,24 @@ const holderCodes = computed(() => {
 })
 
 /**
+ * 部门 → 其持有的模板名 / 模板对象（来自 /template/list 各模板的 dept_codes 全集）。
+ *
+ * 与 holderCodes 同源（DeptX 里同一个 tplDeptPairs）—— 于是"挂得出标签的部门点下去必然补得出模板"
+ * 这条体验保证是**结构性**的（两图键集逐项相等），不靠约定。未配模板的部门不挂标签、树面保持干净。
+ *
+ * ⚠️ 这里取的是**全部**模板的绑定，而不是当前模板的 dept_codes：
+ *    · 标签要说的是"这个部门用的是哪套模板"，与"现在看的是哪张表"是两件事；
+ *    · 没选模板时树上是全部可见部门，正需要这层信息决定点哪个（点了就自动补模板，见 fillTplOfDept）。
+ */
+const tplBadgeMap = computed(() => deptTplBadges(tplList.value))
+const deptTpls = computed(() => deptTplMap(tplList.value))
+
+/** 该部门持有的模板名；'' = 未配置（不挂徽标） */
+function tplBadge(code) {
+    return (code && tplBadgeMap.value[String(code)]) || ''
+}
+
+/**
  * 树的候选集（三态，与 visibleDeptCodes 同约定）：
  *   null = 不限制（没选模版，或数据范围不限且模版未收窄） / [] = 一个都没有（fail-closed）
  * 选了模版 → 持有集 ∩ 数据范围；没选模版 → 仅按数据范围（此时右侧本来就写着"请先选模版"）。
@@ -202,13 +222,37 @@ function nodeTitle(data) {
     return data.selectable ? deptPath(data.dept_code) : '该部门不在你的数据范围内，仅作为层级路径展示'
 }
 
-/** 点树节点即切换台账视角（看点的是哪个部门）；祖先节点只作层级路径，不可选 */
+/**
+ * 点树节点即切换台账视角（看点的是哪个部门）；祖先节点只作层级路径，不可选。
+ *
+ * 顺带把"模板 ↔ 部门"这道题解掉：还没选模板时，用点中的部门把它补进下拉框 ——
+ * 用户看到某个部门扛着某套模板，点它就是想看那套模板的合同，不必再回上面自己挑一遍。
+ * 放在设 deptCode 之前或之后都一样（两个 watch 都是 pre-flush，跑的时候两个值都已就位）。
+ */
 function onTreeClick(data) {
     if (!data.selectable) {
         ElMessage.warning('该部门不在你的数据范围内，仅作为层级路径展示')
         return
     }
+    fillTplOfDept(data.dept_code)
     deptCode.value = data.dept_code
+}
+
+/**
+ * 未选模板时，用部门持有的模板把下拉框补上。
+ *
+ * 三条退让（都是"什么都不做"，绝不猜）：
+ *   · 已经选过模板 → 不覆盖。换模板会连带换表、清掉全部筛选条件，不该被一次点击悄悄改掉；
+ *   · 该部门没配模板 或 模板清单不可信（DeptX 返回空对象）→ 不补。此时树上的候选集本就是
+ *     "全部可见部门"，点它只是"看这个部门"，右侧那句「请先在左侧选择合同模板」就是提示；
+ *   · 模板对象缺 id → 不补（不拿 undefined 去污染 tplKey，否则会落进"选了但查不到"的怪态）。
+ */
+function fillTplOfDept(code) {
+    if (tplKey.value) return
+    const t = deptTpls.value[String(code || '')]
+    if (t && t.id !== undefined && t.id !== null) {
+        tplKey.value = String(t.id)
+    }
 }
 
 /** 清空选择：回到"未选部门"视角（右侧改为展示该模板下全部持有部门的合同） */
@@ -676,7 +720,11 @@ function applyQueryDept() {
                     >
                         <template #default="{ data }">
                             <span class="tree-node" :class="{'node-plain': !data.selectable}" :title="nodeTitle(data)">
-                                {{ data.dept_name }}
+                                <span class="node-name">{{ data.dept_name }}</span>
+                                <!-- 持有合同模板的部门在名字后挂模板名徽标（与导入页、「部门合同模板」页同构）；
+                                     未持有/清单不可信的部门保持树面干净。徽标自身另挂 title，截断时悬停可看全名 -->
+                                <span v-if="tplBadge(data.dept_code)" class="node-tpl"
+                                      :title="'合同模板：' + tplBadge(data.dept_code)">{{ tplBadge(data.dept_code) }}</span>
                             </span>
                         </template>
                     </el-tree>
@@ -1146,13 +1194,39 @@ function applyQueryDept() {
         }
     }
 
-    /* 树节点：窄栏里超长部门名省略，完整路径走 title */
+    /* 树节点：部门名占满剩余宽度并省略（窄栏里超长名截断，完整路径走 title），
+       持模板的部门右侧挂模板名徽标（与导入页、「部门合同模板」页同构）。
+       ⚠️ text-overflow 要挂在真正承载文本的元素上 —— 挂在这个 flex 容器上对文本子节点无效。 */
     .tree-node {
         flex: 1;
         min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+
+        .node-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .node-tpl {
+            flex-shrink: 0;
+            max-width: 96px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 11px;
+            line-height: 16px;
+            padding: 0 5px;
+            border-radius: 8px;
+            color: #2563eb;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+        }
 
         &.node-plain {
             color: #c0c4cc;

@@ -309,20 +309,36 @@ export function tplHolderCodes(tplList) {
 }
 
 /**
- * 部门 → 持有的合同模版名 —— 组织树**节点标签**用它。
+ * 部门 → 持有的合同模版（**对象**）—— 「节点标签」与「点部门补选模版」共用这一份映射。
  *
  * 与 tplHolderCodes 同源同口径（同一个 tplDeptPairs），区别只是这里要保留"哪个部门对应哪套模版"。
  * 一处部门至多一套模版（PK = dept_code），映射本应单值；万一上游真出现冲突，取先到者，
  * 免得被后到的覆盖成不稳定结果（同一次取数两次渲染挂出不同的名字）。
  *
- * 返回普通对象而非三态：标签是**装饰**，取不到就少挂几个标签，绝不会因此把树画错。
+ * 返回普通对象而非三态：两个消费点都是**装饰/便利**性质 —— 取不到就少挂几个标签、少补一次模版，
+ * 绝不会因此把树画错（"要不要收窄树"的退让策略由 tplHolderCodes 单独决定，别混）。
  */
-export function deptTplBadges(tplList) {
+export function deptTplMap(tplList) {
     const pairs = tplDeptPairs(tplList)
     const m = {}
     if (pairs === null) return m
     for (const [code, t] of pairs) {
-        if (t?.name && !(code in m)) m[code] = t.name
+        if (!(code in m)) m[code] = t
+    }
+    return m
+}
+
+/**
+ * 部门 → 持有的合同模版名 —— 组织树**节点标签**用它。
+ *
+ * 名字从 deptTplMap 取，所以"挂得出标签的部门"必然也是"能补出模版对象的部门" ——
+ * 台账页点部门补选模版时，不会出现"看着有标签、点下去却补不出来"的落差。
+ * name 缺失的模版不挂标签（不拿 #id 之类充数），但它在 deptTplMap 里仍有一席之地。
+ */
+export function deptTplBadges(tplList) {
+    const m = {}
+    for (const [code, t] of Object.entries(deptTplMap(tplList))) {
+        if (t?.name) m[code] = t.name
     }
     return m
 }
