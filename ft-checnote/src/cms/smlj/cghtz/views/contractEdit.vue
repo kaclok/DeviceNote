@@ -153,9 +153,10 @@ const groups = computed(() => {
                     widget: widgetOf(c),
                     opts: optionsOf(c),
                     // 「本人」档：归属判据是 sign_person = 登录者姓名（后端精确比对），
-                    // 自由填写（空格 / 别人的名字）会让这条合同从自己的列表里消失 —— 预填并锁只读。
+                    // 所以**编辑态**锁定它（改掉等于把这条合同转给别人），新增态必须可填 ——
+                    // 允许代人录入，只把登录者姓名预填成默认值（见 initForm）。
                     // readonly 列（合同编号）同理：只在编辑态锁，新增时它是空白、必须能填。
-                    disabled: (c.field === 'sign_person' && onlySelf) || readOnlyOf(c),
+                    disabled: (c.field === 'sign_person' && onlySelf && isEdit) || readOnlyOf(c),
                     mirrorOn: !!(c.mirror && mirrorOn.value[c.field]),
                 })),
         }))
