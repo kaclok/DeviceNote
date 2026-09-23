@@ -1,6 +1,7 @@
 import {ApiX} from "../api/ApiX.js";
 import {ApiLogin} from "../api/ApiLogin.js";
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts";
+import {isCanceled} from "@/framework/services/net/NetCancel.js";
 
 const {wsCache} = useSessionCache()
 
@@ -9,6 +10,9 @@ const {wsCache} = useSessionCache()
  * - 非OK业务码：AxiosInst 做 Promise.reject(response)，fail = response 对象，fail.data = {code,msg,data}
  * - HTTP错误：fail = AxiosError，fail.response.data = {code,msg,data}
  * - 其他：原样返回
+ *
+ * 注意：主动取消（ERR_CANCELED）已在各调用点被 isCanceled 守卫拦掉，不会进到这里；
+ *       能走到这里的都是"服务端真的回了失败"或"网络真的断了"。
  */
 function _failBody(fail) {
     return fail
@@ -21,6 +25,9 @@ function _failBody(fail) {
  * 1. role/perm/dept 字典在登录后预加载并缓存，后续直接读缓存，不再请求后端；
  * 2. 登出时调用 clearDictCache() 清空缓存；
  * 3. 所有方法遵循项目统一的 (paras, signal, onBefore, onAfter) 回调签名。
+ * 4. **主动取消不回调失败分支**：翻页 / 换筛选会 abort 上一次在途请求，那次请求的
+ *    失败回调一旦执行，就会用过期结果清空接管它的那次请求的列表与 loading
+ *    （表现为列表闪空、转圈突然停、分页器跳 0）。判据走 NetCancel.isCanceled。
  */
 
 // 字典缓存
@@ -127,6 +134,7 @@ class SysX {
         ApiX.getContractList(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -136,6 +144,7 @@ class SysX {
         ApiX.getContract(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -145,6 +154,7 @@ class SysX {
         ApiX.getContract({id: paras.id}, signal).then(succ => {
             onAfter?.(true, {code: __OK__, data: succ.data.data != null});
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -154,6 +164,7 @@ class SysX {
         ApiX.createContract(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -163,6 +174,7 @@ class SysX {
         ApiX.updateContract(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -172,6 +184,7 @@ class SysX {
         ApiX.deleteContract(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -182,6 +195,7 @@ class SysX {
         ApiX.importContractExcel(rows, params, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -192,6 +206,7 @@ class SysX {
         ApiX.getAccountList(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -201,6 +216,7 @@ class SysX {
         ApiX.saveAccount(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -210,6 +226,7 @@ class SysX {
         ApiX.resetPassword(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -219,6 +236,7 @@ class SysX {
         ApiX.toggleAccountStatus(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -234,6 +252,7 @@ class SysX {
             _roleCache = succ.data
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -248,6 +267,7 @@ class SysX {
             _permCache = succ.data
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -267,6 +287,7 @@ class SysX {
             const ls = await loadDeptOnce()
             onAfter?.(true, {code: __OK__, data: ls})
         } catch (fail) {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         }
     }
@@ -286,6 +307,7 @@ class SysX {
             _tplCache = succ?.data?.data || []
             onAfter?.(true, {code: __OK__, data: _tplCache})
         } catch (fail) {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         }
     }
@@ -308,6 +330,7 @@ class SysX {
             }
             onAfter?.(true, succ.data)
         } catch (fail) {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         }
     }
@@ -322,6 +345,7 @@ class SysX {
         ApiX.getDeptTplList(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -331,6 +355,7 @@ class SysX {
         ApiX.saveDeptTpl(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -340,6 +365,7 @@ class SysX {
         ApiX.deleteDeptTpl(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }
@@ -354,6 +380,7 @@ class SysX {
         ApiX.getDeptTplEffective(paras, signal).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, _failBody(fail));
         });
     }

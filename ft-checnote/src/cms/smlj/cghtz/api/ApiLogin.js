@@ -1,4 +1,5 @@
 import {axiosInst as axiosR} from "@/framework/services/net/AxiosInst.js"
+import {isCanceled} from "@/framework/services/net/NetCancel.js"
 
 export class ApiLogin {
     /* ---------------- 认证 ---------------- */
@@ -11,6 +12,7 @@ export class ApiLogin {
         }).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, fail);
         });
     }
@@ -22,6 +24,7 @@ export class ApiLogin {
         }).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, fail);
         });
     }
@@ -37,6 +40,7 @@ export class ApiLogin {
         }).then(succ => {
             onAfter?.(true, succ.data);
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, fail);
         });
     }
@@ -58,6 +62,7 @@ export class ApiLogin {
             onAfter?.(true, succ.data);
             return succ;
         }).catch(fail => {
+            if (isCanceled(fail)) return;
             onAfter?.(false, fail);
             throw fail;
         });

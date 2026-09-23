@@ -17,6 +17,7 @@ import {ElMessage} from "element-plus";
 // 样式按需注入：经过 unplugin 自动导入的 API 由 resolver 补样式，
 // 而这里是显式 import，resolver 不会介入，所以自己引一次（重复引入会被打包器去重）。
 import "element-plus/es/components/message/style/css";
+import {isCanceled} from "./NetCancel.js";
 
 // 业务码兜底文案：与后端 ResultCode 枚举保持一致。
 // 后端用 Result.fail(ResultCode.RCxxxxx.getCode(), "更具体的文案") 时会带自己的 message，
@@ -103,8 +104,9 @@ function _netText(fail) {
  *       所以实际显示的多半是后端 message（后端几乎总会给 message）或码表文案。
  */
 function notifyError(fail, ...fallbacks) {
-    // 主动取消（AbortController：翻页、离开页面、超时重发）必然发生，不该打扰用户
-    if (fail?.code === "ERR_CANCELED" || fail?.name === "CanceledError") return;
+    // 主动取消（AbortController：翻页、离开页面、超时重发）必然发生，不该打扰用户。
+    // 判据与 AxiosInst 共用 isCanceled（NetCancel.js），别在这里另写一份：两处漂移就会重新刷出提示。
+    if (isCanceled(fail)) return;
     // 显式静默：发起请求时传 option {__silentError__: true}
     if (fail?.config?.__silentError__ === true) return;
 

@@ -4,6 +4,7 @@ import {config} from './Config.js'
 import {ECacheType, useLocalCache} from '@/framework/composable/use/useCache.ts'
 import {TokenService} from "@/framework/services/TokenService.js";
 import {addSign, signData} from "@/framework/utils/SignParamUtil.js";
+import {isCanceled} from "./NetCancel.js";
 
 const {wsCache} = useLocalCache()
 
@@ -196,6 +197,12 @@ axiosInst.interceptors.response.use(async (success) => {
     // 也当做失败处理，让走catch分支
     return Promise.reject(success);
 }, fail => {
+    // 主动取消（AbortController：翻页 / 换筛选 / 离开页面）不是错误：服务端没有任何响应，
+    // 既不该打印到控制台（这就是"浏览器偶尔出现 CanceledError"的出口），
+    // 也不该被 HTTP 码表当成失败去兜底提示 —— 两张码表都由调用方按需触发。
+    // rejection 照旧往下传：调用方的 catch 仍能感知（业务层据此跳过失败分支）。
+    if (isCanceled(fail)) return Promise.reject(fail);
+
     console.error(fail);
 
     const {status} = fail;
