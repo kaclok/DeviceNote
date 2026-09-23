@@ -1,0 +1,6 @@
+finishedBeforeTimeout=True
+exitCode=0
+lineCount=2
+---- output ----
+���ı������ OK 
+second line

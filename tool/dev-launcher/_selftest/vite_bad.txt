@@ -1,0 +1,14 @@
+ok=False
+error=未找到 package.json（请选择前端工程根目录）
+dir=F:\Projects\Study\github\DeviceNote\backend\device-note
+name=
+pm=npm
+pmExe=
+scripts=
+cmds=
+default=
+port=0
+hasModules=False
+modulesStale=False
+summary=
+command=

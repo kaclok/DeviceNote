@@ -1,0 +1,20 @@
+ok=True
+error=
+tool=maven
+pickedDir=F:\Projects\Study\github\DeviceNote\backend\lp-jtlj
+rootDir=F:\Projects\Study\github\DeviceNote\backend\lp-jtlj
+multi=False
+launchModule=
+launchDir=F:\Projects\Study\github\DeviceNote\backend\lp-jtlj
+candidates=
+profiles=dev,test,deploy
+wrapper=
+mvn=E:\Javas\maven\3.9.6\bin\mvn.cmd
+javaHome=E:\Javas\jdk\22
+javaVer=22.0.1
+wantJava=18
+port=7052
+needInstall=False
+summary=Maven 单模块 · profile 3 个
+command="E:\Javas\maven\3.9.6\bin\mvn.cmd" -B -Pdev -Dspring-boot.run.profiles=dev spring-boot:run
+installCmd="E:\Javas\maven\3.9.6\bin\mvn.cmd" -B -Pdev -DskipTests compile
