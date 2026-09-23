@@ -1,0 +1,15 @@
+ok=True
+error=
+dir=F:\Projects\Study\github\DeviceNote\ft-checnote
+name=dailypaper
+pm=npm
+pmExe=C:\Users\DELL\.workbuddy\binaries\node\versions\22.22.2-3\npm.cmd
+nodeDir=C:\Users\DELL\.workbuddy\binaries\node\versions\22.22.2-3
+scripts=local dev | local pro | build | push remote | preview | start springBootServer
+cmds=vite | vite --mode production | vite build | scp -r dist/* root@10.8.54.127:/data/deploy/dailyPaper/dist | vite preview | E:\Javas\jdk\22\bin\java.exe --enable-preview -jar F:\Projects\SMLJ\svn\DailyPaper\backend\target\com.smlj.dailypaper*.jar --spring.profiles.active=dev
+default=local dev
+port=4177
+hasModules=True
+modulesStale=True
+summary=npm · 6 个脚本 · 依赖已安装
+command="C:\Users\DELL\.workbuddy\binaries\node\versions\22.22.2-3\npm.cmd" run "local dev"

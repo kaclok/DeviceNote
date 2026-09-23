@@ -1,0 +1,152 @@
+finishedBeforeTimeout=True
+exitCode=0
+lineCount=148
+---- output ----
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for com.smlj:logic:jar:0.0.1-SNAPSHOT
+[WARNING] 'dependencies.dependency.scope' for org.projectlombok:lombok:jar must be one of [provided, compile, runtime, test, system] but is 'annotationProcessor'. @ line 41, column 20
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] backend                                                            [pom]
+[INFO] common                                                             [jar]
+[INFO] logic                                                              [jar]
+[INFO] launcher                                                           [jar]
+[INFO] 
+[INFO] --------------------------< com.smlj:backend >--------------------------
+[INFO] Building backend 0.0.1-SNAPSHOT                                    [1/4]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- install:3.1.3:install (default-install) @ backend ---
+[INFO] Downloading from alimaven: http://maven.aliyun.com/nexus/content/repositories/central/org/apache/maven/resolver/maven-resolver-util/1.9.18/maven-resolver-util-1.9.18.jar
+[INFO] Downloaded from alimaven: http://maven.aliyun.com/nexus/content/repositories/central/org/apache/maven/resolver/maven-resolver-util/1.9.18/maven-resolver-util-1.9.18.jar (196 kB at 164 kB/s)
+[INFO] Downloading from alimaven: http://maven.aliyun.com/nexus/content/repositories/central/org/apache/maven/resolver/maven-resolver-api/1.9.18/maven-resolver-api-1.9.18.jar
+[INFO] Downloaded from alimaven: http://maven.aliyun.com/nexus/content/repositories/central/org/apache/maven/resolver/maven-resolver-api/1.9.18/maven-resolver-api-1.9.18.jar (157 kB at 426 kB/s)
+[INFO] Installing F:\Projects\Study\github\DeviceNote\backend\device-note\pom.xml to F:\MavenRepo\com\smlj\backend\0.0.1-SNAPSHOT\backend-0.0.1-SNAPSHOT.pom
+[INFO] 
+[INFO] --------------------------< com.smlj:common >---------------------------
+[INFO] Building common 0.0.1-SNAPSHOT                                     [2/4]
+[INFO]   from common\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ common ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ common ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 51 source files with javac [debug parameters release 21] to target\classes
+[INFO] 由于在类路径中发现了一个或多个处理程序，因此启用了
+  批注处理。未来发行版的 javac 可能会禁用批注处理，
+  除非至少按名称指定了一个处理程序 (-processor)，
+  或指定了搜索路径 (--processor-path, --processor-module-path)，
+  或显式启用了批注处理 (-proc:only, -proc:full)。
+  可使用 -Xlint:-options 隐藏此消息。
+  可使用 -proc:none 禁用批注处理。
+[INFO] /F:/Projects/Study/github/DeviceNote/backend/device-note/common/src/main/java/com/smlj/o/converter/StringToKV.java: 某些输入文件使用了未经检查或不安全的操作。
+[INFO] /F:/Projects/Study/github/DeviceNote/backend/device-note/common/src/main/java/com/smlj/o/converter/StringToKV.java: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ common ---
+[INFO] skip non existing resourceDirectory F:\Projects\Study\github\DeviceNote\backend\device-note\common\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ common ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.2:test (default-test) @ common ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.2:jar (default-jar) @ common ---
+[INFO] Building jar: F:\Projects\Study\github\DeviceNote\backend\device-note\common\target\common-0.0.1-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.3:install (default-install) @ common ---
+[INFO] Installing F:\Projects\Study\github\DeviceNote\backend\device-note\common\pom.xml to F:\MavenRepo\com\smlj\common\0.0.1-SNAPSHOT\common-0.0.1-SNAPSHOT.pom
+[INFO] Installing F:\Projects\Study\github\DeviceNote\backend\device-note\common\target\common-0.0.1-SNAPSHOT.jar to F:\MavenRepo\com\smlj\common\0.0.1-SNAPSHOT\common-0.0.1-SNAPSHOT.jar
+[INFO] 
+[INFO] ---------------------------< com.smlj:logic >---------------------------
+[INFO] Building logic 0.0.1-SNAPSHOT                                      [3/4]
+[INFO]   from logic\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ logic ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ logic ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 11 source files with javac [debug parameters release 21] to target\classes
+[INFO] 由于在类路径中发现了一个或多个处理程序，因此启用了
+  批注处理。未来发行版的 javac 可能会禁用批注处理，
+  除非至少按名称指定了一个处理程序 (-processor)，
+  或指定了搜索路径 (--processor-path, --processor-module-path)，
+  或显式启用了批注处理 (-proc:only, -proc:full)。
+  可使用 -Xlint:-options 隐藏此消息。
+  可使用 -proc:none 禁用批注处理。
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ logic ---
+[INFO] skip non existing resourceDirectory F:\Projects\Study\github\DeviceNote\backend\device-note\logic\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ logic ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.2:test (default-test) @ logic ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.2:jar (default-jar) @ logic ---
+[INFO] Building jar: F:\Projects\Study\github\DeviceNote\backend\device-note\logic\target\logic-0.0.1-SNAPSHOT.jar
+[INFO] 
+[INFO] --- install:3.1.3:install (default-install) @ logic ---
+[INFO] Installing F:\Projects\Study\github\DeviceNote\backend\device-note\logic\pom.xml to F:\MavenRepo\com\smlj\logic\0.0.1-SNAPSHOT\logic-0.0.1-SNAPSHOT.pom
+[INFO] Installing F:\Projects\Study\github\DeviceNote\backend\device-note\logic\target\logic-0.0.1-SNAPSHOT.jar to F:\MavenRepo\com\smlj\logic\0.0.1-SNAPSHOT\logic-0.0.1-SNAPSHOT.jar
+[INFO] 
+[INFO] -------------------------< com.smlj:launcher >--------------------------
+[INFO] Building launcher 0.0.1-SNAPSHOT                                   [4/4]
+[INFO]   from launcher\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- build-helper:3.4.0:timestamp-property (timestamp-property) @ launcher ---
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ launcher ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ launcher ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 1 source file with javac [debug parameters release 21] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ launcher ---
+[INFO] skip non existing resourceDirectory F:\Projects\Study\github\DeviceNote\backend\device-note\launcher\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ launcher ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.5.2:test (default-test) @ launcher ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- jar:3.4.2:jar (default-jar) @ launcher ---
+[INFO] Building jar: F:\Projects\Study\github\DeviceNote\backend\device-note\launcher\target\com.smlj.launcher-[dev-java21]-0.0.1-SNAPSHOT-20260922-1741.jar
+[INFO] 
+[INFO] --- spring-boot:3.4.2:repackage (repackage) @ launcher ---
+[INFO] 
+[INFO] --- install:3.1.3:install (default-install) @ launcher ---
+[INFO] Installing F:\Projects\Study\github\DeviceNote\backend\device-note\launcher\pom.xml to F:\MavenRepo\com\smlj\launcher\0.0.1-SNAPSHOT\launcher-0.0.1-SNAPSHOT.pom
+[INFO] Installing F:\Projects\Study\github\DeviceNote\backend\device-note\launcher\target\com.smlj.launcher-[dev-java21]-0.0.1-SNAPSHOT-20260922-1741.jar to F:\MavenRepo\com\smlj\launcher\0.0.1-SNAPSHOT\launcher-0.0.1-SNAPSHOT.jar
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for backend 0.0.1-SNAPSHOT:
+[INFO] 
+[INFO] backend ............................................ SUCCESS [  3.701 s]
+[INFO] common ............................................. SUCCESS [  8.920 s]
+[INFO] logic .............................................. SUCCESS [  3.735 s]
+[INFO] launcher ........................................... SUCCESS [  3.292 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  19.924 s
+[INFO] Finished at: 2026-09-22T17:41:06+08:00
+[INFO] ------------------------------------------------------------------------

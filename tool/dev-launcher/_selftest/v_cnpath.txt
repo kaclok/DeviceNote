@@ -1,0 +1,6 @@
+finishedBeforeTimeout=True
+exitCode=0
+lineCount=2
+---- output ----
+C:\Users\DELL\AppData\Local\Temp\����Ŀ¼����
+����ABC-����

@@ -1,0 +1,22 @@
+ok=True
+error=
+tool=maven
+pickedDir=F:\Projects\Study\github\DeviceNote\backend\device-note\launcher
+rootDir=F:\Projects\Study\github\DeviceNote\backend\device-note
+multi=True
+launchModule=launcher
+launchDir=F:\Projects\Study\github\DeviceNote\backend\device-note\launcher
+candidates=launcher
+profiles=dev,test,deploy
+wrapper=
+mvn=E:\Javas\maven\3.9.6\bin\mvn.cmd
+javaHome=E:\Javas\jdk\22
+javaVer=22.0.1
+wantJava=21
+port=8092
+needInstall=False
+repo=
+settings=
+summary=Maven 多模块（3 个子模块） · 启动模块 launcher · profile 3 个
+command="E:\Javas\maven\3.9.6\bin\mvn.cmd" -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev spring-boot:run
+installCmd="E:\Javas\maven\3.9.6\bin\mvn.cmd" -B -Pdev -pl "launcher" -am install -DskipTests -Dspring-boot.repackage.skip=true

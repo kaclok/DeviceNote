@@ -1,0 +1,13 @@
+dir=F:/Projects/Study/github/DeviceNote/backend//device-note
+port=8090
+portLabel=端口 8090 (deploy)
+profile=deploy
+status=✓ Maven 多模块（3 个子模块） · 启动模块 launcher · profile 3 个   |   工程根目录 F:\Projects\Study\github\DeviceNote\backend\device-note
+runState=● 未运行
+stopText=■  停止
+stopEnabled=False
+runEnabled=True
+extPid=0
+extName=
+extInDir=
+extCmd=
