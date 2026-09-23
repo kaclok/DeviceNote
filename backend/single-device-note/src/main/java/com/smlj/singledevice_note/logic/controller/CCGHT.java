@@ -1152,6 +1152,41 @@ public class CCGHT {
     }
 
     /**
+     * 台账页「只选了模版、没点具体部门」时的部门过滤集：该模版在可见范围内**实际生效**的全部部门。
+     * <p>
+     * 与 deptFilterOf 同族：都只回答"范围收到哪一批部门"，且都建立在 resolveScopeDepts 之上 ——
+     * 只会收窄，不会放大。判据走 effectiveHolders，与 /template/list 下发给组织树的 dept_codes
+     * 是同一份计算，所以「树上能选的部门」与「列表里查得到的合同」永远同一批：不会出现"树上有这个
+     * 部门、列表里却没有它的合同"，也不会冒出树上根本没有的部门。
+     * <p>
+     * 为什么"没选部门"时反而要收窄，而不是放开到整个可见范围：台账是**按模版分表**看的
+     * （t_contract / t_contract_smds_sc 各一张物理表），未选部门时用户的心理预期是"这套模版的全部
+     * 合同"；而"我可见但没配这套模版"的部门在这张表里的行属于历史/脏数据，混进来只会让人怀疑筛选坏了。
+     *
+     * @param tplId      模版 id；null（老前端没带这个参数）= 不收窄，原样透传 scopeDepts，与改之前一致
+     * @param tb         本次要查的物理表名（已过 registeredTable）；与 tplId 对不上就退回"不收窄"
+     * @param scopeDepts 可见部门白名单三态：null 不限 / 空 = 无可见 / 非空 = 仅这些
+     * @return 三态同 deptFilterOf：null = 不限制 / 空 = 查不到（XML 走 1=0）/ 非空 = in 这些部门
+     */
+    private List<String> tplHolderFilter(Integer tplId, String tb, List<String> scopeDepts) {
+        if (tplId == null) {
+            return scopeDepts;
+        }
+        // tpl_id 来自客户端，只当成"想收窄到哪套模版"的意向，必须与 tb 指向同一张物理表。
+        // 对不上（或模版已被删）就退回"不收窄"（= 只按可见范围）：宁可多显示几行，也不能拿**另一套
+        // 模版**的部门去筛这张表 —— 那会安静地筛出一批"看着对、其实错"的行，比多几行难查得多。
+        // 同一个"表名一次核对"的判据 /contract/import 也有（它更严：以模版的 tb_name 为准，不看客户端传的 tb）。
+        TCGHTContractTemplate tpl = tplDao.query(tplId);
+        if (tpl == null || !StringUtils.hasText(tb) || !tb.equals(tpl.getTb_name())) {
+            return scopeDepts;
+        }
+        List<String> holders = effectiveHolders(scopeDepts).get(tplId);
+        // 该模版在可见范围内一个持有部门都没有：返回**空集**（fail-closed）而不是 null（= 不限制），
+        // 否则"没人配这套模版"会退化成"撒开看全范围"，正是收窄想避免的那件事。
+        return holders == null ? new ArrayList<>() : holders;
+    }
+
+    /**
      * 集团根：没有父节点、或父节点不在启用集合里的那个节点。取不到返回 null。
      */
     private String rootOf() {
@@ -1279,7 +1314,15 @@ public class CCGHT {
         // curUser 是现查的实时账号行，改了姓名这里立刻跟上，不会拿登录时的旧姓名去比对。
         var username = dataScopeOf(curUser) == DataScope.SELF ? curUser.getUsername() : null;
         PageHelper.startPage(intOrNull(params.get("pageNum"), 0), intOrNull(params.get("pageSize"), 0), true, true, true);
-        var ls = contractDao.queryRows(tb, conds, deptFilterOf(params.get("dept_code"), scopeDepts), username, warnDay);
+        // 部门过滤二选一，都只是 scopeDepts 的收窄：
+        //   选了具体部门 → 该部门子树 ∩ 可见范围（deptFilterOf）
+        //   只选了模版   → 该模版实际生效的全部部门 ∩ 可见范围（tplHolderFilter）
+        // 于是"未选部门"看到的是"这套模版下我可见的全部合同"，而不是整个可见范围
+        // （后者会把没配这套模版的部门的行也带出来，与左侧组织树对不上）。
+        List<String> deptFilter = StringUtils.hasText(params.get("dept_code"))
+                ? deptFilterOf(params.get("dept_code"), scopeDepts)
+                : tplHolderFilter(intOrNull(params.get("tpl_id")), tb, scopeDepts);
+        var ls = contractDao.queryRows(tb, conds, deptFilter, username, warnDay);
         return Result.success(new PageSerializable<>(ls));
     }
 
@@ -1334,12 +1377,11 @@ public class CCGHT {
                     String.format("无权将合同录入到部门 %s（超出你的数据范围）", deptCode));
         }
         Map<String, String> cols = colsOf(tb);
-        // 即时结算类(1)：id 必须唯一；周期结算类(2)：id 可重复。
-        // 这条规则依赖 payment_type 列，只有带该列的表才适用（别的模板表没有这一列）。
-        if (cols.containsKey("payment_type") && Integer.valueOf(1).equals(asInt(body.get("payment_type")))
-                && contractDao.existId(tb, id) > 0) {
+        // 编号唯一性：判据集中在 idMustBeUnique（导入链路用的是同一处），
+        // 于是"手录拦得住、导入拦不住"这类两套口径的不一致不会发生。
+        if (idMustBeUnique(cols, body) && contractDao.existId(tb, id) > 0) {
             return Result.fail(ResultCode.RC10102.getCode(),
-                    String.format("即时结算类合同编号 %s 已存在，禁止重复录入", id));
+                    String.format("合同编号 %s 已存在，禁止重复录入", id));
         }
         List<Map<String, Object>> pairs = pairsOf(body, cols);
         String uid = UUID.randomUUID().toString().replace("-", "");
@@ -1721,7 +1763,7 @@ public class CCGHT {
         return v == null ? null : String.valueOf(v);
     }
 
-    private Integer asInt(Object v) {
+    private static Integer asInt(Object v) {
         if (v instanceof Number n) {
             return n.intValue();
         }
@@ -1733,6 +1775,21 @@ public class CCGHT {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /**
+     * 合同编号(id)是否必须唯一 —— 「新增」与「导入」共用这**一处**判据，避免两条写入链路各拦一半。
+     * 口径按**表**分档，不按调用方分：
+     *   · 带 payment_type 列（标准采购合同表）：只有「即时结算类(1)」要求唯一，周期结算类(2) 允许同号多次；
+     *   · 不带该列（如 smds_sc）：没有"周期结算"这个维度，编号一律唯一。
+     * ⚠️ 唯一性是**表内**口径（contractDao.existId 的 where 只查本表），不是跨表全局唯一。
+     * 无状态纯判据（static），运行时可被探针直接反射调用，不必先造一个 Spring bean。
+     */
+    private static boolean idMustBeUnique(Map<String, String> cols, Map<String, Object> data) {
+        if (!cols.containsKey("payment_type")) {
+            return true;
+        }
+        return Integer.valueOf(1).equals(asInt(data == null ? null : data.get("payment_type")));
     }
 
     /** 库里的 boolean 经不同驱动可能是 Boolean / "t" / 1，统一按"真"判定 */
@@ -1799,8 +1856,8 @@ public class CCGHT {
         String tplName = tpl.getName();
         int okCnt = 0;
         List<Map<String, Object>> failRows = new ArrayList<>();
-        // 批次内即时结算类 id 去重
-        Set<String> batchInstantIds = new HashSet<>();
+        // 批次内编号去重：哪些行的编号需要唯一由 idMustBeUnique 逐行判定
+        Set<String> batchUniqueIds = new HashSet<>();
         // 数据范围与录入人在整批里解析一次即可：同一登录账号，批次内不会变
         List<String> scopeDepts = resolveScopeDepts(curUser);
         String creator = accountOf(curUser);
@@ -1825,18 +1882,17 @@ public class CCGHT {
                 }
             }
             String id = str(c.get("id"));
-            // 即时结算类(1)：id 唯一校验（DB + 批次内）；周期结算类(2)：跳过 id 唯一校验。
-            // payment_type 只有标准采购合同表有，"即时结算"这条规则也只在那张表上成立。
-            // ⚠️ 唯一性只在**本表**内判定：两张模版表历史上已存在同号（如 SMLJ-CG-BJ-26119），
-            //    改成跨表去重会把既有数据判成冲突，口径变更须先与业务对齐。
-            if (cols.containsKey("payment_type") && Integer.valueOf(1).equals(asInt(c.get("payment_type")))
-                    && StringUtils.hasText(id)) {
+            // 编号唯一性（DB + 批次内）：判据与「新增」是同一处（idMustBeUnique），
+            // 两条写入链路不会各拦一半。批次内也要查一遍 —— 还没落库的同号只有这里能发现。
+            // ⚠️ 唯一性只在**本表**内判定（existId 的 where 就是本表）：两张表编号前缀不同
+            //    （SMLJ- / SMDS-），跨表去重的口径变更须先与业务对齐。
+            if (idMustBeUnique(cols, c) && StringUtils.hasText(id)) {
                 if (contractDao.existId(tb, id) > 0) {
-                    reasons.add("即时结算类合同编号已存在");
-                } else if (batchInstantIds.contains(id)) {
-                    reasons.add("即时结算类合同编号在本批次中重复");
+                    reasons.add("合同编号已存在");
+                } else if (batchUniqueIds.contains(id)) {
+                    reasons.add("合同编号在本批次中重复");
                 } else {
-                    batchInstantIds.add(id);
+                    batchUniqueIds.add(id);
                 }
             }
             // 归属部门：先判"填没填 / 合不合法 / 在不在我的范围内"，再判它与本次模版的绑定关系。

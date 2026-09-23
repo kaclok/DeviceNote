@@ -1,7 +1,7 @@
 <script setup lang="js">
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js"
-import {exportContractExcel, exportFinanceExcel, filtersOf, formColumnsOf, columnOf, optionsOf, financeExportOf} from "../utils/ExcelX.js"
+import {exportContractExcel, exportFinanceExcel, filtersOf, ledgerColumnsOf, columnOf, optionsOf, financeExportOf} from "../utils/ExcelX.js"
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 import {useRouter, useRoute} from 'vue-router';
 import {nextTick} from 'vue';
@@ -45,7 +45,8 @@ const route = useRoute();
 /* ---------------- 账号与数据范围 ----------------
  * 与后端 CCGHT.resolveScopeDepts 同口径（档位编号即包含序）：
  * 4 = 全集团（不限制）；3 本公司 / 2 本部门（含下级）/ 1 本人 逐级收敛。
- * ⚠️ 前端只是体验层（让用户点不到越权部门），真正的拦截在后端 contract/list 的 deptFilterOf。 */
+ * ⚠️ 前端只是体验层（让用户点不到越权部门），真正的拦截在后端 contract/list：
+ *   选了部门走 deptFilterOf（子树 ∩ 可见范围），只选模板走 tplHolderFilter（持有集 ∩ 可见范围）。 */
 const {wsCache} = useSessionCache()
 const _acc = wsCache.get(ECacheType.ACCOUNT) || {}
 const dataScope = effectiveScope(_acc)
@@ -169,6 +170,14 @@ const treeCodes = computed(() => {
     return out
 })
 
+/**
+ * 列表空态里那句口径说明：选了部门是"该部门及其下级"，没选部门是"这套模板的全部持有部门"。
+ * 这两句必须跟着 deptCode 走 —— 写死一句的话，未选部门时用户会以为数据被谁筛掉了。
+ */
+const emptyScopeText = computed(() => deptCode.value
+    ? '左侧所选部门及其所有下级'
+    : '使用这套模板的全部部门')
+
 /** 选了模版、但可见范围内没有一个部门配了它 —— 树会空，给个明确说法而不是空白 */
 const noHolderDept = computed(() => !!curTpl.value && treeCodes.value !== null && treeCodes.value.size === 0)
 
@@ -202,7 +211,7 @@ function onTreeClick(data) {
     deptCode.value = data.dept_code
 }
 
-/** 清空选择：回到"未选择"（右侧整块内容收起） */
+/** 清空选择：回到"未选部门"视角（右侧改为展示该模板下全部持有部门的合同） */
 function clearDept() {
     deptCode.value = ''
     treeRef.value?.setCurrentKey(null)
@@ -218,8 +227,13 @@ function goDeptTpl() {
 
 /* ---------------- 按模板取「表 / 列 / 筛选」配置 ----------------
  * 这一节是整页的数据形状来源：模板一变，筛选栏、表格列、编辑入口全部跟着变。 */
-/** 该模板的列登记项（含 system 列，如归属部门）—— 表格列与筛选可选值都从这里取 */
-const cols = computed(() => (tb.value ? formColumnsOf(tb.value) : []))
+/**
+ * 该模板的列登记项（含 system 列，如归属部门）—— 表格列与筛选可选值都从这里取。
+ * 顺序 = 该模板的 col_order（t_contract_template.col_order，与导出 Excel / 下载导入模板同一份，
+ * 在「部门合同模板」页拖拽排序保存）；库里没配时回落登记顺序（= 库表物理顺序，不承担展示取舍）。
+ * 归属部门列不在 col_order 里（Excel 不带 system 列）⇒ 由 applyOrder 顺延在末尾，不会被丢掉。
+ */
+const cols = computed(() => (tb.value ? ledgerColumnsOf(tb.value, curTpl.value?.col_order) : []))
 /** 该模板的筛选条件（每个模板自己的那一份，写在 gd.json 的 filters 里） */
 const filterDefs = computed(() => (tb.value ? filtersOf(tb.value) : []))
 /**
@@ -239,7 +253,7 @@ const TYPE_TABLE_DEFAULTS = {
 }
 
 /**
- * 表格列：直接照该模板的 columns 顺序渲染。
+ * 表格列：直接照该模板的 col_order 展示顺序渲染（见 cols）。
  * 顺带把三个渲染期要用的东西在这里算好（可选值、宽度、对齐），模板里就不用反复解析配置：
  *   opts  该列的可选值 [{v,label,tag}]，有它就把值渲染成标签（如 财务环节 / 付款类型 / 是否挂账）
  */
@@ -334,11 +348,15 @@ function filterOptionsOf(f) {
  * 筛选状态 → 后端 contract/list 的查询参数。
  * 约定：f_ + 列名 + _ + 比较符（后端 CCGHT.FILTER_OPS 只认 like/eq/gte/lte/neq），
  * 区间筛成 gte + lte 两条；空值一律不发 —— 后端把"没这个参数"当作"不筛这一项"。
- * tb 来自选中的模板；dept_code 传的是**选中的部门**：后端 deptFilterOf 会把它展开成子树
- * 再与可见范围求交，所以点父部门看到的是含下级的合同，且越权部门取不到数据。
+ * tb 来自选中的模板；tpl_id 让后端算得出"这套模板实际生效的部门"（见 tplHolderFilter）——
+ * 未选部门时列表的口径就是这批部门，与左侧组织树显示的部门同源，两边永远对得上。
+ * dept_code 只在**选了具体部门**时才发：后端 deptFilterOf 把它展开成子树再与可见范围求交，
+ * 所以点父部门看到的是含下级的合同，且越权部门取不到数据。未选部门时**不发**这个参数
+ * （发空串会被当成"就筛这个部门"），后端据此回退到持有部门集。
  */
 function buildParams() {
     const p = {tb: tb.value}
+    if (tplKey.value) p.tpl_id = tplKey.value
     if (deptCode.value) p.dept_code = deptCode.value
     filterDefs.value.forEach(f => {
         if (f.type === 'warn') {
@@ -358,7 +376,7 @@ function buildParams() {
 }
 
 function loadList() {
-    if (!tableReady.value || !deptCode.value) return
+    if (!tableReady.value) return
     AC_list.abort()
     AC_list = new AbortController()
     loading.value = true
@@ -378,7 +396,7 @@ function loadList() {
 }
 
 function applyFilters() {
-    if (!tableReady.value || !deptCode.value) return
+    if (!tableReady.value) return
     page.value = 1
     loadList()
 }
@@ -449,7 +467,7 @@ function plain(v) {
 /* ---------------- 导出 / 跳转 ---------------- */
 /** 拉当前筛选条件下的全量合同（不分页），结果交给 onSuccess */
 function fetchAllFiltered({loadingMsg, onSuccess}) {
-    if (!tableReady.value || !deptCode.value) return
+    if (!tableReady.value) return
     const paras = {...buildParams(), pageNum: 1, pageSize: EXPORT_LIMIT}
     if (loadingMsg) ElMessage.info(loadingMsg)
     Singleton.getInstance(SysX).getContractList(paras, null, () => {
@@ -551,14 +569,17 @@ watch(tplKey, () => {
     switchTpl()
 })
 
-/** 部门变更即重载列表；清空时直接归零，不发无意义请求 */
-watch(deptCode, code => {
+/**
+ * 部门变更即重载列表。清空部门也要重拉 —— 现在"未选部门"是一个合法视角
+ * （= 该模板下我可见的全部部门），不是"没东西可看"。
+ */
+watch(deptCode, () => {
     AC_list.abort()
     AC_list = new AbortController()
     list.value = []
     total.value = 0
     page.value = 1
-    if (tableReady.value && code) {
+    if (tableReady.value) {
         loadList()
     }
 }, {immediate: true})
@@ -622,7 +643,7 @@ function applyQueryDept() {
 <template>
     <div class="ledger-page">
         <div class="ledger-body">
-            <!-- 左侧：先选合同模板（决定看哪张表），再选归属部门（决定看谁的数据） -->
+            <!-- 左侧：先选合同模板（决定看哪张表 + 默认列出哪些部门的合同），再按需点具体部门收窄 -->
             <el-card shadow="never" class="dept-aside">
                 <div class="aside-head">
                     <span class="aside-title">合同模板</span>
@@ -681,7 +702,7 @@ function applyQueryDept() {
                         </Transition>
                         <span class="picked-label">已选：</span>
                         <b v-if="deptCode" :title="deptPath(deptCode)"><span v-for="(seg, i) in deptPathSegments" :key="i" class="picked-seg">{{ seg }}<i v-if="i < deptPathSegments.length - 1" class="picked-slash">/</i></span></b>
-                        <span v-else class="picked-empty">未选择</span>
+                        <span v-else class="picked-empty">{{ curTpl ? '未选择（显示全部部门）' : '未选择' }}</span>
                     </div>
                     <div v-if="scopeLimited" class="scope-line"
                          title="你的账号只能查看数据范围内的合同。需要更大范围请联系管理员调整数据范围。">
@@ -690,21 +711,13 @@ function applyQueryDept() {
                 </div>
             </el-card>
 
-            <!-- 右侧：模板与部门都选定后才出现。每种"没内容可看"的状态各有明确说法，不给空白页 -->
+            <!-- 右侧：选定模板后即出现（未选部门 = 该模板全部持有部门）。每种"没内容可看"的状态各有明确说法，不给空白页 -->
             <div class="main-area">
                 <el-card v-if="!curTpl" shadow="never" class="empty-card">
                     <div class="empty-state">
                         <div class="empty-icon">🧾</div>
                         <div class="empty-title">请先在左侧选择合同模板</div>
                         <div class="empty-desc">合同按模板分表存放：选定模板后，筛选条件、列表列、以及新增/编辑表单都按它的配置展示。</div>
-                    </div>
-                </el-card>
-
-                <el-card v-else-if="!deptCode" shadow="never" class="empty-card">
-                    <div class="empty-state">
-                        <div class="empty-icon">🏢</div>
-                        <div class="empty-title">请在左侧选择归属部门</div>
-                        <div class="empty-desc">选中部门后，这里显示该部门及其所有下级、且使用「{{ curTpl.name }}」模板的合同。</div>
                     </div>
                 </el-card>
 
@@ -767,7 +780,7 @@ function applyQueryDept() {
                         </div>
                     </div>
 
-                    <!-- 合同列表：列随模板走（gd.json 的 columns 顺序） -->
+                    <!-- 合同列表：列随模板走（顺序 = 该模板的 col_order，可在「部门合同模板」页拖拽调整） -->
                     <el-card shadow="never" class="table-card">
                         <el-table :data="list" v-loading="loading" border stripe row-key="unique_id"
                                   show-overflow-tooltip style="width:100%">
@@ -825,7 +838,7 @@ function applyQueryDept() {
                                 <div class="table-empty">
                                     <div class="te-title">该范围内没有「{{ curTpl.name }}」模板的合同</div>
                                     <div class="te-desc">
-                                        口径是「左侧所选部门及其所有下级」∩「归属这套模板」。可换个部门，或放宽筛选条件再看看。
+                                        口径是「{{ emptyScopeText }}」∩「归属这套模板」。可换个部门，或放宽筛选条件再看看。
                                     </div>
                                 </div>
                             </template>

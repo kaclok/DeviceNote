@@ -22,6 +22,12 @@ import gd from '../data/gd.json'
  *            （逗号分隔字段名），导出与导入模板都按它排；不传 / 传空则用 gd.json 的登记顺序。
  *         ② 「导给财务」的列清单与取值方式整块搬进 gd.json 的 financeExport（见下），
  *            本文件只提供几种通用取值 kind，不再写死任何列名与文案。
+ *
+ * v10 变更（2026-09-23）：台账列表的**展示**列顺序统一由模版级 t_contract_template.col_order 说了算 ——
+ *          ledgerColumnsOf(tbName, order)，与导出 Excel / 下载导入模板读的是同一份配置，
+ *          模板页拖一次，导出与台账一起变。原先另开的 gd.json 表级 ledgerOrder 已删除
+ *          （同一件事配两处必然漂移：拖了 Excel 列序的人不会想到台账还按另一份顺序排）。
+ *          columns 数组的顺序仍钉住库表物理顺序（校验套件逐表与 PG 快照比对），不承担展示取舍。
  */
 
 /* 是/否 → boolean，空值默认 false */
@@ -109,6 +115,24 @@ function applyOrder(defs, order) {
  */
 function columnsOf(tbName, order) {
     return applyOrder(formColumnsOf(tbName).filter(c => !c.system), order)
+}
+
+/**
+ * 台账列表的**展示列顺序** —— 唯一来源是模版级 col_order（t_contract_template.col_order，
+ * 也就是「部门合同模板」页拖拽排序保存的那一份），与导出 Excel / 下载导入模板**同一份配置**：
+ * 拖一次，导出与台账一起变（原来另开的 gd.json 表级 ledgerOrder 已删）。
+ *
+ * 与 Excel 视角（columnsOf）的差别只在**列集**，不在顺序：
+ *   台账要展示归属部门（system 列 dept_code），而 col_order 只列非 system 列（Excel 不带它），
+ *   未列入的列按登记顺序顺延在末尾（applyOrder 的「顺而不丢」）⇒ dept_code 恰好落在最后一列，
+ *   且"库里后来新增了列"时也不会从台账上消失。
+ * columns 数组的顺序仍钉住库表物理顺序（校验套件逐表与 PG 快照比对），不承担展示取舍。
+ *
+ * @param order 模版级列顺序（t_contract_template.col_order，逗号串或数组）；
+ *              不传 / 空 / 库里没配 → 整表按登记顺序渲染（applyOrder 空值不覆盖）。
+ */
+export function ledgerColumnsOf(tbName, order) {
+    return applyOrder(formColumnsOf(tbName), order)
 }
 
 /** 按字段名取某表的一列登记项；找不到返回 null（调用方自己决定怎么兜底，不抛错） */
