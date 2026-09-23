@@ -197,38 +197,19 @@ const bindMap = computed(() => {
 /** 当前选中部门的「自身绑定」记录；null = 该部门未绑定 */
 const bind = computed(() => bindMap.value[deptCode.value] || null)
 
-/** 上级索引：生效模版要向组织树上溯 */
-const parentOf = computed(() => {
-    const m = {}
-    deptOptions.value.forEach(d => {
-        if (d && d.dept_code) m[d.dept_code] = d.parent_dept_code || ''
-    })
-    return m
-})
-
 /**
- * 该部门「实际生效」的模版 = 自身绑定，否则沿组织树向上取最近的已绑定祖先。
- * 为什么要有它：一个部门没单独绑定时，它用的其实是上级的模版 ——
- * 只显示"未绑定"会让管理员以为这个部门没有模版可用，进而重复绑一遍。
- * 返回 null 表示整条链上都没有绑定。owner 是本部门时是"自己的设置"，否则是"继承"。
+ * 该部门「当前生效」的模版 = 部门自己绑定的那套。
+ * ⚠️ 系统**不存在**部门间继承模板的机制：上级绑定的模板不会顺延给下级，
+ * 所以未绑定就是"该部门没有模板可用"，也没有"上级模板顺延下来"这一档。
+ * 返回 null 表示该部门未配置。
  */
 const effective = computed(() => {
-    let cur = deptCode.value
-    const seen = new Set()      // 防脏数据成环
-    while (cur && !seen.has(cur)) {
-        seen.add(cur)
-        const b = bindMap.value[cur]
-        if (b) {
-            return {
-                tpl: tplByKey.value[String(b.tpl_id)] || null,
-                tplId: String(b.tpl_id),
-                owner: cur,
-                ownerPath: deptPath(cur),
-            }
-        }
-        cur = parentOf.value[cur] || ''
+    const b = bind.value
+    if (!b) return null
+    return {
+        tpl: tplByKey.value[String(b.tpl_id)] || null,
+        tplId: String(b.tpl_id),
     }
-    return null
 })
 
 /** 树上节点的模版徽标文案：已绑定才显示（未绑定保持树面干净） */
@@ -513,14 +494,13 @@ function fmtTime(v) {
                             </el-form-item>
 
                             <el-form-item label="当前生效">
-                                <el-tag v-if="effective" :type="effective.owner === deptCode ? 'success' : 'warning'" effect="plain">
+                                <el-tag v-if="effective" type="success" effect="plain">
                                     {{ effective.tpl ? effective.tpl.name : `#${effective.tplId}` }}
                                 </el-tag>
-                                <span v-else class="none-text">未绑定</span>
+                                <span v-else class="none-text">未配置</span>
                                 <div class="form-tip">
-                                    <template v-if="effective && effective.owner === deptCode">来自本部门的设置</template>
-                                    <template v-else-if="effective">继承自 {{ effective.ownerPath }}</template>
-                                    <template v-else>本部门及所有上级部门都没有绑定模板，该部门目前无法导入数据</template>
+                                    <template v-if="effective">本部门已配置模板，可以导入数据</template>
+                                    <template v-else>本部门没有配置模板，该部门目前无法导入数据（不存在向上级继承）</template>
                                 </div>
                             </el-form-item>
 

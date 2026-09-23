@@ -108,17 +108,17 @@ function clearDept() {
 }
 
 /* ---------------- 部门 → 合同模版（后端算，前端只呈现） ----------------
- * 绑定关系打在部门上、沿组织树可继承（通常只绑在公司节点，末端部门继承生效），
- * 所以"这个部门到底用哪套模板"只有后端能给准话 —— 它同时握手了组织父链和绑定表。
+ * 绑定关系打在部门上、**不向下继承**（一个部门用哪套模板就是它自己配的那套），
+ * 所以"这个部门到底用哪套模板"只有后端能给准话 —— 未配置就是没有模板可用。
  * ⚠️ 这一层只负责"别让用户白跑一趟解析"；真正的拦截在后端 contract/import 的逐行校验 ——
  *    前端可以被绕过（改包、直连），后端不能。 */
-const effBind = ref(null)          // 该部门生效的绑定；null = 整条组织链上都没有绑定
+const effBind = ref(null)          // 该部门绑定的模板；null = 该部门未配置
 const effLoading = ref(false)
 const effLoadOk = ref(true)        // 核对请求是否成功：失败时不给结论，只提示稍后重试
 const AC_eff = new AbortController()
 
 /**
- * 该部门实际生效的模板（后端沿组织树向上找最近的已绑定祖先，与「部门合同模板」页同口径）。
+ * 该部门配置的模板（后端查绑定表，与「部门合同模板」页同口径）。
  * 后端把 tb_name / importable 一并下发：本页因此不必再拉一次模板列表，
  * 也少了一份可能过期的副本 —— 页面显示的"写进哪张表"就是后端认定的那张。
  */
@@ -175,7 +175,7 @@ watch(deptCode, code => {
  * 绑定状态，四态：
  *   idle     还没选定部门（没什么可核对的）；或核对请求失败（不给结论）
  *   checking 正在核对
- *   unbound  该部门（及其全部上级）都没有配置模板 → 无法导入，必须先去配置
+ *   unbound  该部门没有配置模板 → 无法导入，必须先去配置
  *   ready    该部门认下了某套模板 → 放行（这套模板本身能不能导另由 tplBlockMsg 判）
  */
 const bindState = computed(() => {
@@ -185,9 +185,6 @@ const bindState = computed(() => {
     if (!curTpl.value) return 'unbound'
     return 'ready'
 })
-
-/** 绑定是打在本部门还是继承自上级（与「部门合同模板」页的「当前生效」同一说法） */
-const effFromSelf = computed(() => !!effBind.value && !effBind.value.inherited)
 
 /**
  * 「该部门没有合同模板」的弹窗：不做静默处理 —— 用户点了个部门却什么都不发生，
@@ -207,7 +204,7 @@ function promptConfigure(code) {
         return
     }
     ElMessageBox.confirm(
-        head + '请先到「部门合同模板」页为它指定模板（可以直接沿用上级部门的模板）。',
+        head + '请先到「部门合同模板」页为它指定模板。',
         '该部门没有合同模板',
         {type: 'warning', confirmButtonText: '前往配置模板', cancelButtonText: '知道了'}
     ).then(() => goDeptTpl()).catch(() => {
@@ -413,7 +410,7 @@ function goLedger() {
                             <span v-if="canAssign" class="bind-link" @click="goDeptTpl">前往配置 →</span>
                         </template>
                         <template v-else-if="bindState === 'ready'">
-                            该部门模板校验通过（{{ effFromSelf ? '本部门设置' : '继承自上级' }}）
+                            该部门模板校验通过（本部门已配置）
                         </template>
                     </div>
                     <div v-if="!scopeAll" class="scope-line"

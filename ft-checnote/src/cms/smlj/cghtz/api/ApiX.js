@@ -104,7 +104,7 @@ export class ApiX {
 
     /* ---------------- 合同模版 / 部门-模版映射 ---------------- */
     // 模版全量（id/name/tb_name/col_order/dept_codes）：台账页与导入页的「合同模版」下拉数据源。
-    // dept_codes = 持有该模版（含继承）的部门编码，台账页用它把组织树收窄到相关部门。
+    // dept_codes = 绑定了该模版的部门编码（部门之间不继承模板），台账页用它把组织树收窄到相关部门。
     static getTemplateList(paras, signal) {
         return axiosR.post("cghtz/template/list", null, {
             params: paras, signal: signal,
@@ -140,7 +140,7 @@ export class ApiX {
         })
     }
 
-    // 单个部门「实际生效」的合同模版（自身未绑定则沿组织树取最近的已绑定祖先）。
+    // 单个部门绑定的合同模版 = 该部门自己配的那套（不存在继承；未配置则 data 为空）。
     // 批量导入页用它在上传前核对绑定关系；刻意不复用 deptTpl/list ——
     // 那个接口要 perm:assign，而导入页的用户持有的是 contract:import，两者不一定重合。
     static getDeptTplEffective(paras, signal) {

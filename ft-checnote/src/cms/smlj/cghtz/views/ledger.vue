@@ -130,8 +130,8 @@ const visibleDeptCodes = computed(() => {
 
 /**
  * 每个模版「持有者」的部门编码集合（来自 /cghtz/template/list 的 dept_codes）。
- * 后端已按本账号数据范围收窄，且把"继承"也算持有（公司节点绑了模板，其下级都算持有）——
- * 与 effectiveDeptTpl / 导入时的绑定校验同一口径，所以"树上能选的"与"导入能过的"永远一致。
+ * 后端已按本账号数据范围收窄；"持有"= 部门自己配了这套模板（部门之间不继承模板）——
+ * 与导入时的绑定校验同一口径，所以"树上能选的"与"导入能过的"永远一致。
  *
  * ⚠️ 开关为什么是 holder_count、而不是"dept_codes 是不是数组"：
  * 全局 spring.jackson.default-property-inclusion=NON_EMPTY 会把**空数组整条丢掉**，

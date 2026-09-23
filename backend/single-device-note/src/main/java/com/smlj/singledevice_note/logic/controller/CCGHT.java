@@ -584,9 +584,9 @@ public class CCGHT {
     @PostMapping(value = "/template/list")
     public Result<?> templateList(@Acc TCGHTUser curUser) {
         var ls = tplDao.queryAll();
-        // 部门 → 生效模版 的分组：台账页据此把组织树收窄到"持有该模版"的部门。
-        // 一次算好按模版分发，避免每个模版各遍历一遍组织树。
-        Map<Integer, List<String>> holders = effectiveHolders(resolveScopeDepts(curUser));
+        // 部门 → 模版 的分组（绑定表的逆映射，按可见范围收窄）：台账页据此把组织树收窄到"持有该模版"的部门。
+        // ⚠️ 系统**不存在**部门间继承模板的机制：绑定只对配它的那个部门生效、不下传给下级。
+        Map<Integer, List<String>> holders = holderGroups(resolveScopeDepts(curUser));
         var out = new ArrayList<Map<String, Object>>();
         for (TCGHTContractTemplate t : ls) {
             Map<String, Object> m = new HashMap<>();
@@ -595,7 +595,7 @@ public class CCGHT {
             m.put("tb_name", t.getTb_name());
             // Excel 列顺序的覆盖值（空 = 按前端 gd.json 的登记顺序）：导出与导入模板都按它排
             m.put("col_order", t.getCol_order());
-            // 该模版下"生效"的部门编码（已按操作者数据范围收窄）：台账页用它剪组织树。
+            // 该模版下"持有"（= 部门自己配了这套）的部门编码，已按操作者数据范围收窄：台账页用它剪组织树。
             // ⚠️ 但空数组会被全局 NON_EMPTY 丢掉（见下），所以"空集"另由 holder_count=0 表达，前端不能靠"数组在不在"判断。
             List<String> holderCodes = holders.getOrDefault(t.getId(), List.of());
             m.put("dept_codes", holderCodes);
@@ -760,14 +760,14 @@ public class CCGHT {
     }
 
     /**
-     * 某个部门「实际生效」的合同模版（只读），供批量导入页在上传前核对绑定关系。
+     * 某个部门绑定的合同模版（只读），供批量导入页在上传前核对绑定关系。
      * <p>
      * 为什么不复用 deptTpl/list：那个接口要 perm:assign（它是配置管理页的入口），
      * 而导入页的用户持有的是 contract:import —— 两者的人不一定重合。
      * 让导入的人因为"看不到模版配置"而被迫无脑上传，正是要避免的情形。
      * 这里只回答"这一个部门用哪套模版"，且必须落在操作者自己的数据范围内（读同样不越权）。
      * <p>
-     * data 为 null = 该部门及其所有上级都没有绑定，导入页据此提示"本次上传将建立绑定"。
+     * data 为 null = 该部门没有绑定合同模版，导入页据此提示"该部门无法导入"。
      */
     @Transactional
     @PostMapping(value = "/deptTpl/effective")
@@ -780,7 +780,7 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10307.getCode(),
                     String.format("部门 %s 超出你的数据范围", dept_code));
         }
-        TDeptContractTemplate bind = effectiveDeptTpl(dept_code);
+        TDeptContractTemplate bind = deptTplDao.query(dept_code);
         if (bind == null) {
             return Result.success();
         }
@@ -793,94 +793,46 @@ public class CCGHT {
         // 不必再拉一次模版列表 —— 少一次请求，也少一份可能过期的副本。
         data.put("tb_name", tpl == null ? null : tpl.getTb_name());
         data.put("importable", tpl != null && usableTable(tpl.getTb_name()));
-        // owner：真正挂着这条绑定的部门。「部门合同模板」页也是这个口径（自身设置 / 继承自 xx），
-        // 两个页面必须给出一致的答案，否则用户会以为导入页认错了部门。
-        data.put("owner_dept_code", bind.getDept_code());
-        data.put("inherited", !dept_code.equals(bind.getDept_code()));
         return Result.success(data);
     }
 
     /**
-     * 部门「实际生效」的合同模版绑定 = 自身绑定，否则沿组织树向上取最近的已绑定祖先。
+     * 每个模版「持有」的部门分组（**自身绑定**），按模版 id 分组。
      * <p>
-     * 为什么是"继承"而不是"只看自己"：绑定通常只打在几个公司节点上，
-     * 末端部门靠继承生效 —— 逐个绑定既不现实，组织一调整就全失效。
-     * 返回 null 表示整条链上都没有绑定。
-     */
-    private TDeptContractTemplate effectiveDeptTpl(String deptCode) {
-        if (!StringUtils.hasText(deptCode)) {
-            return null;
-        }
-        if (this.deptParent.isEmpty()) {
-            refreshDeptCache();
-        }
-        Set<String> seen = new HashSet<>();          // 防脏数据成环
-        String cur = deptCode;
-        while (StringUtils.hasText(cur) && seen.add(cur)) {
-            TDeptContractTemplate bind = deptTplDao.query(cur);
-            if (bind != null) {
-                return bind;
-            }
-            String parent = this.deptParent.get(cur);
-            // 与 companyOf 同一判据：父为空、或父不在启用集合里，就是已经到顶
-            cur = (StringUtils.hasText(parent) && this.deptCodes.contains(parent)) ? parent : null;
-        }
-        return null;
-    }
-
-    /**
-     * 每个部门「实际生效」的模版（自身绑定，否则沿组织树上溯最近的已绑定祖先），按模版 id 分组。
+     * ⚠️ 系统**不存在**部门间继承模板的机制：绑定只对配它的那个部门生效、不下传给下级
+     * （2026-09-23 按业务口径去掉"沿组织树上溯最近的已绑定祖先"）。所以这里就是把绑定表
+     * 反过来读一遍 —— 遍历的是绑定表（几十行），不是组织树（上百节点）。
      * <p>
-     * 台账页据此把组织树收窄到「持有该模版」的部门 —— 收窄口径与 effectiveDeptTpl 逐字一致，
-     * 所以"树上能选的部门"与"导入时能过绑定校验的部门"天然同源，不会一个说行一个说不行。
-     * 继承也算持有：绑定通常只打在几个公司节点上，只认显式绑定会让下级部门在树上彻底消失。
+     * 台账页据此把组织树收窄到「持有该模版」的部门 —— 收窄口径与导入时的绑定校验同源，
+     * 所以"树上能选的部门"与"导入时能过校验的部门"天然一致，不会一个说行一个说不行。
      *
      * @param scopeDepts 操作者的可见部门白名单三态（null = 不限制）；只回传范围内的部门，读同样不越权
      */
-    private Map<Integer, List<String>> effectiveHolders(List<String> scopeDepts) {
-        if (this.deptParent.isEmpty()) {
+    private Map<Integer, List<String>> holderGroups(List<String> scopeDepts) {
+        if (this.deptCodes.isEmpty()) {
             refreshDeptCache();
         }
         Set<String> allow = scopeDepts == null ? null : new HashSet<>(scopeDepts);
-        // 绑定表只有几十行：一次取回建索引，别为了上百个部门逐个查库
-        Map<String, Integer> bindTpl = new HashMap<>();
-        for (TDeptContractTemplate b : deptTplDao.queryAll()) {
-            if (b != null && StringUtils.hasText(b.getDept_code()) && b.getTpl_id() != null) {
-                bindTpl.put(b.getDept_code(), b.getTpl_id());
-            }
-        }
         Map<Integer, List<String>> out = new LinkedHashMap<>();
-        for (String code : this.deptCodes) {
+        // 绑定表只有几十行：一次取回即可，别为上百个部门逐个查库
+        for (TDeptContractTemplate b : deptTplDao.queryAll()) {
+            if (b == null || !StringUtils.hasText(b.getDept_code()) || b.getTpl_id() == null) {
+                continue;
+            }
+            String code = b.getDept_code();
+            // 范围外的不回传（读同样不越权）；停用部门不参与（组织树上没有它，收窄集也不该冒出它）
             if (allow != null && !allow.contains(code)) {
                 continue;
             }
-            Integer tplId = nearestTplOf(bindTpl, code);
-            if (tplId != null) {
-                out.computeIfAbsent(tplId, k -> new ArrayList<>()).add(code);
+            if (!this.deptCodes.contains(code)) {
+                continue;
             }
+            out.computeIfAbsent(b.getTpl_id(), k -> new ArrayList<>()).add(code);
+        }
+        for (List<String> codes : out.values()) {
+            codes.sort(null);       // 绑定表的迭代序不稳定 —— 排一下让下发结果可复现
         }
         return out;
-    }
-
-    /**
-     * 部门 → 生效模版 id：自身绑定，否则沿组织树上溯最近的已绑定祖先；整条链都没有则返回 null。
-     * <p>
-     * 判据与 effectiveDeptTpl 完全一致（含"父为空、或父不在启用集合里即为到顶"），
-     * 只是数据源换成一次取回的索引 —— 遍历上百个部门时不能反复查库。
-     */
-    private Integer nearestTplOf(Map<String, Integer> bindTpl, String deptCode) {
-        Set<String> seen = new HashSet<>();          // 防脏数据成环
-        String cur = deptCode;
-        while (StringUtils.hasText(cur) && seen.add(cur)) {
-            Integer t = bindTpl.get(cur);
-            if (t != null) {
-                return t;
-            }
-            String parent = this.deptParent.get(cur);
-            // 与 companyOf / effectiveDeptTpl 同一判据：父为空或父不在启用集合里，就是已经到顶
-            cur = (StringUtils.hasText(parent) && this.deptCodes.contains(parent)) ? parent : null;
-        }
-        return null;
     }
 
     /** 模版名展示口径：模版被删/被改时退化成 #id，不把 null 抛给页面 */
@@ -1152,10 +1104,10 @@ public class CCGHT {
     }
 
     /**
-     * 台账页「只选了模版、没点具体部门」时的部门过滤集：该模版在可见范围内**实际生效**的全部部门。
+     * 台账页「只选了模版、没点具体部门」时的部门过滤集：可见范围内配置了该模版的全部部门。
      * <p>
      * 与 deptFilterOf 同族：都只回答"范围收到哪一批部门"，且都建立在 resolveScopeDepts 之上 ——
-     * 只会收窄，不会放大。判据走 effectiveHolders，与 /template/list 下发给组织树的 dept_codes
+     * 只会收窄，不会放大。判据走 holderGroups，与 /template/list 下发给组织树的 dept_codes
      * 是同一份计算，所以「树上能选的部门」与「列表里查得到的合同」永远同一批：不会出现"树上有这个
      * 部门、列表里却没有它的合同"，也不会冒出树上根本没有的部门。
      * <p>
@@ -1180,7 +1132,7 @@ public class CCGHT {
         if (tpl == null || !StringUtils.hasText(tb) || !tb.equals(tpl.getTb_name())) {
             return scopeDepts;
         }
-        List<String> holders = effectiveHolders(scopeDepts).get(tplId);
+        List<String> holders = holderGroups(scopeDepts).get(tplId);
         // 该模版在可见范围内一个持有部门都没有：返回**空集**（fail-closed）而不是 null（= 不限制），
         // 否则"没人配这套模版"会退化成"撒开看全范围"，正是收窄想避免的那件事。
         return holders == null ? new ArrayList<>() : holders;
@@ -1254,7 +1206,7 @@ public class CCGHT {
     }
 
     // ================================================================
-    // 合同台账 CRUD —— 按「部门 → 生效模版 → 物理表」路由
+    // 合同台账 CRUD —— 按「部门 → 模版 → 物理表」路由
     // ================================================================
     // 一个部门的合同落在哪张物理表，由该部门绑定的合同模版决定（t_contract_template.tb_name），
     // 所以台账不再固定读写 cght.t_contract：请求带 tb，后端核对（见下面「按模版路由」一节）后路由过去，
@@ -1316,7 +1268,7 @@ public class CCGHT {
         PageHelper.startPage(intOrNull(params.get("pageNum"), 0), intOrNull(params.get("pageSize"), 0), true, true, true);
         // 部门过滤二选一，都只是 scopeDepts 的收窄：
         //   选了具体部门 → 该部门子树 ∩ 可见范围（deptFilterOf）
-        //   只选了模版   → 该模版实际生效的全部部门 ∩ 可见范围（tplHolderFilter）
+        //   只选了模版   → 配置了该模版的全部部门 ∩ 可见范围（tplHolderFilter）
         // 于是"未选部门"看到的是"这套模版下我可见的全部合同"，而不是整个可见范围
         // （后者会把没配这套模版的部门的行也带出来，与左侧组织树对不上）。
         List<String> deptFilter = StringUtils.hasText(params.get("dept_code"))
@@ -1861,8 +1813,8 @@ public class CCGHT {
         // 数据范围与录入人在整批里解析一次即可：同一登录账号，批次内不会变
         List<String> scopeDepts = resolveScopeDepts(curUser);
         String creator = accountOf(curUser);
-        // 部门 -> 生效绑定：整批里每个部门只解析一次（同一批通常只有一个部门，但不做这个假设）。
-        // 值为 null 是合法结果（该部门整条链都未绑定），所以判"是否查过"要用 containsKey。
+        // 部门 -> 绑定：整批里每个部门只解析一次（同一批通常只有一个部门，但不做这个假设）。
+        // 值为 null 是合法结果（该部门未配置模板），所以判"是否查过"要用 containsKey。
         Map<String, TDeptContractTemplate> bindOfDept = new HashMap<>();
         // 逐行必填校验只针对**该模版表里真实存在的列**：不同模版的列不同，
         // 断言一个不存在的列只会让整批数据无谓地失败。
@@ -1910,7 +1862,7 @@ public class CCGHT {
                 // 否则等于借一次导入悄悄把这个部门的模版换掉（历史合同可就不认了）。
                 TDeptContractTemplate bind = bindOfDept.get(deptCode);
                 if (!bindOfDept.containsKey(deptCode)) {
-                    bind = effectiveDeptTpl(deptCode);
+                    bind = deptTplDao.query(deptCode);
                     bindOfDept.put(deptCode, bind);
                 }
                 if (bind == null) {
