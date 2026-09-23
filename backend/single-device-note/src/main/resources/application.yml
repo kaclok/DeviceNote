@@ -69,7 +69,7 @@ spring:
     active: @activated@
 
   jackson: # restful格式转换json的时候，null不转换, 让所有null字段在序列化时直接忽略，不返回给前端，能有效精简数据体积
-    default-property-inclusion: NON_EMPTY
+    default-property-inclusion: NON_EMPTY       # NON_EMPTY 会过滤空集合，而 NON_NULL 只过滤 null，空集合会被正常序列化为 [] / {}
 
       # 关键配置：关闭时间戳模式
 #    serialization:
