@@ -56,7 +56,7 @@
                     <foreach collection="deptCodes" item="sd" open="(" separator="," close=")">#{sd}</foreach>
                 </when>
                 <otherwise>
-                    and 1 = 0
+                    and open_status = false
                 </otherwise>
             </choose>
         </if>
