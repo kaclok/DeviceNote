@@ -14,6 +14,7 @@
             data_scope
         from cght.t_user
        <where>
+           and open_status = true
            <if test="kw != null and kw != ''">
                and (account like concat('%', #{kw}, '%') or username like concat('%', #{kw}, '%'))
            </if>
