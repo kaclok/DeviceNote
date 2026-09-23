@@ -1,5 +1,0 @@
-finishedBeforeTimeout=True
-exitCode=0
-lineCount=1
----- output ----
-REACHED-CN-DIR

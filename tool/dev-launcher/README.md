@@ -1,17 +1,47 @@
-# DevLauncher · 一键启动器（两个 Windows 绿色小工具）
+# DevLauncher · 一键启动器（三个 Windows 绿色小工具）
 
-双击即用的两个 exe：**一键起后端** / **一键起前端**，替代「切到 IDEA → 找运行按钮 → 点一下」的流程。
+双击即用：**一个合并窗口（启动台）** + **两个独立启动器**，替代「切到 IDEA → 找运行按钮 → 点一下」的流程。
 
+- `bin/启动台.exe` —— 一个窗口同时管**后端 + 前端**，前后端日志左右分栏同屏（**日常推荐**，见第一节）
 - `bin/启动后端.exe` —— 选工程目录 + 选 profile → 点「启动」→ 后端起来
 - `bin/启动前端.exe` —— 选工程目录 + 选 npm 脚本 → 点「启动」→ 前端起来
 
-两个都是**原生 WinForms 单文件 exe**（49KB / 42KB，只依赖系统自带的 .NET Framework 4.x），**不需要装 Python / Node / 任何运行时**，可以直接拷到桌面或 U 盘。
+三个都是**原生 WinForms 单文件 exe**（98KB / 55KB / 44KB，只依赖系统自带的 .NET Framework 4.x），**不需要装 Python / Node / 任何运行时**，可以直接拷到桌面或 U 盘。
 
 > 已经在运行也能停：工具不只看自己启动的进程，**端口上有服务在跑就会显示「运行中」并让「停止」按钮可用** —— IDEA 里启动的、上次没停干净的，都可以在这里一键结束。详见第三节。
 
 ---
 
-## 一、后端启动器（启动后端.exe）
+## 一、启动台（启动台.exe）· 前后端合一（日常推荐）
+
+一个窗口同时管后端 + 前端，**窗口只有 880×560**（比两个单独工具都小），前后端日志**左右分栏同屏**。
+
+```
+┌ 启动台 · 后端 + 前端 ─────────────────────────────────────────────────────────────┐
+│ 后端  [F:\...\backend\device-note              ] 浏览  [dev ▾]  ▶  ■  ● 8092(dev) · 未运行 │
+│ 前端  [F:\...\ft-checnote                      ] 浏览  [local dev ▾] ▶ ■  ● 4177 · 运行中 … │
+│ ▶ 全部启动  ■ 全部停止  设置…  ☑启动后打开页面  后端页面 前端页面      清空  复制      │
+├───────────────────────────────┬───────────────────────────────────────────────────┤
+│ 后端日志 · Maven 多模块(4)…    │ 前端日志 · ft-checnote                              │
+│ [INFO] BUILD SUCCESS           │ VITE v5.x  ready in 380 ms                         │
+│ Tomcat started on port 8092    │ ➜  Local: http://localhost:4177/                   │
+└───────────────────────────────┴───────────────────────────────────────────────────┘
+```
+
+行为要点：
+
+- **一行一个端**：目录（浏览即自动检测）→ 下拉（后端 profile / 前端 npm 脚本）→ `▶` 启动 / `■` 停止。状态灯实时显示 `端口(profile) · 运行中/未运行`，端口跟随 profile、启动后按日志校正。
+- **`▶ 全部启动` / `■ 全部停止`**：一次起两边（各自独立进程，互不影响）；「全部停止」只对**真正在运行**的一侧生效。
+- **日志左右分栏**：拖中间的分隔条可改变宽度；`复制` 把两边日志合并复制（各带标题），`清空` 清两边。
+- **`设置…`**：JDK 目录 / Maven 目录 / Maven 仓库 / settings.xml / **Node.js 目录**（5 项，留空 = 自动探测或 PATH）+ 两个行为开关（后端自动 install、启动前结束占用端口的进程）。
+- **配置继承**：首次打开会继承 `启动后端.exe`（`springboot.ini`）和 `启动前端.exe`（`vite.ini`）已保存的目录 / profile / 脚本 / 工具链，之后存在 `%APPDATA%\DevLauncher\combined.ini`。
+- **「已在运行」照样能停**：与两个单独工具同一套端口探测逻辑（见第四节）——IDEA / WebStorm 启动的、上次遗留的，状态灯会标 `· 外部`，`■` 可一键接管（非本工程会弹确认框）。
+
+> 两个单独的 exe 保留不变：想只做一件事（只起后端、只看后端日志）时照旧用它们；日常一边改前端一边重启后端就用启动台。
+
+---
+
+## 二、后端启动器（启动后端.exe）
 
 ### 用法
 
@@ -72,7 +102,7 @@ mvn -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev spring-boot:run
 
 ---
 
-## 二、前端启动器（启动前端.exe）
+## 三、前端启动器（启动前端.exe）
 
 1. 双击 `启动前端.exe`
 2. 选前端工程根目录（含 `package.json`）
@@ -87,7 +117,7 @@ mvn -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev spring-boot:run
 
 ---
 
-## 三、已经在运行？直接停
+## 四、已经在运行？直接停
 
 「运行中」的判断不是「本窗口有没有启过进程」，而是**你配的那个端口上有没有人在监听**（netstat，每 2 秒查一次，后台线程，不卡界面）。所以下面三种情况都能识别，并且 **■ 停止** 都可点：
 
@@ -112,16 +142,22 @@ mvn -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev spring-boot:run
 
 ---
 
-## 四、改代码后重新编译
+## 五、改代码后重新编译
 
 ```bash
-python build.py                       # 生成 bin/启动后端.exe、bin/启动前端.exe
+python build.py                       # 生成 bin/启动后端.exe、bin/启动前端.exe、bin/启动台.exe
+python build.py 启动台                 # 只编译其中一个（按关键字过滤，避免覆盖正开着的 exe）
 python selftest.py                    # 工程探测自检（6 项，不启动任何服务）
 python check_nodechain.py             # 前端 Node.js 目录注入：pmExe 指向配置目录（2 项）
+python check_combo.py                 # 启动台：双端探测 / 界面状态 / 外部运行识别 / 进程链路 / 配置持久化（22 项）
+python check_combo_run.py             # 启动台：真跑一次它拼出的后端启动命令（Tomcat 起得来 / 0 乱码 / 停止后端口释放）
 python e2e.py                         # 端到端：真起一次 vite，验证引号/UTF-8/ANSI/进程树清理
 python check_runstate.py              # 「已在运行」检测 + 停止外部进程（25 项断言，含真实端口探测）
 python e2e.py --with-install          # 额外跑一遍后端 maven install（真编译，约 20s）
 ```
+
+> 启动台由 `CombinedLauncher.cs` + 复用 `Shared.cs` / `SpringBootLauncher.cs` / `ViteLauncher.cs` 编译而成
+> （`/main:DevLaunch.Program0` 指定入口，所以三个 exe 能共用同一批探测代码）。
 
 `build.py` 调 `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe`，`/codepage:65001` 读 UTF-8 源码。
 **源码必须保持 C# 5 语法** —— 这个旧版 csc 不支持字符串插值 `$""`、`?.`、`nameof`。
@@ -147,10 +183,12 @@ python e2e.py --with-install          # 额外跑一遍后端 maven install（�
 | 前端 GUI 冒烟（新布局含 Node.js 目录行） | 通过 |
 | 后端 profile 过滤 | `target/classes/application.yml` 里 `active: dev` ✓ |
 | GUI 冒烟（两个 exe 起窗不崩） | 通过 |
+| 启动台 `check_combo.py`（双端探测 / 状态灯 / 外部服务识别且未误杀 / 进程链路 / 配置持久化） | 全部通过 |
+| 启动台 `check_combo_run.py`（真跑后端启动命令） | Tomcat started（随机端口）/ 204 行日志 0 乱码 / 停止后 8092 无残留、无 java 残留 |
 
 ---
 
-## 五、命令行选项（排查用）
+## 六、命令行选项（排查用）
 
 ```bash
 # 只探测不启动，把结论写文件（前端 --detect 可选第 4 参指定 Node.js 目录，验证 pmExe 解析）
@@ -172,11 +210,19 @@ python e2e.py --with-install          # 额外跑一遍后端 maven install（�
 # 自检：打开窗口 → 4.5 秒后把界面状态（状态灯 / 按钮文案 / 可用性 / 探测到的 PID）写文件后自动关闭
 启动前端.exe --uidump "F:\path\to\frontend" "" 4177 out.txt
 启动后端.exe --uidump "F:\path\to\project" dev 8092 out.txt
+
+# 启动台：一次探测前后端两端（含各自将执行的命令）
+启动台.exe --detect-all "F:\path\to\backend" "F:\path\to\frontend" out.txt
+
+# 启动台：打开窗口 → 5 秒后 dump 两端状态后自动关闭
+启动台.exe --uidump "F:\path\to\backend" "F:\path\to\frontend" out.txt
+
+# 启动台同样支持 --probe / --stop-port / --run（与上面同一条路径）
 ```
 
 ---
 
-## 六、已知边界
+## 七、已知边界
 
 - 后端只支持 **Maven** 的命令拼装；选中 Gradle 工程会明确提示改用 IDEA。
 - 只认含 `spring-boot-maven-plugin` 的子模块作为启动模块；都不含时退化成列出全部子模块让手选。
