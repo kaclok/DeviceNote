@@ -1209,7 +1209,7 @@ public class CCGHT {
     // 合同台账 CRUD —— 按「部门 → 模版 → 物理表」路由
     // ================================================================
     // 一个部门的合同落在哪张物理表，由该部门绑定的合同模版决定（t_contract_template.tb_name），
-    // 所以台账不再固定读写 cght.t_contract：请求带 tb，后端核对（见下面「按模版路由」一节）后路由过去，
+    // 所以台账不再固定读写 cght.t_contract：contract/list 只带 tpl_id，后端查模版反查物理表后路由过去，
     // 列随表走 —— 前端按 gd.json 里该表的列与筛选配置渲染，后端不预设任何一张表的列。
     //
     // 筛选条件用 f_ 前缀 + 列名 + _ + 比较符 的查询参数下推（如 f_id_like=SMLJ、f_date_sign_gte=2025-01-01）：
@@ -1220,10 +1220,19 @@ public class CCGHT {
     @Transactional
     @PostMapping(value = "/contract/list")
     public Result<?> contractList(@RequestParam Map<String, String> params, @Acc TCGHTUser curUser) {
-        final String tb = registeredTable(params.get("tb"));
+        // 列表只认 tpl_id：物理表由模版反查（与 /contract/import 同一口径），前端不再下发 tb。
+        Integer tplId = intOrNull(params.get("tpl_id"));
+        if (tplId == null) {
+            return Result.fail(ResultCode.RC10101.getCode(), "合同模版(tpl_id)不能为空，请先选择合同模板");
+        }
+        TCGHTContractTemplate tpl = tplDao.query(tplId);
+        if (tpl == null) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format("合同模版 %s 不存在", tplId));
+        }
+        final String tb = registeredTable(tpl.getTb_name());
         if (tb == null) {
             return Result.fail(ResultCode.RC10101.getCode(),
-                    "合同模板未确定或该物理表未登记，请先在「部门合同模板」页为该部门指定模板");
+                    String.format("模版「%s」对应的物理表 %s 不存在或结构未就绪，请联系管理员", tpl.getName(), tpl.getTb_name()));
         }
         Map<String, String> cols = colsOf(tb);
         List<Map<String, Object>> conds = new ArrayList<>();
@@ -1273,7 +1282,7 @@ public class CCGHT {
         // （后者会把没配这套模版的部门的行也带出来，与左侧组织树对不上）。
         List<String> deptFilter = StringUtils.hasText(params.get("dept_code"))
                 ? deptFilterOf(params.get("dept_code"), scopeDepts)
-                : tplHolderFilter(intOrNull(params.get("tpl_id")), tb, scopeDepts);
+                : tplHolderFilter(tplId, tb, scopeDepts);
         var ls = contractDao.queryRows(tb, conds, deptFilter, username, warnDay);
         return Result.success(new PageSerializable<>(ls));
     }

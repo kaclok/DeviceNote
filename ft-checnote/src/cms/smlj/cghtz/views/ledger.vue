@@ -392,14 +392,15 @@ function filterOptionsOf(f) {
  * 筛选状态 → 后端 contract/list 的查询参数。
  * 约定：f_ + 列名 + _ + 比较符（后端 CCGHT.FILTER_OPS 只认 like/eq/gte/lte/neq），
  * 区间筛成 gte + lte 两条；空值一律不发 —— 后端把"没这个参数"当作"不筛这一项"。
- * tb 来自选中的模板；tpl_id 让后端算得出"这套模板实际生效的部门"（见 tplHolderFilter）——
+ * tpl_id 是列表的唯一路由键：后端按它反查物理表（t_contract_template.tb_name），
+ * 也算得出"这套模板实际生效的部门"（见 tplHolderFilter）——
  * 未选部门时列表的口径就是这批部门，与左侧组织树显示的部门同源，两边永远对得上。
  * dept_code 只在**选了具体部门**时才发：后端 deptFilterOf 把它展开成子树再与可见范围求交，
  * 所以点父部门看到的是含下级的合同，且越权部门取不到数据。未选部门时**不发**这个参数
  * （发空串会被当成"就筛这个部门"），后端据此回退到持有部门集。
  */
 function buildParams() {
-    const p = {tb: tb.value}
+    const p = {}
     if (tplKey.value) p.tpl_id = tplKey.value
     if (deptCode.value) p.dept_code = deptCode.value
     filterDefs.value.forEach(f => {

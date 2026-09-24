@@ -149,13 +149,8 @@ function submitChangePwd() {
             <div class="right-menu">
                 <el-dropdown @command="onUserCommand">
                     <div class="user-info">
-                        <el-avatar :size="30" style="background:#6366f1;font-size:13px">
-                            {{ (account.username || account.account || '?').slice(0, 1) }}
-                        </el-avatar>
-                        <span class="user-name">{{ account.account }}</span>
-                        <el-tag v-if="isInitPwd" size="small" type="warning" effect="light" class="pwd-warn"
-                                @click.stop="openChangePwd">初始密码
-                        </el-tag>
+                        <span class="user-badge" :title="account.username || account.account">{{ account.username || account.account || '?' }}</span>
+                        <span class="user-name" :title="account.account || account.username">{{ account.account || account.username }}</span>
                     </div>
                     <template #dropdown>
                         <el-dropdown-menu>
@@ -274,14 +269,22 @@ function submitChangePwd() {
                     background: #f8fafc;
                 }
 
+                /* 蓝紫色圈圈住 username（名字长度可变 ⇒ 胶囊形），后面跟 account */
+                .user-badge {
+                    background: #6366f1;
+                    color: #fff;
+                    font-size: 12px;
+                    font-weight: 500;
+                    line-height: 1.5;
+                    padding: 2px 10px;
+                    border-radius: 999px;
+                    white-space: nowrap;
+                }
+
                 .user-name {
                     font-size: 14px;
                     font-weight: 500;
-                }
-
-                .pwd-warn {
-                    cursor: pointer;
-                    font-size: 11px;
+                    white-space: nowrap;
                 }
 
                 .user-role {
