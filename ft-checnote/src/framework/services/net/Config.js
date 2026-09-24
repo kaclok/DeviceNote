@@ -1,4 +1,7 @@
-const defaultUrl = "/api"
+import {resolvedApi} from './BaseUrl.js'
+
+// 默认后端地址：dev 走 vite proxy 前缀，prod 直连；数据源 = 根目录 config/backends.mjs（见 BaseUrl.js）
+const defaultUrl = resolvedApi
 
 let config = {
     /**
@@ -51,4 +54,4 @@ let config = {
     },
 }
 
-export { config }
+export {config}
