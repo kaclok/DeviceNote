@@ -1460,6 +1460,11 @@ public class CCGHT {
      * 判据 = cght.t_contract_template 登记过这个 tb_name（运维在库里登记一张表，它才算接入）。
      * 刻意每次回源查一次：登记/解除登记是低频运维动作，而缓存一份"表清单"会让刚登记好的模板
      * 在重启前一直读不到 —— "配了却没生效"是最难排查的一类现象。
+     * <p>
+     * 一张物理表只允许被一套模版登记：库里已有 UNIQUE(tb_name) 与 UNIQUE(lower(tb_name)) 两道
+     * 约束兜底，但约束可能被删/库被还原 —— 这里按 equalsIgnoreCase 计数，命中多于一行时抛
+     * 可读异常而不是静默取第一行：重复登记会让"模版→物理表"路由产生歧义（两套 col_order、
+     * 两份部门绑定指向同一张表），宁可全链路 fail-closed。
      */
     /**
      * 该模版指向的物理表"能不能用"：表名形态合法，且库里真有这张表（information_schema 读得到列）。
@@ -1478,12 +1483,16 @@ public class CCGHT {
         if (!StringUtils.hasText(tb) || !SQL_IDENT.matcher(tb.toLowerCase()).matches()) {
             return null;
         }
+        String hit = null;
         for (TCGHTContractTemplate t : tplDao.queryAll()) {
-            if (t != null && tb.equalsIgnoreCase(t.getTb_name())) {
-                return t.getTb_name();
+            if (t == null || !tb.equalsIgnoreCase(t.getTb_name())) continue;
+            if (hit != null) {
+                throw new IllegalArgumentException(String.format(
+                        "物理表 %s 被多个合同模版同时登记（t_contract_template.tb_name 重复），请先在库里去重", tb));
             }
+            hit = t.getTb_name();
         }
-        return null;
+        return hit;
     }
 
     /**
