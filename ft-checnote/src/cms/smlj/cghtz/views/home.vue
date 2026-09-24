@@ -176,7 +176,12 @@ function submitChangePwd() {
             </div>
 
             <div class="page-content">
-                <router-view/>
+                <router-view v-slot="{ Component }">
+                    <!-- 台账页 keep-alive：去新增/编辑/导入页再回来，模板/部门/筛选/页码原样保留（数据刷新见 ledger.vue onActivated） -->
+                    <keep-alive include="ledger">
+                        <component :is="Component"/>
+                    </keep-alive>
+                </router-view>
             </div>
         </div>
 

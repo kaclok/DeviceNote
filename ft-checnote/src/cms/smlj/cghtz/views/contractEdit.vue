@@ -295,10 +295,16 @@ function save() {
     })
 }
 
-/** 回台账：带上本次的部门，回去就停在同一个部门的列表上 */
+/**
+ * 回台账：keep-alive 下台账会带着离开前的全部状态复活，这里的 query 只是
+ * "没有缓存可复活"时（如在编辑页刷新过浏览器）的兜底——模板 + 部门两个关键锚点。
+ */
 function gotoLedger() {
     const dc = form.value.dept_code || String(route.query.dept_code || '')
-    router.push(dc ? {name: 'home_ledger', query: {dept_code: dc}} : {name: 'home_ledger'})
+    const query = {}
+    if (tb) query.tb = tb
+    if (dc) query.dept_code = dc
+    router.push({name: 'home_ledger', query})
 }
 </script>
 

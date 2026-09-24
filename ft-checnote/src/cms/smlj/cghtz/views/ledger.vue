@@ -599,14 +599,26 @@ function removeContract(row) {
 }
 
 /* ---------------- 生命周期 ---------------- */
-onMounted(() => {
+// 本页被 keep-alive 缓存（见 home.vue）：首次进入与每次从编辑页/导入页回来都走 onActivated。
+// 组件状态（模板/部门/筛选/页码）由 keep-alive 原样保留，这里只把**数据**刷新一遍：
+// 本次保存可能新增/修改了行，别人也可能改了模板的部门持有集。
+onActivated(() => {
     loadTpls()
     loadDepts()
+    if (tableReady.value) loadList()
 })
 
 onUnmounted(() => {
     AC_list.abort()
     AC_dept.abort()
+})
+
+// keep-alive 下离开本页不触发 unmount：中止在途请求并换新控制器，回来时才能正常发新请求
+onDeactivated(() => {
+    AC_list.abort()
+    AC_list = new AbortController()
+    AC_dept.abort()
+    AC_dept = new AbortController()
 })
 
 /** 模板变更 → 重建筛选状态并重载列表（新增/编辑页随后自动跟着这套配置走） */
