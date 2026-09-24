@@ -140,6 +140,8 @@ namespace DevLaunch
         Label lblFState, lblFLogHead;
         LogView logF;
         ProcRunner runF = new ProcRunner();
+        ProcRunner packRunB = new ProcRunner();
+        ProcRunner packRunF = new ProcRunner();
         NodeInfo ni = new NodeInfo();
         PortWatcher watchF = new PortWatcher();
         Sys.PortOwner extF;
@@ -150,6 +152,7 @@ namespace DevLaunch
 
         // ---- 公共 ----
         FlatBtn bAllRun, bAllStop;
+        FlatBtn bPackB, bPackDirB, bPackF, bPackDirF;
         CheckBox chkOpen;
         System.Windows.Forms.Timer timer;
         int tick;
@@ -176,6 +179,10 @@ namespace DevLaunch
             watchB.Result += OnProbeB;
             runF.Out += OnOutF;
             runF.Exited += OnExitF;
+            packRunB.Out += OnPackOutB;
+            packRunB.Exited += OnPackExitB;
+            packRunF.Out += OnPackOutF;
+            packRunF.Exited += OnPackExitF;
             watchF.Result += OnProbeF;
 
             timer = new System.Windows.Forms.Timer();
@@ -322,9 +329,35 @@ namespace DevLaunch
             };
             Controls.Add(btnCopy);
 
+            // ---- 第 4 行：打包 ----
+            bPackB = Ux.Btn("打包后端", 50, 116, 100, false);
+            bPackB.Height = 28;
+            tipB.SetToolTip(bPackB, "mvn package（跳过测试），产物在启动模块 target 下");
+            bPackB.Click += delegate { PackB(); };
+            Controls.Add(bPackB);
+
+            bPackDirB = Ux.Btn("后端产物", 156, 116, 84, false);
+            bPackDirB.Height = 28;
+            bPackDirB.Click += delegate { OpenPackDirB(); };
+            Controls.Add(bPackDirB);
+
+            bPackF = Ux.Btn("打包前端", 248, 116, 100, false);
+            bPackF.Height = 28;
+            tipF.SetToolTip(bPackF, "npm run build，产物目录读自 vite.config 的 outDir");
+            bPackF.Click += delegate { PackF(); };
+            Controls.Add(bPackF);
+
+            bPackDirF = Ux.Btn("前端产物", 354, 116, 84, false);
+            bPackDirF.Height = 28;
+            bPackDirF.Click += delegate { OpenPackDirF(); };
+            Controls.Add(bPackDirF);
+
+            Label lPackHint = Ux.Val("打包不影响已启动的服务；产物目录不存在时请先打包", 446, 121, 396, Th.Dim);
+            Controls.Add(lPackHint);
+
             // ---- 日志区：左右分栏，同屏可看 ----
             Panel plLog = new Panel();
-            plLog.SetBounds(12, 120, 856, 428);
+            plLog.SetBounds(12, 150, 856, 398);
             plLog.Padding = new Padding(0);
             plLog.BackColor = Th.Bg;
             plLog.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
@@ -628,6 +661,7 @@ namespace DevLaunch
         {
             if (!bi.Ok) { MessageBox.Show(this, "请先配置有效的后端工程目录。", "提示"); return; }
             if (runB.Running) return;
+            if (packRunB.Running) { MessageBox.Show(this, "正在打包后端，请等待完成。", "提示"); return; }
             ApplyChain();
 
             string pf = CurProfileB();
@@ -668,6 +702,7 @@ namespace DevLaunch
         {
             if (!ni.Ok) { MessageBox.Show(this, "请先配置有效的前端工程目录。", "提示"); return; }
             if (runF.Running) return;
+            if (packRunF.Running) { MessageBox.Show(this, "正在打包前端，请等待完成。", "提示"); return; }
             string script = CurScriptF();
             if (string.IsNullOrEmpty(script)) { MessageBox.Show(this, "请选择要执行的脚本。", "提示"); return; }
 
@@ -699,6 +734,110 @@ namespace DevLaunch
 
             SetStateF();
             if (chkOpen.Checked) DelayOpen(CurPortF, 4000);
+        }
+
+        // ---------- 打包 ----------
+        void PackB()
+        {
+            if (!bi.Ok) { MessageBox.Show(this, "请先配置有效的后端工程目录。", "提示"); return; }
+            if (packRunB.Running) return;
+            if (runB.Running) { MessageBox.Show(this, "后端正在运行，运行中的 jar 无法被覆盖，请先停止再打包。", "提示"); return; }
+            ApplyChain();
+            string cmd = Boot.BuildPackageCommand(bi, CurProfileB());
+            logB.Banner("打包后端");
+            logB.Info("产物目录  : " + Boot.PackageDir(bi));
+            logB.Cmd("$ " + cmd);
+            logB.Line("", Th.Fg);
+            Dictionary<string, string> env = new Dictionary<string, string>();
+            env["MAVEN_OPTS"] = "-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8";
+            ChainEnvB(env);
+            try { packRunB.Start(bi.RootDir, cmd, env); }
+            catch (Exception ex) { logB.Err("打包启动失败：" + ex.Message); return; }
+            bPackB.Enabled = false;
+        }
+
+        void PackF()
+        {
+            if (!ni.Ok) { MessageBox.Show(this, "请先配置有效的前端工程目录。", "提示"); return; }
+            if (packRunF.Running) return;
+            string script = Node.BuildScript(ni);
+            if (script == null) { MessageBox.Show(this, "package.json 里没有找到 build 类脚本。", "提示"); return; }
+            string cmd = Node.RunCmd(ni, script);
+            logF.Banner("打包前端");
+            logF.Info("脚本      : " + script);
+            logF.Info("产物目录  : " + Path.Combine(ni.Dir, Node.GuessOutDir(ni.Dir)));
+            logF.Cmd("$ " + cmd);
+            logF.Line("", Th.Fg);
+            try { packRunF.Start(ni.Dir, cmd, NodeEnv()); }
+            catch (Exception ex) { logF.Err("打包启动失败：" + ex.Message); return; }
+            bPackF.Enabled = false;
+        }
+
+        void OpenPackDirB()
+        {
+            if (!bi.Ok) { MessageBox.Show(this, "请先配置有效的后端工程目录。", "提示"); return; }
+            string d = Boot.PackageDir(bi);
+            if (!Directory.Exists(d)) { MessageBox.Show(this, "产物目录还不存在，请先打包：\n" + d, "提示"); return; }
+            Sys.OpenFolder(d);
+        }
+
+        void OpenPackDirF()
+        {
+            if (!ni.Ok) { MessageBox.Show(this, "请先配置有效的前端工程目录。", "提示"); return; }
+            string d = Path.Combine(ni.Dir, Node.GuessOutDir(ni.Dir));
+            if (!Directory.Exists(d)) { MessageBox.Show(this, "产物目录还不存在，请先打包：\n" + d, "提示"); return; }
+            Sys.OpenFolder(d);
+        }
+
+        static Color PackLineColorB(string line)
+        {
+            string t = line.TrimStart();
+            if (t.StartsWith("ERROR") || t.Contains("BUILD FAILURE")) return Th.Err;
+            if (t.Contains("BUILD SUCCESS")) return Th.Ok;
+            if (t.StartsWith("[INFO] ---") || t.StartsWith("Downloading") || t.StartsWith("Downloaded")) return Th.Dim;
+            return Th.LogFg;
+        }
+
+        static Color PackLineColorF(string line)
+        {
+            string t = line.TrimStart();
+            if (t.StartsWith("error") || t.Contains("ERR!") || t.Contains("error during build")) return Th.Err;
+            if (t.Contains("built in ")) return Th.Ok;
+            return Th.LogFg;
+        }
+
+        void OnPackOutB(string line) { logB.Line(line, PackLineColorB(line)); }
+
+        void OnPackOutF(string line) { logF.Line(line, PackLineColorF(line)); }
+
+        void OnPackExitB(int code)
+        {
+            if (logB.Box.IsDisposed) return;
+            try
+            {
+                logB.Box.BeginInvoke(new Action(delegate
+                {
+                    bPackB.Enabled = true;
+                    if (code == 0) logB.Ok(">>> 打包完成，产物目录：" + Boot.PackageDir(bi));
+                    else logB.Err(">>> 打包失败（exit " + code + "）");
+                }));
+            }
+            catch (Exception) { }
+        }
+
+        void OnPackExitF(int code)
+        {
+            if (logF.Box.IsDisposed) return;
+            try
+            {
+                logF.Box.BeginInvoke(new Action(delegate
+                {
+                    bPackF.Enabled = true;
+                    if (code == 0) logF.Ok(">>> 打包完成，产物目录：" + Path.Combine(ni.Dir, Node.GuessOutDir(ni.Dir)));
+                    else logF.Err(">>> 打包失败（exit " + code + "）");
+                }));
+            }
+            catch (Exception) { }
         }
 
         // JDK / Maven 目录注入子进程环境（JAVA_HOME 决定 mvn 用哪个 JDK；PATH 前置保证优先命中）

@@ -243,6 +243,42 @@ namespace DevLaunch
             return pm + " install";
         }
 
+        // 打包用脚本：优先 "build"，其次名字里含 build 的第一个
+        public static string BuildScript(NodeInfo ni)
+        {
+            for (int i = 0; i < ni.ScriptNames.Count; i++)
+                if (ni.ScriptNames[i] == "build") return "build";
+            for (int i = 0; i < ni.ScriptNames.Count; i++)
+                if (ni.ScriptNames[i].ToLower().Contains("build")) return ni.ScriptNames[i];
+            return null;
+        }
+
+        // 产物目录：从 vite.config 的 outDir 推断（支持 (env || 'dist') + '-后缀' 形态），默认 dist
+        public static string GuessOutDir(string dir)
+        {
+            string[] cfgs = new string[] {
+                "vite.config.js","vite.config.ts","vite.config.mjs","vite.config.cjs","vite.config.mts"
+            };
+            foreach (string c in cfgs)
+            {
+                string f = Path.Combine(dir, c);
+                if (!File.Exists(f)) continue;
+                string t = "";
+                try { t = File.ReadAllText(f); } catch (Exception) { continue; }
+                Match m = Regex.Match(t, @"outDir\s*:\s*([^\r\n]+)");
+                if (!m.Success) break;
+                string expr = m.Groups[1].Value;
+                string baseDir = "dist";
+                Match q = Regex.Match(expr, "'([^']*)'|\"([^\"]*)\"");
+                if (q.Success) baseDir = q.Groups[1].Success ? q.Groups[1].Value : q.Groups[2].Value;
+                if (baseDir.Length == 0) baseDir = "dist";
+                Match suf = Regex.Match(expr, "'(-[A-Za-z0-9._-]+)'|\"(-[A-Za-z0-9._-]+)\"");
+                if (suf.Success) baseDir += suf.Groups[1].Success ? suf.Groups[1].Value : suf.Groups[2].Value;
+                return baseDir;
+            }
+            return "dist";
+        }
+
         public static void DumpDetect(string dir, string outFile, string nodeDir)
         {
             NodeInfo ni = Detect(dir, null, nodeDir);
@@ -258,6 +294,7 @@ namespace DevLaunch
             sb.AppendLine("cmds=" + string.Join(" | ", ni.ScriptCmds.ToArray()));
             sb.AppendLine("default=" + (ni.ScriptNames.Count > ni.DefaultIndex ? ni.ScriptNames[ni.DefaultIndex] : ""));
             sb.AppendLine("port=" + ni.Port);
+            sb.AppendLine("outDir=" + GuessOutDir(dir));
             sb.AppendLine("hasModules=" + ni.HasModules);
             sb.AppendLine("modulesStale=" + ni.ModulesStale);
             sb.AppendLine("summary=" + ni.Summary);
@@ -276,8 +313,10 @@ namespace DevLaunch
         Label lblStatus, lblPort, lblRunState, lblCmd;
         CheckBox chkInstall, chkKill, chkOpen;
         FlatBtn btnRun, btnStop, btnInstall, btnCmd;
+        FlatBtn btnPack, btnPackDir;
         LogView log;
         ProcRunner runner = new ProcRunner();
+        ProcRunner packRunner = new ProcRunner();
         NodeInfo info = new NodeInfo();
         System.Windows.Forms.Timer pollTimer;
 
@@ -297,12 +336,14 @@ namespace DevLaunch
         public ViteForm()
         {
             Text = "Vite 前端一键启动器";
-            ClientSize = new Size(920, 700);
-            MinimumSize = new Size(760, 520);
+            ClientSize = new Size(920, 744);
+            MinimumSize = new Size(760, 564);
             Ux.Dark(this);
             BuildUi();
             runner.Out += OnOut;
             runner.Exited += OnProcExit;
+            packRunner.Out += OnPackOut;
+            packRunner.Exited += OnPackExit;
             portWatch.Result += OnPortProbe;
 
             pollTimer = new System.Windows.Forms.Timer();
@@ -409,11 +450,25 @@ namespace DevLaunch
             lblRunState.Font = Th.UiB;
             Controls.Add(lblRunState);
 
-            Label l5 = Ux.Val("运行日志", 20, 244, 100, Th.Fg);
+            // ---- 打包行 ----
+            btnPack = Ux.Btn("打包", 20, 236, 100, false);
+            btnPack.Height = 36;
+            btnPack.Click += delegate { PackOnly(); };
+            Controls.Add(btnPack);
+
+            btnPackDir = Ux.Btn("产物目录", 128, 236, 100, false);
+            btnPackDir.Height = 36;
+            btnPackDir.Click += delegate { OpenPackDir(); };
+            Controls.Add(btnPackDir);
+
+            Label lPack = Ux.Val("npm run build，产物目录读自 vite.config 的 outDir", 236, 244, 440, Th.Dim);
+            Controls.Add(lPack);
+
+            Label l5 = Ux.Val("运行日志", 20, 288, 100, Th.Fg);
             l5.Font = Th.UiB;
             Controls.Add(l5);
 
-            FlatBtn btnCopy = Ux.Btn("复制", 830, 238, 70, false);
+            FlatBtn btnCopy = Ux.Btn("复制", 830, 282, 70, false);
             btnCopy.Height = 26;
             btnCopy.Click += delegate
             {
@@ -422,14 +477,14 @@ namespace DevLaunch
             };
             Controls.Add(btnCopy);
 
-            FlatBtn btnCls = Ux.Btn("清空", 752, 238, 70, false);
+            FlatBtn btnCls = Ux.Btn("清空", 752, 282, 70, false);
             btnCls.Height = 26;
             btnCls.Click += delegate { log.Clear(); };
             Controls.Add(btnCls);
 
             log = new LogView();
             Panel pl = new Panel();
-            pl.SetBounds(20, 270, 880, 410);
+            pl.SetBounds(20, 314, 880, 410);
             pl.Padding = new Padding(1);
             pl.BackColor = Th.Border;
             pl.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
@@ -657,6 +712,7 @@ namespace DevLaunch
         {
             if (!info.Ok) { MessageBox.Show(this, "请先选择有效的前端工程目录。", "提示"); return; }
             if (runner.Running) { MessageBox.Show(this, "前端服务已在运行，请先停止。", "提示"); return; }
+            if (packRunner.Running) { MessageBox.Show(this, "正在打包，请等待打包完成。", "提示"); return; }
             string script = CurScript();
             if (string.IsNullOrEmpty(script)) { MessageBox.Show(this, "请选择要执行的脚本。", "提示"); return; }
 
@@ -735,11 +791,62 @@ namespace DevLaunch
         {
             if (!info.Ok) { MessageBox.Show(this, "请先选择工程目录。", "提示"); return; }
             if (runner.Running) { MessageBox.Show(this, "前端服务正在运行，请先停止。", "提示"); return; }
+            if (packRunner.Running) { MessageBox.Show(this, "正在打包，请等待打包完成。", "提示"); return; }
             string cmd = Node.InstallCmd(info);
             log.Banner("安装依赖");
             log.Cmd("$ " + cmd);
             runner.Start(info.Dir, cmd, NodeEnv());
             btnRun.Enabled = false; btnInstall.Enabled = false; btnStop.Enabled = true;
+        }
+
+        // ---------- 打包 ----------
+        void PackOnly()
+        {
+            if (!info.Ok) { MessageBox.Show(this, "请先选择工程目录。", "提示"); return; }
+            if (runner.Running || packRunner.Running) { MessageBox.Show(this, "已有任务在运行，请等待完成或先停止。", "提示"); return; }
+            string script = Node.BuildScript(info);
+            if (script == null) { MessageBox.Show(this, "package.json 里没有找到 build 类脚本。", "提示"); return; }
+            string cmd = Node.RunCmd(info, script);
+            log.Banner("打包前端");
+            log.Info("脚本      : " + script);
+            log.Info("产物目录  : " + Path.Combine(info.Dir, Node.GuessOutDir(info.Dir)));
+            log.Cmd("$ " + cmd);
+            log.Line("", Th.Fg);
+            try { packRunner.Start(info.Dir, cmd, NodeEnv()); }
+            catch (Exception ex) { log.Err("打包启动失败：" + ex.Message); return; }
+            btnRun.Enabled = false; btnInstall.Enabled = false; btnPack.Enabled = false;
+        }
+
+        void OpenPackDir()
+        {
+            if (!info.Ok) { MessageBox.Show(this, "请先选择工程目录。", "提示"); return; }
+            string d = Path.Combine(info.Dir, Node.GuessOutDir(info.Dir));
+            if (!Directory.Exists(d)) { MessageBox.Show(this, "产物目录还不存在，请先打包：\n" + d, "提示"); return; }
+            Sys.OpenFolder(d);
+        }
+
+        void OnPackOut(string line)
+        {
+            Color c = Th.LogFg;
+            string t = line.TrimStart();
+            if (t.StartsWith("error") || t.Contains("ERR!") || t.Contains("error during build")) c = Th.Err;
+            else if (t.Contains("built in ") || t.Contains("built in")) c = Th.Ok;
+            log.Line(line, c);
+        }
+
+        void OnPackExit(int code)
+        {
+            if (log.Box.IsDisposed) return;
+            try
+            {
+                log.Box.BeginInvoke(new Action(delegate
+                {
+                    btnRun.Enabled = true; btnInstall.Enabled = true; btnPack.Enabled = true;
+                    if (code == 0) log.Ok(">>> 打包完成，产物目录：" + Path.Combine(info.Dir, Node.GuessOutDir(info.Dir)));
+                    else log.Err(">>> 打包失败（exit " + code + "）");
+                }));
+            }
+            catch (Exception) { }
         }
 
         void ShowCommand()

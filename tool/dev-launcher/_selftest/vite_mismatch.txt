@@ -9,6 +9,7 @@ scripts=
 cmds=
 default=
 port=0
+outDir=dist
 hasModules=False
 modulesStale=False
 summary=
