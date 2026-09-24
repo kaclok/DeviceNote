@@ -13,6 +13,8 @@ import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
 // vite.config.js中不能用@表示src目录，因为@表达src就是在此配置的resolve.alias
 import defines from './vite.config-define.js'
 import {mpaInput, mpaRewrites, mpaPages} from './vite.config-mpa.js'
+// 后端地址唯一真相源：dev proxy 与页面运行时(BaseUrl.js)共用同一份
+import {backends} from './backends.mjs'
 import vueAutoImport from './src/framework/auto-import/vue-auto-import.js'
 
 // 通过入口文件路径推断 base
@@ -38,8 +40,33 @@ export default defineConfig((env) => {
 
     // 获取VITE环境变量
     let curCfg = loadEnv(env.mode, './.env');
-    let developmentCfg = loadEnv("development", './.env');
-    let productionCfg = loadEnv("production", './.env');
+    // let developmentCfg = loadEnv("development", './.env');
+    // let productionCfg = loadEnv("production", './.env');
+
+    // 后端代理规则由根目录 backends.mjs 自动生成（与页面运行时 BaseUrl.js 共用同一份数据源）：
+    // 每个入口自带 api 前缀与目标地址，如 cghtz → { api: '/api-cghtz', url: '...:7091' }
+    // 1) 多个入口可能共用同一前缀(如 /api)，按前缀去重，只注册一条
+    // 2) vite 是按注册顺序做 startsWith 匹配，故长前缀必须排在前面，
+    //    否则 /api 会抢走 /api-cghtz 的请求（rewrite 后变成 -cghtz/xxx）
+    const proxyTargetByPrefix = new Map()
+    for (const [entry, backend] of Object.entries(backends)) {
+        const {api: prefix, url: target} = backend
+        const registered = proxyTargetByPrefix.get(prefix)
+        if (registered && registered !== target) {
+            console.warn(`[vite proxy] 前缀 ${prefix} 被多个入口指向不同后端：${registered}(先前) vs ${target}(入口 ${entry})，以先前注册的为准`)
+            continue
+        }
+        proxyTargetByPrefix.set(prefix, target)
+    }
+    const proxyFromBackends = {}
+    for (const [prefix, target] of [...proxyTargetByPrefix].sort((a, b) => b[0].length - a[0].length)) {
+        proxyFromBackends[prefix] = {
+            target,
+            changeOrigin: true, // 开启跨域
+            // 去除前缀：/api-cghtz/xxx → /xxx，/api/xxx → /xxx
+            rewrite: (path) => path.replace(new RegExp('^' + prefix), ''),
+        }
+    }
     return {
         base: curCfg.VITE_BASE, // https://juejin.cn/post/7264783369878388796
         envDir: "./.env",
@@ -112,24 +139,8 @@ export default defineConfig((env) => {
                 // 通过本机浏览器访问服务器的vite项目，可以成功，只是vite项目内部调用springboot的 api接口时出现了问题。
                 // 猜测是服务器上的rewrite不生效
                 // 原因可能是： 1、服务器没有nodejs环境  2、服务器是linux,而开发环境是win  3、nginx管理web会有自己的cors策略
-                '/api': {
-                    target: curCfg.VITE_BASE_API,// 这是你要跨域请求的地址前缀
-                    changeOrigin: true,// 开启跨域
-                    // 去除前缀api
-                    rewrite: (path) => path.replace(/^\/api/, '')
-                },
-                '/development': {
-                    target: developmentCfg.VITE_BASE_API,
-                    changeOrigin: true,// 开启跨域
-                    // 去除前缀api
-                    rewrite: (path) => path.replace(/^\/development/, '')
-                },
-                '/production': {
-                    target: productionCfg.VITE_BASE_API,
-                    changeOrigin: true,// 开启跨域
-                    // 去除前缀api
-                    rewrite: (path) => path.replace(/^\/production/, '')
-                },
+                // 规则来源：根目录 backends.mjs（每个入口的 api 前缀 → url，长前缀优先注册）
+                ...proxyFromBackends,
             },
         },
         preview: {
