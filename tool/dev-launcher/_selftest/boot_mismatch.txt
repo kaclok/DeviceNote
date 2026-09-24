@@ -18,5 +18,7 @@ needInstall=False
 repo=
 settings=
 summary=
-command="" -B spring-boot:run
+command="" -B -Dspring-boot.run.jvmArguments="-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8" spring-boot:run
 installCmd="" -B -DskipTests compile
+packageCmd="" -B package -DskipTests
+packageDir=target

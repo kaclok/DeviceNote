@@ -1,0 +1,19 @@
+[backend]
+ok=True
+error=
+rootDir=F:\Projects\Study\github\DeviceNote\backend\device-note
+multi=True
+launchModule=launcher
+profiles=dev,test,deploy
+port=8092
+needInstall=False
+command="E:\Javas\maven\3.9.6\bin\mvn.cmd" -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev -Dspring-boot.run.jvmArguments="-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8" spring-boot:run
+[frontend]
+ok=True
+error=
+dir=F:\Projects\Study\github\DeviceNote\ft-checnote
+pm=npm
+scripts=local dev,local pro,build,push remote,preview,start springBootServer
+default=local dev
+port=4177
+command="C:\Users\DELL\.workbuddy\binaries\node\versions\22.22.2-3\npm.cmd" run "local dev"

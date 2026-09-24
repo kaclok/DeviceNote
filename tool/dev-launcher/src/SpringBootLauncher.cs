@@ -580,6 +580,25 @@ namespace DevLaunch
             return mvn + " -B" + pf + extra + " -DskipTests compile";
         }
 
+        // 打包命令：产出可执行 jar（不带 repackage.skip），跳过测试
+        public static string BuildPackageCommand(BootInfo bi, string profile)
+        {
+            string mvn = CmdExe(bi);
+            string pf = string.IsNullOrEmpty(profile) ? "" : (" -P" + profile);
+            string common = mvn + " -B" + pf + ExtraArgs(bi);
+            if (bi.Multi)
+                return common + " -pl \"" + bi.LaunchModule + "\" -am package -DskipTests";
+            return common + " package -DskipTests";
+        }
+
+        // 打包产物目录：jar 落在启动模块的 target 下
+        public static string PackageDir(BootInfo bi)
+        {
+            if (bi.Multi && bi.LaunchModule.Length > 0)
+                return Path.Combine(bi.RootDir, bi.LaunchModule.Replace('/', '\\'), "target");
+            return Path.Combine(bi.LaunchDir, "target");
+        }
+
         // ---------- 自检输出 ----------
         public static void DumpDetect(string dir, string outFile)
         {
@@ -607,6 +626,8 @@ namespace DevLaunch
             sb.AppendLine("summary=" + bi.Summary);
             sb.AppendLine("command=" + BuildCommand(bi, bi.Profiles.Count > 0 ? bi.Profiles[0] : "", bi.NeedInstall, false));
             sb.AppendLine("installCmd=" + BuildInstallCommand(bi, bi.Profiles.Count > 0 ? bi.Profiles[0] : ""));
+            sb.AppendLine("packageCmd=" + BuildPackageCommand(bi, bi.Profiles.Count > 0 ? bi.Profiles[0] : ""));
+            sb.AppendLine("packageDir=" + PackageDir(bi));
             File.WriteAllText(outFile, sb.ToString(), new UTF8Encoding(false));
         }
     }
@@ -625,8 +646,10 @@ namespace DevLaunch
         CheckBox chkKill;
         CheckBox chkOpen;
         FlatBtn btnRun, btnStop, btnClean, btnBuild, btnCmd;
+        FlatBtn btnPack, btnPackDir;
         LogView log;
         ProcRunner runner = new ProcRunner();
+        ProcRunner packRunner = new ProcRunner();
         BootInfo info = new BootInfo();
         ToolChain tool = new ToolChain();
         System.Windows.Forms.Timer pollTimer;
@@ -648,12 +671,14 @@ namespace DevLaunch
         public BootForm()
         {
             Text = "Spring Boot 一键启动器";
-            ClientSize = new Size(920, 784);
-            MinimumSize = new Size(760, 620);
+            ClientSize = new Size(920, 828);
+            MinimumSize = new Size(760, 664);
             Ux.Dark(this);
             BuildUi();
             runner.Out += OnOut;
             runner.Exited += OnProcExit;
+            packRunner.Out += OnPackOut;
+            packRunner.Exited += OnPackExit;
             portWatch.Result += OnPortProbe;
 
             pollTimer = new System.Windows.Forms.Timer();
@@ -798,12 +823,26 @@ namespace DevLaunch
             lblRunState.Font = Th.UiB;
             Controls.Add(lblRunState);
 
+            // ---- 打包行 ----
+            btnPack = Ux.Btn("打包", 20, 272, 100, false);
+            btnPack.Height = 36;
+            btnPack.Click += delegate { PackOnly(); };
+            Controls.Add(btnPack);
+
+            btnPackDir = Ux.Btn("产物目录", 128, 272, 100, false);
+            btnPackDir.Height = 36;
+            btnPackDir.Click += delegate { OpenPackDir(); };
+            Controls.Add(btnPackDir);
+
+            Label lPack = Ux.Val("mvn package（跳过测试），产物在启动模块 target 下", 236, 280, 430, Th.Dim);
+            Controls.Add(lPack);
+
             // ---- 日志 ----
-            Label l5 = Ux.Val("运行日志", 20, 278, 100, Th.Fg);
+            Label l5 = Ux.Val("运行日志", 20, 322, 100, Th.Fg);
             l5.Font = Th.UiB;
             Controls.Add(l5);
 
-            FlatBtn btnCopy = Ux.Btn("复制", 830, 272, 70, false);
+            FlatBtn btnCopy = Ux.Btn("复制", 830, 316, 70, false);
             btnCopy.Height = 26;
             btnCopy.Click += delegate
             {
@@ -812,14 +851,14 @@ namespace DevLaunch
             };
             Controls.Add(btnCopy);
 
-            FlatBtn btnCls = Ux.Btn("清空", 752, 272, 70, false);
+            FlatBtn btnCls = Ux.Btn("清空", 752, 316, 70, false);
             btnCls.Height = 26;
             btnCls.Click += delegate { log.Clear(); };
             Controls.Add(btnCls);
 
             log = new LogView();
             Panel pl = new Panel();
-            pl.SetBounds(20, 304, 880, 460);
+            pl.SetBounds(20, 348, 880, 460);
             pl.Padding = new Padding(1);
             pl.BackColor = Th.Border;
             pl.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
@@ -1099,6 +1138,7 @@ namespace DevLaunch
         {
             if (!info.Ok) { MessageBox.Show(this, "请先选择一个有效的 Spring Boot 工程目录。", "提示"); return; }
             if (runner.Running) { MessageBox.Show(this, "项目已在运行，请先停止。", "提示"); return; }
+            if (packRunner.Running) { MessageBox.Show(this, "正在打包，请等待打包完成。", "提示"); return; }
 
             string pf = CurProfile();
             if (pf.Length == 0) { MessageBox.Show(this, "请选择配置 profile。", "提示"); return; }
@@ -1177,6 +1217,7 @@ namespace DevLaunch
         {
             if (!info.Ok) { MessageBox.Show(this, "请先选择工程目录。", "提示"); return; }
             if (runner.Running) { MessageBox.Show(this, "项目正在运行，请先停止。", "提示"); return; }
+            if (packRunner.Running) { MessageBox.Show(this, "正在打包，请等待打包完成。", "提示"); return; }
             string cmd = Boot.BuildInstallCommand(info, CurProfile());
             log.Banner("仅安装依赖模块");
             log.Cmd("$ " + cmd);
@@ -1185,6 +1226,57 @@ namespace DevLaunch
             ChainEnv(env);
             runner.Start(info.RootDir, cmd, env);
             btnRun.Enabled = false; btnClean.Enabled = false; btnStop.Enabled = true;
+        }
+
+        // ---------- 打包 ----------
+        void PackOnly()
+        {
+            if (!info.Ok) { MessageBox.Show(this, "请先选择工程目录。", "提示"); return; }
+            if (runner.Running || packRunner.Running) { MessageBox.Show(this, "已有任务在运行，请等待完成或先停止。", "提示"); return; }
+            string cmd = Boot.BuildPackageCommand(info, CurProfile());
+            log.Banner("打包工程");
+            log.Info("产物目录  : " + Boot.PackageDir(info));
+            log.Cmd("$ " + cmd);
+            log.Line("", Th.Fg);
+            Dictionary<string, string> env = new Dictionary<string, string>();
+            env["MAVEN_OPTS"] = "-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8";
+            ChainEnv(env);
+            try { packRunner.Start(info.RootDir, cmd, env); }
+            catch (Exception ex) { log.Err("打包启动失败：" + ex.Message); return; }
+            btnRun.Enabled = false; btnClean.Enabled = false; btnBuild.Enabled = false; btnPack.Enabled = false;
+        }
+
+        void OpenPackDir()
+        {
+            if (!info.Ok) { MessageBox.Show(this, "请先选择工程目录。", "提示"); return; }
+            string d = Boot.PackageDir(info);
+            if (!Directory.Exists(d)) { MessageBox.Show(this, "产物目录还不存在，请先打包：\n" + d, "提示"); return; }
+            Sys.OpenFolder(d);
+        }
+
+        void OnPackOut(string line)
+        {
+            Color c = Th.LogFg;
+            string t = line.TrimStart();
+            if (t.StartsWith("ERROR") || t.Contains("BUILD FAILURE")) c = Th.Err;
+            else if (t.Contains("BUILD SUCCESS")) c = Th.Ok;
+            else if (t.StartsWith("[INFO] ---") || t.StartsWith("Downloading") || t.StartsWith("Downloaded")) c = Th.Dim;
+            log.Line(line, c);
+        }
+
+        void OnPackExit(int code)
+        {
+            if (log.Box.IsDisposed) return;
+            try
+            {
+                log.Box.BeginInvoke(new Action(delegate
+                {
+                    btnRun.Enabled = true; btnClean.Enabled = true; btnBuild.Enabled = true; btnPack.Enabled = true;
+                    if (code == 0) log.Ok(">>> 打包完成，产物目录：" + Boot.PackageDir(info));
+                    else log.Err(">>> 打包失败（exit " + code + "）");
+                }));
+            }
+            catch (Exception) { }
         }
 
         // 把工具链选择注入子进程环境：JAVA_HOME 决定 mvn 用哪个 JDK，PATH 前置保证优先命中

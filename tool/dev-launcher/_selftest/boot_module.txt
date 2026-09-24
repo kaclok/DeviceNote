@@ -18,5 +18,7 @@ needInstall=False
 repo=
 settings=
 summary=Maven 多模块（3 个子模块） · 启动模块 launcher · profile 3 个
-command="E:\Javas\maven\3.9.6\bin\mvn.cmd" -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev spring-boot:run
+command="E:\Javas\maven\3.9.6\bin\mvn.cmd" -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev -Dspring-boot.run.jvmArguments="-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8" spring-boot:run
 installCmd="E:\Javas\maven\3.9.6\bin\mvn.cmd" -B -Pdev -pl "launcher" -am install -DskipTests -Dspring-boot.repackage.skip=true
+packageCmd="E:\Javas\maven\3.9.6\bin\mvn.cmd" -B -Pdev -pl "launcher" -am package -DskipTests
+packageDir=F:\Projects\Study\github\DeviceNote\backend\device-note\launcher\target

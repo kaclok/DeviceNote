@@ -36,6 +36,7 @@
 - **`设置…`**：JDK 目录 / Maven 目录 / Maven 仓库 / settings.xml / **Node.js 目录**（5 项，留空 = 自动探测或 PATH）+ 两个行为开关（后端自动 install、启动前结束占用端口的进程）。
 - **配置继承**：首次打开会继承 `启动后端.exe`（`springboot.ini`）和 `启动前端.exe`（`vite.ini`）已保存的目录 / profile / 脚本 / 工具链，之后存在 `%APPDATA%\DevLauncher\combined.ini`。
 - **「已在运行」照样能停**：与两个单独工具同一套端口探测逻辑（见第四节）——IDEA / WebStorm 启动的、上次遗留的，状态灯会标 `· 外部`，`■` 可一键接管（非本工程会弹确认框）。
+- **打包**：第 4 行 `打包后端` / `打包前端` 一键打包（`mvn package` / `npm run build`，产物目录自动推断，日志各写到自己那侧）；旁边 `后端产物` / `前端产物` 直达产物文件夹。打包不影响已启动的服务，但**后端运行中不能打包**（运行中的 jar 被锁，会弹窗提示）。
 
 > 两个单独的 exe 保留不变：想只做一件事（只起后端、只看后端日志）时照旧用它们；日常一边改前端一边重启后端就用启动台。
 
@@ -66,6 +67,9 @@ mvn -B -Pdev -pl "launcher" -am install -DskipTests -Dspring-boot.repackage.skip
 
 # ② 起服务（在工程根目录执行，不用切目录）
 mvn -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev spring-boot:run
+
+# ③ 打包（点「打包」，在工程根目录执行）
+mvn -B -Pdev -pl "launcher" -am package -DskipTests
 ```
 
 > 如果配置了 Maven 仓库 / settings.xml，上面每条 mvn 命令都会带上 `-s "..." -Dmaven.repo.local="..."`；
@@ -92,6 +96,8 @@ mvn -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev spring-boot:run
 
 按钮：**▶ 启动**、**■ 停止**（`taskkill /F /T` 杀整棵进程树 `cmd → mvn.cmd → java`）、**清理并重启**（先 `clean install` 再起，改 pom / 换 profile 后用）、**仅装依赖**、**查看命令**（只打印不执行）、**打开目录**。
 
+第二行：**打包**（`mvn -B -P<profile> -pl <启动模块> -am package -DskipTests`，产出可执行 jar，不带 `repackage.skip`）、**产物目录**（直达 `启动模块\target`，不存在会提示先打包）。打包与启动互斥（同一时刻只跑一个任务），打包用「工具链四项」同一套 JDK/Maven/仓库/settings 配置。
+
 其它：
 - **端口随 profile 走**：切换 profile 下拉时，端口框实时按 `application-<profile>.yml` 重新解析（如 device-note：dev→8092 / test→8091 / deploy→8090；single-device-note：dev→7092 / test→7091 / deploy→7090）。检测日志里会打印每个 profile 的端口映射。
 - 端口框显示 `端口 8092 (dev)`；启动后以日志校正的实际端口为准（显示 `端口 xxxx (实际)`）。注意工具读的是**磁盘上的** yml —— IDEA 里改了没保存（Ctrl+S）是看不到的。
@@ -114,6 +120,8 @@ mvn -B -Pdev -pl "launcher" -Dspring-boot.run.profiles=dev spring-boot:run
 - 端口从 `vite.config.*` 的 `server.port` 读（本项目 4177）；如果 vite 因为端口被占自动顺延，工具会从 `Local: http://localhost:4178/` 这条日志抓出**真实端口**，「打开页面」和停止都用真实端口
 - 开关：**依赖未安装时自动安装**（缺 `node_modules` 先跑 install）、**启动前结束占用端口的进程**、**启动后打开浏览器**
 - 按钮：**▶ 启动**、**■ 停止**、**安装依赖**、**查看命令**、**打开目录**、**打开页面**
+
+第二行：**打包**（自动选 `package.json` 里名字为 `build` 的脚本，其次名字含 build 的；`<pm> run build`，Node.js 目录同样前置到 PATH）、**产物目录**（从 `vite.config.*` 的 `outDir` 推断产物文件夹并直达，支持 `(env || 'dist') + '-后缀'` 形态——本项目推出 `dist-0.0.1-cors`；不存在会提示先打包）。
 
 ---
 
@@ -150,6 +158,7 @@ python build.py 启动台                 # 只编译其中一个（按关键字
 python selftest.py                    # 工程探测自检（6 项，不启动任何服务）
 python check_nodechain.py             # 前端 Node.js 目录注入：pmExe 指向配置目录（2 项）
 python check_combo.py                 # 启动台：双端探测 / 界面状态 / 外部运行识别 / 进程链路 / 配置持久化（22 项）
+python check_pack.py                  # 打包功能：packageCmd / packageDir / outDir 推断 / 三处 UI 接线与防并发（19 项）
 python check_combo_run.py             # 启动台：真跑一次它拼出的后端启动命令（Tomcat 起得来 / 0 乱码 / 停止后端口释放）
 python e2e.py                         # 端到端：真起一次 vite，验证引号/UTF-8/ANSI/进程树清理
 python check_runstate.py              # 「已在运行」检测 + 停止外部进程（25 项断言，含真实端口探测）
@@ -185,6 +194,7 @@ python e2e.py --with-install          # 额外跑一遍后端 maven install（�
 | GUI 冒烟（两个 exe 起窗不崩） | 通过 |
 | 启动台 `check_combo.py`（双端探测 / 状态灯 / 外部服务识别且未误杀 / 进程链路 / 配置持久化） | 全部通过 |
 | 启动台 `check_combo_run.py`（真跑后端启动命令） | Tomcat started（随机端口）/ 204 行日志 0 乱码 / 停止后 8092 无残留、无 java 残留 |
+| 打包功能验证（check_pack.py，19 项） | 全部通过：multi `-pl -am package` / single `package`、`packageDir` 落启动模块 target、`outDir` 推出 `dist-0.0.1-cors`、三处打包 UI 接线 + 防并发守卫 + 三 exe GUI 冒烟 |
 
 ---
 
