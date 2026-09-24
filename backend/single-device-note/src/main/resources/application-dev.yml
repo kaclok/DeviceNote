@@ -67,6 +67,12 @@ logging:
     web: trace # 打印servlet相关的信息
     com.alibaba.druid.pool.DruidDataSource: false
     com.smlj.singledevice_note: trace  # 打印sql查询语句
+    # MyBatis 的 SQL/参数不走 org.apache.ibatis，而是走 mapper 接口(=XML namespace)的 logger，DEBUG 级输出：
+    #   ==>  Preparing: select ... from t_contract where ...
+    #   ==> Parameters: 1030016(String), false(Boolean)
+    #   <==      Total: 6
+    com.smlj.singledevice_note.logic.o.vo.table.dao: debug
+    com.smlj.singledevice_note.core.o.vo.table.dao: debug
 
 # 参考开源yudao项目
 # https://springdoc.org/#properties
