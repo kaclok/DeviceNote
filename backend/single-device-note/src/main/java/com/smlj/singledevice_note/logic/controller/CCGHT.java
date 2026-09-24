@@ -9,6 +9,7 @@ import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
 import com.smlj.singledevice_note.core.utils.PwdUtil;
+import com.smlj.singledevice_note.logic.o.vo.table.ContractTableProfile;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTContractTemplateDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCGHTPermDao;
@@ -1263,8 +1264,10 @@ public class CCGHT {
         }
         // 预警筛选要 date_rk + paycycle_dh/zb 三列齐全，不是每张表都有；没有就明确拒绝，
         // 而不是让 SQL 去引用一个不存在的列（那会以 500 收场，用户看到的是"系统坏了"）。
+        // 各表支持哪些口径（预警/本人档/编号唯一性）由画像统一回答，判据收拢在 ContractTableProfile
+        var profile = ContractTableProfile.of(cols);
         Integer warnDay = intOrNull(params.get("warn_day"));
-        if (warnDay != null && !supportsWarn(cols)) {
+        if (warnDay != null && !profile.warnSupported()) {
             return Result.fail(ResultCode.RC10101.getCode(), "当前合同模板不支持按预警天数筛选");
         }
         // 数据范围下推：null 不限 / 空列表=无可见部门 / 非空=仅这些部门。
@@ -1273,6 +1276,12 @@ public class CCGHT {
         var scopeDepts = resolveScopeDepts(curUser);
         // 1 本人档：只放行 sign_person 等于我姓名的合同。
         // curUser 是现查的实时账号行，改了姓名这里立刻跟上，不会拿登录时的旧姓名去比对。
+        // 表没有签订人列时 fail-closed：宁可这个模板查不了，也不能把"按签订人过滤"静默降级成
+        // "不过滤"—— 那在权限语境下等于越权（本人档看到所有人的合同）。
+        if (dataScopeOf(curUser) == DataScope.SELF && !profile.selfFilterSupported()) {
+            return Result.fail(ResultCode.RC10101.getCode(), String.format(
+                    "物理表 %s 缺少 %s 列，不支持「本人」档查看", tb, ContractTableProfile.SELF_FILTER_COL));
+        }
         var username = dataScopeOf(curUser) == DataScope.SELF ? curUser.getUsername() : null;
         PageHelper.startPage(intOrNull(params.get("pageNum"), 0), intOrNull(params.get("pageSize"), 0), true, true, true);
         // 部门过滤二选一，都只是 scopeDepts 的收窄：
@@ -1524,10 +1533,7 @@ public class CCGHT {
         return t.contains("char") || t.contains("text");
     }
 
-    /** 该表支不支持「预警天数」口径：需要挂账日期 + 两个付款周期三列齐全（目前只有标准采购合同表有） */
-    private boolean supportsWarn(Map<String, String> cols) {
-        return cols.containsKey("date_rk") && cols.containsKey("paycycle_dh") && cols.containsKey("paycycle_zb");
-    }
+
 
     // ================================================================
     // 值类型转换 —— 把请求里的字符串转成"该列的真实类型"
@@ -1733,33 +1739,13 @@ public class CCGHT {
         return v == null ? null : String.valueOf(v);
     }
 
-    private static Integer asInt(Object v) {
-        if (v instanceof Number n) {
-            return n.intValue();
-        }
-        if (v == null) {
-            return null;
-        }
-        try {
-            return Integer.valueOf(String.valueOf(v).trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
 
     /**
-     * 合同编号(id)是否必须唯一 —— 「新增」与「导入」共用这**一处**判据，避免两条写入链路各拦一半。
-     * 口径按**表**分档，不按调用方分：
-     *   · 带 payment_type 列（标准采购合同表）：只有「即时结算类(1)」要求唯一，周期结算类(2) 允许同号多次；
-     *   · 不带该列（如 smds_sc）：没有"周期结算"这个维度，编号一律唯一。
-     * ⚠️ 唯一性是**表内**口径（contractDao.existId 的 where 只查本表），不是跨表全局唯一。
-     * 无状态纯判据（static），运行时可被探针直接反射调用，不必先造一个 Spring bean。
+     * 合同编号(id)是否必须唯一 —— 判据本体在 {@link ContractTableProfile#idMustBeUnique}（画像收拢），
+     * 「新增」与「导入」两条写链路仍共用这一处入口；保留 static 签名以便运行时探针反射调用。
      */
     private static boolean idMustBeUnique(Map<String, String> cols, Map<String, Object> data) {
-        if (!cols.containsKey("payment_type")) {
-            return true;
-        }
-        return Integer.valueOf(1).equals(asInt(data == null ? null : data.get("payment_type")));
+        return ContractTableProfile.of(cols).idMustBeUnique(data);
     }
 
     /** 库里的 boolean 经不同驱动可能是 Boolean / "t" / 1，统一按"真"判定 */
