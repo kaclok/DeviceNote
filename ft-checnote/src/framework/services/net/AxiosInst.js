@@ -15,7 +15,6 @@ const {wsCache} = useLocalCache()
 
 // https://www.axios-http.cn/docs/instance
 // https://www.axios-http.cn/docs/config_defaults
-const springBootURL = import.meta.env.VITE_BASE_API;
 let baseURL = config.base_url;
 // const url = wsCache.get(ECacheType.RES_URL);
 // if (url) {

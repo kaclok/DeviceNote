@@ -13,8 +13,6 @@ import {axiosInst} from '@/framework/services/net/AxiosInst.js'
 import SparkMD5 from 'spark-md5'
 
 // ---- 配置 ----
-const BASE_URL = import.meta.env.VITE_BASE_API || ''
-
 const MiB = 1024 * 1024
 const DEFAULT_CHUNK_SIZE = 8 * MiB // 默认分块大小(字节)，须 >= 5MB(MinIO合并限制)
 
