@@ -58,7 +58,8 @@ function triggerAuthFailure(needLogout = false) {
 // ============ access token 无感刷新 ============
 // 解决并发刷新风暴：页面同时发出多个请求，AT一起过期，若各自刷新会触发N次refresh。
 // 方案：首个失败请求发起刷新，其余请求复用同一个refreshPromise，刷新成功后再各自重试。
-// (防死循环逻辑暂未加入，待理解刷新风暴后再补)
+// 防死循环：重试的请求会被打上 __retried 标记(见响应拦截器)。若重试后仍返回AT过期，
+//          说明刷新拿到的AT本身也过不了校验，此时不再刷新，直接按鉴权失败处理。
 let isRefreshing = false;
 let refreshPromise = null;
 
@@ -176,8 +177,18 @@ axiosInst.interceptors.response.use(async (success) => {
         return success;
     }
 
-    // AT过期：刷新AT后重试原请求(含并发刷新风暴防护与防死循环)
+    // AT过期：刷新AT后重试原请求(含并发刷新风暴防护)
     if (code === __AT_EXPIRE_CODE__) {
+        // 防死循环：该请求已经刷新过一次AT，重试后仍被判过期，
+        // 说明刷出来的AT本身也过不了校验(时钟偏移/后端返回了旧AT等)。
+        // 此时再刷只会无限循环，直接按鉴权失败处理。
+        // __retried 是自定义字段，axios 会原样保留并随重试请求带回。
+        if (success.config.__retried) {
+            triggerAuthFailure(true);
+            return Promise.reject(success);
+        }
+        // 标记"已重试过"，再交给 handleATExpired 去刷新并重试
+        success.config.__retried = true;
         return handleATExpired(success);
     }
 
