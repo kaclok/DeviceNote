@@ -30,7 +30,7 @@ export const backends = {
         api: "/api",
         url: 'http://10.8.13.66:7090'
     }, cghtz: {
-        api: "/api",
+        api: "/api-cghtz",
         url: 'http://10.8.13.66:7090'
     }, carop: {
         api: "/api",
