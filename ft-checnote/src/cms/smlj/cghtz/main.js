@@ -28,6 +28,16 @@ changeAuthFailureHandler((needLogout) => {
     }
 });
 
+// 上面解决的是"用户刷新时"。还有一种情况： 用户一直停在旧页面上没刷新 ，然后他点了某个菜单 → 旧页面里的旧 JS 去要旧 chunk → 还是没有。
+// 这种用户手动刷新一下就好了。如果不想让他自己刷，加个自动刷新兜底（每个入口的 main.js 加一次即可
+// 旧的 lazy chunk 加载失败时，自动刷新一次拿新版本
+window.addEventListener('vite:preloadError', () => {
+    if (sessionStorage.getItem('__reloaded__')) return  // 防止死循环
+    sessionStorage.setItem('__reloaded__', '1')
+    // 页面刷新
+    window.location.reload()
+})
+
 // 创建实例
 const app = createApp(App)
 
