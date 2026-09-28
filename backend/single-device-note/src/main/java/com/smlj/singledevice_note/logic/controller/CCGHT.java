@@ -1105,38 +1105,26 @@ public class CCGHT {
     }
 
     /**
-     * 台账页「只选了模版、没点具体部门」时的部门过滤集：可见范围内配置了该模版的全部部门。
+     * 台账「点谁看谁」的部门过滤集：**只匹配该部门本身**（dept_code 精确相等，不展开子树），
+     * 再与可见范围求交。
      * <p>
-     * 与 deptFilterOf 同族：都只回答"范围收到哪一批部门"，且都建立在 resolveScopeDepts 之上 ——
-     * 只会收窄，不会放大。判据走 holderGroups，与 /template/list 下发给组织树的 dept_codes
-     * 是同一份计算，所以「树上能选的部门」与「列表里查得到的合同」永远同一批：不会出现"树上有这个
-     * 部门、列表里却没有它的合同"，也不会冒出树上根本没有的部门。
+     * 与 deptFilterOf 的分工：账号列表的部门筛选是组织树节点语义（点公司节点要看到全公司，必须
+     * 展开子树）；台账的部门是**视角入口**——右侧标题就是该部门自己的名字，混进下级部门的行会让
+     * "点谁看谁"变成"点谁看一片"，与标题对不上，所以刻意不展开。
      * <p>
-     * 为什么"没选部门"时反而要收窄，而不是放开到整个可见范围：台账是**按模版分表**看的
-     * （t_contract / t_contract_smds_sc 各一张物理表），未选部门时用户的心理预期是"这套模版的全部
-     * 合同"；而"我可见但没配这套模版"的部门在这张表里的行属于历史/脏数据，混进来只会让人怀疑筛选坏了。
+     * 范围外部门返回空集而不是报错：树上只渲染可见部门，正常交互点不到范围外；
+     * 手改 URL 的请求拿到空列表即可 —— 与 resolveScopeDepts / deptFilterOf 的 fail-closed 同一口径。
      *
-     * @param tplId      模版 id；null（老前端没带这个参数）= 不收窄，原样透传 scopeDepts，与改之前一致
-     * @param tb         本次要查的物理表名（已过 registeredTable）；与 tplId 对不上就退回"不收窄"
+     * @param deptCode   台账视角部门（contract/list 已校验非空）
      * @param scopeDepts 可见部门白名单三态：null 不限 / 空 = 无可见 / 非空 = 仅这些
-     * @return 三态同 deptFilterOf：null = 不限制 / 空 = 查不到（XML 走 1=0）/ 非空 = in 这些部门
+     * @return 非空 = in 这些部门（恒为 [deptCode]）/ 空 = 查不到（XML 走恒假兜底）。
+     *         本方法不会返回 null —— "不限制"在这里没有意义，部门已经指定了。
      */
-    private List<String> tplHolderFilter(Integer tplId, String tb, List<String> scopeDepts) {
-        if (tplId == null) {
-            return scopeDepts;
+    private List<String> selfDeptFilter(String deptCode, List<String> scopeDepts) {
+        if (scopeDepts != null && !scopeDepts.contains(deptCode)) {
+            return List.of();   // 范围外：空集 fail-closed，不是越权
         }
-        // tpl_id 来自客户端，只当成"想收窄到哪套模版"的意向，必须与 tb 指向同一张物理表。
-        // 对不上（或模版已被删）就退回"不收窄"（= 只按可见范围）：宁可多显示几行，也不能拿**另一套
-        // 模版**的部门去筛这张表 —— 那会安静地筛出一批"看着对、其实错"的行，比多几行难查得多。
-        // 同一个"表名一次核对"的判据 /contract/import 也有（它更严：以模版的 tb_name 为准，不看客户端传的 tb）。
-        TCGHTContractTemplate tpl = tplDao.query(tplId);
-        if (tpl == null || !StringUtils.hasText(tb) || !tb.equals(tpl.getTb_name())) {
-            return scopeDepts;
-        }
-        List<String> holders = holderGroups(scopeDepts).get(tplId);
-        // 该模版在可见范围内一个持有部门都没有：返回**空集**（fail-closed）而不是 null（= 不限制），
-        // 否则"没人配这套模版"会退化成"撒开看全范围"，正是收窄想避免的那件事。
-        return holders == null ? new ArrayList<>() : holders;
+        return List.of(deptCode);
     }
 
     /**
@@ -1210,7 +1198,8 @@ public class CCGHT {
     // 合同台账 CRUD —— 按「部门 → 模版 → 物理表」路由
     // ================================================================
     // 一个部门的合同落在哪张物理表，由该部门绑定的合同模版决定（t_contract_template.tb_name），
-    // 所以台账不再固定读写 cght.t_contract：contract/list 只带 tpl_id，后端查模版反查物理表后路由过去，
+    // 所以台账不再固定读写 cght.t_contract：contract/list 只带 tpl_id + dept_code（点中的部门
+    // 自己绑定的那套模版），后端查模版反查物理表后路由过去，
     // 列随表走 —— 前端按 gd.json 里该表的列与筛选配置渲染，后端不预设任何一张表的列。
     //
     // 筛选条件用 f_ 前缀 + 列名 + _ + 比较符 的查询参数下推（如 f_id_like=SMLJ、f_date_sign_gte=2025-01-01）：
@@ -1270,9 +1259,14 @@ public class CCGHT {
         if (warnDay != null && !profile.warnSupported()) {
             return Result.fail(ResultCode.RC10101.getCode(), "当前合同模板不支持按预警天数筛选");
         }
+        // 台账视角部门：必填。新口径的台账没有"不点部门"的合法视角（前端点中部门才发请求）。
+        String deptCode = params.get("dept_code");
+        if (!StringUtils.hasText(deptCode)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "部门(dept_code)不能为空");
+        }
         // 数据范围下推：null 不限 / 空列表=无可见部门 / 非空=仅这些部门。
-        // 选中部门的 dept_code 先按组织树展开成子树，再与可见范围求交（deptFilterOf，与账号列表同一口径）：
-        // 受限用户选了范围外的部门，交集为空 → 结果为空，而不是越权。
+        // 台账口径是「点谁看谁」：dept_code 精确匹配该部门本身（不展开子树），再与可见范围求交
+        // （selfDeptFilter）。受限用户选了范围外的部门 → 空集 → 结果为空，而不是越权。
         var scopeDepts = resolveScopeDepts(curUser);
         // 1 本人档：只放行 sign_person 等于我姓名的合同。
         // curUser 是现查的实时账号行，改了姓名这里立刻跟上，不会拿登录时的旧姓名去比对。
@@ -1284,14 +1278,9 @@ public class CCGHT {
         }
         var username = dataScopeOf(curUser) == DataScope.SELF ? curUser.getUsername() : null;
         PageHelper.startPage(intOrNull(params.get("pageNum"), 0), intOrNull(params.get("pageSize"), 0), true, true, true);
-        // 部门过滤二选一，都只是 scopeDepts 的收窄：
-        //   选了具体部门 → 该部门子树 ∩ 可见范围（deptFilterOf）
-        //   只选了模版   → 配置了该模版的全部部门 ∩ 可见范围（tplHolderFilter）
-        // 于是"未选部门"看到的是"这套模版下我可见的全部合同"，而不是整个可见范围
-        // （后者会把没配这套模版的部门的行也带出来，与左侧组织树对不上）。
-        List<String> deptFilter = StringUtils.hasText(params.get("dept_code"))
-                ? deptFilterOf(params.get("dept_code"), scopeDepts)
-                : tplHolderFilter(tplId, tb, scopeDepts);
+        // 部门过滤：只看该部门本身（不含下级）∩ 可见范围（selfDeptFilter）。
+        // 点中的部门没落在可见范围 → 空集 fail-closed，与 resolveScopeDepts 同一口径。
+        List<String> deptFilter = selfDeptFilter(deptCode, scopeDepts);
         var ls = contractDao.queryRows(tb, conds, deptFilter, username, warnDay);
         return Result.success(new PageSerializable<>(ls));
     }

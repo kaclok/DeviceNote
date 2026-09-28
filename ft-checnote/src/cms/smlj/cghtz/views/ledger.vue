@@ -25,12 +25,15 @@ import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.t
 /**
  * 合同台账
  * ----------------
- * 页面结构 = 左「合同模板 + 组织架构」+ 右「该范围内的合同」。
+ * 页面结构 = 左「组织架构树」+ 右「该部门的合同」。
  *
- * 两个**互相独立**的选择，缺一不显示右侧：
- *   合同模板 —— 决定"看哪张表"。合同落在哪张物理表由模板决定（t_contract_template.tb_name），
- *              不同表连列都不一样；模板的 filters / columns / formGroups 直接决定筛选栏、表格列、
- *              以及新增/编辑页的表单（编辑页拿到的就是当前选中的 tb）。
+ * 唯一的入口是部门：点中某部门 → 该部门**自己绑定**的那套合同模板决定"看哪张表"
+ * （绑定表 t_dept_contract_template 以 dept_code 为主键 ⇒ 一个部门至多一套模板），
+ * 列表只查**该部门本身**（dept_code 精确匹配，不含下级）。右侧因此只有四种状态：
+ *   未选部门 → 引导语；部门没绑模板 → 「无合同模板」（可跳配置页）；
+ *   绑了但字段未登记 → 配置缺失说明；正常 → 列表（0 行 = 「无合同数据」空态）。
+ *
+ * 三件配置都在 data/gd.json 的 contractTables[<tb_name>] 下，前端不写死任何一张表的列：以及新增/编辑页的表单（编辑页拿到的就是当前选中的 tb）。
  *   归属部门 —— 决定"看谁的数据"。选中节点含其**所有下级**（后端 deptFilterOf 展开子树），
  *              再与账号的数据范围求交。
  * 于是"选公司 + 选模板"看到的就是：该节点及其下级、且合同属于这张表的那批数据。
@@ -86,35 +89,10 @@ function deptShortName(code) {
     return deptShort(deptPathMap.value, code)
 }
 
-/* ---------------- 左侧（1）合同模板下拉：台账的第一道选择 ----------------
- * 模板决定了"看哪张表"，所以它排在部门之前 —— 先定表，再定数据范围。
- * 模板列表来自 /cghtz/template/list（SysX 里带缓存，台账/导入/模板页共用一份）。 */
+/* ---------------- 模板清单（树徽标与「部门 → 模板」派生的数据源） ----------------
+ * 模板列表来自 /cghtz/template/list（SysX 里带缓存，台账/导入/模板页共用一份）。
+ * 台账不再手选模板 —— 点中的部门自己绑定的那套模板就是"看哪张表"（见 curDeptTpl）。 */
 const tplList = ref([])
-/** el-select 用字符串值（数字 id 与 '' 混用时清空会变成 null/undefined，统一成字符串更好判） */
-const tplKey = ref('')
-const tplById = computed(() => {
-    const m = {}
-    tplList.value.forEach(t => {
-        m[String(t.id)] = t
-    })
-    return m
-})
-/** 当前选中的模板（null = 还没选 → 右侧不显示） */
-const curTpl = computed(() => tplById.value[String(tplKey.value || '')] || null)
-/** 当前模板对应的物理表名 —— 筛选/列/编辑页全部由它派生 */
-const tb = computed(() => (curTpl.value && curTpl.value.tb_name) || '')
-
-function switchTpl() {
-    // 模板换了 = 表换了 = 列与筛选条件全换：状态归零后按新表重拉。
-    // 同时"持有该模板的部门"也可能变了 —— 选中的部门若已不在其中，先清掉：
-    // 否则会拿着一个树上已经看不见的部门去查，查出来的还是另一张表的数据，用户无从解释。
-    const codes = treeCodes.value
-    if (deptCode.value && codes !== null && !codes.has(deptCode.value)) {
-        clearDept()
-    }
-    resetFilterState()
-    applyFilters()
-}
 
 /* ---------------- 左侧（2）常驻组织架构树 ---------------- */
 const treeRef = ref()
@@ -131,43 +109,23 @@ const visibleDeptCodes = computed(() => {
 })
 
 /**
- * 每个模版「持有者」的部门编码集合（来自 /cghtz/template/list 的 dept_codes）。
- * 后端已按本账号数据范围收窄；"持有"= 部门自己配了这套模板（部门之间不继承模板）——
- * 与导入时的绑定校验同一口径，所以"树上能选的"与"导入能过的"永远一致。
- *
- * ⚠️ 开关为什么是 holder_count、而不是"dept_codes 是不是数组"：
- * 全局 spring.jackson.default-property-inclusion=NON_EMPTY 会把**空数组整条丢掉**，
- * 于是"空集"（可见范围内没人用这套模版）与"字段没下发"在下发数据里长得一模一样，
- * 用 Array.isArray 判会把"空集"误读成"不收窄"→ 组织树显示全量部门（这正是曾经的 bug）。
- * holder_count 是数字，NON_EMPTY 不会吞 0，所以以它为权威：
- *   - 拿得到数字 → 这份 dept_codes 可信；缺失即空集（fail-closed，树上给"没有部门用该模版"）
- *   - 拿不到数字（后端尚未重启的老接口）→ 先按「dept_codes 在不在」兜一次，再退回「不收窄」
- *     （兜底只为不让前后端不同步时比改之前更差，正确性仍以 holder_count 为准）
- */
-const holderCodes = computed(() => {
-    const t = curTpl.value
-    if (!t) return null
-    // 新接口：holder_count 是权威 —— 空数组会被全局 NON_EMPTY 整条吞掉，
-    // 只有这个数字能区分「空集」与「字段没下发」。
-    if (typeof t.holder_count === 'number') {
-        return new Set(Array.isArray(t.dept_codes) ? t.dept_codes : [])
-    }
-    // 老接口兜底（后端尚未重启时）：只能按「数组在不在」判断，代价是空集被误读成「不收窄」。
-    return Array.isArray(t.dept_codes) ? new Set(t.dept_codes) : null
-})
-
-/**
  * 部门 → 其持有的模板名 / 模板对象（来自 /template/list 各模板的 dept_codes 全集）。
  *
- * 与 holderCodes 同源（DeptX 里同一个 tplDeptPairs）—— 于是"挂得出标签的部门点下去必然补得出模板"
+ * 与选中部门的模板派生（curDeptTpl）同源（DeptX 里同一个 tplDeptPairs）—— 点中的部门必然查得出自己的绑定模板。
  * 这条体验保证是**结构性**的（两图键集逐项相等），不靠约定。未配模板的部门不挂标签、树面保持干净。
  *
  * ⚠️ 这里取的是**全部**模板的绑定，而不是当前模板的 dept_codes：
  *    · 标签要说的是"这个部门用的是哪套模板"，与"现在看的是哪张表"是两件事；
- *    · 没选模板时树上是全部可见部门，正需要这层信息决定点哪个（点了就自动补模板，见 fillTplOfDept）。
+ *    · 树上是全部可见部门：正好用这层信息区分「已配模板」与「未配模板」的部门。
  */
 const tplBadgeMap = computed(() => deptTplBadges(tplList.value))
 const deptTpls = computed(() => deptTplMap(tplList.value))
+
+/** 当前选中部门绑定的模板（null = 未选部门 / 该部门没配模板 → 右侧不显示数据）。
+ *  tpl_id / tb / 列 / 筛选全部由它派生 —— 绑定表以 dept_code 为主键，一个部门至多一套模板。 */
+const curDeptTpl = computed(() => deptTpls.value[String(deptCode.value || '')] || null)
+/** 当前模板对应的物理表名 —— 筛选/列/编辑页全部由它派生 */
+const tb = computed(() => (curDeptTpl.value && curDeptTpl.value.tb_name) || '')
 
 /** 该部门持有的模板名；'' = 未配置（不挂徽标） */
 function tplBadge(code) {
@@ -175,39 +133,12 @@ function tplBadge(code) {
 }
 
 /**
- * 树的候选集（三态，与 visibleDeptCodes 同约定）：
- *   null = 不限制（没选模版，或数据范围不限且模版未收窄） / [] = 一个都没有（fail-closed）
- * 选了模版 → 持有集 ∩ 数据范围；没选模版 → 仅按数据范围（此时右侧本来就写着"请先选模版"）。
- */
-const treeCodes = computed(() => {
-    const vis = visibleDeptCodes.value
-    const hold = holderCodes.value
-    if (hold === null) return vis
-    const out = new Set()
-    hold.forEach(c => {
-        if (vis === null || vis.has(c)) out.add(c)
-    })
-    return out
-})
-
-/**
- * 列表空态里那句口径说明：选了部门是"该部门及其下级"，没选部门是"这套模板的全部持有部门"。
- * 这两句必须跟着 deptCode 走 —— 写死一句的话，未选部门时用户会以为数据被谁筛掉了。
- */
-const emptyScopeText = computed(() => deptCode.value
-    ? '左侧所选部门及其所有下级'
-    : '使用这套模板的全部部门')
-
-/** 选了模版、但可见范围内没有一个部门配了它 —— 树会空，给个明确说法而不是空白 */
-const noHolderDept = computed(() => !!curTpl.value && treeCodes.value !== null && treeCodes.value.size === 0)
-
-/**
- * 树数据：全量字典按候选集剪枝 + 补回祖先链（否则父节点缺失，每个部门都会变成根节点）。
+ * 树数据：全量字典按可见范围剪枝（不再有模板持有集收窄）+ 补回祖先链（否则父节点缺失，每个部门都会变成根节点）。
  * 祖先节点由 buildScopedDeptTree 标成 selectable=false —— 只作层级路径，不可选。
  * 默认全展开（模板上的 default-expand-all），超出栏高时由 .tree-box 滚动。
  * 搜索无需额外处理 —— Element Plus 的 tree-store.filter 会自顶向下遍历并对命中项的祖先路径自动展开。
  */
-const treeData = computed(() => buildScopedDeptTree(allDeptOptions.value, treeCodes.value))
+const treeData = computed(() => buildScopedDeptTree(allDeptOptions.value, visibleDeptCodes.value))
 
 /** 树搜索：部门名 / 公司·部门全路径 / 部门编码 任一命中 */
 function filterNode(value, data) {
@@ -223,36 +154,15 @@ function nodeTitle(data) {
 }
 
 /**
- * 点树节点即切换台账视角（看点的是哪个部门）；祖先节点只作层级路径，不可选。
- *
- * 顺带把"模板 ↔ 部门"这道题解掉：还没选模板时，用点中的部门把它补进下拉框 ——
- * 用户看到某个部门扛着某套模板，点它就是想看那套模板的合同，不必再回上面自己挑一遍。
- * 放在设 deptCode 之前或之后都一样（两个 watch 都是 pre-flush，跑的时候两个值都已就位）。
+ * 点树节点即切换台账视角；祖先节点只作层级路径，不可选。
+ * 右侧"看哪张表"由该部门绑定的模板决定（见 curDeptTpl），这里只记部门。
  */
 function onTreeClick(data) {
     if (!data.selectable) {
         ElMessage.warning('该部门不在你的数据范围内，仅作为层级路径展示')
         return
     }
-    fillTplOfDept(data.dept_code)
     deptCode.value = data.dept_code
-}
-
-/**
- * 未选模板时，用部门持有的模板把下拉框补上。
- *
- * 三条退让（都是"什么都不做"，绝不猜）：
- *   · 已经选过模板 → 不覆盖。换模板会连带换表、清掉全部筛选条件，不该被一次点击悄悄改掉；
- *   · 该部门没配模板 或 模板清单不可信（DeptX 返回空对象）→ 不补。此时树上的候选集本就是
- *     "全部可见部门"，点它只是"看这个部门"，右侧那句「请先在左侧选择合同模板」就是提示；
- *   · 模板对象缺 id → 不补（不拿 undefined 去污染 tplKey，否则会落进"选了但查不到"的怪态）。
- */
-function fillTplOfDept(code) {
-    if (tplKey.value) return
-    const t = deptTpls.value[String(code || '')]
-    if (t && t.id !== undefined && t.id !== null) {
-        tplKey.value = String(t.id)
-    }
 }
 
 /** 清空选择：回到"未选部门"视角（右侧改为展示该模板下全部持有部门的合同） */
@@ -277,7 +187,7 @@ function goDeptTpl() {
  * 在「部门合同模板」页拖拽排序保存）；库里没配时回落登记顺序（= 库表物理顺序，不承担展示取舍）。
  * 归属部门列不在 col_order 里（Excel 不带 system 列）⇒ 由 applyOrder 顺延在末尾，不会被丢掉。
  */
-const cols = computed(() => (tb.value ? ledgerColumnsOf(tb.value, curTpl.value?.col_order) : []))
+const cols = computed(() => (tb.value ? ledgerColumnsOf(tb.value, curDeptTpl.value?.col_order) : []))
 /** 该模板的筛选条件（每个模板自己的那一份，写在 gd.json 的 filters 里） */
 const filterDefs = computed(() => (tb.value ? filtersOf(tb.value) : []))
 /**
@@ -368,7 +278,7 @@ const fwarn = ref({})
 /** 按当前模板的筛选定义重建状态：换模板/换表后必须重建，否则会残留上一张表的字段 */
 function resetFilterState() {
     const st = {}, rg = {}, wn = {}
-    filtersOf(tb.value).forEach(f => {
+    filterDefs.value.forEach(f => {
         if (f.type === 'range') rg[f.field] = {begin: '', end: ''}
         else if (f.type === 'warn') wn[f.field] = false
         else st[f.field] = f.type === 'select' ? null : ''
@@ -392,17 +302,14 @@ function filterOptionsOf(f) {
  * 筛选状态 → 后端 contract/list 的查询参数。
  * 约定：f_ + 列名 + _ + 比较符（后端 CCGHT.FILTER_OPS 只认 like/eq/gte/lte/neq），
  * 区间筛成 gte + lte 两条；空值一律不发 —— 后端把"没这个参数"当作"不筛这一项"。
- * tpl_id 是列表的唯一路由键：后端按它反查物理表（t_contract_template.tb_name），
- * 也算得出"这套模板实际生效的部门"（见 tplHolderFilter）——
- * 未选部门时列表的口径就是这批部门，与左侧组织树显示的部门同源，两边永远对得上。
- * dept_code 只在**选了具体部门**时才发：后端 deptFilterOf 把它展开成子树再与可见范围求交，
- * 所以点父部门看到的是含下级的合同，且越权部门取不到数据。未选部门时**不发**这个参数
- * （发空串会被当成"就筛这个部门"），后端据此回退到持有部门集。
+ * tpl_id = 当前部门绑定的模板 id（后端按它反查物理表 t_contract_template.tb_name）；
+ * dept_code = 左侧点中的部门，**必传**且只匹配该部门本身（不含下级）——
+ * 后端 selfDeptFilter 与可见范围求交，范围外部门查不到任何行（fail-closed）。
  */
 function buildParams() {
     const p = {}
-    if (tplKey.value) p.tpl_id = tplKey.value
-    if (deptCode.value) p.dept_code = deptCode.value
+    p.tpl_id = curDeptTpl.value?.id
+    p.dept_code = deptCode.value
     filterDefs.value.forEach(f => {
         if (f.type === 'warn') {
             if (fwarn.value[f.field]) p.warn_day = f.value ?? 10
@@ -537,7 +444,7 @@ function doExport() {
         onSuccess: (allList) => {
             // 导出列按**当前模板**取（Excel 视角，不含 system 列）、顺序用该模板已保存的列顺序覆盖值 ——
             // 与「下载导入模板」共用同一份配置，所以"预览 = 下载 = 导出"三处永远一致
-            exportContractExcel(allList, `${curTpl.value?.name || '合同台账'}_导出`, tb.value, curTpl.value?.col_order)
+            exportContractExcel(allList, `${curDeptTpl.value?.name || '合同台账'}_导出`, tb.value, curDeptTpl.value?.col_order)
             ElMessage.success(`已导出 ${allList.length} 条合同`)
         },
     })
@@ -621,35 +528,27 @@ onDeactivated(() => {
     AC_dept = new AbortController()
 })
 
-/** 模板变更 → 重建筛选状态并重载列表（新增/编辑页随后自动跟着这套配置走） */
-watch(tplKey, () => {
-    switchTpl()
-})
-
-/**
- * 部门变更即重载列表。清空部门也要重拉 —— 现在"未选部门"是一个合法视角
- * （= 该模板下我可见的全部部门），不是"没东西可看"。
- */
-watch(deptCode, () => {
+/** 视角重建（部门或其绑定模板变化共用）：清列表/分页与筛选状态，就绪即按新口径重拉 */
+function resetView() {
     AC_list.abort()
     AC_list = new AbortController()
     list.value = []
     total.value = 0
     page.value = 1
+    resetFilterState()
     if (tableReady.value) {
         loadList()
     }
-}, {immediate: true})
+}
+
+/** 部门变更 = 台账视角切换；没绑模板的部门不发请求 —— 右侧整块切到「无合同模板」说明 */
+watch(deptCode, resetView, {immediate: true})
 
 /**
- * 选中部门掉出树（换模版 → 该部门不再持有这套模版）时同步清空。
- * 与 switchTpl 里那次检查是同一件事的两个触发口：那次管"换模版"，这次管"数据范围/持有集本身变了"。
- * 三态里 null = 不限制，此时不清（没有"掉出去"这回事）。
+ * 部门绑定的模板变化（清单首次到达 / 部门被换绑）= 换表：列与筛选全换，重建后按新表重拉。
+ * 与 watch(deptCode) 在"点新部门且换模板"时会有一次重叠触发 —— loadList 开头 abort 上一次，幂等。
  */
-watch(treeCodes, codes => {
-    if (!deptCode.value || codes === null) return
-    if (!codes.has(deptCode.value)) clearDept()
-})
+watch(() => curDeptTpl.value?.id ?? '', resetView)
 
 /** 合同模板列表：SysX 里带缓存，登录后已预加载过的直接命中 */
 function loadTpls() {
@@ -657,7 +556,6 @@ function loadTpls() {
     }, (r, data) => {
         if (!r) return
         tplList.value = data.data || []
-        applyQueryTpl()
     })
 }
 
@@ -669,17 +567,6 @@ function loadDepts() {
         allDeptOptions.value = data.data || []
         applyQueryDept()
     })
-}
-
-/**
- * URL 里带过来的预选模板（编辑页保存后回跳时带的 ?tb=xxx）。
- * 按物理表名匹配而不是 id：URL 里带表名更可读，也不会因为模板被重建而指错。
- */
-function applyQueryTpl() {
-    const want = String(route.query.tb || '')
-    if (!want || want === tb.value) return
-    const hit = tplList.value.find(t => t.tb_name === want)
-    if (hit) tplKey.value = String(hit.id)
 }
 
 /**
@@ -700,16 +587,9 @@ function applyQueryDept() {
 <template>
     <div class="ledger-page">
         <div class="ledger-body">
-            <!-- 左侧：先选合同模板（决定看哪张表 + 默认列出哪些部门的合同），再按需点具体部门收窄 -->
+            <!-- 左侧：组织架构树。点中哪个部门，右侧就按「该部门绑定的模板 + 该部门本身」展示 -->
             <el-card shadow="never" class="dept-aside">
                 <div class="aside-head">
-                    <span class="aside-title">合同模板</span>
-                </div>
-                <el-select v-model="tplKey" placeholder="请选择合同模板" clearable size="small" class="aside-tpl">
-                    <el-option v-for="t in tplList" :key="String(t.id)" :label="t.name" :value="String(t.id)"/>
-                </el-select>
-
-                <div class="aside-head with-gap">
                     <span class="aside-title">归属部门</span>
                     <span v-if="deptCode" class="aside-clear" @click="clearDept">清空</span>
                 </div>
@@ -717,9 +597,7 @@ function applyQueryDept() {
                     <template #prefix><span style="color:#94a3b8">🔍</span></template>
                 </el-input>
                 <div class="tree-box">
-                    <!-- 选了模版后只展示"持有该模版"的部门：别的部门的合同本来就不在这张表里 -->
                     <el-tree
-                        v-if="!noHolderDept"
                         ref="treeRef"
                         :data="treeData"
                         node-key="dept_code"
@@ -741,13 +619,6 @@ function applyQueryDept() {
                             </span>
                         </template>
                     </el-tree>
-                    <div v-else class="tree-none">
-                        <div class="tn-title">你可见的部门里，没有配置「{{ curTpl.name }}」这套模板的</div>
-                        <el-button v-if="canAssign" link type="primary" size="small" @click="goDeptTpl">
-                            前往「部门合同模板」配置 →
-                        </el-button>
-                        <div v-else class="tn-sub">请联系管理员为该部门配置模板</div>
-                    </div>
                 </div>
                 <div class="aside-foot">
                     <div class="picked-line">
@@ -763,7 +634,7 @@ function applyQueryDept() {
                         </Transition>
                         <span class="picked-label">已选：</span>
                         <b v-if="deptCode" :title="deptPath(deptCode)"><span v-for="(seg, i) in deptPathSegments" :key="i" class="picked-seg">{{ seg }}<i v-if="i < deptPathSegments.length - 1" class="picked-slash">/</i></span></b>
-                        <span v-else class="picked-empty">{{ curTpl ? '未选择（显示全部部门）' : '未选择' }}</span>
+                        <span v-else class="picked-empty">未选择</span>
                     </div>
                     <div v-if="scopeLimited" class="scope-line"
                          title="你的账号只能查看数据范围内的合同。需要更大范围请联系管理员调整数据范围。">
@@ -772,13 +643,27 @@ function applyQueryDept() {
                 </div>
             </el-card>
 
-            <!-- 右侧：选定模板后即出现（未选部门 = 该模板全部持有部门）。每种"没内容可看"的状态各有明确说法，不给空白页 -->
+            <!-- 右侧：未选部门引导 → 无模板说明 → 字段未登记 → 列表。每种"没内容可看"的状态各有明确说法，不给空白页 -->
             <div class="main-area">
-                <el-card v-if="!curTpl" shadow="never" class="empty-card">
+                <!-- 未选部门：台账的入口是左侧组织树 -->
+                <el-card v-if="!deptCode" shadow="never" class="empty-card">
+                    <div class="empty-state">
+                        <div class="empty-icon">📂</div>
+                        <div class="empty-title">请点击左侧部门查看合同</div>
+                        <div class="empty-desc">台账按部门查看：点中某个部门，右侧展示该部门（不含下级）绑定模板下的合同数据。</div>
+                    </div>
+                </el-card>
+
+                <!-- 部门没绑模板：无法定表，明确说明并给出口（有无配置权限决定给不给入口） -->
+                <el-card v-else-if="!curDeptTpl" shadow="never" class="empty-card">
                     <div class="empty-state">
                         <div class="empty-icon">🧾</div>
-                        <div class="empty-title">请先在左侧选择合同模板</div>
-                        <div class="empty-desc">合同按模板分表存放：选定模板后，筛选条件、列表列、以及新增/编辑表单都按它的配置展示。</div>
+                        <div class="empty-title">{{ deptPath(deptCode) }} 未配置合同模板</div>
+                        <div class="empty-desc">合同按模板分表存放：该部门还没有绑定模板，无法查看或录入合同。</div>
+                        <el-button v-if="canAssign" link type="primary" size="small" @click="goDeptTpl">
+                            前往「部门合同模板」配置 →
+                        </el-button>
+                        <div v-else class="empty-desc">请联系管理员为该部门配置模板</div>
                     </div>
                 </el-card>
 
@@ -786,7 +671,7 @@ function applyQueryDept() {
                 <el-card v-else-if="!tableReady" shadow="never" class="empty-card">
                     <div class="empty-state">
                         <div class="empty-icon">🧩</div>
-                        <div class="empty-title">模板「{{ curTpl.name }}」的字段配置尚未登记</div>
+                        <div class="empty-title">模板「{{ curDeptTpl.name }}」的字段配置尚未登记</div>
                         <div class="empty-desc">该模板指向数据表 {{ tb }}，但前端配置里没有它的字段清单，无法渲染列表与筛选项。请联系管理员补齐配置。</div>
                     </div>
                 </el-card>
@@ -897,9 +782,9 @@ function applyQueryDept() {
 
 <template #empty>
                                 <div class="table-empty">
-                                    <div class="te-title">该范围内没有「{{ curTpl.name }}」模板的合同</div>
+                                    <div class="te-title">该部门暂无合同数据</div>
                                     <div class="te-desc">
-                                        口径是「{{ emptyScopeText }}」∩「归属这套模板」。可换个部门，或放宽筛选条件再看看。
+                                        口径：仅 {{ deptPath(deptCode) }} 本部门（不含下级）。可放宽筛选条件，或通过「新增合同」「Excel 导入」补充数据。
                                     </div>
                                 </div>
                             </template>
@@ -1005,12 +890,6 @@ function applyQueryDept() {
             align-items: center;
             justify-content: space-between;
 
-            &.with-gap {
-                margin-top: 12px;
-                padding-top: 12px;
-                border-top: 1px dashed #e2e8f0;
-            }
-
             .aside-title {
                 font-size: 13px;
                 font-weight: 600;
@@ -1021,11 +900,6 @@ function applyQueryDept() {
                 color: #2563eb;
                 cursor: pointer;
             }
-        }
-
-        .aside-tpl {
-            margin-top: 8px;
-            width: 100%;
         }
 
         .aside-search {
@@ -1099,21 +973,6 @@ function applyQueryDept() {
                 cursor: help;
             }
 
-            /* 树里一个"持有该模版"的部门都没有时占位说明（此时 el-tree 不渲染） */
-            .tree-none {
-                padding: 14px 10px;
-                font-size: 12px;
-                line-height: 1.7;
-                color: #94a3b8;
-
-                .tn-title {
-                    color: #64748b;
-                }
-
-                .tn-sub {
-                    margin-top: 6px;
-                }
-            }
         }
 
         /* 选中态绿勾：圆形底 + 白色描边勾（enter/leave 两套 animation，"啪"的手感） */

@@ -297,12 +297,12 @@ function save() {
 
 /**
  * 回台账：keep-alive 下台账会带着离开前的全部状态复活，这里的 query 只是
- * "没有缓存可复活"时（如在编辑页刷新过浏览器）的兜底——模板 + 部门两个关键锚点。
+ * "没有缓存可复活"时（如在编辑页刷新过浏览器）的兜底——部门这一个锚点。
+ * 不带 tb：新台账的表与列由「部门绑定的模板」派生，部门到了模板自然就位。
  */
 function gotoLedger() {
     const dc = form.value.dept_code || String(route.query.dept_code || '')
     const query = {}
-    if (tb) query.tb = tb
     if (dc) query.dept_code = dc
     router.push({name: 'home_ledger', query})
 }
