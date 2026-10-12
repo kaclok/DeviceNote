@@ -1,0 +1,9 @@
+# 本地行情数据服务依赖（tool/stock-service）
+# 安装：.venv\Scripts\python.exe -m pip install -r requirements.txt
+levistock>=0.1.8
+fastapi>=0.110
+uvicorn[standard]>=0.29
+requests>=2.31
+zzshare>=0.4
+
+# Ashare 单文件库随仓库附带（lib/Ashare.py，指数分时线数据源），不走 pip

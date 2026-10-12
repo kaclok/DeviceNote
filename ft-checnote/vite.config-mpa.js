@@ -19,6 +19,7 @@ const mpaInput = {
     fileview: resolve(__dirname, './pages/smlj/fileview/index.html'),
     filechunk: resolve(__dirname, './pages/smlj/filechunk/index.html'),
     downloads: resolve(__dirname, './pages/downloads/index.html'),
+    trend: resolve(__dirname, './pages/stock/trend/index.html'),
 }
 
 // https://blog.csdn.net/usernotdefined/article/details/129897995

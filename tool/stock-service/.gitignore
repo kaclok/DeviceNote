@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+_probe.py
+
+# 启动器 exe 构建产物
+股票服务.exe

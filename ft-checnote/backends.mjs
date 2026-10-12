@@ -47,6 +47,10 @@ export const backends = {
     }, downloads: {
         api: "/api",
         url: 'http://10.8.13.66:7090'
+    }, trend: {
+        // 股票行情复盘：本地 Python 数据服务（tool/stock-service，端口 7300）
+        api: "/api-stock",
+        url: 'http://localhost:7300'
     },
 }
 // 未登记入口的兜底后端（绝大多数入口连它）
