@@ -32,4 +32,13 @@ public class TDeptContractTemplate implements Serializable {
 
     /** 绑定时间（最后一次设置的时间） */
     private Date bound_at;
+
+    /**
+     * 该部门在「当前绑定模版对应的物理表」里还有多少条**未作废**的合同。
+     * <p>
+     * ⚠️ 不是本表字段，由 CCGHT.deptTplList 现算后回填 —— 只用于让页面提前说清
+     * 「这个部门还有数据，解除绑定会被拒」，而不是等用户点完才报错。
+     * 只有 /deptTpl/list 的出参会带它；库里与 /deptTpl/effective 都不含此概念。
+     */
+    private Integer contract_count;
 }

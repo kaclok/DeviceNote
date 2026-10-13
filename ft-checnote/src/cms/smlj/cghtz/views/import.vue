@@ -1000,7 +1000,7 @@ function goLedger() {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font-size: 11px;
+            font-size: 9px;
             line-height: 16px;
             padding: 0 5px;
             border-radius: 8px;

@@ -15,11 +15,6 @@
         where id = #{id}
     </select>
 
-    <!-- 写入部门绑定前校验模版存在：让"模版不存在"返回可读提示，而不是把 FK 违例抛成 500 -->
-    <select id="exist" resultType="java.lang.Integer">
-        SELECT COUNT(*) FROM cght.t_contract_template WHERE id = #{id}
-    </select>
-
     <!--
       保存 Excel 列顺序（模板表头预览里拖拽后的结果）。
       col_order = null 即"清除覆盖、回到 gd.json 的登记顺序"，所以不用区分空串与 null。

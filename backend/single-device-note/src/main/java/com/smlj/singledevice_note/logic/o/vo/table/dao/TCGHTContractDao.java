@@ -62,6 +62,19 @@ public interface TCGHTContractDao {
     /** 编号是否已存在（未作废）。即时结算类合同的唯一性校验用（手录与导入同用这一个） */
     int existId(@Param("tb") String tb, @Param("id") String id);
 
+    /**
+     * 按物理表统计「这些部门各自还剩多少条未作废的合同」。
+     * <p>
+     * 一次查询覆盖一张表上的多个部门：/deptTpl/list 用它给每条绑定回填 contract_count，
+     * /deptTpl/delete 只用它查一个部门 —— **解绑的判据只有这一处**，不会两处漂移。
+     *
+     * @param tb        已由 CCGHT 用 t_contract_template.tb_name 核对过的规范表名
+     * @param deptCodes 待统计的部门；**调用方必须保证非空**（空集合会拼出非法的 in ()）
+     * @return [{dept_code, cnt}]，只含**有条数**的部门，没数据的部门不会出现在结果里
+     */
+    List<LinkedHashMap<String, Object>> countByDepts(@Param("tb") String tb,
+                                                     @Param("deptCodes") List<String> deptCodes);
+
     /** 新增：pairs = [{col, val}]，列名已核对；未提供的列走库默认值 */
     int insertRow(@Param("tb") String tb, @Param("pairs") List<Map<String, Object>> pairs);
 

@@ -25,11 +25,6 @@ public interface TCGHTContractTemplateDao {
     TCGHTContractTemplate query(@Param("id") Integer id);
 
     /**
-     * 模版是否存在（写入部门绑定时校验 tpl_id，避免 FK 报错变成 500）
-     */
-    Integer exist(@Param("id") Integer id);
-
-    /**
      * 保存模版下的 Excel 列顺序（逗号分隔字段名）。
      * <p>
      * 传 null = 清除覆盖、回到 gd.json 的登记顺序。字段名的合法性由调用方（CCGHT）先对着

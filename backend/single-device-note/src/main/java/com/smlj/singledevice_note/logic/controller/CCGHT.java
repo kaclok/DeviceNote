@@ -45,6 +45,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -676,6 +677,9 @@ public class CCGHT {
      * 只回传**当前操作者可见范围内**的部门绑定：范围受限的操作者连这些部门都看不到，
      * 回传全量等于把别的公司的模版配置暴露给他 —— 读同样不能越权。
      * 三态口径与合同/账号列表一致：scopeDepts == null（全集团档）才返回全量。
+     * <p>
+     * 每条绑定额外回填 contract_count（该部门在这套模版对应物理表里还有多少条未作废的合同）：
+     * 解绑会被它挡住，与其让用户点完「解除绑定」才吃一句拒绝，不如让页面一进来就能说清。
      */
     @RequirePermission("perm:assign")
     @Transactional
@@ -684,6 +688,7 @@ public class CCGHT {
         var ls = deptTplDao.queryAll();
         var scopeDepts = resolveScopeDepts(curUser);
         if (scopeDepts == null) {
+            fillContractCounts(ls);
             return Result.success(ls);
         }
         Set<String> visible = new HashSet<>(scopeDepts);
@@ -693,17 +698,20 @@ public class CCGHT {
                 out.add(b);
             }
         }
+        fillContractCounts(out);
         return Result.success(out);
     }
 
     /**
      * 设置某部门的合同模版（一个部门一条记录，重复设置即覆盖）。
      * <p>
-     * 三道闸缺一不可：
+     * 四道闸缺一不可：
      * (1) 权限点 perm:assign —— 「能不能做这件事」；
      * (2) minScope = DEPT —— 「本人」档的可见面只有自己，任何一个部门都比它大，不配调整部门配置；
      * (3) inScope 范围校验 —— 「能不能管这个部门」，只判部门存在是不够的
-     *     （deptExists 只回答"存在吗"，不回答"归你管吗"，两者必须分开）。
+     *     （deptExists 只回答"存在吗"，不回答"归你管吗"，两者必须分开）；
+     * (4) 占用闸（仅改绑时）—— 换到指向**另一张物理表**的模版、而旧表上还有未作废的合同就拒，
+     *     否则那些行会在台账里再也点不出来（与 deptTpl/delete 的解绑闸同源同判据）。
      */
     @RequirePermission(value = "perm:assign", minScope = DataScope.DEPT)
     @Transactional
@@ -720,13 +728,34 @@ public class CCGHT {
         if (!deptExists(dept_code)) {
             return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", dept_code));
         }
-        // 先判模版存在：否则 FK 违例会以 500 抛出去，用户看到的是一句无法理解的系统异常
-        if (tplDao.exist(tpl_id) <= 0) {
+        // 先判模版存在：否则 FK 违例会以 500 抛出去，用户看到的是一句无法理解的系统异常。
+        // 这一次查询顺带把模版对象留用 —— 下面判「换到哪张表」还要它的 tb_name / name。
+        TCGHTContractTemplate tplNew = tplDao.query(tpl_id);
+        if (tplNew == null) {
             return Result.fail(ResultCode.RC10101.getCode(), String.format("合同模版 %s 不存在", tpl_id));
         }
         if (!inScope(resolveScopeDepts(curUser), dept_code)) {
             return Result.fail(ResultCode.RC10307.getCode(),
                     String.format("无权调整部门 %s 的合同模版（超出你的数据范围）", dept_code));
+        }
+        // 改绑闸：从一套模版换到**指向另一张物理表**的模版，与解绑是同一个问题 ——
+        // 台账按部门「当前绑定」的那张表取数，换了表以后旧表上 dept_code = 它的行再也点不出来，
+        // 数据明明还在库里，却成了谁也看不见的孤儿。判据与解绑同源（open_status = true 的行数），
+        // 所以把该部门的合同删完，这里自然放行；而换成**同一张表**的另一套模版只是列序 / 表头不同，
+        // 数据照旧可见，直接放过（否则同表换模版也要先清空，纯属误伤）。
+        TDeptContractTemplate old = deptTplDao.query(dept_code);
+        if (old != null && !Objects.equals(old.getTpl_id(), tpl_id)) {
+            TCGHTContractTemplate tplOld = tplOf(old.getTpl_id());
+            String oldTb = tplOld == null ? null : tplOld.getTb_name();
+            if (!Objects.equals(oldTb, tplNew.getTb_name())) {
+                int used = contractCountOf(oldTb, dept_code);
+                if (used > 0) {
+                    return Result.fail(ResultCode.RC10105.getCode(), String.format(
+                            "部门 %s 在模版「%s」下还有 %d 条未删除的合同数据，更换到模版「%s」后这些数据将无法在台账中查看；"
+                                    + "请先在「合同台账」中把该部门的合同全部删除，再更换模版",
+                            dept_code, tplOld.getName(), used, tplNew.getName()));
+                }
+            }
         }
         deptTplDao.save(dept_code, tpl_id, accountOf(curUser));
         return Result.success(deptTplDao.query(dept_code));
@@ -737,6 +766,11 @@ public class CCGHT {
      * <p>
      * 闸门与 save 完全一致 —— 能设置就要能解除，否则管理员遇到配错的绑定只能找运维删库。
      * 未绑定时报"未绑定"而不是静默成功：这是页面上点出来的操作，给一句可读的话比幂等更好用。
+     * <p>
+     * ⚠️ 额外一道**占用闸**：该部门在这套模版对应的物理表里还有未作废的合同，就不许解绑。
+     * 绑定的唯一作用是"给这个部门定下用哪张表"，解绑后这个部门回到未绑定 —— 那张表上
+     * dept_code = 它的行**在台账上再也点不出来**（台账按部门取表，没绑定就没有表可查），
+     * 数据还躺在库里，却成了谁也看不见的孤儿。所以宁可在这里拦住，让用户先把数据删干净。
      */
     @RequirePermission(value = "perm:assign", minScope = DataScope.DEPT)
     @Transactional
@@ -753,11 +787,97 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10307.getCode(),
                     String.format("无权调整部门 %s 的合同模版（超出你的数据范围）", dept_code));
         }
-        if (deptTplDao.query(dept_code) == null) {
+        TDeptContractTemplate bind = deptTplDao.query(dept_code);
+        if (bind == null) {
             return Result.fail(ResultCode.RC10103.getCode(), String.format("部门 %s 未绑定合同模版", dept_code));
+        }
+        // 占用闸：还有未作废的合同 ⇒ 拒绝。判据与台账口径同源（open_status = true），
+        // 所以用户在台账里把该部门的合同全部删掉之后，这里自然放行。
+        int used = contractCountOf(tbOfTpl(bind.getTpl_id()), dept_code);
+        if (used > 0) {
+            return Result.fail(ResultCode.RC10105.getCode(), String.format(
+                    "部门 %s 下还有 %d 条未删除的合同数据，解除绑定后这些数据将无法在台账中查看；"
+                            + "请先在「合同台账」中把该部门的合同全部删除，再解除绑定", dept_code, used));
         }
         deptTplDao.delete(dept_code);
         return Result.success();
+    }
+
+    /** 模版对象；tpl_id 为空或模版不存在时返回 null（调用方自行判 null，别在这里抛）。 */
+    private TCGHTContractTemplate tplOf(Integer tpl_id) {
+        return tpl_id == null ? null : tplDao.query(tpl_id);
+    }
+
+    /** 模版 → 物理表名；模版不存在或没登记表名时返回 null。 */
+    private String tbOfTpl(Integer tpl_id) {
+        TCGHTContractTemplate tpl = tplOf(tpl_id);
+        return tpl == null ? null : tpl.getTb_name();
+    }
+
+    /**
+     * 一个部门在某张物理表里还剩多少条未作废的合同。
+     * <p>
+     * 表不可用（模版没登记表名 / 表已被删）时一律返回 0：查不到的表不能成为"拦住解绑"的理由，
+     * 否则一个配错表名的模版会把部门永久锁死在已绑定状态，反而只能靠运维删库才救得回来。
+     */
+    private int contractCountOf(String tb, String dept_code) {
+        if (!usableTable(tb) || !StringUtils.hasText(dept_code)) {
+            return 0;
+        }
+        var rows = contractDao.countByDepts(tb, List.of(dept_code));
+        if (rows == null || rows.isEmpty()) {
+            return 0;
+        }
+        Object cnt = rows.get(0).get("cnt");
+        return (cnt instanceof Number) ? ((Number) cnt).intValue() : 0;
+    }
+
+    /**
+     * 给一批绑定回填 contract_count，供 /deptTpl/list 下发（页面据此提前说明"能不能解绑"）。
+     * <p>
+     * 先按物理表分组，一张表只查一次 count —— 绑定表几十行，别打出几十个查询；
+     * 每条的初值先落 0：模版没配表、表不存在、库里没数据，结论都是 0，不让 null 漏到前端。
+     */
+    private void fillContractCounts(List<TDeptContractTemplate> binds) {
+        if (binds == null || binds.isEmpty()) {
+            return;
+        }
+        Map<Integer, String> tplTb = new HashMap<>();
+        for (TCGHTContractTemplate t : tplDao.queryAll()) {
+            if (t != null && t.getId() != null) {
+                tplTb.put(t.getId(), t.getTb_name());
+            }
+        }
+        Map<String, List<String>> byTb = new LinkedHashMap<>();
+        Map<String, TDeptContractTemplate> byDept = new HashMap<>();
+        // usableTable 会读一次 information_schema，这里按表缓存：本方法只在一次请求内活动，
+        // 不构成 colsOf 刻意避免的那种跨请求缓存，改表后不会留下过期结论。
+        Map<String, Boolean> tbUsable = new HashMap<>();
+        for (TDeptContractTemplate b : binds) {
+            b.setContract_count(0);
+            if (!StringUtils.hasText(b.getDept_code())) {
+                continue;
+            }
+            byDept.put(b.getDept_code(), b);
+            String tb = tplTb.get(b.getTpl_id());
+            if (tbUsable.computeIfAbsent(tb, this::usableTable)) {
+                byTb.computeIfAbsent(tb, k -> new ArrayList<>()).add(b.getDept_code());
+            }
+        }
+        for (Map.Entry<String, List<String>> e : byTb.entrySet()) {
+            var rows = contractDao.countByDepts(e.getKey(), e.getValue());
+            if (rows == null) {
+                continue;
+            }
+            for (var row : rows) {
+                Object dc = row.get("dept_code");
+                Object cn = row.get("cnt");
+                TDeptContractTemplate hit = (dc == null) ? null : byDept.get(dc.toString());
+                if (hit != null && cn instanceof Number) {
+                    hit.setContract_count(((Number) cn).intValue());
+                }
+            }
+        }
     }
 
     /**

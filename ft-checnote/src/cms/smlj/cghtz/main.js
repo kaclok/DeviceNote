@@ -7,6 +7,13 @@ import 'dayjs/locale/zh-cn';
 import VConsole from 'vconsole';
 // 模块级全局样式：下拉类控件字号等（面板 teleport 到 body，scoped 样式命中不到）
 import "./styles/cghtz.css";
+// 服务式弹窗（ElMessageBox）的按需样式：这些 API 由 JS 直接调用、不经过模板，
+// 而 ElementPlusResolver 只认「模板里的 el-xxx」与「自动导入的 API」——
+// home / import / deptTpl 三处是显式 import ElMessageBox，编译期拿不到样式，
+// 弹窗于是成了无定位、无宽度的裸 div：落点跑到文档流角落，内容也看不清。
+// 样式本身是全局的，在模块入口引一次即可覆盖全部页面与懒加载 chunk
+// （与 NwCodeMap.js 手动引 message 样式同一思路；重复引入会被打包器去重）。
+import "element-plus/es/components/message-box/style/css";
 
 // import直接引用一个文件时，会执行一遍这个文件，而不获取任何文件对象, 比如：import './lib/init.js';
 import {RegisterDirective} from "@/framework/directives/DirectiveList.js";

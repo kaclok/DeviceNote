@@ -378,6 +378,7 @@ function save() {
         ElMessage.warning('请选择合同模板；若要取消该部门的绑定，请点「解除绑定」')
         return
     }
+    if (!canRebind()) return
     saving.value = true
     Singleton.getInstance(SysX).saveDeptTpl({
         dept_code: deptCode.value,
@@ -396,10 +397,46 @@ function save() {
 }
 
 /**
+ * 改绑前的拦截：把部门从一套模板换到**指向另一张数据表**的模板，与「解除绑定」是同一个问题 ——
+ * 台账按部门「当前绑定」的那张表取数，换了表以后旧表上该部门的行再也点不出来。
+ * 判据与解绑同源：后端 /deptTpl/list 回填的 contract_count 就是「旧表上未作废的行数」。
+ * 换成指向同一张表的另一套模板（只有列序 / 表头不同）不受影响，直接放行。
+ * 后端 deptTpl/save 也独立判这一条（那才是硬边界），这里只是不让人白点一趟。
+ */
+function canRebind() {
+    const cur = bind.value
+    const cnt = cur?.contract_count || 0
+    if (cnt <= 0) return true
+    const oldTb = tplByKey.value[String(cur.tpl_id)]?.tb_name || ''
+    const newTb = tplByKey.value[pickedTplId.value]?.tb_name || ''
+    if (!oldTb || !newTb || oldTb === newTb) return true
+    ElMessageBox.alert(
+        `「${deptPath(deptCode.value)}」当前模板下还有 ${cnt} 条合同数据，需先在「合同台账」中把它们全部删除，才能更换到使用另一张数据表的模板。`,
+        '暂不能更换模板',
+        {type: 'warning', confirmButtonText: '知道了'}
+    ).catch(() => {
+    })
+    return false
+}
+
+/**
  * 解除绑定前的二次确认：这一步不可逆 —— 解除后该部门回到"未绑定"，
  * 导入页会直接拦下这个部门（要求先来本页配置），等于把已经定好的口径清掉了。
+ *
+ * 该部门还有合同数据时**拦在确认框之前**：后端也会拒（那才是硬边界，这里只是不让人白点一趟），
+ * 但让用户点完「确定解除」才吃一句拒绝毫无意义 —— 先说清还差什么、该去哪儿删。
  */
 function unbind() {
+    const cnt = bind.value?.contract_count || 0
+    if (cnt > 0) {
+        ElMessageBox.alert(
+            `「${deptPath(deptCode.value)}」下还有 ${cnt} 条合同数据，需先在「合同台账」中把它们全部删除，才能解除模板绑定。`,
+            '暂不能解除绑定',
+            {type: 'warning', confirmButtonText: '知道了'}
+        ).catch(() => {
+        })
+        return
+    }
     ElMessageBox.confirm(
         `确定解除「${deptPath(deptCode.value)}」的合同模板绑定吗？解除后该部门将没有可用的模板，也无法导入数据。`,
         '解除绑定',
@@ -556,6 +593,14 @@ function fmtTime(v) {
 
                             <el-form-item v-if="bind" label="上次修改">
                                 <span class="meta-text">{{ bind.bound_by || '-' }} · {{ fmtTime(bind.bound_at) }}</span>
+                            </el-form-item>
+
+                            <!-- 该部门名下还有合同数据时不许解绑（后端同样会拒），先在这里把话说清 -->
+                            <el-form-item v-if="bind" label="合同数据">
+                                <span v-if="bind.contract_count > 0" class="used-text">
+                                    已有 {{ bind.contract_count }} 条合同，需全部删除后才能解除绑定或改绑到另一张表的模板
+                                </span>
+                                <span v-else class="meta-text">暂无合同数据，可以解除绑定</span>
                             </el-form-item>
 
                             <el-form-item>
@@ -879,7 +924,7 @@ function fmtTime(v) {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font-size: 11px;
+            font-size: 9px;
             line-height: 16px;
             padding: 0 5px;
             border-radius: 8px;
@@ -951,6 +996,12 @@ function fmtTime(v) {
         .meta-text {
             font-size: 12px;
             color: #64748b;
+        }
+
+        /* 「还有 N 条合同」——用警示色，与上方"未配置"的灰、上次修改的灰拉开层级 */
+        .used-text {
+            font-size: 12px;
+            color: #e6a23c;
         }
     }
 

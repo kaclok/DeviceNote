@@ -93,6 +93,18 @@
         SELECT COUNT(*) FROM cght.${tb} WHERE id = #{id} and open_status = true
     </select>
 
+    <!-- 按部门统计「未作废」合同条数。口径与 queryRows 的部门过滤同源（只看 open_status = true），
+         所以「在台账里把该部门的合同全部删除（作废）」之后这里自然归零，解除绑定随之放行。
+         deptCodes 由 Java 侧保证非空，拼不出 in () 这种 PG 语法错误。 -->
+    <select id="countByDepts" resultType="java.util.LinkedHashMap">
+        select dept_code as dept_code, count(*) as cnt
+        from cght.${tb}
+        where open_status = true
+          and dept_code in
+        <foreach collection="deptCodes" item="d" open="(" separator="," close=")">#{d}</foreach>
+        group by dept_code
+    </select>
+
     <insert id="insertRow">
         insert into cght.${tb} (
         <foreach collection="pairs" item="p" separator=",">${p.col}</foreach>
