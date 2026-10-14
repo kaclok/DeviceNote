@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-"""编译 NVM 版本管理器（单文件 WinForms exe，复用 dev-launcher 的 Shared.cs）
+"""编译 NVMSwitcher（单文件 WinForms exe，复用 dev-launcher 的 Shared.cs）
 
 用法：
     python build.py            # 全量编译
-    python build.py 管理器     # 关键字过滤（匹配临时名/最终名/主文件名）
+    python build.py NvmDesk    # 关键字过滤（匹配临时名/最终名/主文件名）
+
+产物固定叫 NVMSwitcher.exe（临时名 NvmDesk.exe 编完即删，只做 copyfile 中转）。
 """
 import os
 import shutil
@@ -30,9 +32,9 @@ REFS = [
     "/r:System.Management.dll",
 ]
 
-# (临时英文名, 最终中文名, 主文件, 附加源文件)
+# (临时英文名, 最终名, 主文件, 附加源文件)
 TARGETS = [
-    ("NvmDesk.exe", "NVM版本管理器.exe", "NvmDesk.cs", []),
+    ("NvmDesk.exe", "NVMSwitcher.exe", "NvmDesk.cs", []),
 ]
 
 
