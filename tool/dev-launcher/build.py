@@ -25,9 +25,9 @@ REFS = [
 
 # (临时英文名, 最终中文名, 主文件, 附加源文件, 入口类)
 TARGETS = [
-    ("SpringBootLauncher.exe", "启动后端.exe", "SpringBootLauncher.cs", [], None),
-    ("ViteLauncher.exe", "启动前端.exe", "ViteLauncher.cs", [], None),
-    ("DevLauncher.exe", "启动台.exe", "CombinedLauncher.cs",
+    ("SpringBootLauncher.exe", "SpringbootLauncher.exe", "SpringBootLauncher.cs", [], None),
+    ("ViteLauncher.exe", "Vue3Launcher.exe", "ViteLauncher.cs", [], None),
+    ("DevLauncher.exe", "Springboot-Vue3-Launcher.exe", "CombinedLauncher.cs",
      ["SpringBootLauncher.cs", "ViteLauncher.cs"], "DevLaunch.Program0"),
 ]
 

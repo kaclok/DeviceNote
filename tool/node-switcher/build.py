@@ -32,7 +32,7 @@ REFS = [
 
 # (临时英文名, 最终中文名, 主文件, 附加源文件)
 TARGETS = [
-    ("NodeSwitcher.exe", "Node版本切换器.exe", "NodeSwitcher.cs", []),
+    ("NodeSwitcher.exe", "NodeSwitcher.exe", "NodeSwitcher.cs", []),
 ]
 
 
