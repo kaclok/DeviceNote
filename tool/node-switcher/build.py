@@ -45,6 +45,13 @@ def find_csc():
 
 def build(csc, out_name, main_file, extra_sources):
     out_path = os.path.join(BIN, out_name)
+    # 打断/失败的上一次构建可能残留这个临时名；它与最终名同路径时
+    # shutil.copyfile 会抛 SameFileError，所以先清掉
+    if os.path.exists(out_path):
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
     args = [
         csc, "/nologo", "/codepage:65001", "/target:winexe", "/platform:anycpu",
         "/optimize+", "/warn:4", "/out:" + out_path,
