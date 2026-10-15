@@ -1,11 +1,11 @@
 -- ============================================================================
---  树表标注 —— 为自引用父子表补 level / parent_type / direct_children / recursive_children
+--  树表标注 —— 为自引用父子表补 level / node_type / direct_children / recursive_children
 --
 --  方言：PostgreSQL（已在 PostgreSQL 17.2 · device-note 上实跑验证）
 --
 --  口径
 --    level               int2          节点在树中的层号，**根 = 1**，逐层 +1
---    parent_type         int2          1 = 根节点   父值为空 或 父值在本表中不存在
+--    node_type         int2          1 = 根节点   父值为空 或 父值在本表中不存在
 --                                     2 = 中间节点 本行有子节点
 --                                     3 = 叶子节点 本行无子节点
 --    direct_children     与 x 同类型[]  **直系**子节点（只一层，孙节点不含）
@@ -34,7 +34,7 @@ DECLARE
     -- ====================================================
     v_tbl   text := format('%I.%I', v_schema, v_table);
     v_col1  text := 'level';
-    v_col2  text := 'parent_type';
+    v_col2  text := 'node_type';
     v_col3  text := 'direct_children';
     v_col4  text := 'recursive_children';
     v_xtype text;
@@ -89,7 +89,7 @@ BEGIN
         FROM d WHERE u.%1$I = d.node
     $q$, v_x, v_tbl, v_px, v_col1);
 
-    -- ---- 3. parent_type：1 根 / 2 中间 / 3 叶 --------------------------
+    -- ---- 3. node_type：1 根 / 2 中间 / 3 叶 --------------------------
     EXECUTE format($q$
         UPDATE %2$s u SET %4$I = CASE
             WHEN u.%3$I IS NULL OR u.%3$I::text = ''                     THEN 1
@@ -157,7 +157,7 @@ BEGIN
                    v_col4, v_col4, v_tbl) INTO v_rkids, v_rkidtotal;
 
     RAISE NOTICE '表 %  共 % 行', v_tbl, v_total;
-    RAISE NOTICE '  parent_type        : 根=%  中间=%  叶子=%', v_root, v_mid, v_leaf;
+    RAISE NOTICE '  node_type        : 根=%  中间=%  叶子=%', v_root, v_mid, v_leaf;
     RAISE NOTICE '  direct_children    : 有直系子节点的行=%  直系子节点总数=%', v_kids, v_kidtotal;
     RAISE NOTICE '  recursive_children : 有后代的行=%  后代总数=%', v_rkids, v_rkidtotal;
     RAISE NOTICE '  未被标上层号(父值成环/游离)=%', v_orphan;
@@ -170,7 +170,7 @@ $tag$;
 --      DO 块改的是 v_table，这里却仍写死 dept_user.t_dept，
 --      就会报：错误: 字段 "level" 不存在 LINE 2: SELECT ... level ...
 --      （因为加列加在 v_table 上，而这段查的是另一张表）
-SELECT dept_code, dept_name, parent_dept_code, level, parent_type,
+SELECT dept_code, dept_name, parent_dept_code, level, node_type,
        direct_children, recursive_children
 FROM dept_user.t_dept          -- ← 改成你的 v_table
 ORDER BY level, dept_code;
@@ -182,7 +182,7 @@ ORDER BY level, dept_code;
 -- ============================================================================
 /*
 ALTER TABLE dept_user.t_dept ADD COLUMN IF NOT EXISTS level              int2;
-ALTER TABLE dept_user.t_dept ADD COLUMN IF NOT EXISTS parent_type        int2;
+ALTER TABLE dept_user.t_dept ADD COLUMN IF NOT EXISTS node_type        int2;
 ALTER TABLE dept_user.t_dept ADD COLUMN IF NOT EXISTS direct_children    varchar[];
 ALTER TABLE dept_user.t_dept ADD COLUMN IF NOT EXISTS recursive_children varchar[];
 
@@ -203,7 +203,7 @@ d AS (SELECT node, MIN(lvl) AS lvl FROM tree GROUP BY node)
 UPDATE dept_user.t_dept u SET level = d.lvl
 FROM d WHERE u.dept_code = d.node;
 
-UPDATE dept_user.t_dept u SET parent_type = CASE
+UPDATE dept_user.t_dept u SET node_type = CASE
     WHEN u.parent_dept_code IS NULL OR u.parent_dept_code = ''                        THEN 1
     WHEN NOT EXISTS (SELECT 1 FROM dept_user.t_dept p WHERE p.dept_code = u.parent_dept_code) THEN 1
     WHEN     EXISTS (SELECT 1 FROM dept_user.t_dept c WHERE c.parent_dept_code = u.dept_code) THEN 2
@@ -271,7 +271,7 @@ BEGIN
     END IF;
 
     EXECUTE format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS level int2', v_tbl);
-    EXECUTE format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS parent_type int2', v_tbl);
+    EXECUTE format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS node_type int2', v_tbl);
     EXECUTE format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS direct_children %s[]', v_tbl, v_xtype);
     EXECUTE format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS recursive_children %s[]', v_tbl, v_xtype);
 
@@ -288,7 +288,7 @@ BEGIN
     $q$, p_x, v_tbl, p_px);
 
     EXECUTE format($q$
-        UPDATE %2$s u SET parent_type = CASE
+        UPDATE %2$s u SET node_type = CASE
             WHEN u.%3$I IS NULL OR u.%3$I::text = ''                     THEN 1
             WHEN NOT EXISTS (SELECT 1 FROM %2$s p WHERE p.%1$I = u.%3$I) THEN 1
             WHEN     EXISTS (SELECT 1 FROM %2$s c WHERE c.%3$I = u.%1$I) THEN 2
@@ -326,8 +326,8 @@ BEGIN
 
     EXECUTE format('SELECT count(*), count(*) FILTER (WHERE level IS NULL) FROM %s', v_tbl)
        INTO v_total, v_orphan;
-    EXECUTE format('SELECT count(*) FILTER (WHERE parent_type=1), count(*) FILTER (WHERE parent_type=2),'
-                || ' count(*) FILTER (WHERE parent_type=3) FROM %s', v_tbl)
+    EXECUTE format('SELECT count(*) FILTER (WHERE node_type=1), count(*) FILTER (WHERE node_type=2),'
+                || ' count(*) FILTER (WHERE node_type=3) FROM %s', v_tbl)
        INTO v_root, v_mid, v_leaf;
     EXECUTE format('SELECT count(*) FILTER (WHERE direct_children IS NOT NULL),'
                 || ' coalesce(sum(cardinality(direct_children)), 0) FROM %s', v_tbl)

@@ -20,7 +20,9 @@ public class TDept implements Serializable {
     private String dept_leader;
     private String master_leader;
 
-    private String[] ids_direct_sub_depts;
-    private String[] ids_recursive_sub_depts;
+    private String[] direct_children;
+    private String[] recursive_children;
+
+    private Boolean is_company;
 }
 

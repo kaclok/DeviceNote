@@ -6,7 +6,7 @@
 
     <!--
       组织树专用结果映射：数据源是 train.t_org（MySQL），列名与本地副本不同，用别名对齐前端契约字段。
-      - 不含数组列（ids_direct_sub_depts / ids_recursive_sub_depts）：那是 main 库 dept_user.t_dept 的 PG 专有列，
+      - 不含数组列（direct_children / recursive_children）：那是 main 库 dept_user.t_dept 的 PG 专有列，
         MySQL 侧不存在，因此不能复用下面的 DeptResultMap（它绑定了 ArrayTypeHandler）。
       - 前端契约保持不变：dept_code / dept_name / dept_all_name / parent_dept_code。
     -->
@@ -41,15 +41,16 @@
         <result property="master_leader" column="master_leader"/>
         <result property="dept_all_name" column="dept_all_name"/>
         <!-- 关键：为数组字段指定 TypeHandler -->
-        <result property="ids_direct_sub_depts" column="ids_direct_sub_depts" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+        <result property="direct_children" column="direct_children" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
         <!-- 关键：为数组字段指定 TypeHandler -->
-        <result property="ids_recursive_sub_depts" column="ids_recursive_sub_depts" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+        <result property="recursive_children" column="recursive_children" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+        <result property="is_company" column="is_company"/>
     </resultMap>
 
     <update id="updateDirect">
         update dept_user.t_dept
         SET
-        ids_direct_sub_depts = #{subs, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
+        direct_children = #{subs, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
         where dept_code = #{deptCode}
         and is_using = true
     </update>
@@ -57,7 +58,7 @@
     <update id="updateRecursive">
         update dept_user.t_dept
         SET
-        ids_recursive_sub_depts = #{subs, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
+        recursive_children = #{subs, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
         where dept_code = #{deptCode}
         and is_using = true
     </update>

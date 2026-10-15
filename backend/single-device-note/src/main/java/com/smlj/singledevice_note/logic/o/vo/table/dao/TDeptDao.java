@@ -19,7 +19,7 @@ public interface TDeptDao {
      * <p>
      * 为什么 @DS 只能打在方法上、不能提到接口上：
      * 同接口的 queryAll / querySubDepts / updateDirect / updateRecursive 走默认库 main，
-     * 它们要回写 PostgreSQL 数组列 ids_direct_sub_depts / ids_recursive_sub_depts（MySQL 侧无这些列），
+     * 它们要回写 PostgreSQL 数组列 direct_children / recursive_children（MySQL 侧无这些列），
      * 由 CDeptUser.warpOrgs / CLogin 链路使用。两条链路无法合并，因此按方法切数据源。
      */
     @DS("train")
