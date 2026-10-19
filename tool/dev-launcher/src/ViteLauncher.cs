@@ -336,8 +336,8 @@ namespace DevLaunch
         public ViteForm()
         {
             Text = "Vite 前端一键启动器";
-            ClientSize = new Size(920, 744);
-            MinimumSize = new Size(760, 564);
+            ClientSize = new Size(920, 780);
+            MinimumSize = new Size(944, 560);
             Ux.Dark(this);
             BuildUi();
             runner.Out += OnOut;
@@ -358,133 +358,121 @@ namespace DevLaunch
 
         void BuildUi()
         {
-            Label l1 = Ux.Lbl("项目文件夹", 20, 22, 76);
-            Controls.Add(l1);
+            const int CW = 888;
+            const int EDGE = CW - 16;   // 卡片内容右缘
+            const AnchorStyles TLR = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            const AnchorStyles TR = AnchorStyles.Top | AnchorStyles.Right;
 
+            // ---- 卡片：项目 ----
+            Card cP = Ux.AddCard(this, "项目", 16, 12, CW, 162);
+            cP.Anchor = TLR;
+
+            Ux.LblC(cP, "项目文件夹", 16, 36, 76, Th.Dim);
             txtDir = new TextBox();
-            Panel pf = Ux.Field(txtDir, 100, 18, 540, 28);
-            Controls.Add(pf);
-
-            FlatBtn btnBrowse = Ux.Btn("浏览...", 648, 18, 74, false);
+            txtDir.Font = Th.Ui;
+            Ux.FieldC(cP, txtDir, 96, 32, 600, 28).Anchor = TLR;
+            FlatBtn btnBrowse = Ux.BtnIC(cP, Glyph.Folder, "浏览", 704, 32, 64, false);
+            btnBrowse.Anchor = TR;
             btnBrowse.Click += delegate { Browse(); };
-            Controls.Add(btnBrowse);
-
-            FlatBtn btnDetect = Ux.Btn("重新检测", 728, 18, 90, false);
+            FlatBtn btnDetect = Ux.BtnIC(cP, Glyph.Sync, "重新检测", 777, 32, 95, false);
+            btnDetect.Anchor = TR;
             btnDetect.Click += delegate { DetectNow(true); };
-            Controls.Add(btnDetect);
 
-            Label l2 = Ux.Lbl("启动脚本", 20, 62, 76);
-            Controls.Add(l2);
+            Ux.LblC(cP, "启动脚本", 16, 72, 76, Th.Dim);
             cbScript = new FlatCombo();
-            Panel ps = Ux.Field(cbScript, 100, 58, 300, 28);
-            Controls.Add(ps);
+            Ux.FieldC(cP, cbScript, 96, 68, 300, 28);
             cbScript.SelectedIndexChanged += delegate { OnScriptChanged(); };
 
-            Label l4 = Ux.Lbl("端口", 424, 62, 34);
-            Controls.Add(l4);
-            lblPort = Ux.Val("-", 462, 62, 70, Th.Cyan);
-            Controls.Add(lblPort);
+            Ux.LblC(cP, "端口", 410, 72, 34, Th.Dim);
+            lblPort = Ux.LblC(cP, "-", 448, 71, 80, Th.Cyan);
+            lblPort.Font = Th.UiB;
 
-            lblCmd = Ux.Val("", 540, 62, 360, Th.Dim);
+            lblCmd = Ux.LblC(cP, "", 540, 71, EDGE - 540, Th.Dim);
+            lblCmd.Anchor = TLR;
             lblCmd.Font = Th.Mono;
-            Controls.Add(lblCmd);
 
-            // ---- Node.js 目录（留空 = 系统 PATH；配置后优先用该目录的 npm/pnpm/yarn）----
-            Label ln = Ux.Lbl("Node.js 目录", 20, 96, 76);
-            Controls.Add(ln);
+            Ux.LblC(cP, "Node.js 目录", 16, 106, 80, Th.Dim);
             txtNode = new TextBox();
-            Controls.Add(Ux.Field(txtNode, 100, 92, 440, 28));
-            FlatBtn btnNode = Ux.Btn("浏览", 546, 92, 56, false);
-            btnNode.Height = 28;
+            Ux.FieldC(cP, txtNode, 96, 102, 380, 28).Anchor = TLR;
+            FlatBtn btnNode = Ux.BtnIC(cP, Glyph.Folder, "浏览", 484, 102, 64, false);
+            btnNode.Anchor = TR;
             btnNode.Click += delegate { PickDir(txtNode, "选择 Node.js 安装目录（其下应有 npm.cmd / node.exe）"); };
-            Controls.Add(btnNode);
-            lblNodeHint = Ux.Val("留空 = 使用系统 PATH", 610, 96, 290, Th.Dim);
-            Controls.Add(lblNodeHint);
+            lblNodeHint = Ux.LblC(cP, "留空 = 使用系统 PATH", 557, 106, EDGE - 557, Th.Dim);
+            lblNodeHint.Anchor = TR;
             txtNode.TextChanged += delegate { OnNodeChanged(); };
 
-            lblStatus = Ux.Val("请选择前端工程目录", 20, 130, 880, Th.Dim);
-            Controls.Add(lblStatus);
+            lblStatus = Ux.LblC(cP, "请选择前端工程目录", 16, 136, EDGE - 16, Th.Dim);
+            lblStatus.Anchor = TLR;
 
-            chkInstall = MkCheck("依赖未安装时自动安装", 20, 160);
-            chkKill = MkCheck("启动前结束占用端口的进程", 250, 160);
-            chkOpen = MkCheck("启动后打开浏览器", 480, 160);
-            chkInstall.Checked = true;
-            chkKill.Checked = true;
-            chkOpen.Checked = true;
-            Controls.Add(chkInstall);
-            Controls.Add(chkKill);
-            Controls.Add(chkOpen);
+            // ---- 卡片：操作 ----
+            Card cA = Ux.AddCard(this, "操作", 16, 182, CW, 146);
+            cA.Anchor = TLR;
 
-            btnRun = Ux.Btn("▶  启动", 20, 194, 120, true);
+            chkInstall = Ux.ToggleC(cA, "依赖未安装时自动安装", 16, 32, 240, true);
+            chkKill = Ux.ToggleC(cA, "启动前结束占用端口的进程", 266, 32, 240, true);
+            chkOpen = Ux.ToggleC(cA, "启动后打开浏览器", 516, 32, 240, true);
+
+            btnRun = Ux.BtnIC(cA, Glyph.Play, "启动", 16, 64, 116, true);
             btnRun.Height = 36;
             btnRun.Click += delegate { Run(); };
-            Controls.Add(btnRun);
 
-            btnStop = Ux.Btn("■  停止", 148, 194, 100, false);
+            btnStop = Ux.BtnIC(cA, Glyph.Stop, "停止", 138, 64, 100, false);
             btnStop.Height = 36;
             btnStop.Enabled = false;
             btnStop.Click += delegate { Stop(); };
-            Controls.Add(btnStop);
 
-            btnInstall = Ux.Btn("安装依赖", 256, 194, 100, false);
+            btnInstall = Ux.BtnIC(cA, Glyph.Refresh, "安装依赖", 244, 64, 108, false);
             btnInstall.Height = 36;
             btnInstall.Click += delegate { InstallOnly(); };
-            Controls.Add(btnInstall);
 
-            btnCmd = Ux.Btn("查看命令", 364, 194, 90, false);
+            btnCmd = Ux.BtnIC(cA, Glyph.File, "查看命令", 358, 64, 96, false);
             btnCmd.Height = 36;
             btnCmd.Click += delegate { ShowCommand(); };
-            Controls.Add(btnCmd);
 
-            FlatBtn btnFolder = Ux.Btn("打开目录", 462, 194, 90, false);
+            FlatBtn btnFolder = Ux.BtnIC(cA, Glyph.OpenIn, "打开目录", 460, 64, 96, false);
             btnFolder.Height = 36;
             btnFolder.Click += delegate { if (info.Ok) Sys.OpenFolder(info.Dir); };
-            Controls.Add(btnFolder);
 
-            FlatBtn btnBrowser = Ux.Btn("打开页面", 560, 194, 90, false);
+            FlatBtn btnBrowser = Ux.BtnIC(cA, Glyph.Globe, "打开页面", 562, 64, 96, false);
             btnBrowser.Height = 36;
             btnBrowser.Click += delegate { OpenBrowser(); };
-            Controls.Add(btnBrowser);
 
-            lblRunState = Ux.Val("● 未运行", 680, 194, 220, Th.Dim);
+            lblRunState = Ux.LblC(cA, "● 未运行", 668, 72, EDGE - 668, Th.Dim);
+            lblRunState.Anchor = TR;
             lblRunState.Font = Th.UiB;
-            Controls.Add(lblRunState);
 
-            // ---- 打包行 ----
-            btnPack = Ux.Btn("打包", 20, 236, 100, false);
-            btnPack.Height = 36;
+            btnPack = Ux.BtnIC(cA, Glyph.Pack, "打包", 16, 108, 100, false);
+            btnPack.Height = 32;
             btnPack.Click += delegate { PackOnly(); };
-            Controls.Add(btnPack);
 
-            btnPackDir = Ux.Btn("产物目录", 128, 236, 100, false);
-            btnPackDir.Height = 36;
+            btnPackDir = Ux.BtnIC(cA, Glyph.OpenIn, "产物目录", 122, 108, 100, false);
+            btnPackDir.Height = 32;
             btnPackDir.Click += delegate { OpenPackDir(); };
-            Controls.Add(btnPackDir);
 
-            Label lPack = Ux.Val("npm run build，产物目录读自 vite.config 的 outDir", 236, 244, 440, Th.Dim);
-            Controls.Add(lPack);
+            Ux.LblC(cA, "npm run build，产物目录读自 vite.config 的 outDir", 232, 114, EDGE - 232, Th.Faint).Anchor = TLR;
 
-            Label l5 = Ux.Val("运行日志", 20, 288, 100, Th.Fg);
+            // ---- 日志 ----
+            Label l5 = Ux.Val("运行日志", 16, 340, 100, Th.Fg);
             l5.Font = Th.UiB;
             Controls.Add(l5);
 
-            FlatBtn btnCopy = Ux.Btn("复制", 830, 282, 70, false);
+            FlatBtn btnCopy = Ux.BtnIC(this, Glyph.Copy, "复制", 830, 334, 70, false);
             btnCopy.Height = 26;
+            btnCopy.Anchor = TR;
             btnCopy.Click += delegate
             {
                 try { if (log.Text().Length > 0) Clipboard.SetText(log.Text()); }
                 catch (Exception) { }
             };
-            Controls.Add(btnCopy);
 
-            FlatBtn btnCls = Ux.Btn("清空", 752, 282, 70, false);
+            FlatBtn btnCls = Ux.BtnIC(this, Glyph.Erase, "清空", 752, 334, 70, false);
             btnCls.Height = 26;
+            btnCls.Anchor = TR;
             btnCls.Click += delegate { log.Clear(); };
-            Controls.Add(btnCls);
 
             log = new LogView();
             Panel pl = new Panel();
-            pl.SetBounds(20, 314, 880, 410);
+            pl.SetBounds(16, 366, 888, 362);
             pl.Padding = new Padding(1);
             pl.BackColor = Th.Border;
             pl.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
@@ -496,13 +484,12 @@ namespace DevLaunch
 
         CheckBox MkCheck(string text, int x, int y)
         {
-            CheckBox c2 = new CheckBox();
+            CheckBox c2 = new PillToggle();
             c2.Text = text;
             c2.ForeColor = Th.Fg;
             c2.Font = Th.Ui;
             c2.SetBounds(x, y, 226, 24);
-            c2.BackColor = Color.Transparent;
-            c2.FlatStyle = FlatStyle.Standard;
+            c2.BackColor = Th.Card;
             c2.Cursor = Cursors.Hand;
             return c2;
         }

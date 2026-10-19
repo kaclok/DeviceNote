@@ -671,8 +671,8 @@ namespace DevLaunch
         public BootForm()
         {
             Text = "Spring Boot 一键启动器";
-            ClientSize = new Size(920, 828);
-            MinimumSize = new Size(760, 664);
+            ClientSize = new Size(920, 880);
+            MinimumSize = new Size(944, 660);
             Ux.Dark(this);
             BuildUi();
             runner.Out += OnOut;
@@ -693,172 +693,147 @@ namespace DevLaunch
 
         void BuildUi()
         {
-            // ---- 第一行：项目文件夹 ----
-            Label l1 = Ux.Lbl("项目文件夹", 20, 22, 76);
-            Controls.Add(l1);
+            const int CW = 888;
+            const int EDGE = CW - 16;   // 卡片内容右缘
+            const AnchorStyles TLR = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            const AnchorStyles TR = AnchorStyles.Top | AnchorStyles.Right;
 
+            // ---- 卡片：项目 ----
+            Card cP = Ux.AddCard(this, "项目", 16, 12, CW, 130);
+            cP.Anchor = TLR;
+
+            Ux.LblC(cP, "项目文件夹", 16, 36, 76, Th.Dim);
             txtDir = new TextBox();
             txtDir.Font = Th.Ui;
-            Panel pf = Ux.Field(txtDir, 100, 18, 540, 28);
-            Controls.Add(pf);
-
-            FlatBtn btnBrowse = Ux.Btn("浏览...", 648, 18, 74, false);
+            Ux.FieldC(cP, txtDir, 96, 32, 600, 28).Anchor = TLR;
+            FlatBtn btnBrowse = Ux.BtnIC(cP, Glyph.Folder, "浏览", 704, 32, 64, false);
+            btnBrowse.Anchor = TR;
             btnBrowse.Click += delegate { Browse(); };
-            Controls.Add(btnBrowse);
-
-            FlatBtn btnDetect = Ux.Btn("重新检测", 728, 18, 90, false);
+            FlatBtn btnDetect = Ux.BtnIC(cP, Glyph.Sync, "重新检测", 777, 32, 95, false);
+            btnDetect.Anchor = TR;
             btnDetect.Click += delegate { DetectNow(true); };
-            Controls.Add(btnDetect);
 
-            // ---- 第二行：模块 / profile / 端口 ----
-            Label l2 = Ux.Lbl("启动模块", 20, 62, 76);
-            Controls.Add(l2);
+            Ux.LblC(cP, "启动模块", 16, 72, 76, Th.Dim);
             cbModule = new FlatCombo();
-            Panel pm = Ux.Field(cbModule, 100, 58, 190, 28);
-            Controls.Add(pm);
+            Ux.FieldC(cP, cbModule, 96, 68, 190, 28);
             cbModule.SelectedIndexChanged += delegate { OnModuleChanged(); };
 
-            Label l3 = Ux.Lbl("配置 profile", 306, 62, 86);
-            Controls.Add(l3);
+            Ux.LblC(cP, "配置 profile", 300, 72, 86, Th.Dim);
             cbProfile = new FlatCombo();
-            Panel pp = Ux.Field(cbProfile, 396, 58, 140, 28);
-            Controls.Add(pp);
+            Ux.FieldC(cP, cbProfile, 390, 68, 140, 28);
             cbProfile.SelectedIndexChanged += delegate { OnProfileChanged(); };
 
-            Label l4 = Ux.Lbl("端口", 552, 62, 34);
-            Controls.Add(l4);
-            lblPort = Ux.Val("端口 -", 590, 62, 110, Th.Cyan);
+            Ux.LblC(cP, "端口", 544, 72, 34, Th.Dim).Anchor = TR;
+            lblPort = Ux.LblC(cP, "-", 582, 71, EDGE - 582, Th.Cyan);
+            lblPort.Anchor = TR;
             lblPort.Font = Th.UiB;
-            Controls.Add(lblPort);
             Tip = new ToolTip();
             Tip.SetToolTip(lblPort, "来自所选 profile 的 src/main/resources/application-<profile>.yml 的 server.port，随 profile 切换自动更新；启动后以日志里的实际端口为准");
 
-            Button dummy = new Button();
-            dummy.Visible = false;
+            lblStatus = Ux.LblC(cP, "请选择 Spring Boot 工程目录", 16, 102, EDGE - 16, Th.Dim);
+            lblStatus.Anchor = TLR;
 
-            lblStatus = Ux.Val("请选择 Spring Boot 工程目录", 20, 96, 880, Th.Dim);
-            Controls.Add(lblStatus);
+            // ---- 卡片：工具链 ----
+            Card cT = Ux.AddCard(this, "工具链", 16, 150, CW, 134);
+            cT.Anchor = TLR;
 
-            // ---- 工具链配置（留空 = 自动探测；预填自动探测值，可改）----
-            Label lj = Ux.Lbl("JDK 目录", 20, 126, 66);
-            Controls.Add(lj);
+            Ux.LblC(cT, "JDK 目录", 16, 36, 66, Th.Dim);
             txtJdk = new TextBox();
-            Controls.Add(Ux.Field(txtJdk, 90, 122, 250, 28));
-            FlatBtn bj = Ux.Btn("浏览", 346, 122, 56, false);
-            bj.Height = 28;
+            Ux.FieldC(cT, txtJdk, 86, 32, 248, 28).Anchor = TLR;
+            FlatBtn bj = Ux.BtnIC(cT, Glyph.Folder, "浏览", 342, 32, 64, false);
+            bj.Anchor = TR;
             bj.Click += delegate { PickDir(txtJdk, "选择 JDK 安装目录（作为 JAVA_HOME）"); };
-            Controls.Add(bj);
 
-            Label lm = Ux.Lbl("Maven 目录", 412, 126, 80);
-            Controls.Add(lm);
+            Ux.LblC(cT, "Maven 目录", 420, 36, 80, Th.Dim).Anchor = TR;
             txtMaven = new TextBox();
-            Controls.Add(Ux.Field(txtMaven, 496, 122, 250, 28));
-            FlatBtn bm = Ux.Btn("浏览", 752, 122, 56, false);
-            bm.Height = 28;
+            Ux.FieldC(cT, txtMaven, 515, 32, 284, 28).Anchor = TR;
+            FlatBtn bm = Ux.BtnIC(cT, Glyph.Folder, "浏览", 807, 32, 65, false);
+            bm.Anchor = TR;
             bm.Click += delegate { PickDir(txtMaven, "选择 Maven 安装目录（其下应有 bin\\mvn.cmd）"); };
-            Controls.Add(bm);
 
-            Label lr = Ux.Lbl("Maven 仓库", 20, 160, 80);
-            Controls.Add(lr);
+            Ux.LblC(cT, "Maven 仓库", 16, 72, 80, Th.Dim);
             txtRepo = new TextBox();
-            Controls.Add(Ux.Field(txtRepo, 100, 156, 250, 28));
-            FlatBtn br = Ux.Btn("浏览", 356, 156, 56, false);
-            br.Height = 28;
+            Ux.FieldC(cT, txtRepo, 86, 68, 248, 28).Anchor = TLR;
+            FlatBtn br = Ux.BtnIC(cT, Glyph.Folder, "浏览", 342, 68, 64, false);
+            br.Anchor = TR;
             br.Click += delegate { PickDir(txtRepo, "选择 Maven 本地仓库目录（localRepository）"); };
-            Controls.Add(br);
 
-            Label ls = Ux.Lbl("settings.xml", 426, 160, 80);
-            Controls.Add(ls);
+            Ux.LblC(cT, "settings.xml", 420, 72, 80, Th.Dim).Anchor = TR;
             txtSettings = new TextBox();
-            Controls.Add(Ux.Field(txtSettings, 510, 156, 236, 28));
-            FlatBtn bs = Ux.Btn("浏览", 752, 156, 56, false);
-            bs.Height = 28;
+            Ux.FieldC(cT, txtSettings, 515, 68, 284, 28).Anchor = TR;
+            FlatBtn bs = Ux.BtnIC(cT, Glyph.File, "浏览", 807, 68, 65, false);
+            bs.Anchor = TR;
             bs.Click += delegate { PickFile(txtSettings, "选择 Maven settings.xml"); };
-            Controls.Add(bs);
 
-            // ---- 选项 ----
-            chkInstall = MkCheck("启动前自动安装依赖模块", 20, 194, Th.Fg);
-            chkKill = MkCheck("启动前结束占用端口的进程", 250, 194, Th.Fg);
-            chkOpen = MkCheck("启动后打开浏览器", 480, 194, Th.Fg);
-            chkInstall.Checked = true;
-            chkKill.Checked = true;
-            chkOpen.Checked = true;
-            Controls.Add(chkInstall);
-            Controls.Add(chkKill);
-            Controls.Add(chkOpen);
+            chkInstall = Ux.ToggleC(cT, "启动前自动安装依赖模块", 16, 102, 240, true);
+            chkKill = Ux.ToggleC(cT, "启动前结束占用端口的进程", 266, 102, 240, true);
+            chkOpen = Ux.ToggleC(cT, "启动后打开浏览器", 516, 102, 240, true);
 
-            // ---- 按钮行 ----
-            btnRun = Ux.Btn("▶  启动", 20, 228, 120, true);
+            // ---- 卡片：操作 ----
+            Card cA = Ux.AddCard(this, "操作", 16, 292, CW, 116);
+            cA.Anchor = TLR;
+
+            btnRun = Ux.BtnIC(cA, Glyph.Play, "启动", 16, 32, 116, true);
             btnRun.Height = 36;
             btnRun.Click += delegate { Run(false); };
-            Controls.Add(btnRun);
 
-            btnStop = Ux.Btn("■  停止", 148, 228, 100, false);
+            btnStop = Ux.BtnIC(cA, Glyph.Stop, "停止", 138, 32, 100, false);
             btnStop.Height = 36;
             btnStop.Enabled = false;
             btnStop.Click += delegate { Stop(); };
-            Controls.Add(btnStop);
 
-            btnClean = Ux.Btn("清理并重启", 256, 228, 110, false);
+            btnClean = Ux.BtnIC(cA, Glyph.Sync, "清理并重启", 244, 32, 116, false);
             btnClean.Height = 36;
             btnClean.Click += delegate { Run(true); };
-            Controls.Add(btnClean);
 
-            btnBuild = Ux.Btn("仅装依赖", 374, 228, 100, false);
+            btnBuild = Ux.BtnIC(cA, Glyph.Refresh, "仅装依赖", 366, 32, 104, false);
             btnBuild.Height = 36;
             btnBuild.Click += delegate { InstallOnly(); };
-            Controls.Add(btnBuild);
 
-            btnCmd = Ux.Btn("查看命令", 482, 228, 90, false);
+            btnCmd = Ux.BtnIC(cA, Glyph.File, "查看命令", 476, 32, 96, false);
             btnCmd.Height = 36;
             btnCmd.Click += delegate { ShowCommand(); };
-            Controls.Add(btnCmd);
 
-            FlatBtn btnFolder = Ux.Btn("打开目录", 580, 228, 90, false);
+            FlatBtn btnFolder = Ux.BtnIC(cA, Glyph.OpenIn, "打开目录", 578, 32, 96, false);
             btnFolder.Height = 36;
             btnFolder.Click += delegate { if (info.Ok) Sys.OpenFolder(info.LaunchDir); };
-            Controls.Add(btnFolder);
 
-            lblRunState = Ux.Val("● 未运行", 690, 228, 220, Th.Dim);
+            lblRunState = Ux.LblC(cA, "● 未运行", 688, 40, EDGE - 688, Th.Dim);
+            lblRunState.Anchor = TR;
             lblRunState.Font = Th.UiB;
-            Controls.Add(lblRunState);
 
-            // ---- 打包行 ----
-            btnPack = Ux.Btn("打包", 20, 272, 100, false);
-            btnPack.Height = 36;
+            btnPack = Ux.BtnIC(cA, Glyph.Pack, "打包", 16, 76, 100, false);
+            btnPack.Height = 32;
             btnPack.Click += delegate { PackOnly(); };
-            Controls.Add(btnPack);
 
-            btnPackDir = Ux.Btn("产物目录", 128, 272, 100, false);
-            btnPackDir.Height = 36;
+            btnPackDir = Ux.BtnIC(cA, Glyph.OpenIn, "产物目录", 122, 76, 100, false);
+            btnPackDir.Height = 32;
             btnPackDir.Click += delegate { OpenPackDir(); };
-            Controls.Add(btnPackDir);
 
-            Label lPack = Ux.Val("mvn package（跳过测试），产物在启动模块 target 下", 236, 280, 430, Th.Dim);
-            Controls.Add(lPack);
+            Ux.LblC(cA, "mvn package（跳过测试），产物在启动模块 target 下", 232, 82, EDGE - 232, Th.Faint).Anchor = TLR;
 
             // ---- 日志 ----
-            Label l5 = Ux.Val("运行日志", 20, 322, 100, Th.Fg);
+            Label l5 = Ux.Val("运行日志", 16, 418, 100, Th.Fg);
             l5.Font = Th.UiB;
             Controls.Add(l5);
 
-            FlatBtn btnCopy = Ux.Btn("复制", 830, 316, 70, false);
+            FlatBtn btnCopy = Ux.BtnIC(this, Glyph.Copy, "复制", 830, 412, 70, false);
             btnCopy.Height = 26;
+            btnCopy.Anchor = TR;
             btnCopy.Click += delegate
             {
                 try { if (log.Text().Length > 0) Clipboard.SetText(log.Text()); }
                 catch (Exception) { }
             };
-            Controls.Add(btnCopy);
 
-            FlatBtn btnCls = Ux.Btn("清空", 752, 316, 70, false);
+            FlatBtn btnCls = Ux.BtnIC(this, Glyph.Erase, "清空", 752, 412, 70, false);
             btnCls.Height = 26;
+            btnCls.Anchor = TR;
             btnCls.Click += delegate { log.Clear(); };
-            Controls.Add(btnCls);
 
             log = new LogView();
             Panel pl = new Panel();
-            pl.SetBounds(20, 348, 880, 460);
+            pl.SetBounds(16, 444, 888, 420);
             pl.Padding = new Padding(1);
             pl.BackColor = Th.Border;
             pl.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
@@ -870,13 +845,12 @@ namespace DevLaunch
 
         CheckBox MkCheck(string text, int x, int y, Color c)
         {
-            CheckBox c2 = new CheckBox();
+            CheckBox c2 = new PillToggle();
             c2.Text = text;
             c2.ForeColor = c;
             c2.Font = Th.Ui;
             c2.SetBounds(x, y, 226, 24);
-            c2.BackColor = Color.Transparent;
-            c2.FlatStyle = FlatStyle.Standard;
+            c2.BackColor = Th.Card;
             c2.Cursor = Cursors.Hand;
             return c2;
         }
@@ -1112,12 +1086,12 @@ namespace DevLaunch
 
         void RefreshPort()
         {
-            if (!info.Ok) { lblPort.Text = "端口 -"; return; }
+            if (!info.Ok) { lblPort.Text = "-"; return; }
             string pf = cbProfile.SelectedItem == null ? "" : cbProfile.SelectedItem.ToString();
             info.Port = Boot.GuessPort(info.LaunchDir, pf);
             actualPort = 0;
             extKey = "";
-            lblPort.Text = info.Port > 0 ? ("端口 " + info.Port + " (" + pf + ")") : "端口 默认";
+            lblPort.Text = info.Port > 0 ? (info.Port + " (" + pf + ")") : "默认";
             PortWatchNow();
         }
 
@@ -1388,7 +1362,7 @@ namespace DevLaunch
                 if (!log.Box.IsDisposed)
                     log.Box.BeginInvoke(new Action(delegate
                     {
-                        lblPort.Text = "端口 " + p + " (实际)";
+                        lblPort.Text = p + " (实际)";
                         PortWatchNow();
                     }));
             }
@@ -1512,7 +1486,7 @@ namespace DevLaunch
             if (PresetPort > 0)
             {
                 actualPort = PresetPort;
-                lblPort.Text = "端口 " + PresetPort + " (实际)";
+                lblPort.Text = PresetPort + " (实际)";
             }
             PortWatchNow();
             RefreshRunState();

@@ -40,7 +40,8 @@ def find_csc():
 
 
 def build(csc, out_name, main_file, extra_sources, main_type):
-    out_path = os.path.join(BIN, out_name)
+    # 临时产物用独立名字：NTFS 大小写不敏感，out_name 若与最终名仅大小写差异会 SameFileError
+    out_path = os.path.join(BIN, "_tmp_build.exe")
     args = [
         csc, "/nologo", "/codepage:65001", "/target:winexe", "/platform:anycpu",
         "/optimize+", "/warn:4", "/out:" + out_path,
@@ -83,7 +84,10 @@ def main():
         final_path = os.path.join(BIN, final_name)
         # 直接覆盖复制：os.remove 会被安全删除钩子拦住（进回收站失败反而中断构建）
         shutil.copyfile(out_path, final_path)
-        os.remove(out_path)
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
         print("     -> %s  (%.1f KB)" % (final_name, os.path.getsize(final_path) / 1024.0))
     return 1 if fail else 0
 

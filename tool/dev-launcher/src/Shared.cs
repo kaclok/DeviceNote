@@ -1,12 +1,15 @@
-// DevLauncher 公共库 —— 深色主题 UI / 进程管理 / 项目探测
-// 目标编译器：.NET Framework 4.0 csc (C# 5)，勿使用字符串插值、?.、nameof 等 C#6+ 语法
+// DevLauncher 公共库 —— 主题 UI / 进程管理 / 项目探测
+// 目标编译器：.NET Framework 4.0 csc (C# 5)，勿使用字符串插值、?.、nameof、$"" 等 C#6+ 语法
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.IO;
 using System.Linq;
 using System.Management;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -15,42 +18,193 @@ using System.Xml;
 namespace DevLaunch
 {
     // ============================ 主题 ============================
+    // 深色玻璃风：大圆角卡片 + 细描边 + 单色青蓝强调色，状态用「色点 + 文字」表达
     static class Th
     {
-        public static readonly Color Bg = Color.FromArgb(30, 30, 30);
-        public static readonly Color Panel = Color.FromArgb(37, 37, 38);
-        public static readonly Color Input = Color.FromArgb(45, 45, 48);
-        public static readonly Color Hover = Color.FromArgb(62, 62, 67);
-        public static readonly Color Fg = Color.FromArgb(226, 226, 226);
-        public static readonly Color Dim = Color.FromArgb(148, 148, 152);
-        public static readonly Color Accent = Color.FromArgb(14, 99, 156);
-        public static readonly Color AccHov = Color.FromArgb(24, 122, 194);
-        public static readonly Color Border = Color.FromArgb(62, 62, 67);
-        public static readonly Color LogBg = Color.FromArgb(22, 22, 23);
-        public static readonly Color Ok = Color.FromArgb(122, 202, 122);
-        public static readonly Color Warn = Color.FromArgb(228, 178, 74);
-        public static readonly Color Err = Color.FromArgb(238, 110, 110);
-        public static readonly Color Cyan = Color.FromArgb(106, 202, 222);
-        public static readonly Color LogFg = Color.FromArgb(214, 214, 214);
+        // ---- 底色层次（越靠前越亮）----
+        public static readonly Color Bg = Color.FromArgb(18, 20, 25);          // 窗体底
+        public static readonly Color Card = Color.FromArgb(27, 30, 37);        // 卡片
+        public static readonly Color CardHi = Color.FromArgb(34, 38, 46);      // 卡片内嵌区
+        public static readonly Color Input = Color.FromArgb(36, 40, 49);       // 输入框 / 次按钮
+        public static readonly Color Panel = Color.FromArgb(27, 30, 37);
+        public static readonly Color Hover = Color.FromArgb(50, 55, 66);
+        public static readonly Color Press = Color.FromArgb(44, 48, 58);
 
-        public static readonly Font Ui = new Font("Microsoft YaHei UI", 9F);
-        public static readonly Font UiB = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold);
-        public static readonly Font UiS = new Font("Microsoft YaHei UI", 8.25F);
-        public static readonly Font Mono = new Font("Consolas", 9F);
+        // ---- 文字 ----
+        public static readonly Color Fg = Color.FromArgb(232, 236, 242);       // 主文字
+        public static readonly Color Dim = Color.FromArgb(140, 147, 160);      // 次要文字
+        public static readonly Color Faint = Color.FromArgb(104, 111, 124);    // 更弱（提示 / 占位）
+
+        // ---- 强调色（青蓝）----
+        public static readonly Color Accent = Color.FromArgb(47, 143, 235);
+        public static readonly Color AccHov = Color.FromArgb(70, 163, 252);
+        public static readonly Color AccPress = Color.FromArgb(36, 122, 208);
+        public static readonly Color AccentText = Color.FromArgb(105, 190, 255);
+
+        // ---- 状态色 ----
+        public static readonly Color Ok = Color.FromArgb(64, 208, 154);
+        public static readonly Color Warn = Color.FromArgb(242, 188, 88);
+        public static readonly Color Err = Color.FromArgb(245, 112, 112);
+        public static readonly Color Cyan = Color.FromArgb(105, 190, 255);
+
+        // ---- 描边 / 分隔 ----
+        public static readonly Color Border = Color.FromArgb(48, 53, 63);
+        public static readonly Color BorderHi = Color.FromArgb(72, 80, 94);
+        public static readonly Color Divider = Color.FromArgb(38, 42, 50);
+
+        // ---- 日志 ----
+        public static readonly Color LogBg = Color.FromArgb(14, 16, 20);
+        public static readonly Color LogFg = Color.FromArgb(206, 212, 222);
+
+        // ---- 字体（按存在性挑，缺失则回退雅黑）----
+        public static readonly Font Ui = Pick(new string[] { "Segoe UI", "Microsoft YaHei UI" }, 9F, FontStyle.Regular);
+        public static readonly Font UiB = Pick(new string[] { "Segoe UI Semibold", "Microsoft YaHei UI" }, 9F, FontStyle.Bold);
+        public static readonly Font UiS = Pick(new string[] { "Segoe UI", "Microsoft YaHei UI" }, 8.25F, FontStyle.Regular);
+        public static readonly Font Mono = Pick(new string[] { "Cascadia Mono", "Consolas" }, 9F, FontStyle.Regular);
+        public static readonly Font Glyph = Pick(new string[] { "Segoe Fluent Icons", "Segoe MDL2 Assets" }, 10F, FontStyle.Regular);
+        public static readonly Font GlyphS = Pick(new string[] { "Segoe Fluent Icons", "Segoe MDL2 Assets" }, 7F, FontStyle.Regular);
+
+        static Font Pick(string[] names, float size, FontStyle style)
+        {
+            try
+            {
+                using (InstalledFontCollection col = new InstalledFontCollection())
+                {
+                    foreach (string n in names)
+                    {
+                        foreach (FontFamily ff in col.Families)
+                        {
+                            if (ff.Name.Equals(n, StringComparison.OrdinalIgnoreCase))
+                                return new Font(n, size, style, GraphicsUnit.Point);
+                        }
+                    }
+                }
+            }
+            catch (Exception) { }
+            return new Font("Microsoft YaHei UI", size, style, GraphicsUnit.Point);
+        }
+    }
+
+    // ============================ 绘制工具 ============================
+    static class Draw2
+    {
+        public static GraphicsPath Round(RectangleF r, float radius)
+        {
+            GraphicsPath p = new GraphicsPath();
+            float d = Math.Max(0F, Math.Min(radius, Math.Min(r.Width, r.Height) / 2F)) * 2F;
+            if (d <= 0.5F)
+            {
+                p.AddRectangle(r);
+                return p;
+            }
+            p.AddArc(r.X, r.Y, d, d, 180, 90);
+            p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            p.CloseFigure();
+            return p;
+        }
+
+        public static void Fill(Graphics g, RectangleF r, float radius, Color c)
+        {
+            if (r.Width <= 0 || r.Height <= 0) return;
+            using (GraphicsPath p = Round(r, radius))
+            using (SolidBrush b = new SolidBrush(c))
+                g.FillPath(b, p);
+        }
+
+        public static void Stroke(Graphics g, RectangleF r, float radius, Color c, float w)
+        {
+            if (r.Width <= 1 || r.Height <= 1) return;
+            RectangleF rr = new RectangleF(r.X + w / 2F, r.Y + w / 2F, r.Width - w, r.Height - w);
+            using (GraphicsPath p = Round(rr, radius))
+            using (Pen pen = new Pen(c, w))
+                g.DrawPath(pen, p);
+        }
+
+        // 细字体的抗锯齿文字（文本框 / 日志这类要按像素对齐的地方不用）
+        public static void Text(Graphics g, string s, Font f, Color c, RectangleF r, ContentAlignment al)
+        {
+            if (string.IsNullOrEmpty(s) || r.Width <= 2) return;
+            TextFormatFlags flags = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
+            if (al == ContentAlignment.MiddleLeft || al == ContentAlignment.TopLeft || al == ContentAlignment.BottomLeft) flags |= TextFormatFlags.Left;
+            else if (al == ContentAlignment.MiddleCenter || al == ContentAlignment.TopCenter || al == ContentAlignment.BottomCenter) flags |= TextFormatFlags.HorizontalCenter;
+            else flags |= TextFormatFlags.Right;
+            if (al == ContentAlignment.MiddleLeft || al == ContentAlignment.MiddleCenter || al == ContentAlignment.MiddleRight) flags |= TextFormatFlags.VerticalCenter;
+            else if (al == ContentAlignment.TopLeft || al == ContentAlignment.TopCenter || al == ContentAlignment.TopRight) flags |= TextFormatFlags.Top;
+            else flags |= TextFormatFlags.Bottom;
+            bool ellipsis = al == ContentAlignment.MiddleLeft || al == ContentAlignment.MiddleCenter || al == ContentAlignment.MiddleRight;
+            if (ellipsis) flags |= TextFormatFlags.EndEllipsis;
+            Rectangle rr = new Rectangle((int)r.X, (int)r.Y, (int)Math.Ceiling(r.Width), (int)Math.Ceiling(r.Height));
+            TextRenderer.DrawText(g, s, f, rr, c, flags);
+        }
+
+        public static Size2 Measure(string s, Font f)
+        {
+            return new Size2(TextRenderer.MeasureText(s, f).Width, TextRenderer.MeasureText(s, f).Height);
+        }
+
+        // 简单尺寸容器（避免到处写 SizeF）
+        public struct Size2
+        {
+            public int W, H;
+            public Size2(int w, int h) { W = w; H = h; }
+        }
+    }
+
+    // 分段控件里的一个图标 / 一小段文字
+    // （用于日志分栏的「切换」页签，以及状态点前的小图标）
+    static class Glyph
+    {
+        // Segoe MDL2 Assets / Segoe Fluent Icons 字符
+        public const string Play = "\uE768";
+        public const string PlayWin = "\uE102";
+        public const string Stop = "\uE71A";
+        public const string Power = "\uE7E8";
+        public const string Folder = "\uE8B7";
+        public const string File = "\uE8A5";
+        public const string Refresh = "\uE72C";
+        public const string Settings = "\uE713";
+        public const string Pack = "\uE7B8";
+        public const string OpenIn = "\uE8A7";
+        public const string Copy = "\uE8C8";
+        public const string Erase = "\uE894";
+        public const string Globe = "\uE774";
+        public const string Clear = "\uE894";
+        public const string Check = "\uE73E";
+        public const string Warning = "\uE7BA";
+        public const string Error = "\uE783";
+        public const string Sync = "\uE895";
+        public const string ChevronDown = "\uE70D";
+        public const string Close = "\uE711";
+
+        public static string Pick(string glyph)
+        {
+            // 字体缺失时字符会变成方框；这里不处理（Windows 10+ 都有 Segoe MDL2 Assets）
+            return glyph;
+        }
     }
 
     // ============================ 控件 ============================
+    // 通用按钮：圆角、按下变暗、禁用灰、主按钮带强调色
     class FlatBtn : Button
     {
+        // 保持旧字段名（三个窗体的代码里直接赋 Base / Hover 的地方仍然有效）
         public Color Base = Th.Input;
         public Color Hover = Th.Hover;
+        public int Radius = 6;
+        public bool Primary;
+        public string GlyphText = "";        // 左侧图标（Segoe MDL2）
+
+        bool _down, _over;
 
         public FlatBtn()
         {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer
+                | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
-            FlatAppearance.MouseOverBackColor = Hover;
-            BackColor = Base;
+            BackColor = Th.Card;
             ForeColor = Th.Fg;
             Font = Th.Ui;
             Height = 32;
@@ -59,32 +213,113 @@ namespace DevLaunch
             TabStop = false;
         }
 
+        public void PrimaryStyle()
+        {
+            Primary = true;
+            Base = Th.Accent;
+            Hover = Th.AccHov;
+        }
+
         protected override void OnMouseEnter(EventArgs e)
         {
             base.OnMouseEnter(e);
-            if (Enabled) BackColor = Hover;
+            if (!Enabled) return;
+            _over = true;
+            if (Cursor != Cursors.Hand) Cursor = Cursors.Hand;
+            Invalidate();
         }
 
         protected override void OnMouseLeave(EventArgs e)
         {
             base.OnMouseLeave(e);
-            BackColor = Enabled ? Base : Th.Panel;
+            _over = false;
+            _down = false;
+            Invalidate();
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (!Enabled) return;
+            _down = true;
+            Invalidate();
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            _down = false;
+            Invalidate();
         }
 
         protected override void OnEnabledChanged(EventArgs e)
         {
             base.OnEnabledChanged(e);
-            BackColor = Enabled ? Base : Th.Panel;
-            ForeColor = Enabled ? Th.Fg : Th.Dim;
             Cursor = Enabled ? Cursors.Hand : Cursors.Default;
+            Invalidate();
+        }
+
+        protected override void OnTextChanged(EventArgs e)
+        {
+            base.OnTextChanged(e);
+            Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(BackColor);
+
+            Color fill;
+            if (!Enabled) fill = Th.CardHi;
+            else if (Primary) fill = _down ? Th.AccPress : (_over ? Th.AccHov : Th.Accent);
+            else if (_down) fill = Th.Press;
+            else if (_over) fill = Hover;
+            else fill = Base;
+
+            RectangleF r = new RectangleF(0, 0, Width, Height);
+            Draw2.Fill(g, r, Radius, fill);
+            // 次按钮加一道细描边，主按钮不加（避免边缘发脏）
+            if (!Primary && Enabled) Draw2.Stroke(g, r, Radius, Th.Border, 1F);
+
+            Color fg;
+            if (!Enabled) fg = Th.Faint;
+            else if (Primary) fg = Color.White;
+            else if (_over) fg = Th.Fg;
+            else fg = Th.Fg;
+
+            // 图标（可选，位于左侧，以居中偏左的方式对齐）
+            float tx = 0, tw = Width;
+            if (GlyphText.Length > 0)
+            {
+                Size gw = TextRenderer.MeasureText(GlyphText, Th.Glyph, new Size(Height * 3, Height * 3),
+                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                Size textW = string.IsNullOrEmpty(Text) ? new Size(0, 0)
+                    : TextRenderer.MeasureText(Text, Font, new Size(Width * 2, Height * 3),
+                        TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                float total = gw.Width + (textW.Width > 0 ? 5 + textW.Width : 0);
+                float x = (Width - total) / 2F;
+                RectangleF gr = new RectangleF(x, 0, gw.Width + 2, Height);
+                TextRenderer.DrawText(g, GlyphText, Th.Glyph,
+                    new Rectangle((int)gr.X, (int)gr.Y, (int)gr.Width, (int)gr.Height), fg,
+                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
+                tx = x + gw.Width + 5;
+                tw = Width - tx;
+            }
+            if (!string.IsNullOrEmpty(Text))
+            {
+                Draw2.Text(g, Text, Font, fg, new RectangleF(tx, 0, tw, Height), ContentAlignment.MiddleCenter);
+            }
         }
     }
 
-    // 下拉框：owner-draw，保证深色下也好看
+    // 下拉框：owner-draw，深色下保持统一观感
     class FlatCombo : ComboBox
     {
         public FlatCombo()
         {
+            SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
             DrawMode = DrawMode.OwnerDrawFixed;
             DropDownStyle = ComboBoxStyle.DropDownList;
             FlatStyle = FlatStyle.Flat;
@@ -96,14 +331,109 @@ namespace DevLaunch
 
         protected override void OnDrawItem(DrawItemEventArgs e)
         {
-            if (e.Index < 0) return;
+            if (e.Index < 0 || e.Index >= Items.Count) return;
             bool sel = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
-            using (SolidBrush b = new SolidBrush(sel ? Th.Accent : Th.Input))
+            Color bg = sel ? Th.Accent : Th.CardHi;
+            using (SolidBrush b = new SolidBrush(bg))
                 e.Graphics.FillRectangle(b, e.Bounds);
             string t = Convert.ToString(Items[e.Index]);
             TextRenderer.DrawText(e.Graphics, t, Th.Ui,
-                new Point(e.Bounds.X + 7, e.Bounds.Y + (e.Bounds.Height - Th.Ui.Height) / 2),
-                sel ? Color.White : Th.Fg);
+                new Point(e.Bounds.X + 8, e.Bounds.Y + (e.Bounds.Height - Th.Ui.Height) / 2),
+                sel ? Color.White : Th.Fg,
+                TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+        }
+    }
+
+    // 可点的小开关（「启动后自动打开页面」这类）
+    class PillToggle : CheckBox
+    {
+        public PillToggle()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer
+                | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
+            Font = Th.Ui;
+            ForeColor = Th.Fg;
+            BackColor = Color.Transparent;
+            Cursor = Cursors.Hand;
+            AutoSize = false;
+            Height = 26;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            // Transparent 在 UserPaint 下会 Clear 成黑；回退父级底色
+            Color bg = BackColor;
+            if (bg.A == 0) bg = Parent != null ? Parent.BackColor : Th.Bg;
+            g.Clear(bg);
+            bool on = Checked;
+            int sw = 34, sh = 18;
+            RectangleF track = new RectangleF(1, (Height - sh) / 2F, sw, sh);
+            Draw2.Fill(g, track, sh / 2F, on ? Th.Accent : Th.BorderHi);
+            float kr = sh - 6;
+            float kx = on ? track.Right - kr - 3 : track.X + 3;
+            using (SolidBrush kb = new SolidBrush(on ? Color.White : Color.FromArgb(170, 176, 188)))
+                g.FillEllipse(kb, kx, track.Y + 3, kr, kr);
+            Draw2.Text(g, Text, Font, on ? Th.Fg : Th.Dim, new RectangleF(sw + 8, 0, Width - sw - 8, Height), ContentAlignment.MiddleLeft);
+        }
+
+        protected override void OnCheckedChanged(EventArgs e)
+        {
+            base.OnCheckedChanged(e);
+            Invalidate();
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            base.OnMouseEnter(e);
+            Invalidate();
+        }
+    }
+
+    // 带小标题的卡片容器（圆角 + 描边），子控件由调用方用绝对坐标放进去
+    // 子控件坐标相对卡片；标题带高 HeadH，内容从 y >= HeadH 开始摆
+    class Card : Panel
+    {
+        public string Title = "";
+        public string Subtitle = "";
+        public const int HeadH = 26;
+
+        public Card()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer
+                | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
+            BackColor = Th.Bg;
+            ForeColor = Th.Fg;
+        }
+
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            // 铺窗体底色：圆角以外的四角呈现“透明”观感
+            using (SolidBrush b = new SolidBrush(Th.Bg)) e.Graphics.FillRectangle(b, ClientRectangle);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            RectangleF r = new RectangleF(0, 0, Width, Height);
+            Draw2.Fill(g, r, 10F, Th.Card);
+            Draw2.Stroke(g, r, 10F, Th.Border, 1F);
+            if (Title.Length > 0)
+            {
+                Draw2.Fill(g, new RectangleF(14, 8, 3, 12), 1.5F, Th.Accent);
+                Draw2.Text(g, Title, Th.UiB, Th.Fg,
+                    new RectangleF(23, 3, Math.Max(60, Width - 160), 20), ContentAlignment.MiddleLeft);
+                if (Subtitle.Length > 0)
+                    Draw2.Text(g, Subtitle, Th.UiS, Th.Dim,
+                        new RectangleF(Width - 140, 4, 128, 18), ContentAlignment.MiddleRight);
+            }
+        }
+
+        public void SetBoundsJ(int x, int y, int w, int h)
+        {
+            SetBounds(x, y, w, h);
         }
     }
 
@@ -120,6 +450,7 @@ namespace DevLaunch
             l.SetBounds(x, y, w, 20);
             l.TextAlign = ContentAlignment.MiddleLeft;
             l.BackColor = Color.Transparent;
+            l.UseMnemonic = false;
             return l;
         }
 
@@ -130,15 +461,22 @@ namespace DevLaunch
             return l;
         }
 
-        // 给控件套一层 1px 描边
+        // 给控件套一层圆角描边的输入框
         public static Panel Field(Control inner, int x, int y, int w, int h)
         {
-            Panel p = new Panel();
+            Panel p = new RoundPanel();
             p.SetBounds(x, y, w, h);
-            p.Padding = new Padding(1);
-            p.BackColor = Th.Border;
+            p.Padding = new Padding(10, 1, 8, 1);
+            p.BackColor = Th.Card;
             TextBox tb = inner as TextBox;
-            if (tb != null) tb.BorderStyle = BorderStyle.None;
+            if (tb != null)
+            {
+                tb.BorderStyle = BorderStyle.None;
+                tb.BackColor = Th.Input;
+                tb.ForeColor = Th.Fg;
+            }
+            ComboBox cb = inner as ComboBox;
+            if (cb != null) { cb.BackColor = Th.Input; cb.ForeColor = Th.Fg; }
             inner.Dock = DockStyle.Fill;
             inner.BackColor = Th.Input;
             inner.ForeColor = Th.Fg;
@@ -152,8 +490,85 @@ namespace DevLaunch
             FlatBtn b = new FlatBtn();
             b.Text = text;
             b.SetBounds(x, y, w, 32);
-            if (primary) { b.Base = Th.Accent; b.Hover = Th.AccHov; }
+            if (primary) b.PrimaryStyle();
             return b;
+        }
+
+        // 带图标的按钮：宽度按「图标 + 文字」实测自适应，传入的 w 只是下限
+        public static FlatBtn BtnI(string glyph, string text, int x, int y, int w, bool primary)
+        {
+            FlatBtn b = Btn(text, x, y, FitW(glyph, text, w), primary);
+            b.GlyphText = glyph;
+            return b;
+        }
+
+        // 实测图标与文字宽度，保证按钮装得下内容（NoPadding 口径，与 FlatBtn.OnPaint 一致）
+        public static int FitW(string glyph, string text, int w)
+        {
+            int need = 16;
+            if (!string.IsNullOrEmpty(glyph))
+            {
+                Size gw = TextRenderer.MeasureText(glyph, Th.Glyph, new Size(120, 40),
+                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                need += gw.Width + 5;
+            }
+            if (!string.IsNullOrEmpty(text))
+            {
+                Size tw = TextRenderer.MeasureText(text, Th.Ui, new Size(400, 40),
+                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                need += tw.Width;
+            }
+            return Math.Max(w, need);
+        }
+
+        // ---- 卡片内摆放：坐标相对卡片；标签底色对齐卡片填充色，避免透明标签露出底色 ----
+        public static Card AddCard(Form f, string title, int x, int y, int w, int h)
+        {
+            Card c = new Card();
+            c.Title = title;
+            c.SetBounds(x, y, w, h);
+            f.Controls.Add(c);
+            return c;
+        }
+
+        public static Label LblC(Control host, string text, int x, int y, int w, Color c)
+        {
+            Label l = Val(text, x, y, w, c);
+            l.BackColor = Th.Card;
+            host.Controls.Add(l);
+            return l;
+        }
+
+        public static Panel FieldC(Control host, Control inner, int x, int y, int w, int h)
+        {
+            Panel p = Field(inner, x, y, w, h);
+            host.Controls.Add(p);
+            return p;
+        }
+
+        public static FlatBtn BtnC(Control host, string text, int x, int y, int w, bool primary)
+        {
+            FlatBtn b = Btn(text, x, y, w, primary);
+            host.Controls.Add(b);
+            return b;
+        }
+
+        public static FlatBtn BtnIC(Control host, string glyph, string text, int x, int y, int w, bool primary)
+        {
+            FlatBtn b = BtnI(glyph, text, x, y, w, primary);
+            host.Controls.Add(b);
+            return b;
+        }
+
+        public static CheckBox ToggleC(Control host, string text, int x, int y, int w, bool val)
+        {
+            PillToggle t = new PillToggle();
+            t.Text = text;
+            t.Checked = val;
+            t.SetBounds(x, y, w, 24);
+            t.BackColor = Th.Card;
+            host.Controls.Add(t);
+            return t;
         }
 
         public static void Dark(Form f)
@@ -164,6 +579,75 @@ namespace DevLaunch
             f.FormBorderStyle = FormBorderStyle.Sizable;
             f.MaximizeBox = true;
             f.StartPosition = FormStartPosition.CenterScreen;
+            try { f.Icon = Ux.MakeIcon(); } catch (Exception) { }
+        }
+
+        // 程序图标：圆角方块 + 播放三角（不依赖外部文件，单 exe 拷贝即用）
+        static Icon _icon;
+
+        public static Icon MakeIcon()
+        {
+            if (_icon != null) return _icon;
+            try
+            {
+                using (Bitmap bmp = new Bitmap(32, 32))
+                {
+                    using (Graphics g = Graphics.FromImage(bmp))
+                    {
+                        g.SmoothingMode = SmoothingMode.AntiAlias;
+                        g.Clear(Color.Transparent);
+                        using (GraphicsPath p = Draw2.Round(new RectangleF(1, 1, 30, 30), 7))
+                        using (LinearGradientBrush lg = new LinearGradientBrush(new RectangleF(1, 1, 30, 30),
+                            Color.FromArgb(72, 168, 255), Color.FromArgb(38, 112, 210), 55F))
+                            g.FillPath(lg, p);
+                        PointF[] tri = new PointF[] {
+                            new PointF(13, 10), new PointF(23, 16), new PointF(13, 22)
+                        };
+                        using (SolidBrush wb = new SolidBrush(Color.White)) g.FillPolygon(wb, tri);
+                    }
+                    _icon = Icon.FromHandle(bmp.GetHicon());
+                    return _icon;
+                }
+            }
+            catch (Exception) { return null; }
+        }
+    }
+
+    // 圆角描边面板（输入框外壳 / 日志外壳 / 卡片）
+    class RoundPanel : Panel
+    {
+        public int Radius = 7;
+        public bool DrawBorder = true;
+        public float BorderWidth = 1F;
+        public Color BorderColor = Th.Border;
+        public bool DrawFill = true;
+
+        public RoundPanel()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer
+                | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
+            BackColor = Th.Bg;
+        }
+
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (SolidBrush b = new SolidBrush(BackColor)) g.FillRectangle(b, ClientRectangle);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            RectangleF r = new RectangleF(0, 0, Width, Height);
+            if (DrawFill) Draw2.Fill(g, r, Radius, FillColor());
+            if (DrawBorder) Draw2.Stroke(g, r, Radius, BorderColor, BorderWidth);
+        }
+
+        protected virtual Color FillColor()
+        {
+            return Th.Input;
         }
     }
 
@@ -236,13 +720,13 @@ namespace DevLaunch
         public void Ok(string s) { Line(s, Th.Ok); }
         public void Warn(string s) { Line(s, Th.Warn); }
         public void Err(string s) { Line(s, Th.Err); }
-        public void Cmd(string s) { Line(s, Th.Cyan); }
+        public void Cmd(string s) { Line(s, Th.AccentText); }
         public void Dim2(string s) { Line(s, Th.Dim); }
 
         public void Banner(string title)
         {
             Line("", Th.LogFg);
-            Line("========== " + title + "  " + DateTime.Now.ToString("HH:mm:ss") + " ==========", Th.Cyan);
+            Line("┃ " + title + "  " + DateTime.Now.ToString("HH:mm:ss"), Th.AccentText);
         }
     }
 
@@ -252,6 +736,7 @@ namespace DevLaunch
         Process _p;
         public event Action<string> Out;
         public event Action<int> Exited;
+        public event Action<string> ErrOut;
 
         public bool Running
         {
@@ -268,6 +753,11 @@ namespace DevLaunch
         }
 
         public void Start(string workDir, string command, Dictionary<string, string> env)
+        {
+            Start(workDir, command, env, null);
+        }
+
+        public void Start(string workDir, string command, Dictionary<string, string> env, Action<string> stderrSink)
         {
             Stop();
 
@@ -632,14 +1122,41 @@ namespace DevLaunch
 
         public static void OpenFolder(string dir)
         {
+            if (!Directory.Exists(dir)) return;
+            // 首选：Shell.Application COM（Out-of-Process 服务就是桌面 explorer）——
+            // 由已运行的 shell 进程自己打开目录窗口，本进程完全不新建 explorer.exe。
+            // 受限环境下手动拉起的 explorer 子进程会 0xc0000142 初始化失败，此通道可绕开。
             try
             {
-                if (!Directory.Exists(dir)) return;
-                ProcessStartInfo psi = new ProcessStartInfo("explorer.exe", "\"" + dir + "\"");
-                psi.UseShellExecute = true;
-                Process.Start(psi);
+                Type t = Type.GetTypeFromProgID("Shell.Application");
+                if (t != null)
+                {
+                    object shell = Activator.CreateInstance(t);
+                    t.InvokeMember("Open", System.Reflection.BindingFlags.InvokeMethod,
+                        null, shell, new object[] { dir });
+                    return;
+                }
             }
             catch (Exception) { }
+            // 次选：ShellExecuteEx 打开目录路径
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo();
+                psi.FileName = dir;
+                psi.UseShellExecute = true;
+                Process.Start(psi);
+                return;
+            }
+            catch (Exception) { }
+            // 末选：显式拉起 explorer.exe，并把错误暴露出来（不再静默吞掉）
+            try
+            {
+                Process.Start("explorer.exe", "\"" + dir + "\"");
+            }
+            catch (Exception ex)
+            {
+                try { MessageBox.Show("打开目录失败：\n" + dir + "\n\n" + ex.Message, "提示"); } catch (Exception) { }
+            }
         }
     }
 
@@ -648,7 +1165,7 @@ namespace DevLaunch
     class PortWatcher
     {
         public event Action<List<Sys.PortOwner>, int> Result;
-        bool _busy;
+        volatile bool _busy;
 
         public bool Refresh(int port)
         {

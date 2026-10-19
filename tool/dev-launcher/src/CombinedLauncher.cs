@@ -89,13 +89,12 @@ namespace DevLaunch
 
         CheckBox MkCheck(string text, int x, int y, bool val)
         {
-            CheckBox c = new CheckBox();
+            CheckBox c = new PillToggle();
             c.Text = text;
             c.ForeColor = Th.Fg;
             c.Font = Th.Ui;
             c.SetBounds(x, y, 440, 24);
-            c.BackColor = Color.Transparent;
-            c.FlatStyle = FlatStyle.Standard;
+            c.BackColor = Th.Bg;
             c.Checked = val;
             c.Cursor = Cursors.Hand;
             return c;
@@ -169,8 +168,8 @@ namespace DevLaunch
         public ComboForm()
         {
             Text = "启动台 · 后端 + 前端";
-            ClientSize = new Size(880, 560);
-            MinimumSize = new Size(760, 460);
+            ClientSize = new Size(880, 640);
+            MinimumSize = new Size(900, 600);
             Ux.Dark(this);
             BuildUi();
 
@@ -204,120 +203,145 @@ namespace DevLaunch
         // ---------- 界面 ----------
         void BuildUi()
         {
-            // ---- 第 1 行：后端 ----
-            Label lb = Ux.Val("后端", 12, 17, 36, Th.Cyan);
-            lb.Font = Th.UiB;
-            Controls.Add(lb);
+            const int CW = 852;
+            const int EDGE = CW - 14;   // 卡片内容右缘
+            const AnchorStyles TLR = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            const AnchorStyles TR = AnchorStyles.Top | AnchorStyles.Right;
+
+            // ---- 后端卡片 ----
+            Card cB = Ux.AddCard(this, "后端 · Spring Boot", 14, 12, CW, 96);
+            cB.Anchor = TLR;
 
             txtBDir = new TextBox();
-            Controls.Add(Ux.Field(txtBDir, 50, 13, 330, 26));
-            FlatBtn bb = Ux.Btn("浏览", 386, 13, 50, false);
+            Ux.FieldC(cB, txtBDir, 14, 32, 272, 26).Anchor = TLR;
+            FlatBtn bb = Ux.BtnIC(cB, Glyph.Folder, "浏览", 294, 32, 64, false);
             bb.Height = 26;
+            bb.Anchor = TR;
             bb.Click += delegate { BrowseDir(txtBDir, "选择 Spring Boot 工程目录（多模块选根目录或任意子模块均可）", delegate { DetectB(true); }); };
-            Controls.Add(bb);
 
             cbProfile = new FlatCombo();
-            Controls.Add(Ux.Field(cbProfile, 442, 13, 120, 26));
+            Ux.FieldC(cB, cbProfile, 366, 32, 108, 26).Anchor = TR;
             tipB = new ToolTip();
             tipB.SetToolTip(cbProfile, "配置 profile（来自 application-*.yml），切换后端口跟着变");
             cbProfile.SelectedIndexChanged += delegate { RefreshPortB(); };
 
-            bBRun = Ux.Btn("▶", 568, 13, 46, true);
+            bBRun = Ux.BtnIC(cB, Glyph.Play, "", 482, 32, 44, true);
             bBRun.Height = 26;
+            bBRun.Anchor = TR;
             tipB.SetToolTip(bBRun, "启动后端");
             bBRun.Click += delegate { RunB(); };
-            Controls.Add(bBRun);
 
-            bBStop = Ux.Btn("■", 618, 13, 46, false);
+            bBStop = Ux.BtnIC(cB, Glyph.Stop, "", 534, 32, 44, false);
             bBStop.Height = 26;
+            bBStop.Anchor = TR;
             bBStop.Enabled = false;
             tipB.SetToolTip(bBStop, "停止后端");
             bBStop.Click += delegate { StopB(); };
-            Controls.Add(bBStop);
 
-            lblBState = Ux.Val("未配置", 672, 17, 196, Th.Dim);
-            Controls.Add(lblBState);
+            lblBState = Ux.LblC(cB, "未配置", 586, 36, EDGE - 586, Th.Dim);
+            lblBState.Anchor = TR;
             tipB.SetToolTip(lblBState, "后端状态：端口（来自 application-<profile>.yml）+ 运行状态。启动后以日志里的实际端口为准。");
 
-            // ---- 第 2 行：前端 ----
-            Label lf = Ux.Val("前端", 12, 51, 36, Th.Cyan);
-            lf.Font = Th.UiB;
-            Controls.Add(lf);
+            bPackB = Ux.BtnIC(cB, Glyph.Pack, "打包后端", 14, 66, 104, false);
+            bPackB.Height = 26;
+            tipB.SetToolTip(bPackB, "mvn package（跳过测试），产物在启动模块 target 下");
+            bPackB.Click += delegate { PackB(); };
+
+            bPackDirB = Ux.BtnIC(cB, Glyph.OpenIn, "产物", 126, 66, 68, false);
+            bPackDirB.Height = 26;
+            bPackDirB.Click += delegate { OpenPackDirB(); };
+
+            Ux.LblC(cB, "打包不影响已启动的服务；产物目录不存在时请先打包", 208, 70, EDGE - 208, Th.Faint).Anchor = TLR;
+
+            // ---- 前端卡片 ----
+            Card cF = Ux.AddCard(this, "前端 · Vite", 14, 116, CW, 96);
+            cF.Anchor = TLR;
 
             txtFDir = new TextBox();
-            Controls.Add(Ux.Field(txtFDir, 50, 47, 290, 26));
-            FlatBtn fb = Ux.Btn("浏览", 346, 47, 50, false);
+            Ux.FieldC(cF, txtFDir, 14, 32, 246, 26).Anchor = TLR;
+            FlatBtn fb = Ux.BtnIC(cF, Glyph.Folder, "浏览", 268, 32, 64, false);
             fb.Height = 26;
+            fb.Anchor = TR;
             fb.Click += delegate { BrowseDir(txtFDir, "选择前端工程根目录（含 package.json）", delegate { DetectF(true); }); };
-            Controls.Add(fb);
 
             cbScript = new FlatCombo();
-            Controls.Add(Ux.Field(cbScript, 402, 47, 160, 26));
+            Ux.FieldC(cF, cbScript, 341, 32, 150, 26).Anchor = TR;
             tipF = new ToolTip();
             tipF.SetToolTip(cbScript, "启动脚本（来自 package.json scripts）");
             cbScript.SelectedIndexChanged += delegate { RefreshPortF(); };
 
-            bFRun = Ux.Btn("▶", 568, 47, 46, true);
+            bFRun = Ux.BtnIC(cF, Glyph.Play, "", 499, 32, 44, true);
             bFRun.Height = 26;
+            bFRun.Anchor = TR;
             tipF.SetToolTip(bFRun, "启动前端");
             bFRun.Click += delegate { RunF(); };
-            Controls.Add(bFRun);
 
-            bFStop = Ux.Btn("■", 618, 47, 46, false);
+            bFStop = Ux.BtnIC(cF, Glyph.Stop, "", 551, 32, 44, false);
             bFStop.Height = 26;
+            bFStop.Anchor = TR;
             bFStop.Enabled = false;
             tipF.SetToolTip(bFStop, "停止前端");
             bFStop.Click += delegate { StopF(); };
-            Controls.Add(bFStop);
 
-            lblFState = Ux.Val("未配置", 672, 51, 196, Th.Dim);
-            Controls.Add(lblFState);
+            lblFState = Ux.LblC(cF, "未配置", 603, 36, EDGE - 603, Th.Dim);
+            lblFState.Anchor = TR;
             tipF.SetToolTip(lblFState, "前端状态：端口（来自 vite.config.*）+ 运行状态。启动后以日志里的实际端口为准。");
 
-            // ---- 第 3 行：全局动作 ----
-            bAllRun = Ux.Btn("▶ 全部启动", 50, 82, 110, true);
+            bPackF = Ux.BtnIC(cF, Glyph.Pack, "打包前端", 14, 66, 104, false);
+            bPackF.Height = 26;
+            tipF.SetToolTip(bPackF, "npm run build，产物目录读自 vite.config 的 outDir");
+            bPackF.Click += delegate { PackF(); };
+
+            bPackDirF = Ux.BtnIC(cF, Glyph.OpenIn, "产物", 126, 66, 68, false);
+            bPackDirF.Height = 26;
+            bPackDirF.Click += delegate { OpenPackDirF(); };
+
+            Ux.LblC(cF, "前后端相互独立，可单独启动、单独打包", 208, 70, EDGE - 208, Th.Faint).Anchor = TLR;
+
+            // ---- 操作卡片 ----
+            Card cA = Ux.AddCard(this, "操作", 14, 220, CW, 66);
+            cA.Anchor = TLR;
+
+            bAllRun = Ux.BtnIC(cA, Glyph.Play, "全部启动", 14, 32, 118, true);
             bAllRun.Height = 30;
             bAllRun.Click += delegate { RunB(); RunF(); };
-            Controls.Add(bAllRun);
 
-            bAllStop = Ux.Btn("■ 全部停止", 166, 82, 100, false);
+            bAllStop = Ux.BtnIC(cA, Glyph.Stop, "全部停止", 140, 32, 108, false);
             bAllStop.Height = 30;
             bAllStop.Click += delegate { StopB(); StopF(); };
-            Controls.Add(bAllStop);
 
-            FlatBtn btnSettings = Ux.Btn("设置…", 272, 82, 62, false);
+            FlatBtn btnSettings = Ux.BtnIC(cA, Glyph.Settings, "设置", 256, 32, 66, false);
             btnSettings.Height = 30;
             btnSettings.Click += delegate { OpenSettings(); };
-            Controls.Add(btnSettings);
 
-            chkOpen = new CheckBox();
+            chkOpen = new PillToggle();
             chkOpen.Text = "启动后打开页面";
             chkOpen.ForeColor = Th.Fg;
             chkOpen.Font = Th.Ui;
-            chkOpen.SetBounds(344, 86, 140, 24);
-            chkOpen.BackColor = Color.Transparent;
-            chkOpen.FlatStyle = FlatStyle.Standard;
+            chkOpen.SetBounds(330, 34, 150, 24);
+            chkOpen.BackColor = Th.Card;
             chkOpen.Checked = true;
             chkOpen.Cursor = Cursors.Hand;
-            Controls.Add(chkOpen);
+            cA.Controls.Add(chkOpen);
 
-            FlatBtn btnOpenB = Ux.Btn("后端页面", 492, 82, 76, false);
+            FlatBtn btnOpenB = Ux.BtnIC(cA, Glyph.Globe, "后端页面", 492, 32, 96, false);
             btnOpenB.Height = 30;
+            btnOpenB.Anchor = TR;
             btnOpenB.Click += delegate { int p = CurPortB(); if (p > 0) Sys.OpenUrl("http://localhost:" + p); };
-            Controls.Add(btnOpenB);
 
-            FlatBtn btnOpenF = Ux.Btn("前端页面", 574, 82, 76, false);
+            FlatBtn btnOpenF = Ux.BtnIC(cA, Glyph.Globe, "前端页面", 596, 32, 96, false);
             btnOpenF.Height = 30;
+            btnOpenF.Anchor = TR;
             btnOpenF.Click += delegate { int p = CurPortF(); if (p > 0) Sys.OpenUrl("http://localhost:" + p); };
-            Controls.Add(btnOpenF);
 
-            FlatBtn btnClear = Ux.Btn("清空", 760, 84, 52, false);
-            btnClear.Height = 26;
+            FlatBtn btnClear = Ux.BtnIC(cA, Glyph.Erase, "清空", 700, 32, 64, false);
+            btnClear.Height = 30;
+            btnClear.Anchor = TR;
             btnClear.Click += delegate { logB.Clear(); logF.Clear(); };
-            Controls.Add(btnClear);
 
-            FlatBtn btnCopy = Ux.Btn("复制", 816, 84, 52, false);
-            btnCopy.Height = 26;
+            FlatBtn btnCopy = Ux.BtnIC(cA, Glyph.Copy, "复制", 772, 32, 66, false);
+            btnCopy.Height = 30;
+            btnCopy.Anchor = TR;
             btnCopy.Click += delegate
             {
                 try
@@ -327,37 +351,10 @@ namespace DevLaunch
                 }
                 catch (Exception) { }
             };
-            Controls.Add(btnCopy);
-
-            // ---- 第 4 行：打包 ----
-            bPackB = Ux.Btn("打包后端", 50, 116, 100, false);
-            bPackB.Height = 28;
-            tipB.SetToolTip(bPackB, "mvn package（跳过测试），产物在启动模块 target 下");
-            bPackB.Click += delegate { PackB(); };
-            Controls.Add(bPackB);
-
-            bPackDirB = Ux.Btn("后端产物", 156, 116, 84, false);
-            bPackDirB.Height = 28;
-            bPackDirB.Click += delegate { OpenPackDirB(); };
-            Controls.Add(bPackDirB);
-
-            bPackF = Ux.Btn("打包前端", 248, 116, 100, false);
-            bPackF.Height = 28;
-            tipF.SetToolTip(bPackF, "npm run build，产物目录读自 vite.config 的 outDir");
-            bPackF.Click += delegate { PackF(); };
-            Controls.Add(bPackF);
-
-            bPackDirF = Ux.Btn("前端产物", 354, 116, 84, false);
-            bPackDirF.Height = 28;
-            bPackDirF.Click += delegate { OpenPackDirF(); };
-            Controls.Add(bPackDirF);
-
-            Label lPackHint = Ux.Val("打包不影响已启动的服务；产物目录不存在时请先打包", 446, 121, 396, Th.Dim);
-            Controls.Add(lPackHint);
 
             // ---- 日志区：左右分栏，同屏可看 ----
             Panel plLog = new Panel();
-            plLog.SetBounds(12, 150, 856, 398);
+            plLog.SetBounds(14, 294, CW, 332);
             plLog.Padding = new Padding(0);
             plLog.BackColor = Th.Bg;
             plLog.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
@@ -387,10 +384,10 @@ namespace DevLaunch
             p.Padding = new Padding(1);
             p.BackColor = Th.Border;
 
-            head = Ux.Val(title, 2, 1, 400, Th.Fg);
+            head = Ux.Val(title, 4, 2, 400, Th.Fg);
             head.Font = Th.UiB;
             head.Dock = DockStyle.Top;
-            head.Height = 20;
+            head.Height = 22;
             head.BackColor = Th.Panel;
             p.Controls.Add(head);
 
@@ -454,7 +451,7 @@ namespace DevLaunch
             string op;
             if (c.TryGetValue("openPage", out op)) chkOpen.Checked = op != "0";
 
-            logB.Info("启动台就绪。后端（上）/ 前端（下）各自配置目录后，可单独启动也可「全部启动」。");
+            logB.Info("启动台就绪。后端（左）/ 前端（右）各自配置目录后，可单独启动也可「全部启动」。");
             logB.Dim2("日志左右分栏同屏显示；「设置…」里可配置 JDK / Maven / 仓库 / settings / Node 目录。");
             logF.Dim2("（前端日志显示在这里）");
 
