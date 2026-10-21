@@ -49,31 +49,27 @@ function loginAction() {
 
 <template>
     <div class="login-box">
-        <img src="@/assets/jthx-all.png" class="login-image" alt="">
-
         <div class="login-content">
             <div class="login-view">
-                <div style="margin-top: 24px; display: flex; padding: 0 48px;">
-                    <el-divider>
-                        <span style="font-size: 20px; font-weight: bolder;">{{ '登 录' }}</span>
-                    </el-divider>
+                <div class="login-header">
+                    <img src="@/assets/st_logo.png" class="login-logo" alt="">
+                    <span class="login-title">设备检修记录</span>
                 </div>
 
-                <div style="margin-left: 32px; margin-top: 24px; margin-right: 32px;">
-                    <el-form :model="loginForm" :rules="loginRules" class="login-form">
+                <div class="login-form-wrap">
+                    <el-form :model="loginForm" :rules="loginRules" class="login-form" @submit.prevent="loginAction">
                         <el-form-item prop="account">
-                            <el-input v-model="loginForm.account" placeholder="请输入账号">
-
-                            </el-input>
+                            <el-input v-model="loginForm.account" placeholder="请输入账号" size="large"/>
                         </el-form-item>
 
                         <el-form-item prop="pwd">
-                            <el-input v-model="loginForm.pwd" placeholder="请输入密码" show-password>
-
-                            </el-input>
+                            <el-input v-model="loginForm.pwd" placeholder="请输入密码" show-password size="large"
+                                      @keyup.enter="loginAction"/>
                         </el-form-item>
                     </el-form>
-                    <el-button type="primary" style="width: 100%; margin-bottom: 24px;" @click="loginAction" :loading="loading">{{ loading ? "登 录 中..." : "登 录" }}</el-button>
+                    <el-button type="primary" class="login-btn" size="large" @click="loginAction" :loading="loading">
+                        {{ loading ? "登 录 中..." : "登 录" }}
+                    </el-button>
                 </div>
             </div>
         </div>
@@ -81,110 +77,83 @@ function loginAction() {
 </template>
 
 <style lang="scss" scoped>
+$brand: #1C4785;
+$brand-light: #2E6BC0;
+
 .login-box {
     width: 100%;
-    height: 100%;
+    height: 100vh;
+    height: 100dvh;
     position: relative;
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-position: left;
-    overflow-x: auto;
-
-    .login-image {
-        margin-top: 36px;
-        float: left;
-        object-fit: contain;
-
-        @media screen and (min-width: 993px) {
-            width: 600px;
-            margin-left: 40px;
-        }
-
-        @media screen and (max-width: 992px) {
-            width: 100%;
-        }
-    }
+    background: linear-gradient(160deg, $brand 0%, $brand-light 55%, #6FA3DC 100%);
+    overflow: hidden auto;
 
     .login-content {
-        left: 0;
-        top: 0;
         width: 100%;
-        height: 100%;
-        position: fixed;
+        min-height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
 
         .login-view {
-            height: 420px;
-            margin-top: 180px;
-            float: right;
-            background-color: #ffffff;
-            background-size: 100% 150px;
-            background-repeat: no-repeat;
-            background-position: bottom;
-            border-radius: 6px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
-
-            @media screen and (min-width: 993px) {
-                margin-right: 25%;
-                width: 420px;
-            }
-
-            @media screen and (max-width: 992px) {
-                margin-right: 24px;
-                width: calc(100% - 48px);
-            }
-
-            .el-input__inner {
-                height: 48px;
-                padding-left: 42px;
-                font-size: 16px;
-            }
-
-            .el-form-item__error {
-                font-size: 12px;
-            }
-
-            .el-input__prefix {
-                width: 42px;
-                height: 48px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-
-            .el-button {
-                height: 42px;
-                font-size: 16px;
-            }
-
-            .el-form-item {
-                margin-bottom: 24px;
-            }
+            width: 100%;
+            max-width: 400px;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 28px 24px 32px;
+            box-shadow: 0 16px 40px rgba(0, 20, 60, 0.35);
         }
     }
 
-    .footer-container {
-        position: absolute;
-        z-index: 0;
-        bottom: 0;
+    .login-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 28px;
+
+        .login-logo {
+            width: 56px;
+            height: 56px;
+            object-fit: contain;
+            border-radius: 12px;
+            background: #F0F4FA;
+            padding: 6px;
+            box-sizing: border-box;
+        }
+
+        .login-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2d3d;
+            letter-spacing: 2px;
+        }
+    }
+
+    .login-form-wrap {
+        :deep(.el-input__wrapper) {
+            border-radius: 10px;
+            background: #F5F8FC;
+            box-shadow: none;
+            padding: 4px 14px;
+        }
+
+        .el-form-item {
+            margin-bottom: 20px;
+        }
+    }
+
+    .login-btn {
         width: 100%;
-        padding: 0px 8px 12px 8px;
-
-        .copyright-style {
-            font-size: 10px;
-            color: #f5f5f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
-    }
-
-    span {
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        word-break: break-all;
-        line-height: 1.6;
-        overflow: hidden;
+        height: 46px;
+        font-size: 16px;
+        letter-spacing: 4px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, $brand 0%, $brand-light 100%);
+        border: none;
+        margin-top: 4px;
     }
 }
 </style>
