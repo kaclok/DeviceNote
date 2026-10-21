@@ -1,4 +1,5 @@
 import {fileURLToPath, URL} from 'node:url'
+import fs from 'node:fs'
 import {defineConfig, loadEnv} from 'vite'
 // https://www.cnblogs.com/heavenYJJ/p/18058142
 import vue from '@vitejs/plugin-vue'
@@ -24,6 +25,20 @@ function getBase(entryPath) {
 }
 
 const isDocker = process.env.DOCKER === 'true'
+
+// Windows 下杀毒软件实时扫描会短暂锁住 %TEMP% 中 esbuild 的转译中间产物，
+// 导致 [vite:esbuild-transpile] remove ... Access is denied 构建失败。
+// 把 esbuild 的临时目录指到项目内 node_modules/.cache/esbuild-tmp，绕开 %TEMP% 上的文件锁。
+const esbuildTmpDir = fileURLToPath(new URL('./node_modules/.cache/esbuild-tmp', import.meta.url))
+if (process.platform === 'win32') {
+    try {
+        fs.mkdirSync(esbuildTmpDir, {recursive: true})
+        process.env.TEMP = esbuildTmpDir
+        process.env.TMP = esbuildTmpDir
+    } catch (e) {
+        console.warn('[vite] esbuild 临时目录设置失败，回退系统默认 %TEMP%:', e?.message)
+    }
+}
 
 // https://vitejs.cn/vite3-cn/config/#conditional-config
 // https://cn.vitejs.dev/config/#define
