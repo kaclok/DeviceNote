@@ -14,7 +14,7 @@ import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
 import defines from './vite.config-define.js'
 import {mpaInput, mpaRewrites, mpaPages} from './vite.config-mpa.js'
 // 后端地址唯一真相源：dev proxy 与页面运行时(BaseUrl.js)共用同一份
-import {backends} from './backends.mjs'
+import {dev_backends} from './dev_backends.mjs'
 import vueAutoImport from './src/framework/auto-import/vue-auto-import.js'
 
 // 通过入口文件路径推断 base
@@ -43,13 +43,13 @@ export default defineConfig((env) => {
     // let developmentCfg = loadEnv("development", './.env');
     // let productionCfg = loadEnv("production", './.env');
 
-    // 后端代理规则由根目录 backends.mjs 自动生成（与页面运行时 BaseUrl.js 共用同一份数据源）：
+    // 后端代理规则由根目录 dev_backends.mjs 自动生成（与页面运行时 BaseUrl.js 共用同一份数据源）：
     // 每个入口自带 api 前缀与目标地址，如 cghtz → { api: '/api-cghtz', url: '...:7091' }
     // 1) 多个入口可能共用同一前缀(如 /api)，按前缀去重，只注册一条
     // 2) vite 是按注册顺序做 startsWith 匹配，故长前缀必须排在前面，
     //    否则 /api 会抢走 /api-cghtz 的请求（rewrite 后变成 -cghtz/xxx）
     const proxyTargetByPrefix = new Map()
-    for (const [entry, backend] of Object.entries(backends)) {
+    for (const [entry, backend] of Object.entries(dev_backends)) {
         const {api: prefix, url: target} = backend
         const registered = proxyTargetByPrefix.get(prefix)
         if (registered && registered !== target) {
@@ -139,7 +139,7 @@ export default defineConfig((env) => {
                 // 通过本机浏览器访问服务器的vite项目，可以成功，只是vite项目内部调用springboot的 api接口时出现了问题。
                 // 猜测是服务器上的rewrite不生效
                 // 原因可能是： 1、服务器没有nodejs环境  2、服务器是linux,而开发环境是win  3、nginx管理web会有自己的cors策略
-                // 规则来源：根目录 backends.mjs（每个入口的 api 前缀 → url，长前缀优先注册）
+                // 规则来源：根目录 dev_backends.mjs（每个入口的 api 前缀 → url，长前缀优先注册）
                 ...proxyFromBackends,
             },
         },

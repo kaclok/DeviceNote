@@ -1,4 +1,5 @@
-export const backends = {
+// 开发环境下走这里，生产环境下走nginx.conf
+export const dev_backends = {
     index: {
         api: "/api",
         url: 'http://10.8.13.66:7090'
@@ -32,6 +33,9 @@ export const backends = {
     }, cghtz: {
         api: "/api-cghtz",
         url: 'http://10.8.13.66:7090'
+    }, cbs: {
+        api: "/api",
+        url: 'http://10.8.13.66:7090'
     }, carop: {
         api: "/api",
         url: 'http://10.8.13.66:7090'
@@ -50,4 +54,4 @@ export const backends = {
     },
 }
 // 未登记入口的兜底后端（绝大多数入口连它）
-export const defaultBackend = backends.index
+export const defaultBackend = dev_backends.index

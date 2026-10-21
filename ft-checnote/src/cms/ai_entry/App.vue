@@ -227,7 +227,7 @@ const appGridItems = ref([
     },
     {
         name: "设备检修记录\n(手机用)",
-        url: "http://117.36.227.42:4175?group=" + group, // http://10.8.54.24:4177/pages/sb/index.html",
+        url: "http://117.36.227.42:4177/pages/sb/index.html",
         image: logo_book,
         enabled: true,
     },
@@ -265,7 +265,7 @@ const appGridItems = ref([
         name: "采购供应管理",
         url: "http://10.8.54.24:4177/pages/smlj/cggy/index.html?group=" + group,
         image: logo_book,
-        enabled: true,
+        enabled: false,
     },
     {
         name: "神木氯碱两票系统",
