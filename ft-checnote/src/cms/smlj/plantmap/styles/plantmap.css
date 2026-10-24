@@ -1,0 +1,78 @@
+/* plantmap 模块 —— 全局样式
+ *
+ * el-select 的下拉面板默认 teleport 到 body，组件内 scoped 选择器命中不到，
+ * 所以下拉类控件的字号等基础样式放在这里。
+ */
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #f4f7fb;
+    color: #1e293b;
+    font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+}
+
+#app {
+    min-height: 100%;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* ---------- el-select：下拉面板（teleport 到 body） ---------- */
+body .el-select__wrapper,
+body .el-select__placeholder,
+body .el-select__selected-item,
+body .el-select__input,
+body .el-select-dropdown,
+body .el-select-dropdown__list,
+body .el-select-dropdown__item,
+body .el-select-dropdown__empty,
+body .el-select-group__title {
+    font-size: 12px;
+}
+
+/* 起点/终点下拉：按点位类型分组，选项内展示类型色点与类型名 */
+body .el-select-group__title {
+    padding: 8px 12px 4px;
+    font-weight: 600;
+    color: #334155;
+    background: #f6f9fd;
+}
+
+body .el-select-dropdown__item .opt-body {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+body .el-select-dropdown__item .opt-dot {
+    flex: 0 0 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+body .el-select-dropdown__item .opt-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body .el-select-dropdown__item .opt-type {
+    flex: 0 0 auto;
+    color: #94a3b8;
+    font-size: 10px;
+}
