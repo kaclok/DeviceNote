@@ -97,14 +97,14 @@
                     </el-select>
                 </div>
 
-                <div class="via-chip">
-                    <span class="via-label">途经磅房</span>
-                    <span class="via-value" :class="{bad: effectiveScale && scaleStatusOf(effectiveScale.id) !== 1}">
-                        {{ effectiveScale?.name || '无可用磅房' }}
-                    </span>
-                    <span v-if="effectiveScale" class="status-pill" :class="`st-${scaleStatusOf(effectiveScale.id)}`">
-                        {{ STATUS_TEXT[scaleStatusOf(effectiveScale.id)] }}
-                    </span>
+                <div class="field">
+                    <label>途经磅房</label>
+                    <el-select v-model="scaleChoice" class="field-select" placeholder="自动选择可用磅房">
+                        <el-option label="自动（每座可用磅房各出一条方案）" value=""/>
+                        <el-option v-for="scale in usableScales" :key="scale.id"
+                                   :label="`${scale.name}${scale.area ? ' · ' + scale.area : ''}`"
+                                   :value="scale.id"/>
+                    </el-select>
                 </div>
 
                 <el-button type="primary" size="large" class="search-btn" @click="search()">开始寻路</el-button>
@@ -153,9 +153,12 @@
                     :image-height="plantMeta.imageHeight"
                     :meters-per-pixel="plantMeta.metersPerPixel"
                     :focus-points="focusPoints"
+                    :preview-route-id="previewId"
+                    :preview-key="previewKey"
                     @set-start="onSetStart"
                     @set-end="onSetEnd"
-                    @select-route="activeId = $event"
+                    @select-route="selectRoute"
+                    @preview-end="previewId = ''"
                     @toggle-road="onToggleRoad"
                 />
             </section>
@@ -180,12 +183,23 @@
                     </div>
 
                     <div v-for="route in routes" :key="route.id" class="route-card"
-                         :class="{active: route.id === activeId}" @click="activeId = route.id">
+                         :class="{active: route.id === activeId}" @click="selectRoute(route.id)">
                         <div class="route-top">
                             <span class="route-badge" :style="{background: route.color}">{{ route.rank }}</span>
                             <span class="route-time">{{ fmtDuration(route.seconds) }}</span>
                             <span class="route-dist">{{ fmtDistance(route.distance) }}</span>
-                            <span v-if="route.shortest" class="route-tag">距离最短</span>
+                            <span v-if="route.viaScaleName" class="route-via">经 {{ route.viaScaleName }}</span>
+                            <div class="route-top-right">
+                                <span v-if="route.shortest" class="route-tag">距离最短</span>
+                                <button class="preview-btn" :class="{playing: previewId === route.id}"
+                                        :title="previewId === route.id ? '正在预览行驶路线' : '预览行驶路线'"
+                                        @click.stop="previewRoute(route)">
+                                    <svg viewBox="0 0 12 14" aria-hidden="true">
+                                        <path d="M2 1.6v10.8c0 .6.65.95 1.15.65l8.1-5.4a.76.76 0 0 0 0-1.3L3.15.95C2.65.65 2 1 2 1.6Z"/>
+                                    </svg>
+                                    <span>预览</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="route-roads">{{ route.roadSummary }}</div>
                         <div class="route-meta">
@@ -213,6 +227,7 @@ import {
     TYPE_COLOR,
     TYPE_LABEL,
     boundScale,
+    boundScaleIds,
     gateModeOf,
     loadConfig,
     materialList,
@@ -250,6 +265,9 @@ const materialStartId = ref('gate_w')
 const materialId = ref(materialList.value[0]?.id || '')
 const routes = ref([])
 const activeId = ref('')
+// 行驶动画预览：只有点击路线上的播放按钮才播放一次，切换路线不自动播放
+const previewId = ref('')
+const previewKey = ref(0)
 const expandedId = ref('')
 const errorMsg = ref('')
 const roadMode = ref(false)
@@ -264,8 +282,12 @@ const startName = computed(() => nodeMap.value.get(startId.value)?.name || '-')
 const endName = computed(() => nodeMap.value.get(endId.value)?.name || '-')
 const routeTitle = computed(() => {
     if (mode.value !== 'material') return `${startName.value} → ${endName.value}`
-    const scaleName = effectiveScale.value?.name || '待选磅房'
-    return `${startName.value} → ${scaleName} → ${endName.value}`
+    if (scaleChoice.value) {
+        const scale = scaleById.value.get(scaleChoice.value)
+        if (scale?.nodeId === startId.value) return `${startName.value} → ${endName.value}`
+        return `${startName.value} → ${scale?.name || '磅房'} → ${endName.value}`
+    }
+    return `${startName.value} → ${endName.value} · ${usableScales.value.length} 座磅房可选`
 })
 const mapRoutes = computed(() => routes.value.map((route) => ({...route, selected: route.id === activeId.value})))
 // 图例点击控制某类点位在地图上的显示/隐藏（默认全部显示）
@@ -283,6 +305,11 @@ const material = computed(() => materialList.value.find((item) => item.id === ma
 const materialVoice = computed(() => (material.value?.voiceText || '').trim())
 const voiceReady = speechSupported()
 const speaking = ref(false)
+// '' 表示自动：该物资绑定的每座正常磅房各生成一条最优方案
+const scaleChoice = ref('')
+const usableScales = computed(() => boundScaleIds(material.value)
+    .map((id) => scaleById.value.get(id))
+    .filter((scale) => scale && scaleStatusOf(scale.id) === 1))
 
 /** 播放当前物资的语音介绍；再次点击可停止 */
 function playMaterialVoice() {
@@ -429,15 +456,10 @@ function searchMaterial() {
     errorMsg.value = ''
     routes.value = []
     const item = material.value
-    const scale = effectiveScale.value
     const point = nodeMap.value.get(item?.pointNodeId)
 
     if (!item || !point) {
         errorMsg.value = '该物资尚未配置取/送货点'
-        return
-    }
-    if (!scale) {
-        errorMsg.value = `「${item.name}」没有可用磅房，请先在「磅房与绑定」中处理`
         return
     }
     if (!materialStartId.value) {
@@ -445,37 +467,76 @@ function searchMaterial() {
         return
     }
 
-    // 按物资寻路时，大门白名单会限制该物资车辆可通行的大门
-    const network = buildNetwork(plantState, closedRoadSet(), item.id)
-    const firstLegs = kShortestPaths(network, materialStartId.value, scale.nodeId, 2)
-    const secondLegs = kShortestPaths(network, scale.nodeId, point.id, 2)
-    if (!firstLegs.length || !secondLegs.length) {
-        errorMsg.value = `当前路网不可达：从「${startName.value}」无法经「${scale.name}」到达「${point.name}」`
+    // 指定磅房时只用该磅房；自动模式下用该物资全部正常磅房
+    const targets = scaleChoice.value
+        ? usableScales.value.filter((scale) => scale.id === scaleChoice.value)
+        : usableScales.value
+    if (!targets.length) {
+        errorMsg.value = `「${item.name}」没有可用磅房，请先在「磅房与绑定」中处理`
         return
     }
 
+    // 按物资寻路时，大门白名单会限制该物资车辆可通行的大门
+    const network = buildNetwork(plantState, closedRoadSet(), item.id)
     const combos = []
-    for (const first of firstLegs) {
-        const firstDetail = routeDetail(network, first.nodes, first.edges)
-        for (const second of secondLegs) {
-            const secondDetail = routeDetail(network, second.nodes, second.edges)
-            combos.push({
-                detail: mergeDetails(firstDetail, secondDetail, scale.name),
-                cost: first.cost + second.cost,
-            })
+    for (const scale of targets) {
+        // 起点就是该磅房时，第一段视为零距离，直接走「磅房 → 装卸点」
+        const firstLegs = materialStartId.value === scale.nodeId
+            ? [{nodes: [scale.nodeId], edges: [], cost: 0}]
+            : kShortestPaths(network, materialStartId.value, scale.nodeId, 2)
+        const secondLegs = kShortestPaths(network, scale.nodeId, point.id, 2)
+        for (const first of firstLegs) {
+            const firstDetail = routeDetail(network, first.nodes, first.edges)
+            for (const second of secondLegs) {
+                const secondDetail = routeDetail(network, second.nodes, second.edges)
+                combos.push({
+                    detail: mergeDetails(firstDetail, secondDetail, scale.name),
+                    cost: first.cost + second.cost,
+                    viaScaleId: scale.id,
+                    viaScaleName: scale.name,
+                })
+            }
         }
+    }
+    if (!combos.length) {
+        errorMsg.value = `当前路网不可达：从「${startName.value}」无法经所选磅房到达「${point.name}」`
+        return
     }
     combos.sort((a, b) => a.cost - b.cost)
 
     const seen = new Set()
     const unique = combos.filter((combo) => {
-        const key = combo.detail.points.map((pointItem) => pointItem.join(',')).join(';')
+        const key = `${combo.viaScaleId}|${combo.detail.points.map((pointItem) => pointItem.join(',')).join(';')}`
         if (seen.has(key)) return false
         seen.add(key)
         return true
     })
 
-    routes.value = toRouteCards(unique.slice(0, 3).map((combo) => combo.detail))
+    // 自动模式下先保证每座可用磅房都有一条方案，再按时间补足，最多 3 条
+    let picked
+    if (!scaleChoice.value && unique.length > 1) {
+        picked = []
+        const seenScales = new Set()
+        for (const combo of unique) {
+            if (seenScales.has(combo.viaScaleId)) continue
+            seenScales.add(combo.viaScaleId)
+            picked.push(combo)
+            if (picked.length >= 3) break
+        }
+        for (const combo of unique) {
+            if (picked.length >= 3) break
+            if (!picked.includes(combo)) picked.push(combo)
+        }
+        picked.sort((a, b) => a.cost - b.cost)
+    } else {
+        picked = unique.slice(0, 3)
+    }
+
+    routes.value = toRouteCards(picked.map((combo) => ({
+        ...combo.detail,
+        viaScaleId: combo.viaScaleId,
+        viaScaleName: combo.viaScaleName,
+    })))
     activeId.value = routes.value[0]?.id || ''
     expandedId.value = ''
 }
@@ -532,6 +593,19 @@ function toggleDetail(id) {
     expandedId.value = expandedId.value === id ? '' : id
 }
 
+/** 切换选中路线：不自动播放动画；若正在预览其他路线则停止 */
+function selectRoute(id) {
+    activeId.value = id
+    if (previewId.value && previewId.value !== id) previewId.value = ''
+}
+
+/** 播放某条路线的行驶动画（单次），再次点击可重播 */
+function previewRoute(route) {
+    activeId.value = route.id
+    previewId.value = route.id
+    previewKey.value += 1
+}
+
 function onToggleRoad(roadId) {
     const road = plantState.roads.find((item) => item.id === roadId)
     const willClose = road?.enabled !== 0
@@ -559,11 +633,17 @@ function switchBinding(targetMaterial, targetScaleId) {
     ElMessage.success(`「${targetMaterial.name}」已切换到 ${target.name}，已写入数据库`)
 }
 
+watch(routes, () => {
+    // 重新寻路后清空预览状态，新结果不自动播放动画
+    previewId.value = ''
+})
+
 watch(() => plantState.roads.map((road) => road.enabled).join(','), () => {
     if (routes.value.length || errorMsg.value) search()
 })
 
 watch(() => plantState.scales.map((scale) => `${scale.id}:${scale.status}`).join(','), () => {
+    if (scaleChoice.value && scaleStatusOf(scaleChoice.value) !== 1) scaleChoice.value = ''
     if (mode.value === 'material') searchMaterial()
 })
 
@@ -577,6 +657,11 @@ watch(mode, () => {
 watch(materialId, () => {
     stopSpeak()
     speaking.value = false
+    scaleChoice.value = ''
+    if (mode.value === 'material') searchMaterial()
+})
+
+watch(scaleChoice, () => {
     if (mode.value === 'material') searchMaterial()
 })
 
@@ -723,32 +808,6 @@ onBeforeUnmount(() => {
 
 .search-btn {
     height: 34px;
-}
-
-.via-chip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    height: 34px;
-    padding: 0 12px;
-    border-radius: 8px;
-    background: #f8fafc;
-    border: 1px solid #e6edf6;
-}
-
-.via-label {
-    font-size: 12px;
-    color: #94a3b8;
-}
-
-.via-value {
-    font-size: 13px;
-    font-weight: 600;
-    color: #1e293b;
-}
-
-.via-value.bad {
-    color: #b91c1c;
 }
 
 .planner-hint {
@@ -934,6 +993,7 @@ onBeforeUnmount(() => {
 .route-top {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 9px;
 }
 
@@ -956,6 +1016,16 @@ onBeforeUnmount(() => {
     color: #64748b;
 }
 
+.route-via {
+    padding: 1px 7px;
+    border-radius: 5px;
+    background: #eef5ff;
+    color: #2f6cc0;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
 .route-tag {
     margin-left: auto;
     padding: 1px 6px;
@@ -963,6 +1033,51 @@ onBeforeUnmount(() => {
     background: #fff7e6;
     color: #d46b08;
     font-size: 10px;
+}
+
+/* 路线顶栏右侧：距离最短标签 + 预览播放按钮 */
+.route-top-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.route-top-right .route-tag {
+    margin-left: 0;
+}
+
+.preview-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px 3px 8px;
+    border: 1px solid #cfe0ff;
+    border-radius: 999px;
+    background: #f2f8ff;
+    color: #1677ff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.preview-btn svg {
+    width: 9px;
+    height: 11px;
+    fill: currentColor;
+}
+
+.preview-btn:hover {
+    border-color: #1677ff;
+    background: #e3f0ff;
+}
+
+.preview-btn.playing {
+    background: #1677ff;
+    border-color: #1677ff;
+    color: #ffffff;
 }
 
 .route-roads {
@@ -1002,28 +1117,6 @@ onBeforeUnmount(() => {
     font-size: 12px;
     color: #475569;
     line-height: 1.7;
-}
-
-.status-pill {
-    padding: 2px 9px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.status-pill.st-1 {
-    color: #00875a;
-    background: #e8f8f1;
-}
-
-.status-pill.st-2 {
-    color: #b45309;
-    background: #fff7e6;
-}
-
-.status-pill.st-3 {
-    color: #b91c1c;
-    background: #fef2f2;
 }
 
 .empty-tip {
@@ -1112,11 +1205,6 @@ onBeforeUnmount(() => {
 
     .planner-hint {
         display: none;
-    }
-
-    .via-chip {
-        width: 100%;
-        height: 38px;
     }
 
     .workspace {

@@ -73,6 +73,19 @@
                 </g>
             </g>
 
+            <!-- 预览行驶动画：点击路线的播放按钮后，光标沿路线走一次，不循环 -->
+            <g v-if="!editable && cursorPoints.length > 1"
+               :key="`${previewRouteId}-${previewKey}`" class="route-cursor" pointer-events="none">
+                <path :d="cursorPathD" fill="none" stroke="none"/>
+                <g :transform="`translate(${cursorPos.x} ${cursorPos.y}) rotate(${cursorPos.angle})`">
+                    <g :transform="`scale(${markerScale})`">
+                        <circle r="13" fill="rgba(22, 119, 255, .22)"/>
+                        <circle r="7" fill="#1677ff" stroke="#ffffff" stroke-width="3"/>
+                        <circle r="7" fill="none" stroke="#1677ff" stroke-width="2" class="cursor-pulse"/>
+                    </g>
+                </g>
+            </g>
+
             <g class="poi-layer" :class="{'poi-muted': hasRoute && !editable}">
                 <g v-for="node in renderNodes" :key="node.id" class="poi"
                    :class="{'poi-bad': node.status && node.status !== 1, draggable: editable, 'poi-hidden': node.visible === false, 'poi-faded': hasRoute && !editable && !isPinned(node)}"
@@ -177,7 +190,7 @@
 </template>
 
 <script setup lang="js">
-import {computed, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
 
 const props = defineProps({
     nodes: {type: Array, default: () => []},
@@ -187,6 +200,10 @@ const props = defineProps({
     endId: {type: String, default: ''},
     /** 需要自动缩放到视野内的坐标集合（如寻路结果） */
     focusPoints: {type: Array, default: () => []},
+    /** 需要播放行驶动画的路线 id（空表示不播放） */
+    previewRouteId: {type: String, default: ''},
+    /** 每次播放递增，用于同一条路线重复播放时重启动画 */
+    previewKey: {type: Number, default: 0},
     roadMode: {type: Boolean, default: false},
     editable: {type: Boolean, default: false},
     selectedNodeId: {type: String, default: ''},
@@ -200,6 +217,7 @@ const props = defineProps({
 const emit = defineEmits([
     'set-start', 'set-end', 'toggle-road', 'select-route', 'select-node', 'select-road',
     'move-node', 'pick-point', 'move-waypoint', 'insert-waypoint', 'remove-waypoint',
+    'preview-end',
 ])
 
 const TYPE_META = {
@@ -233,6 +251,65 @@ let ro = null
 
 const viewBox = computed(() => `${vb.x} ${vb.y} ${vb.w} ${vb.h}`)
 const sortedRoutes = computed(() => [...props.routes].sort((a, b) => Number(a.selected) - Number(b.selected)))
+/** 正在预览的路线：仅点击播放按钮后才存在，用于单次行驶动画 */
+const previewRoute = computed(() => props.routes.find((route) => route.id === props.previewRouteId) || null)
+const cursorPoints = computed(() => previewRoute.value?.points || [])
+const cursorPathD = computed(() => {
+    const points = cursorPoints.value
+    if (!points.length) return ''
+    return points.map((point, index) => `${index ? 'L' : 'M'}${point[0]} ${point[1]}`).join(' ')
+})
+/** 动画时长跟路线耗时相关，但限制在 8~20 秒，避免太长或一闪而过 */
+const cursorDuration = computed(() => {
+    const seconds = Number(previewRoute.value?.seconds) || 300
+    return Math.max(8, Math.min(20, seconds / 20)).toFixed(1)
+})
+
+// 行驶光标位置由 requestAnimationFrame 驱动，沿路线只走一遍
+const cursorPos = reactive({x: 0, y: 0, angle: 0})
+let cursorRaf = 0
+
+function stopCursor() {
+    if (cursorRaf) cancelAnimationFrame(cursorRaf)
+    cursorRaf = 0
+}
+
+function startCursor() {
+    stopCursor()
+    const pathEl = shellRef.value?.querySelector('.route-cursor path')
+    if (!pathEl?.getTotalLength) return
+    const total = pathEl.getTotalLength()
+    if (!total) return
+    // 先把光标放到起点，避免第一帧闪现在别处
+    const origin = pathEl.getPointAtLength(0)
+    cursorPos.x = origin.x
+    cursorPos.y = origin.y
+    cursorPos.angle = 0
+    const duration = Number(cursorDuration.value) * 1000
+    const start = performance.now()
+    const step = (now) => {
+        const ratio = Math.min(1, (now - start) / duration)
+        const point = pathEl.getPointAtLength(total * ratio)
+        // 取前方 1px 处的点计算朝向，让光标沿路线转向
+        const ahead = pathEl.getPointAtLength(Math.min(total, total * ratio + 1))
+        cursorPos.x = point.x
+        cursorPos.y = point.y
+        cursorPos.angle = Math.atan2(ahead.y - point.y, ahead.x - point.x) * 180 / Math.PI
+        if (ratio < 1) {
+            cursorRaf = requestAnimationFrame(step)
+        } else {
+            cursorRaf = 0
+            emit('preview-end')
+        }
+    }
+    cursorRaf = requestAnimationFrame(step)
+}
+
+watch(() => [props.previewRouteId, props.previewKey], () => {
+    stopCursor()
+    if (!props.previewRouteId || cursorPoints.value.length < 2) return
+    nextTick(startCursor)
+})
 const hoverRoad = computed(() => props.roads.find((road) => road.id === hoverRoadId.value))
 const hoverRoadPoints = computed(() => hoverRoad.value?.points || [])
 const selectedRoad = computed(() => props.roads.find((road) => road.id === props.selectedRoadId))
@@ -320,6 +397,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     ro?.disconnect()
+    stopCursor()
     window.removeEventListener('keydown', onKeyDown)
 })
 
@@ -841,6 +919,23 @@ function onKeyDown(event) {
 
 .ep-halo.ep-end {
     stroke: #ef232a;
+}
+
+.cursor-pulse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: cursor-pulse 1.6s ease-out infinite;
+}
+
+@keyframes cursor-pulse {
+    0% {
+        transform: scale(1);
+        opacity: .9;
+    }
+    100% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
 }
 
 .ep-text {
