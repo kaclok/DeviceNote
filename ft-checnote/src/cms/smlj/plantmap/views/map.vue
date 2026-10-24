@@ -55,14 +55,29 @@
             <div v-else class="planner-fields">
                 <div class="field">
                     <label>物资</label>
-                    <el-select v-model="materialId" filterable class="field-select">
-                        <el-option-group label="拉货（出厂）">
-                            <el-option v-for="item in outMaterials" :key="item.id" :label="item.name" :value="item.id"/>
-                        </el-option-group>
-                        <el-option-group label="送货（入厂）">
-                            <el-option v-for="item in inMaterials" :key="item.id" :label="item.name" :value="item.id"/>
-                        </el-option-group>
-                    </el-select>
+                    <div class="field-line">
+                        <el-select v-model="materialId" filterable class="field-select">
+                            <el-option-group label="拉货（出厂）">
+                                <el-option v-for="item in outMaterials" :key="item.id" :label="item.name"
+                                           :value="item.id"/>
+                            </el-option-group>
+                            <el-option-group label="送货（入厂）">
+                                <el-option v-for="item in inMaterials" :key="item.id" :label="item.name"
+                                           :value="item.id"/>
+                            </el-option-group>
+                        </el-select>
+                        <button class="voice-btn" :class="{playing: speaking}" :disabled="!voiceReady"
+                                :title="materialVoice ? '播放物资语音介绍' : '该物资尚未配置语音介绍'"
+                                @click="playMaterialVoice">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 9v6h4l5 4V5L8 9H4Z"/>
+                                <path d="M16.5 8.5a5 5 0 0 1 0 7"/>
+                                <path d="M19 6a8.5 8.5 0 0 1 0 12"/>
+                            </svg>
+                            <span>{{ speaking ? '播放中' : '语音' }}</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="field">
@@ -190,7 +205,7 @@
 </template>
 
 <script setup lang="js">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {ElMessage} from 'element-plus'
 import PlantMap from '../components/PlantMap.vue'
 import {
@@ -216,6 +231,7 @@ import {
 } from '../system/PlantStore.js'
 import {fmtDistance, fmtDuration} from '../utils/FmtX.js'
 import {buildNetwork, kShortestPaths, mergeDetails, routeDetail} from '../utils/RouteX.js'
+import {speak, speechSupported, stopSpeak} from '../utils/SpeechX.js'
 
 const ROUTE_COLORS = ['#1677ff', '#00a870', '#ff8f1f']
 const ROUTE_RANKS = ['推荐', '备选一', '备选二']
@@ -264,6 +280,25 @@ function toggleType(type) {
 }
 
 const material = computed(() => materialList.value.find((item) => item.id === materialId.value))
+const materialVoice = computed(() => (material.value?.voiceText || '').trim())
+const voiceReady = speechSupported()
+const speaking = ref(false)
+
+/** 播放当前物资的语音介绍；再次点击可停止 */
+function playMaterialVoice() {
+    if (speaking.value) {
+        stopSpeak()
+        speaking.value = false
+        return
+    }
+    if (!materialVoice.value) {
+        ElMessage.warning('该物资尚未配置语音介绍，可在「磅房与绑定」中编辑')
+        return
+    }
+    const started = speak(materialVoice.value, {onEnd: () => { speaking.value = false }})
+    if (started) speaking.value = true
+    else ElMessage.warning('当前浏览器不支持语音朗读')
+}
 const materialScaleId = computed(() => material.value?.scaleId || '')
 const materialScale = computed(() => scaleById.value.get(materialScaleId.value))
 const materialScaleStatus = computed(() => scaleStatusOf(materialScaleId.value))
@@ -533,17 +568,25 @@ watch(() => plantState.scales.map((scale) => `${scale.id}:${scale.status}`).join
 })
 
 watch(mode, () => {
+    stopSpeak()
+    speaking.value = false
     errorMsg.value = ''
     search()
 })
 
 watch(materialId, () => {
+    stopSpeak()
+    speaking.value = false
     if (mode.value === 'material') searchMaterial()
 })
 
 onMounted(async () => {
     await loadConfig()
     search()
+})
+
+onBeforeUnmount(() => {
+    stopSpeak()
 })
 </script>
 
@@ -608,6 +651,57 @@ onMounted(async () => {
 
 .field-select.wide {
     width: 240px;
+}
+
+.field-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.field-line .field-select {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 物资语音介绍：司机不认识学名时点喇叭听一遍 */
+.voice-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #bcd6ff;
+    border-radius: 8px;
+    background: #f2f7ff;
+    color: #1677ff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.voice-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.voice-btn:hover:not(:disabled) {
+    background: #e6f0ff;
+    border-color: #8ec0ff;
+}
+
+.voice-btn.playing {
+    background: #1677ff;
+    border-color: #1677ff;
+    color: #ffffff;
+}
+
+.voice-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
 }
 
 .swap-btn {
@@ -994,6 +1088,15 @@ onMounted(async () => {
     .field-select.wide,
     .field :deep(.el-select) {
         width: 100%;
+    }
+
+    .field-line {
+        width: 100%;
+    }
+
+    .voice-btn {
+        height: 38px;
+        padding: 0 14px;
     }
 
     .swap-btn {

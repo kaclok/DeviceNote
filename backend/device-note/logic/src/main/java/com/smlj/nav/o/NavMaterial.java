@@ -15,6 +15,8 @@ public class NavMaterial {
     /** JSON 数组，备用磅顺序，如 ["s2","s5"] */
     private String backupScaleIds;
     private String pointNodeId;
+    /** 物资语音介绍文案，司机页用手机朗读 */
+    private String voiceText;
     private Integer enabled;
     private Integer sortNo;
 }

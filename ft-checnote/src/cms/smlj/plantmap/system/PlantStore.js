@@ -80,6 +80,7 @@ function normalize(raw) {
         materials: (raw?.materials || []).map((material) => ({
             ...material,
             backupScaleIds: parseIds(material.backupScaleIds),
+            voiceText: material.voiceText || '',
             enabled: material.enabled === 0 || material.enabled === '0' ? 0 : 1,
             sortNo: Number(material.sortNo) || 0,
         })),
@@ -192,6 +193,7 @@ function toPayload() {
             scaleId: material.scaleId,
             backupScaleIds: JSON.stringify(material.backupScaleIds || []),
             pointNodeId: material.pointNodeId,
+            voiceText: material.voiceText || '',
             enabled: material.enabled === 0 ? 0 : 1,
             sortNo: material.sortNo || 0,
         })),
@@ -281,10 +283,19 @@ export function addMaterial(draft) {
         scaleId: draft.scaleId,
         backupScaleIds: draft.backupScaleIds || [],
         pointNodeId: draft.pointNodeId,
+        voiceText: draft.voiceText || '',
         enabled: 1,
         sortNo: plantState.materials.length + 1,
     }
     plantState.materials.push(material)
+    return saveConfig()
+}
+
+/** 修改物资语音介绍并写库；失败时由调用方提示 */
+export function setMaterialVoice(materialId, voiceText) {
+    const material = plantState.materials.find((item) => item.id === materialId)
+    if (!material) return Promise.resolve()
+    material.voiceText = (voiceText || '').trim()
     return saveConfig()
 }
 

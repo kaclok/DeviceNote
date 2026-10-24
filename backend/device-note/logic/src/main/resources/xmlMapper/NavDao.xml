@@ -72,6 +72,7 @@
         <result column="scale_id" property="scaleId"/>
         <result column="backup_scale_ids" property="backupScaleIds"/>
         <result column="point_node_id" property="pointNodeId"/>
+        <result column="voice_text" property="voiceText"/>
         <result column="enabled" property="enabled"/>
         <result column="sort_no" property="sortNo"/>
     </resultMap>
@@ -111,7 +112,8 @@
     </select>
 
     <select id="selectMaterials" resultMap="materialMap">
-        select id, plant_id, code, name, direction, category, scale_id, backup_scale_ids, point_node_id, enabled, sort_no
+        select id, plant_id, code, name, direction, category, scale_id, backup_scale_ids, point_node_id,
+               voice_text, enabled, sort_no
         from nav.material
         where plant_id = #{plant_id}
         order by sort_no, id
@@ -193,13 +195,14 @@
 
     <insert id="insertMaterials">
         insert into nav.material (id, plant_id, code, name, direction, category, scale_id, backup_scale_ids,
-                                  point_node_id, enabled, sort_no)
+                                  point_node_id, voice_text, enabled, sort_no)
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.direction},
              #{item.category,jdbcType=VARCHAR}, #{item.scaleId,jdbcType=VARCHAR},
              #{item.backupScaleIds,jdbcType=VARCHAR}, #{item.pointNodeId,jdbcType=VARCHAR},
-             #{item.enabled,jdbcType=SMALLINT}, #{item.sortNo,jdbcType=INTEGER})
+             #{item.voiceText,jdbcType=VARCHAR}, #{item.enabled,jdbcType=SMALLINT},
+             #{item.sortNo,jdbcType=INTEGER})
         </foreach>
     </insert>
 </mapper>

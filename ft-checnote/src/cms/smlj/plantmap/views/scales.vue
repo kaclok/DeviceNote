@@ -84,7 +84,19 @@
             </div>
 
             <el-table :data="bindingRows" size="small" class="data-table" border>
-                <el-table-column prop="name" label="物资" width="110" show-overflow-tooltip/>
+                <el-table-column prop="name" label="物资" width="100" show-overflow-tooltip/>
+                <el-table-column label="语音介绍" min-width="240">
+                    <template #default="{ row }">
+                        <div class="voice-cell" @click="openVoiceDialog(row)">
+                            <span class="voice-text" :class="{empty: !row.voiceText}">
+                                {{ row.voiceText || '未配置，点击添加' }}
+                            </span>
+                            <el-button link type="primary" size="small" @click.stop="openVoiceDialog(row)">
+                                编辑
+                            </el-button>
+                        </div>
+                    </template>
+                </el-table-column>
                 <el-table-column label="流向" width="120" class-name="nowrap-col">
                     <template #default="{ row }">
                         <span class="dir-tag" :class="row.direction === 'out' ? 'dir-out' : 'dir-in'">
@@ -99,7 +111,7 @@
                         <span v-if="row.status !== 1" class="mini-bad">{{ STATUS_TEXT[row.status] }}</span>
                     </template>
                 </el-table-column>
-                <el-table-column label="可称重磅房" min-width="330">
+                <el-table-column label="可称重磅房" min-width="300">
                     <template #default="{ row }">
                         <el-popover placement="bottom-start" trigger="click" :width="240"
                                     popper-class="bind-popper">
@@ -235,10 +247,37 @@
                         </el-option-group>
                     </el-select>
                 </el-form-item>
+                <el-form-item label="语音介绍">
+                    <div class="voice-input">
+                        <el-input v-model="materialDraft.voiceText" type="textarea" :rows="3" maxlength="500"
+                                  show-word-limit placeholder="司机点喇叭时朗读，例如：PVC，学名聚氯乙烯，俗称吨包料"/>
+                        <el-button size="small" class="voice-preview" @click="previewDraftVoice">试听</el-button>
+                    </div>
+                </el-form-item>
             </el-form>
             <template #footer>
                 <el-button size="small" @click="materialDialog = false">取消</el-button>
                 <el-button size="small" type="primary" :loading="materialSaving" @click="submitMaterial">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <el-dialog v-model="voiceDialog" :title="`物资语音介绍 · ${voiceDraft.name}`"
+                   width="min(520px, 92vw)" append-to-body>
+            <div class="voice-tip">
+                司机在寻路页点「语音」即可听到这段介绍。建议口语化，把俗称、学名都讲清楚，例如 PVC 与吨包料、聚氯乙烯。
+            </div>
+            <el-input v-model="voiceDraft.text" type="textarea" :rows="5" maxlength="500" show-word-limit
+                      placeholder="例如：PVC，学名聚氯乙烯，司机常说的吨包料就是它，也常被叫作树脂粉。"/>
+            <template #footer>
+                <div class="voice-footer">
+                    <el-button size="small" @click="previewVoice">试听</el-button>
+                    <div class="voice-footer-right">
+                        <el-button size="small" @click="voiceDialog = false">取消</el-button>
+                        <el-button size="small" type="primary" :loading="voiceSaving" @click="saveVoice">
+                            保存
+                        </el-button>
+                    </div>
+                </div>
             </template>
         </el-dialog>
     </div>
@@ -264,8 +303,10 @@ import {
     setBindingScales,
     setGateMaterials,
     setGateMode,
+    setMaterialVoice,
     setScaleStatus,
 } from '../system/PlantStore.js'
+import {speak} from '../utils/SpeechX.js'
 
 const GATE_MODE_OPTIONS = [
     {value: 'both', label: '双向'},
@@ -325,8 +366,13 @@ const gateCards = computed(() => nodeList.value
 const materialDialog = ref(false)
 const materialSaving = ref(false)
 const materialDraft = reactive({
-    name: '', code: '', direction: 'out', category: '', scaleId: '', pointNodeId: '',
+    name: '', code: '', direction: 'out', category: '', scaleId: '', pointNodeId: '', voiceText: '',
 })
+
+// 物资语音介绍：司机页点喇叭时用手机 TTS 朗读
+const voiceDialog = ref(false)
+const voiceSaving = ref(false)
+const voiceDraft = reactive({id: '', name: '', text: ''})
 
 const pointGroups = computed(() => [
     {type: 'pickup', label: '拉货点', items: nodeList.value.filter((node) => node.type === 'pickup')},
@@ -346,6 +392,7 @@ const bindingRows = computed(() => materialList.value.map((material) => {
         direction: material.direction,
         directionText: DIRECTION_TEXT[material.direction] || '-',
         category: material.category || '-',
+        voiceText: material.voiceText || '',
         scaleIds: visibleIds,
         hiddenIds,
         usableScales: visibleIds.map((id) => scaleById.value.get(id)).filter(Boolean),
@@ -419,8 +466,50 @@ function openMaterialDialog() {
         category: '',
         scaleId: normalScales.value[0]?.id || '',
         pointNodeId: '',
+        voiceText: '',
     })
     materialDialog.value = true
+}
+
+function previewDraftVoice() {
+    const text = (materialDraft.voiceText || '').trim()
+    if (!text) {
+        ElMessage.warning('请先填写语音介绍文案')
+        return
+    }
+    if (!speak(text)) ElMessage.warning('当前浏览器不支持语音朗读')
+}
+
+function openVoiceDialog(row) {
+    Object.assign(voiceDraft, {id: row.id, name: row.name, text: row.voiceText || ''})
+    voiceDialog.value = true
+}
+
+function previewVoice() {
+    const text = (voiceDraft.text || '').trim()
+    if (!text) {
+        ElMessage.warning('请先填写语音介绍文案')
+        return
+    }
+    if (!speak(text)) ElMessage.warning('当前浏览器不支持语音朗读')
+}
+
+async function saveVoice() {
+    const text = (voiceDraft.text || '').trim()
+    if (!text) {
+        ElMessage.warning('请填写语音介绍文案')
+        return
+    }
+    voiceSaving.value = true
+    try {
+        await setMaterialVoice(voiceDraft.id, text)
+        voiceDialog.value = false
+        ElMessage.success(`「${voiceDraft.name}」语音介绍已保存`)
+    } catch (e) {
+        ElMessage.error(plantState.saveError || '保存失败，请检查后端服务')
+    } finally {
+        voiceSaving.value = false
+    }
 }
 
 async function submitMaterial() {
@@ -456,6 +545,7 @@ async function submitMaterial() {
             category: (materialDraft.category || '').trim(),
             scaleId: materialDraft.scaleId,
             pointNodeId: materialDraft.pointNodeId,
+            voiceText: (materialDraft.voiceText || '').trim(),
         })
         materialDialog.value = false
         ElMessage.success(`已新增物资「${name}」并写入数据库`)
@@ -883,6 +973,67 @@ onMounted(loadConfig)
 .dir-in {
     color: #0f7a5a;
     background: #eaf7f1;
+}
+
+.voice-cell {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.voice-cell:hover .voice-text {
+    color: #1677ff;
+}
+
+.voice-text {
+    flex: 1;
+    min-width: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #475569;
+}
+
+.voice-text.empty {
+    color: #b6c2d4;
+}
+
+.voice-tip {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f2f7ff;
+    border: 1px solid #d8e6fb;
+    color: #4b6a92;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.voice-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.voice-footer-right {
+    display: flex;
+    gap: 8px;
+}
+
+.voice-input {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.voice-input .voice-preview {
+    align-self: flex-end;
 }
 
 .bind-name {
