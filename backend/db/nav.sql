@@ -12,7 +12,7 @@
  Target Server Version : 170002 (170002)
  File Encoding         : 65001
 
- Date: 23/10/2026 18:23:46
+ Date: 24/10/2026 20:32:37
 */
 
 
@@ -35,8 +35,8 @@ COMMENT ON TABLE "nav"."gate" IS '大门通行规则，与 nav.node 中 type=gat
 -- ----------------------------
 -- Records of gate
 -- ----------------------------
-INSERT INTO "nav"."gate" VALUES ('gate_gate_w', 'default', 'gate_w', 'both', 1, NULL);
-INSERT INTO "nav"."gate" VALUES ('gate_gate_n', 'default', 'gate_n', 'both', 2, '["m_lye","m_hcl"]');
+INSERT INTO "nav"."gate" VALUES ('gate_gate_w', 'default', 'gate_w', 'both', 1, '["m_lye","m_hcl","m_pvc","m_slag"]');
+INSERT INTO "nav"."gate" VALUES ('gate_gate_n', 'default', 'gate_n', 'both', 2, '["m_carbide","m_coal"]');
 
 -- ----------------------------
 -- Table structure for material
@@ -53,19 +53,20 @@ CREATE TABLE "nav"."material" (
   "backup_scale_ids" text COLLATE "pg_catalog"."default",
   "point_node_id" varchar(64) COLLATE "pg_catalog"."default",
   "enabled" int2 NOT NULL DEFAULT 1,
-  "sort_no" int4 NOT NULL DEFAULT 0
+  "sort_no" int4 NOT NULL DEFAULT 0,
+  "voice_text" text COLLATE "pg_catalog"."default"
 )
 ;
 
 -- ----------------------------
 -- Records of material
 -- ----------------------------
-INSERT INTO "nav"."material" VALUES ('m_lye', 'default', 'WZ01', '烧碱', 'out', '液碱类', 's1', '[]', 'm_lye', 1, 1);
-INSERT INTO "nav"."material" VALUES ('m_hcl', 'default', 'WZ02', '盐酸', 'out', '酸类', 's1', '[]', 'm_hcl', 1, 2);
-INSERT INTO "nav"."material" VALUES ('m_pvc', 'default', 'WZ03', 'PVC', 'out', '成品树脂', 's4', '["s1"]', 'm_pvc', 1, 3);
-INSERT INTO "nav"."material" VALUES ('m_slag', 'default', 'WZ04', '电石渣', 'out', '固废', 's4', '[]', 'm_slag', 1, 4);
-INSERT INTO "nav"."material" VALUES ('m_carbide', 'default', 'WZ05', '电石', 'in', '原料', 's8', '[]', 'm_carbide', 1, 5);
-INSERT INTO "nav"."material" VALUES ('m_coal', 'default', 'WZ06', '煤', 'in', '原料', 's8', '[]', 'm_coal', 1, 6);
+INSERT INTO "nav"."material" VALUES ('m_lye', 'default', 'WZ01', '烧碱', 'out', '液碱类', 's1', '[]', 'm_lye', 1, 1, '烧碱，学名氢氧化钠，也叫火碱、苛性钠，液碱。');
+INSERT INTO "nav"."material" VALUES ('m_hcl', 'default', 'WZ02', '盐酸', 'out', '酸类', 's1', '[]', 'm_hcl', 1, 2, '盐酸，学名氯化氢水溶液，也叫氢氯酸。');
+INSERT INTO "nav"."material" VALUES ('m_pvc', 'default', 'WZ03', 'PVC', 'out', '成品树脂', 's4', '["s1"]', 'm_pvc', 1, 3, 'PVC，学名聚氯乙烯，吨包，也常被叫作树脂粉。白色粉末或颗粒.');
+INSERT INTO "nav"."material" VALUES ('m_slag', 'default', 'WZ04', '电石渣', 'out', '固废', 's4', '[]', 'm_slag', 1, 4, '电石渣，也叫渣浆、干渣。装车时请听从现场人员指挥。');
+INSERT INTO "nav"."material" VALUES ('m_carbide', 'default', 'WZ05', '电石', 'in', '原料', 's8', '[]', 'm_carbide', 1, 5, '电石，学名碳化钙，遇水会产生乙炔气体，属于危险品。');
+INSERT INTO "nav"."material" VALUES ('m_coal', 'default', 'WZ06', '煤', 'in', '原料', 's8', '[]', 'm_coal', 1, 6, '煤');
 
 -- ----------------------------
 -- Table structure for node
@@ -140,7 +141,7 @@ CREATE TABLE "nav"."plant" (
 -- ----------------------------
 -- Records of plant
 -- ----------------------------
-INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-23 18:22:17.630182');
+INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-24 11:32:35.622354');
 
 -- ----------------------------
 -- Table structure for road
