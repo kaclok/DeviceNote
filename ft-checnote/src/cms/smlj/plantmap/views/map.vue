@@ -82,25 +82,23 @@
 
                 <div class="field">
                     <label>起点</label>
-                    <el-select v-model="materialStartId" filterable class="field-select">
-                        <el-option-group v-for="group in poiGroupOptions" :key="group.type"
-                                         :label="`${group.label}（${group.items.length}）`">
-                            <el-option v-for="node in group.items" :key="node.id" :label="node.optionLabel"
-                                       :value="node.id" :disabled="node.gateOutDisabled">
-                                <span class="opt-body">
-                                    <i class="opt-dot" :style="{background: group.color}"></i>
-                                    <span class="opt-name">{{ node.optionLabel }}</span>
-                                    <span class="opt-type">{{ node.typeLabel }}</span>
-                                </span>
-                            </el-option>
-                        </el-option-group>
+                    <el-select v-model="materialStartId" filterable class="field-select"
+                               :placeholder="materialStartGates.length ? '选择进厂大门' : '该物资没有可进厂的大门'">
+                        <el-option v-for="gate in materialStartGates" :key="gate.id"
+                                   :label="nodeLabel(gate)" :value="gate.id">
+                            <span class="opt-body">
+                                <i class="opt-dot" style="background:#1c4785"></i>
+                                <span class="opt-name">{{ nodeLabel(gate) }}</span>
+                                <span class="opt-type">大门</span>
+                            </span>
+                        </el-option>
                     </el-select>
                 </div>
 
                 <div class="field">
                     <label>途经磅房</label>
                     <el-select v-model="scaleChoice" class="field-select" placeholder="自动选择可用磅房">
-                        <el-option label="自动（每座可用磅房各出一条方案）" value=""/>
+                        <el-option v-if="usableScales.length > 1" label="自动（每座可用磅房各出一条方案）" value=""/>
                         <el-option v-for="scale in usableScales" :key="scale.id"
                                    :label="`${scale.name}${scale.area ? ' · ' + scale.area : ''}`"
                                    :value="scale.id"/>
@@ -228,9 +226,11 @@ import {
     TYPE_LABEL,
     boundScale,
     boundScaleIds,
+    gateMaterialsOf,
     gateModeOf,
     loadConfig,
     materialList,
+    nodeList,
     nodeMap,
     plantMeta,
     plantState,
@@ -310,6 +310,44 @@ const scaleChoice = ref('')
 const usableScales = computed(() => boundScaleIds(material.value)
     .map((id) => scaleById.value.get(id))
     .filter((scale) => scale && scaleStatusOf(scale.id) === 1))
+
+/** 默认途经磅房：仅一座可用磅房时直接选中它；多座时默认 ''（自动） */
+function normalizeScaleChoice() {
+    const list = usableScales.value
+    if (list.length === 1) {
+        scaleChoice.value = list[0].id
+    } else if (!list.some((scale) => scale.id === scaleChoice.value)) {
+        scaleChoice.value = ''
+    }
+}
+
+/**
+ * 允许当前物资进厂的大门：
+ * - 大门白名单为空（不限物资）或包含该物资
+ * - 大门通行方向不是「仅出厂」（out），仅出厂大门不能作为起点
+ */
+const materialStartGates = computed(() => {
+    const matId = material.value?.id
+    if (!matId) return []
+    return nodeList.value.filter((node) => {
+        if (node.type !== 'gate') return false
+        if (gateModeOf(node.id) === 'out') return false
+        const allowed = gateMaterialsOf(node.id)
+        return allowed.length === 0 || allowed.includes(matId)
+    })
+})
+
+/** 切换物资或大门配置变化时，若当前起点不在允许列表中，则重置为第一个允许的大门 */
+function normalizeMaterialStart() {
+    const gates = materialStartGates.value
+    if (!gates.length) {
+        materialStartId.value = ''
+        return
+    }
+    if (!gates.some((gate) => gate.id === materialStartId.value)) {
+        materialStartId.value = gates[0].id
+    }
+}
 
 /** 播放当前物资的语音介绍；再次点击可停止 */
 function playMaterialVoice() {
@@ -562,8 +600,14 @@ function onSetStart(id) {
         ElMessage.warning(`「${nodeMap.value.get(id)?.name}」为仅出厂大门，不能作为起点`)
         return
     }
-    if (mode.value === 'material') materialStartId.value = id
-    else freeStartId.value = id
+    if (mode.value === 'material') {
+        if (!materialStartGates.value.some((gate) => gate.id === id)) {
+            const node = nodeMap.value.get(id)
+            ElMessage.warning(`「${node?.name || id}」不允许「${material.value?.name || ''}」车辆进厂，不能作为起点`)
+            return
+        }
+        materialStartId.value = id
+    } else freeStartId.value = id
     search()
 }
 
@@ -643,8 +687,16 @@ watch(() => plantState.roads.map((road) => road.enabled).join(','), () => {
 })
 
 watch(() => plantState.scales.map((scale) => `${scale.id}:${scale.status}`).join(','), () => {
-    if (scaleChoice.value && scaleStatusOf(scaleChoice.value) !== 1) scaleChoice.value = ''
+    normalizeScaleChoice()
     if (mode.value === 'material') searchMaterial()
+})
+
+// 大门通行方向或物资白名单变化时，重新归一化起点并重算路线
+watch(() => plantState.gates.map((gate) => `${gate.nodeId}:${gate.gateMode}:${(gate.allowedMaterialIds || []).join('|')}`).join(','), () => {
+    if (mode.value === 'material') {
+        normalizeMaterialStart()
+        searchMaterial()
+    }
 })
 
 watch(mode, () => {
@@ -657,7 +709,8 @@ watch(mode, () => {
 watch(materialId, () => {
     stopSpeak()
     speaking.value = false
-    scaleChoice.value = ''
+    normalizeMaterialStart()
+    normalizeScaleChoice()
     if (mode.value === 'material') searchMaterial()
 })
 
@@ -667,6 +720,8 @@ watch(scaleChoice, () => {
 
 onMounted(async () => {
     await loadConfig()
+    normalizeMaterialStart()
+    normalizeScaleChoice()
     search()
 })
 

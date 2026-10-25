@@ -17,45 +17,54 @@
                   fill="rgba(15,23,42,.5)" pointer-events="none" class="route-scrim"/>
 
             <g class="road-layer" :class="{'road-muted': hasRoute && !editable}">
-                <polyline v-for="road in roads" :key="`case-${road.id}`" :points="toPoints(road.points)"
+                <polyline v-for="road in roads" :key="`case-${road.id}`" :points="roadPts.get(road.id)"
+                          :data-road-line="road.id"
                           fill="none" :stroke="road.closed ? '#f3b4b4' : 'rgba(15,23,42,.38)'"
                           :stroke-width="casingWidth(road)" stroke-linecap="round" stroke-linejoin="round"
                           pointer-events="none"/>
-                <polyline v-for="road in roads" :key="`road-${road.id}`" :points="toPoints(road.points)"
+                <polyline v-for="road in roads" :key="`road-${road.id}`" :points="roadPts.get(road.id)"
+                          :data-road-line="road.id"
                           fill="none" :stroke="road.closed ? '#ef4444' : 'rgba(255,255,255,.9)'"
                           :stroke-width="surfaceWidth(road)" stroke-linecap="round" stroke-linejoin="round"
                           :stroke-dasharray="road.closed ? '7 5' : ''" pointer-events="none"/>
-                <polyline v-if="roadMode && hoverRoad" :points="toPoints(hoverRoadPoints)"
+                <polyline v-if="roadMode && hoverRoadId" :points="roadPts.get(hoverRoadId)"
                           fill="none" stroke="#1677ff" stroke-width="16" stroke-linecap="round"
                           stroke-linejoin="round" opacity=".18" pointer-events="none"/>
-                <polyline v-for="road in roads" v-show="roadMode" :key="`hit-${road.id}`"
-                          class="road-hit" :points="toPoints(road.points)"
-                          fill="none" stroke="transparent" stroke-width="22" stroke-linecap="round"
-                          @click.stop="onRoadClick(road)"
-                          @mouseenter="hoverRoadId = road.id" @mouseleave="hoverRoadId = ''"/>
-                <polyline v-if="editable && selectedRoad" :points="toPoints(selectedRoad.points)"
+                <template v-if="roadMode">
+                    <polyline v-for="road in roads" :key="`hit-${road.id}`"
+                              class="road-hit" :points="roadPts.get(road.id)"
+                              fill="none" stroke="transparent" stroke-width="22" stroke-linecap="round"
+                              @click.stop="onRoadClick(road)"
+                              @mouseenter="hoverRoadId = road.id" @mouseleave="hoverRoadId = ''"/>
+                </template>
+                <polyline v-if="editable && selectedRoad" :points="roadPts.get(selectedRoad.id)"
+                          :data-road-line="selectedRoad.id"
                           fill="none" stroke="#8b5cf6" stroke-width="16" stroke-linecap="round"
                           stroke-linejoin="round" opacity=".45" pointer-events="none"/>
-                <polyline v-if="editable && selectedRoad" :points="toPoints(selectedRoad.points)"
+                <polyline v-if="editable && selectedRoad" :points="roadPts.get(selectedRoad.id)"
+                          :data-road-line="selectedRoad.id"
                           fill="none" stroke="#c4b5fd" stroke-width="2.5" stroke-linecap="round"
                           stroke-linejoin="round" stroke-dasharray="8 6" pointer-events="none"/>
-                <polyline v-for="road in roads" v-show="editable && !roadMode" :key="`edit-${road.id}`"
-                          class="road-hit" :data-road-id="road.id" :points="toPoints(road.points)"
-                          fill="none" stroke="transparent" stroke-width="14" stroke-linecap="round"
-                          @mouseenter="hoverRoadId = road.id" @mouseleave="hoverRoadId = ''"/>
+                <template v-if="editable && !roadMode">
+                    <polyline v-for="road in roads" :key="`edit-${road.id}`"
+                              class="road-hit" :data-road-id="road.id" :data-road-line="road.id"
+                              :points="roadPts.get(road.id)"
+                              fill="none" stroke="transparent" stroke-width="14" stroke-linecap="round"
+                              @mouseenter="hoverRoadId = road.id" @mouseleave="hoverRoadId = ''"/>
+                </template>
             </g>
 
             <g class="route-layer" :class="{'route-mode': hasRoute && !editable}">
                 <g v-for="route in sortedRoutes" :key="route.id" :class="{'route-alt': !route.selected}">
                     <template v-if="route.selected">
                         <!-- 深色底衬 + 白色描边 + 彩色主线，保证在任意底图上都清晰 -->
-                        <polyline :points="toPoints(route.points)" fill="none" stroke="#0b1220"
+                        <polyline :points="routePts.get(route.id)" fill="none" stroke="#0b1220"
                                   stroke-width="18" stroke-linecap="round" stroke-linejoin="round"
                                   opacity=".5" pointer-events="none"/>
-                        <polyline :points="toPoints(route.points)" fill="none" stroke="#ffffff"
+                        <polyline :points="routePts.get(route.id)" fill="none" stroke="#ffffff"
                                   stroke-width="12" stroke-linecap="round" stroke-linejoin="round"
                                   opacity=".96" pointer-events="none"/>
-                        <polyline :points="toPoints(route.points)" fill="none" :stroke="route.color"
+                        <polyline :points="routePts.get(route.id)" fill="none" :stroke="route.color"
                                   stroke-width="7" stroke-linecap="round" stroke-linejoin="round"
                                   class="route-line" @click.stop="emit('select-route', route.id)"/>
                         <circle v-if="route.points?.length" :cx="route.points[0][0]" :cy="route.points[0][1]"
@@ -66,18 +75,19 @@
                                 r="8" :fill="route.color" stroke="#ffffff" stroke-width="3"
                                 pointer-events="none"/>
                     </template>
-                    <polyline v-else :points="toPoints(route.points)" fill="none" stroke="#94a3b8"
+                    <polyline v-else :points="routePts.get(route.id)" fill="none" stroke="#94a3b8"
                               stroke-width="3" stroke-dasharray="10 8" opacity=".45"
                               stroke-linecap="round" stroke-linejoin="round"
                               class="route-line" @click.stop="emit('select-route', route.id)"/>
                 </g>
             </g>
 
-            <!-- 预览行驶动画：点击路线的播放按钮后，光标沿路线走一次，不循环 -->
+            <!-- 预览行驶动画：点击路线的播放按钮后，光标沿路线走一次，不循环。
+                 外层 g 不绑定 transform，位置由 rAF 直接 setAttribute，避免每帧触发整图重渲染 -->
             <g v-if="!editable && cursorPoints.length > 1"
                :key="`${previewRouteId}-${previewKey}`" class="route-cursor" pointer-events="none">
                 <path :d="cursorPathD" fill="none" stroke="none"/>
-                <g :transform="`translate(${cursorPos.x} ${cursorPos.y}) rotate(${cursorPos.angle})`">
+                <g class="cursor-g">
                     <g :transform="`scale(${markerScale})`">
                         <circle r="13" fill="rgba(22, 119, 255, .22)"/>
                         <circle r="7" fill="#1677ff" stroke="#ffffff" stroke-width="3"/>
@@ -140,11 +150,10 @@
                 </g>
             </g>
 
-            <g v-if="nodeTip" class="node-tip"
-               :transform="`translate(${nodeTip.x} ${nodeTip.y}) scale(${markerScale})`"
-               pointer-events="none">
+            <!-- 拖拽点位的坐标提示：静态元素 + DOM 直操作，避免拖动期间每帧重渲染 -->
+            <g ref="nodeTipRef" class="node-tip" style="display:none" pointer-events="none">
                 <rect x="-36" y="-44" width="72" height="22" rx="6" fill="rgba(15,23,42,.92)"/>
-                <text y="-28" text-anchor="middle">{{ nodeTip.text }}</text>
+                <text ref="nodeTipTextRef" y="-28" text-anchor="middle"></text>
             </g>
         </svg>
 
@@ -244,7 +253,21 @@ let waypointDrag = null
 // 手机端双指缩放：记录当前按下的触点，两指时进入缩放态
 const activePointers = new Map()
 let pinchState = null
-const nodeTip = ref(null)
+const nodeTipRef = ref(null)
+const nodeTipTextRef = ref(null)
+
+/** 拖动点位的坐标提示：直接写 DOM，不经过响应式（拖动期间每帧调用） */
+function showNodeTip(x, y) {
+    const tip = nodeTipRef.value
+    if (!tip) return
+    tip.style.display = ''
+    tip.setAttribute('transform', `translate(${x} ${y}) scale(${markerScale.value})`)
+    if (nodeTipTextRef.value) nodeTipTextRef.value.textContent = `${x}, ${y}`
+}
+
+function hideNodeTip() {
+    if (nodeTipRef.value) nodeTipRef.value.style.display = 'none'
+}
 // pointerup 时 dragState 已清空，click 在其后触发，用独立标志阻止「拖拽后误选点」
 let suppressClick = false
 let ro = null
@@ -265,8 +288,8 @@ const cursorDuration = computed(() => {
     return Math.max(8, Math.min(20, seconds / 20)).toFixed(1)
 })
 
-// 行驶光标位置由 requestAnimationFrame 驱动，沿路线只走一遍
-const cursorPos = reactive({x: 0, y: 0, angle: 0})
+// 行驶光标位置由 requestAnimationFrame 直接写 DOM（不经 Vue 响应式），沿路线只走一遍，
+// 避免每帧触发整个 SVG 的重渲染
 let cursorRaf = 0
 
 function stopCursor() {
@@ -276,15 +299,15 @@ function stopCursor() {
 
 function startCursor() {
     stopCursor()
-    const pathEl = shellRef.value?.querySelector('.route-cursor path')
-    if (!pathEl?.getTotalLength) return
+    const root = shellRef.value?.querySelector('.route-cursor')
+    const pathEl = root?.querySelector('path')
+    const gEl = root?.querySelector('.cursor-g')
+    if (!pathEl?.getTotalLength || !gEl) return
     const total = pathEl.getTotalLength()
     if (!total) return
     // 先把光标放到起点，避免第一帧闪现在别处
     const origin = pathEl.getPointAtLength(0)
-    cursorPos.x = origin.x
-    cursorPos.y = origin.y
-    cursorPos.angle = 0
+    gEl.setAttribute('transform', `translate(${origin.x} ${origin.y})`)
     const duration = Number(cursorDuration.value) * 1000
     const start = performance.now()
     const step = (now) => {
@@ -292,9 +315,8 @@ function startCursor() {
         const point = pathEl.getPointAtLength(total * ratio)
         // 取前方 1px 处的点计算朝向，让光标沿路线转向
         const ahead = pathEl.getPointAtLength(Math.min(total, total * ratio + 1))
-        cursorPos.x = point.x
-        cursorPos.y = point.y
-        cursorPos.angle = Math.atan2(ahead.y - point.y, ahead.x - point.x) * 180 / Math.PI
+        const angle = Math.atan2(ahead.y - point.y, ahead.x - point.x) * 180 / Math.PI
+        gEl.setAttribute('transform', `translate(${point.x} ${point.y}) rotate(${angle})`)
         if (ratio < 1) {
             cursorRaf = requestAnimationFrame(step)
         } else {
@@ -310,8 +332,19 @@ watch(() => [props.previewRouteId, props.previewKey], () => {
     if (!props.previewRouteId || cursorPoints.value.length < 2) return
     nextTick(startCursor)
 })
-const hoverRoad = computed(() => props.roads.find((road) => road.id === hoverRoadId.value))
-const hoverRoadPoints = computed(() => hoverRoad.value?.points || [])
+const hoverNodeId = ref('')
+
+/** 折线 points 字符串缓存：roads/routes 不变时复用，避免每次渲染重复拼接 130+ 条字符串 */
+const roadPts = computed(() => {
+    const map = new Map()
+    for (const road of props.roads) map.set(road.id, toPoints(road.points))
+    return map
+})
+const routePts = computed(() => {
+    const map = new Map()
+    for (const route of props.routes) map.set(route.id, toPoints(route.points))
+    return map
+})
 const selectedRoad = computed(() => props.roads.find((road) => road.id === props.selectedRoadId))
 /** 可拖拽的道路控制点（去掉首尾节点，首尾由点位自身维护） */
 const waypointList = computed(() => {
@@ -320,8 +353,6 @@ const waypointList = computed(() => {
     for (let i = 1; i < points.length - 1; i++) list.push({index: i, point: points[i]})
     return list
 })
-
-const hoverNodeId = ref('')
 
 /** 编辑模式下展示全部点位（隐藏点用虚线标记），浏览/寻路模式只展示 visible 点位 */
 const renderNodes = computed(() => (props.editable
@@ -347,6 +378,13 @@ function isPinned(node) {
     return node.id === props.selectedNodeId || node.id === props.startId || node.id === props.endId
 }
 
+function rankOf(node) {
+    return isPinned(node) ? -1 : (LABEL_ORDER[node.type] ?? 9)
+}
+
+/** 按标注优先级排序的点位：只在点位列表/起终点变化时重排，pan/zoom 时复用顺序 */
+const rankedNodes = computed(() => [...renderNodes.value].sort((a, b) => rankOf(a) - rankOf(b)))
+
 /**
  * 文字标签防重叠：按类型优先级依次放置，与已放标签相撞的隐藏。
  * 缩放/平移都会重新计算，放大后标签自然变多。
@@ -356,11 +394,10 @@ const hiddenLabelIds = computed(() => {
     const pxPerUnit = svgWidthPx / (vb.w || 1)
     // 标注在屏幕上大小恒定：markerScale * pxPerUnit 即「每单位对应的屏幕像素」
     const screenUnit = markerScale.value * pxPerUnit
-    const rank = (node) => (isPinned(node) ? -1 : (LABEL_ORDER[node.type] ?? 9))
     const placed = []
     const hidden = new Set()
 
-    for (const node of [...renderNodes.value].sort((a, b) => rank(a) - rank(b))) {
+    for (const node of rankedNodes.value) {
         if (!node.name) continue
         const sx = (Number(node.x) - vb.x) * pxPerUnit
         const sy = (Number(node.y) - vb.y) * pxPerUnit
@@ -521,20 +558,30 @@ function fitToPoints(points) {
     clampView()
 }
 
+// 浅监听即可：focusPoints 由父组件 computed 返回新数组引用，无需 deep 遍历整棵坐标树
 watch(() => props.focusPoints, (points) => {
     if (props.editable) return
     fitToPoints(points)
-}, {deep: true})
+})
 
-function clientToSvg(event) {
+// SVGPoint 复用，避免拖动/点击时频繁创建
+let svgPoint = null
+
+/** 当前屏幕 → 底图坐标的逆矩阵；拖动期间视野不动时可缓存复用 */
+function svgInvMatrix() {
+    const matrix = svgRef.value?.getScreenCTM?.()
+    return matrix ? matrix.inverse() : null
+}
+
+function clientToSvg(event, invMatrix) {
     const svg = svgRef.value
-    if (!svg?.createSVGPoint || !svg.getScreenCTM) return null
-    const point = svg.createSVGPoint()
-    point.x = event.clientX
-    point.y = event.clientY
-    const matrix = svg.getScreenCTM()
+    if (!svg?.createSVGPoint) return null
+    const matrix = invMatrix || svgInvMatrix()
     if (!matrix) return null
-    const target = point.matrixTransform(matrix.inverse())
+    if (!svgPoint) svgPoint = svg.createSVGPoint()
+    svgPoint.x = event.clientX
+    svgPoint.y = event.clientY
+    const target = svgPoint.matrixTransform(matrix)
     return {x: target.x, y: target.y}
 }
 
@@ -545,21 +592,28 @@ function onPointerDown(event) {
         startPinch()
         return
     }
-    dragState = {sx: event.clientX, sy: event.clientY, x: vb.x, y: vb.y, moved: false, editable: props.editable}
+    // rect 在拖动期间不变（元素尺寸不随 viewBox 变），按下时取一次，避免 move 中每帧强制布局
+    dragState = {
+        sx: event.clientX, sy: event.clientY, x: vb.x, y: vb.y, moved: false,
+        rect: svgRef.value?.getBoundingClientRect(),
+    }
     dragging.value = true
     capturePointer(event)
 }
 
 /** 双指按下：以两指中点为锚点缩放地图 */
 function startPinch() {
-    const points = [...activePointers.values()]
+    const it = activePointers.values()
+    const p1 = it.next().value
+    const p2 = it.next().value
+    if (!p1 || !p2) return
     const rect = svgRef.value?.getBoundingClientRect()
     if (!rect) return
-    const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) || 1
+    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1
     pinchState = {
         dist,
         rect,
-        center: {x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2},
+        center: {x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2},
         vb: {x: vb.x, y: vb.y, w: vb.w},
     }
     dragState = null
@@ -579,17 +633,25 @@ function capturePointer(event) {
 
 function onNodePointerDown(node, event) {
     if (!props.editable || event.button !== 0 || props.roadMode) return
-    const start = clientToSvg(event)
+    // 拖动点位时视野不动，CTM 逆矩阵在按下时缓存一次即可
+    const invMatrix = svgInvMatrix()
+    if (!invMatrix) return
+    const start = clientToSvg(event, invMatrix)
     if (!start) return
-    nodeDrag = {id: node.id, startX: start.x, startY: start.y, x: node.x, y: node.y, moved: false}
+    nodeDrag = {
+        id: node.id, startX: start.x, startY: start.y, x: node.x, y: node.y,
+        lastX: node.x, lastY: node.y, moved: false, invMatrix, el: event.currentTarget,
+    }
     dragging.value = true
     capturePointer(event)
 }
 
 function onWaypointPointerDown(wp, event) {
     if (!props.editable || event.button !== 0) return
-    const start = clientToSvg(event)
-    if (!start || !selectedRoad.value) return
+    const invMatrix = svgInvMatrix()
+    if (!invMatrix || !selectedRoad.value) return
+    const start = clientToSvg(event, invMatrix)
+    if (!start) return
     waypointDrag = {
         roadId: selectedRoad.value.id,
         index: wp.index,
@@ -597,15 +659,36 @@ function onWaypointPointerDown(wp, event) {
         startY: start.y,
         x: wp.point[0],
         y: wp.point[1],
+        lastX: wp.point[0],
+        lastY: wp.point[1],
         moved: false,
+        invMatrix,
+        el: event.currentTarget,
+        // 该道路的所有折线层（底衬/主线/高亮/命中层），拖动中直接重绘
+        lines: svgRef.value?.querySelectorAll(`[data-road-line="${selectedRoad.value.id}"]`),
     }
     dragging.value = true
     capturePointer(event)
 }
 
-function onWaypointPointerUp() {
+/** 结束控制点拖动：拖动中只改了 DOM，松手时才一次性同步到响应式数据 */
+function endWaypointDrag() {
+    if (!waypointDrag) return
+    if (waypointDrag.moved) {
+        emit('move-waypoint', {
+            roadId: waypointDrag.roadId,
+            index: waypointDrag.index,
+            x: waypointDrag.lastX,
+            y: waypointDrag.lastY,
+        })
+        suppressClick = true
+    }
     waypointDrag = null
     dragging.value = false
+}
+
+function onWaypointPointerUp() {
+    endWaypointDrag()
 }
 
 /** 指针捕获后 dblclick 落在 svg 上，用坐标命中控制点 */
@@ -621,15 +704,21 @@ function onWaypointDblClickBox(event) {
 }
 
 function onPointerMove(event) {
-    if (activePointers.has(event.pointerId)) {
-        activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY})
+    // 复用已有点位对象，避免每帧分配新对象
+    const tracked = activePointers.get(event.pointerId)
+    if (tracked) {
+        tracked.x = event.clientX
+        tracked.y = event.clientY
     }
     if (pinchState && activePointers.size >= 2) {
-        const points = [...activePointers.values()]
-        const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) || 1
+        const it = activePointers.values()
+        const p1 = it.next().value
+        const p2 = it.next().value
+        if (!p1 || !p2) return
+        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1
         const {rect, vb: startVb, center} = pinchState
-        const cx = (points[0].x + points[1].x) / 2
-        const cy = (points[0].y + points[1].y) / 2
+        const cx = (p1.x + p2.x) / 2
+        const cy = (p1.y + p2.y) / 2
         // 两指初始按下的中心点对应的底图坐标保持不变
         const ax = startVb.x + ((center.x - rect.left) / rect.width) * startVb.w
         const ay = startVb.y + ((center.y - rect.top) / rect.height) * (startVb.w * (props.imageHeight / props.imageWidth))
@@ -642,33 +731,41 @@ function onPointerMove(event) {
         return
     }
     if (waypointDrag) {
-        const current = clientToSvg(event)
+        const current = clientToSvg(event, waypointDrag.invMatrix)
         if (!current) return
         const dx = current.x - waypointDrag.startX
         const dy = current.y - waypointDrag.startY
         if (Math.abs(dx) + Math.abs(dy) > 1.5) waypointDrag.moved = true
-        emit('move-waypoint', {
-            roadId: waypointDrag.roadId,
-            index: waypointDrag.index,
-            x: Math.round((waypointDrag.x + dx) * 10) / 10,
-            y: Math.round((waypointDrag.y + dy) * 10) / 10,
-        })
+        const nextX = Math.round((waypointDrag.x + dx) * 10) / 10
+        const nextY = Math.round((waypointDrag.y + dy) * 10) / 10
+        waypointDrag.lastX = nextX
+        waypointDrag.lastY = nextY
+        // 拖动期间直接改 DOM：控制点圆 + 该道路所有折线层，不触发 Vue 重渲染
+        waypointDrag.el?.setAttribute('transform', `translate(${nextX} ${nextY}) scale(${markerScale.value})`)
+        const road = selectedRoad.value
+        if (road && waypointDrag.lines) {
+            const points = road.points.map((p, i) => (i === waypointDrag.index ? `${nextX},${nextY}` : `${p[0]},${p[1]}`)).join(' ')
+            for (const line of waypointDrag.lines) line.setAttribute('points', points)
+        }
         return
     }
     if (nodeDrag) {
-        const current = clientToSvg(event)
+        const current = clientToSvg(event, nodeDrag.invMatrix)
         if (!current) return
         const dx = current.x - nodeDrag.startX
         const dy = current.y - nodeDrag.startY
         if (Math.abs(dx) + Math.abs(dy) > 1.5) nodeDrag.moved = true
         const nextX = Math.round((nodeDrag.x + dx) * 10) / 10
         const nextY = Math.round((nodeDrag.y + dy) * 10) / 10
-        emit('move-node', {id: nodeDrag.id, x: nextX, y: nextY})
-        nodeTip.value = {x: nextX, y: nextY, text: `${nextX}, ${nextY}`}
+        nodeDrag.lastX = nextX
+        nodeDrag.lastY = nextY
+        // 拖动期间直接改 DOM 并更新坐标提示，pointerup 时才同步响应式数据
+        nodeDrag.el?.setAttribute('transform', `translate(${nextX} ${nextY}) scale(${markerScale.value})`)
+        showNodeTip(nextX, nextY)
         return
     }
     if (!dragState) return
-    const rect = svgRef.value?.getBoundingClientRect()
+    const rect = dragState.rect
     if (!rect) return
     const dx = event.clientX - dragState.sx
     const dy = event.clientY - dragState.sy
@@ -689,16 +786,19 @@ function onPointerUp(event) {
         return
     }
     if (waypointDrag) {
-        waypointDrag = null
-        dragging.value = false
-        suppressClick = true
+        endWaypointDrag()
         return
     }
     if (nodeDrag) {
-        if (!nodeDrag.moved) emit('select-node', nodeDrag.id)
-        else suppressClick = true
+        if (!nodeDrag.moved) {
+            emit('select-node', nodeDrag.id)
+        } else {
+            // 拖动期间只动了 DOM，松手时一次性把最终坐标同步给父组件
+            emit('move-node', {id: nodeDrag.id, x: nodeDrag.lastX, y: nodeDrag.lastY})
+            suppressClick = true
+        }
         nodeDrag = null
-        nodeTip.value = null
+        hideNodeTip()
         dragging.value = false
         return
     }
