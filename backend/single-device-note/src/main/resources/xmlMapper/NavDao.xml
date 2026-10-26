@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.nav.dao.NavDao">
+
+    <resultMap id="plantMap" type="com.smlj.singledevice_note.nav.o.NavPlant">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="image_url" property="imageUrl"/>
+        <result column="image_width" property="imageWidth"/>
+        <result column="image_height" property="imageHeight"/>
+        <result column="meters_per_pixel" property="metersPerPixel"/>
+        <result column="remark" property="remark"/>
+    </resultMap>
+
+    <resultMap id="nodeMap" type="com.smlj.singledevice_note.nav.o.NavNode">
+        <id column="id" property="id"/>
+        <result column="plant_id" property="plantId"/>
+        <result column="code" property="code"/>
+        <result column="name" property="name"/>
+        <result column="type" property="type"/>
+        <result column="x" property="x"/>
+        <result column="y" property="y"/>
+        <result column="status" property="status"/>
+        <result column="description" property="description"/>
+        <result column="sort_no" property="sortNo"/>
+        <result column="visible" property="visible"/>
+    </resultMap>
+
+    <resultMap id="gateMap" type="com.smlj.singledevice_note.nav.o.NavGate">
+        <id column="id" property="id"/>
+        <result column="plant_id" property="plantId"/>
+        <result column="node_id" property="nodeId"/>
+        <result column="gate_mode" property="gateMode"/>
+        <result column="allowed_material_ids" property="allowedMaterialIds"/>
+        <result column="sort_no" property="sortNo"/>
+    </resultMap>
+
+    <resultMap id="roadMap" type="com.smlj.singledevice_note.nav.o.NavRoad">
+        <id column="id" property="id"/>
+        <result column="plant_id" property="plantId"/>
+        <result column="code" property="code"/>
+        <result column="name" property="name"/>
+        <result column="group_name" property="groupName"/>
+        <result column="level" property="level"/>
+        <result column="from_node_id" property="fromNodeId"/>
+        <result column="to_node_id" property="toNodeId"/>
+        <result column="points" property="points"/>
+        <result column="one_way" property="oneWay"/>
+        <result column="enabled" property="enabled"/>
+        <result column="sort_no" property="sortNo"/>
+    </resultMap>
+
+    <resultMap id="scaleMap" type="com.smlj.singledevice_note.nav.o.NavScale">
+        <id column="id" property="id"/>
+        <result column="plant_id" property="plantId"/>
+        <result column="code" property="code"/>
+        <result column="name" property="name"/>
+        <result column="node_id" property="nodeId"/>
+        <result column="area" property="area"/>
+        <result column="capacity" property="capacity"/>
+        <result column="status" property="status"/>
+        <result column="sort_no" property="sortNo"/>
+    </resultMap>
+
+    <resultMap id="materialMap" type="com.smlj.singledevice_note.nav.o.NavMaterial">
+        <id column="id" property="id"/>
+        <result column="plant_id" property="plantId"/>
+        <result column="code" property="code"/>
+        <result column="name" property="name"/>
+        <result column="direction" property="direction"/>
+        <result column="category" property="category"/>
+        <result column="scale_id" property="scaleId"/>
+        <result column="backup_scale_ids" property="backupScaleIds"/>
+        <result column="point_node_id" property="pointNodeId"/>
+        <result column="voice_text" property="voiceText"/>
+        <result column="enabled" property="enabled"/>
+        <result column="sort_no" property="sortNo"/>
+    </resultMap>
+
+    <select id="selectPlant" resultMap="plantMap">
+        select id, name, image_url, image_width, image_height, meters_per_pixel, remark, update_time
+        from nav.plant
+        where id = #{plant_id}
+    </select>
+
+    <select id="selectNodes" resultMap="nodeMap">
+        select id, plant_id, code, name, type, x, y, status, description, sort_no, visible
+        from nav.node
+        where plant_id = #{plant_id}
+        order by sort_no, id
+    </select>
+
+    <select id="selectRoads" resultMap="roadMap">
+        select id, plant_id, code, name, group_name, level, from_node_id, to_node_id, points, one_way, enabled, sort_no
+        from nav.road
+        where plant_id = #{plant_id}
+        order by sort_no, id
+    </select>
+
+    <select id="selectScales" resultMap="scaleMap">
+        select id, plant_id, code, name, node_id, area, capacity, status, sort_no
+        from nav.scale
+        where plant_id = #{plant_id}
+        order by sort_no, id
+    </select>
+
+    <select id="selectGates" resultMap="gateMap">
+        select id, plant_id, node_id, gate_mode, allowed_material_ids, sort_no
+        from nav.gate
+        where plant_id = #{plant_id}
+        order by sort_no, id
+    </select>
+
+    <select id="selectMaterials" resultMap="materialMap">
+        select id, plant_id, code, name, direction, category, scale_id, backup_scale_ids, point_node_id,
+               voice_text, enabled, sort_no
+        from nav.material
+        where plant_id = #{plant_id}
+        order by sort_no, id
+    </select>
+
+    <delete id="deleteMaterials">
+        delete from nav.material where plant_id = #{plant_id}
+    </delete>
+
+    <delete id="deleteScales">
+        delete from nav.scale where plant_id = #{plant_id}
+    </delete>
+
+    <delete id="deleteGates">
+        delete from nav.gate where plant_id = #{plant_id}
+    </delete>
+
+    <delete id="deleteRoads">
+        delete from nav.road where plant_id = #{plant_id}
+    </delete>
+
+    <delete id="deleteNodes">
+        delete from nav.node where plant_id = #{plant_id}
+    </delete>
+
+    <insert id="upsertPlant" parameterType="com.smlj.singledevice_note.nav.o.NavPlant">
+        insert into nav.plant (id, name, image_url, image_width, image_height, meters_per_pixel, remark, update_time)
+        values (#{id}, #{name}, #{imageUrl}, #{imageWidth}, #{imageHeight}, #{metersPerPixel},
+                #{remark,jdbcType=VARCHAR}, now())
+        on conflict (id) do update set name             = excluded.name,
+                                       image_url        = excluded.image_url,
+                                       image_width      = excluded.image_width,
+                                       image_height     = excluded.image_height,
+                                       meters_per_pixel = excluded.meters_per_pixel,
+                                       remark           = excluded.remark,
+                                       update_time      = now()
+    </insert>
+
+    <insert id="insertNodes">
+        insert into nav.node (id, plant_id, code, name, type, x, y, status, description, sort_no, visible)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.type},
+             #{item.x}, #{item.y}, #{item.status,jdbcType=SMALLINT}, #{item.description,jdbcType=VARCHAR},
+             #{item.sortNo,jdbcType=INTEGER}, #{item.visible,jdbcType=BOOLEAN})
+        </foreach>
+    </insert>
+
+    <insert id="insertRoads">
+        insert into nav.road (id, plant_id, code, name, group_name, level, from_node_id, to_node_id, points, one_way,
+                              enabled, sort_no)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name},
+             #{item.groupName,jdbcType=VARCHAR}, #{item.level}, #{item.fromNodeId}, #{item.toNodeId},
+             #{item.points}, #{item.oneWay,jdbcType=SMALLINT}, #{item.enabled,jdbcType=SMALLINT},
+             #{item.sortNo,jdbcType=INTEGER})
+        </foreach>
+    </insert>
+
+    <insert id="insertScales">
+        insert into nav.scale (id, plant_id, code, name, node_id, area, capacity, status, sort_no)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.nodeId},
+             #{item.area,jdbcType=VARCHAR}, #{item.capacity,jdbcType=VARCHAR}, #{item.status,jdbcType=SMALLINT},
+             #{item.sortNo,jdbcType=INTEGER})
+        </foreach>
+    </insert>
+
+    <insert id="insertGates">
+        insert into nav.gate (id, plant_id, node_id, gate_mode, allowed_material_ids, sort_no)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.plantId}, #{item.nodeId}, #{item.gateMode,jdbcType=VARCHAR},
+             #{item.allowedMaterialIds,jdbcType=VARCHAR}, #{item.sortNo,jdbcType=INTEGER})
+        </foreach>
+    </insert>
+
+    <insert id="insertMaterials">
+        insert into nav.material (id, plant_id, code, name, direction, category, scale_id, backup_scale_ids,
+                                  point_node_id, voice_text, enabled, sort_no)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.direction},
+             #{item.category,jdbcType=VARCHAR}, #{item.scaleId,jdbcType=VARCHAR},
+             #{item.backupScaleIds,jdbcType=VARCHAR}, #{item.pointNodeId,jdbcType=VARCHAR},
+             #{item.voiceText,jdbcType=VARCHAR}, #{item.enabled,jdbcType=SMALLINT},
+             #{item.sortNo,jdbcType=INTEGER})
+        </foreach>
+    </insert>
+</mapper>
