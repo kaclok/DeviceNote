@@ -24,7 +24,7 @@
                     <div class="pair-body">
                         <div class="pair-row">
                             <span class="pair-label">起点</span>
-                            <el-select v-model="freeStartId" filterable placeholder="选择起点" class="field-select">
+                            <el-select v-model="freeStartId" :filterable="!isPhone" placeholder="选择起点" class="field-select">
                                 <el-option-group v-for="group in poiGroupOptions" :key="group.type"
                                                  :label="`${group.label}（${group.items.length}）`">
                                     <el-option v-for="node in group.items" :key="node.id"
@@ -41,7 +41,7 @@
                         </div>
                         <div class="pair-row">
                             <span class="pair-label">终点</span>
-                            <el-select v-model="freeEndId" filterable placeholder="选择终点" class="field-select">
+                            <el-select v-model="freeEndId" :filterable="!isPhone" placeholder="选择终点" class="field-select">
                                 <el-option-group v-for="group in poiGroupOptions" :key="group.type"
                                                  :label="`${group.label}（${group.items.length}）`">
                                     <el-option v-for="node in group.items" :key="node.id"
@@ -67,7 +67,7 @@
                 <div class="field">
                     <label>物资</label>
                     <div class="field-line">
-                        <el-select v-model="materialId" filterable class="field-select">
+                        <el-select v-model="materialId" :filterable="!isPhone" class="field-select">
                             <el-option-group label="拉货（出厂）">
                                 <el-option v-for="item in outMaterials" :key="item.id" :label="item.name"
                                            :value="item.id"/>
@@ -108,7 +108,7 @@
                     <div class="pair-body">
                         <div class="pair-row">
                             <span class="pair-label">起点</span>
-                            <el-select v-if="materialFlow === 'in'" v-model="materialStartId" filterable
+                            <el-select v-if="materialFlow === 'in'" v-model="materialStartId" :filterable="!isPhone"
                                        class="field-select"
                                        :placeholder="materialStartGates.length ? '选择进厂大门' : '该物资没有可进厂的大门'">
                                 <el-option v-for="gate in materialStartGates" :key="gate.id"
@@ -126,7 +126,7 @@
                         </div>
                         <div class="pair-row">
                             <span class="pair-label">终点</span>
-                            <el-select v-if="materialFlow === 'out'" v-model="materialEndGateId" filterable
+                            <el-select v-if="materialFlow === 'out'" v-model="materialEndGateId" :filterable="!isPhone"
                                        class="field-select"
                                        :placeholder="materialEndGates.length ? '选择出场大门' : '该物资没有可出场的大门'">
                                 <el-option v-for="gate in materialEndGates" :key="gate.id"
@@ -296,7 +296,7 @@ import {
 } from '../system/PlantStore.js'
 import {fmtDistance, fmtDuration} from '../utils/FmtX.js'
 import {buildNetwork, kShortestPaths, mergeDetails, routeDetail} from '../utils/RouteX.js'
-import {speak, speechSupported, stopSpeak} from '../utils/SpeechX.js'
+import {isSpeaking, primeSpeech, speak, speechSupported, stopSpeak} from '../utils/SpeechX.js'
 
 const ROUTE_COLORS = ['#1677ff', '#00a870', '#ff8f1f']
 const ROUTE_RANKS = ['推荐', '备选一', '备选二']
@@ -455,8 +455,18 @@ function playMaterialVoice() {
         return
     }
     const started = speak(materialVoice.value, {onEnd: () => { speaking.value = false }})
-    if (started) speaking.value = true
-    else ElMessage.warning('当前浏览器不支持语音朗读')
+    if (!started) {
+        ElMessage.warning('当前浏览器不支持语音朗读')
+        return
+    }
+    speaking.value = true
+    // 发起后仍未出声，多半是手机静音开关或媒体音量为 0
+    setTimeout(() => {
+        if (speaking.value && !isSpeaking()) {
+            speaking.value = false
+            ElMessage.warning('没有播放出声音，请检查手机静音开关和媒体音量')
+        }
+    }, 900)
 }
 const materialScaleId = computed(() => material.value?.scaleId || '')
 const materialScale = computed(() => scaleById.value.get(materialScaleId.value))
@@ -866,7 +876,17 @@ watch(scaleChoice, () => {
     if (mode.value === 'material') searchMaterial()
 })
 
+// 手机端（≤760px）关闭下拉搜索：filterable 会渲染可聚焦输入框，点开选择框时会弹出软键盘
+const isPhone = ref(false)
+
+function syncPhoneLayout() {
+    isPhone.value = window.innerWidth <= 760
+}
+
 onMounted(async () => {
+    syncPhoneLayout()
+    window.addEventListener('resize', syncPhoneLayout)
+    primeSpeech()
     await loadConfig()
     normalizeMaterialStart()
     normalizeMaterialEnd()
@@ -875,6 +895,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+    window.removeEventListener('resize', syncPhoneLayout)
     stopSpeak()
 })
 </script>

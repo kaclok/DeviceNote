@@ -1,5 +1,5 @@
 <template>
-    <div ref="shellRef" class="map-shell">
+    <div ref="shellRef" class="map-shell" :class="{immersive}">
         <svg ref="svgRef" class="plant-svg" :class="{dragging, editable}" :viewBox="viewBox"
              :style="{aspectRatio: `${canvas[0]} / ${canvas[1]}`}"
              preserveAspectRatio="xMidYMid meet"
@@ -161,6 +161,20 @@
             <button class="map-btn" title="放大" @click="zoomBy(0.8)">+</button>
             <button class="map-btn" title="缩小" @click="zoomBy(1.25)">−</button>
             <button class="map-btn reset" title="复位" @click="resetView">复位</button>
+        </div>
+
+        <!-- 右上角全屏开关：全屏后同一按钮变为退出 -->
+        <div class="map-fs" @pointerdown.stop>
+            <button class="map-btn" :title="fullscreen ? '退出全屏' : '全屏查看'" @click="toggleFullscreen">
+                <svg v-if="!fullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>
+                </svg>
+            </button>
         </div>
 
         <div class="compass">
@@ -423,12 +437,62 @@ const scaleBarPx = computed(() => {
     return Math.max(26, Math.min(180, (units / vb.w) * svgWidth.value))
 })
 
+// ===== 全屏查看 =====
+const fullscreen = ref(false)
+// 浏览器不支持元素全屏（如 iOS Safari）时，退化为页面内满屏
+const immersive = ref(false)
+
+function setFullscreen(on) {
+    fullscreen.value = on
+    if (!on) immersive.value = false
+}
+
+async function toggleFullscreen() {
+    const el = shellRef.value
+    if (!el) return
+    if (fullscreen.value) {
+        if (document.fullscreenElement) {
+            try {
+                await document.exitFullscreen()
+            } catch (e) {
+                // 已被浏览器退出，忽略
+            }
+        }
+        setFullscreen(false)
+        return
+    }
+    const request = el.requestFullscreen || el.webkitRequestFullscreen
+    if (request) {
+        try {
+            await request.call(el)
+            setFullscreen(true)
+            return
+        } catch (e) {
+            // 不支持时走下面的页面内满屏
+        }
+    }
+    immersive.value = true
+    fullscreen.value = true
+}
+
+function onFullscreenChange() {
+    const on = document.fullscreenElement === shellRef.value
+    if (on) setFullscreen(true)
+    else if (!immersive.value) setFullscreen(false)
+}
+
+function onFullscreenKeydown(event) {
+    if (event.key === 'Escape' && immersive.value) setFullscreen(false)
+}
+
 onMounted(() => {
     ro = new ResizeObserver((entries) => {
         svgWidth.value = entries[0].contentRect.width
     })
     if (shellRef.value) ro.observe(shellRef.value)
     window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onFullscreenKeydown)
+    document.addEventListener('fullscreenchange', onFullscreenChange)
     resetView()
 })
 
@@ -436,6 +500,9 @@ onBeforeUnmount(() => {
     ro?.disconnect()
     stopCursor()
     window.removeEventListener('keydown', onKeyDown)
+    window.removeEventListener('keydown', onFullscreenKeydown)
+    document.removeEventListener('fullscreenchange', onFullscreenChange)
+    if (document.fullscreenElement === shellRef.value) document.exitFullscreen?.()
 })
 
 function typeMeta(type) {
@@ -1077,7 +1144,8 @@ function onKeyDown(event) {
 
 .map-controls {
     position: absolute;
-    top: 14px;
+    /* 让出顶部全屏按钮的位置，两组按钮上下排成一列 */
+    top: 56px;
     right: 14px;
     display: flex;
     flex-direction: column;
@@ -1108,6 +1176,48 @@ function onKeyDown(event) {
     color: #64748b;
 }
 
+.map-btn svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+    margin: 0 auto;
+    pointer-events: none;
+}
+
+/* 全屏按钮固定在右上角；缩放按钮在手机上仍在右下，避免遮挡终点徽标 */
+.map-fs {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 4;
+}
+
+/* 原生全屏或页面内满屏：地图铺满整屏 */
+.map-shell:fullscreen,
+.map-shell:-webkit-full-screen,
+.map-shell.immersive {
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: auto !important;
+    border-radius: 0;
+    background: #0f172a;
+}
+
+.map-shell.immersive {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+}
+
+/* 全屏时让 SVG 撑满整屏，由 preserveAspectRatio 居中留边 */
+.map-shell:fullscreen .plant-svg,
+.map-shell:-webkit-full-screen .plant-svg,
+.map-shell.immersive .plant-svg {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto !important;
+}
+
 /* 手机上缩放按钮移到右下，避免遮挡右上角的终点徽标 */
 @media (max-width: 760px) {
     .map-controls {
@@ -1121,6 +1231,16 @@ function onKeyDown(event) {
         width: 40px;
         height: 40px;
         font-size: 19px;
+    }
+
+    .map-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .map-fs {
+        top: 10px;
+        right: 10px;
     }
 }
 
