@@ -1,0 +1,4 @@
+csc    = C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
+shared = F:\Projects\Study\github\DeviceNote\tool\dev-launcher\src\Shared.cs
+---- _tmp_GbWatcher.exe     OK
+     -> GbWatcher.exe  (40.0 KB)
