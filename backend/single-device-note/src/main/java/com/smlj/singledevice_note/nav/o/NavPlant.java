@@ -11,4 +11,5 @@ public class NavPlant {
     private Integer imageHeight;
     private Double metersPerPixel;
     private String remark;
+    private String dutyUrl;
 }

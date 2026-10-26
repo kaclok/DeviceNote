@@ -10,6 +10,7 @@
         <result column="image_height" property="imageHeight"/>
         <result column="meters_per_pixel" property="metersPerPixel"/>
         <result column="remark" property="remark"/>
+        <result column="duty_url" property="dutyUrl"/>
     </resultMap>
 
     <resultMap id="nodeMap" type="com.smlj.singledevice_note.nav.o.NavNode">
@@ -78,7 +79,7 @@
     </resultMap>
 
     <select id="selectPlant" resultMap="plantMap">
-        select id, name, image_url, image_width, image_height, meters_per_pixel, remark, update_time
+        select id, name, image_url, image_width, image_height, meters_per_pixel, remark, duty_url, update_time
         from nav.plant
         where id = #{plant_id}
     </select>
@@ -140,15 +141,17 @@
     </delete>
 
     <insert id="upsertPlant" parameterType="com.smlj.singledevice_note.nav.o.NavPlant">
-        insert into nav.plant (id, name, image_url, image_width, image_height, meters_per_pixel, remark, update_time)
+        insert into nav.plant (id, name, image_url, image_width, image_height, meters_per_pixel, remark, duty_url,
+                               update_time)
         values (#{id}, #{name}, #{imageUrl}, #{imageWidth}, #{imageHeight}, #{metersPerPixel},
-                #{remark,jdbcType=VARCHAR}, now())
+                #{remark,jdbcType=VARCHAR}, #{dutyUrl,jdbcType=VARCHAR}, now())
         on conflict (id) do update set name             = excluded.name,
                                        image_url        = excluded.image_url,
                                        image_width      = excluded.image_width,
                                        image_height     = excluded.image_height,
                                        meters_per_pixel = excluded.meters_per_pixel,
                                        remark           = excluded.remark,
+                                       duty_url         = excluded.duty_url,
                                        update_time      = now()
     </insert>
 

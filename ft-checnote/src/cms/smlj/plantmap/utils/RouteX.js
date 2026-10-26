@@ -5,10 +5,10 @@
  * 不额外拆成图节点，避免地图数据与拓扑结构互相耦合。
  */
 
-const LEVEL_SPEED = {main: 25, secondary: 15, branch: 10} // km/h
-const JUNCTION_DELAY = 4 // 秒，每个路口的起步等待
-const TURN_DELAY_SMALL = 5 // 秒，转向一次
-const TURN_DELAY_LARGE = 10 // 秒，大角度转向/掉头
+const LEVEL_SPEED = {main: 25, secondary: 25, branch: 25} // km/h
+const JUNCTION_DELAY = 0 // 秒，每个路口的起步等待
+const TURN_DELAY_SMALL = 0 // 秒，转向一次
+const TURN_DELAY_LARGE = 0 // 秒，大角度转向/掉头
 
 export function polylineLength(points) {
     let total = 0

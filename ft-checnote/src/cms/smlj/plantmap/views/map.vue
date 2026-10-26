@@ -219,6 +219,7 @@
                             {{ routes.length }} 条 · {{ routeTitle }}
                         </span>
                     </div>
+                    <div class="speed-tip">厂区道路统一限速 25 km/h，用时为估算值</div>
 
                     <div v-if="autoSwitched" class="switch-notice">
                         绑定磅房「{{ materialScale?.name }}」当前{{ STATUS_TEXT[materialScaleStatus] }}，
@@ -634,10 +635,10 @@ function searchMaterial() {
     for (const scale of targets) {
         const firstLegs = fromId === scale.nodeId
             ? [zeroLeg(scale.nodeId)]
-            : kShortestPaths(network, fromId, scale.nodeId, 2)
+            : kShortestPaths(network, fromId, scale.nodeId, 3)
         const secondLegs = toId === scale.nodeId
             ? [zeroLeg(scale.nodeId)]
-            : kShortestPaths(network, scale.nodeId, toId, 2)
+            : kShortestPaths(network, scale.nodeId, toId, 3)
         for (const first of firstLegs) {
             const firstDetail = routeDetail(network, first.nodes, first.edges)
             for (const second of secondLegs) {
@@ -1282,6 +1283,12 @@ onBeforeUnmount(() => {
     font-size: 11px;
     color: #94a3b8;
     text-align: right;
+}
+
+.speed-tip {
+    margin: -6px 0 10px;
+    font-size: 11px;
+    color: #94a3b8;
 }
 
 .switch-notice {

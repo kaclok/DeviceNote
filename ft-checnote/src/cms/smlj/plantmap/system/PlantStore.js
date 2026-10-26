@@ -6,7 +6,7 @@ const PLANT_ID = 'default'
 
 // 点位/磅房状态：1 正常、2 检修、3 停用
 export const STATUS_TEXT = {1: '正常', 2: '检修', 3: '停用'}
-export const DIRECTION_TEXT = {out: '拉货（出厂）', in: '送货（入厂）'}
+export const DIRECTION_TEXT = {out: '拉货', in: '送货'}
 export const TYPE_LABEL = {gate: '大门', junction: '路口', scale: '磅房', parking: '停车场', pickup: '拉货点', delivery: '送货点'}
 export const TYPE_COLOR = {gate: '#1c4785', scale: '#1677ff', parking: '#8b5cf6', pickup: '#00a870', delivery: '#ff8f1f'}
 
@@ -44,6 +44,7 @@ function normalize(raw) {
             imageWidth: Number(plant.imageWidth) || 1280,
             imageHeight: Number(plant.imageHeight) || 558,
             metersPerPixel: Number(plant.metersPerPixel) || 1,
+            dutyUrl: plant.dutyUrl || '',
         },
         nodes: (raw?.nodes || []).map((node) => ({
             ...node,
@@ -297,6 +298,12 @@ export function setMaterialVoice(materialId, voiceText) {
     const material = plantState.materials.find((item) => item.id === materialId)
     if (!material) return Promise.resolve()
     material.voiceText = (voiceText || '').trim()
+    return saveConfig()
+}
+
+/** 设置值班人员网页链接（存于 plant.dutyUrl）并写库；失败时由调用方提示 */
+export function setDutyUrl(url) {
+    plantState.plant.dutyUrl = (url || '').trim()
     return saveConfig()
 }
 

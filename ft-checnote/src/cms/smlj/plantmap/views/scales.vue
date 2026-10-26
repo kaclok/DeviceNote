@@ -1,6 +1,23 @@
 <template>
     <div class="page">
         <section class="panel">
+            <div class="panel-head duty-head">
+                <div class="panel-head-main">
+                    <div class="panel-title-row">
+                        <span class="panel-title">值班人员</span>
+                    </div>
+                    <div class="panel-sub">配置值班查询网页链接，保存后全站右上角的「值班人员」按钮将跳转到该页面</div>
+                </div>
+                <div class="panel-tools duty-tools">
+                    <el-input v-model="dutyUrlDraft" size="small" class="duty-input" clearable
+                              placeholder="如 https://…/duty（值班表网页地址）"/>
+                    <el-button size="small" type="primary" :loading="dutySaving" @click="saveDutyUrl">保存链接
+                    </el-button>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
             <div class="panel-head">
                 <div class="panel-head-main">
                     <div class="panel-title-row">
@@ -301,6 +318,7 @@ import {
     scaleList,
     scaleStatusOf,
     setBindingScales,
+    setDutyUrl,
     setGateMaterials,
     setGateMode,
     setMaterialVoice,
@@ -329,6 +347,27 @@ const STATUS_ACTIONS = {
 }
 
 const statusFilter = ref(1)
+
+// 值班人员网页链接配置（存于 plant.dutyUrl）
+const dutyUrlDraft = ref('')
+const dutySaving = ref(false)
+
+async function saveDutyUrl() {
+    const url = (dutyUrlDraft.value || '').trim()
+    if (url && !/^https?:\/\//i.test(url)) {
+        ElMessage.warning('链接需以 http:// 或 https:// 开头')
+        return
+    }
+    dutySaving.value = true
+    try {
+        await setDutyUrl(url)
+        ElMessage.success('值班人员链接已保存')
+    } catch (e) {
+        ElMessage.error(plantState.saveError || '保存失败，请检查后端服务')
+    } finally {
+        dutySaving.value = false
+    }
+}
 
 function statusActions(status) {
     return STATUS_ACTIONS[status] || []
@@ -561,7 +600,10 @@ async function reload() {
     ElMessage.success('已重新加载数据库配置')
 }
 
-onMounted(loadConfig)
+onMounted(async () => {
+    await loadConfig()
+    dutyUrlDraft.value = plantState.plant.dutyUrl || ''
+})
 </script>
 
 <style scoped>
@@ -825,6 +867,34 @@ onMounted(loadConfig)
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+}
+
+/* 值班人员配置 */
+.duty-head {
+    align-items: center;
+}
+
+.duty-tools {
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.duty-input {
+    width: 320px;
+}
+
+@media (max-width: 760px) {
+    .duty-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .duty-input {
+        width: 100%;
+        flex: 1;
+        min-width: 0;
+    }
 }
 
 .status-filter {

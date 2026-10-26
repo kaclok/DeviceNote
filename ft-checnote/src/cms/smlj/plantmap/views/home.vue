@@ -1,6 +1,8 @@
 <script setup lang="js">
-import {computed} from 'vue'
+import {computed, onMounted} from 'vue'
 import {useRoute} from 'vue-router'
+import {ElMessage} from 'element-plus'
+import {loadConfig, plantState} from '../system/PlantStore.js'
 
 const route = useRoute()
 
@@ -20,6 +22,18 @@ const NAVS = [
 ]
 
 const activeName = computed(() => route.name)
+
+// 值班人员：跳转到「磅房与绑定」页配置的网页链接
+onMounted(loadConfig)
+
+function openDuty() {
+    const url = (plantState.plant.dutyUrl || '').trim()
+    if (!url) {
+        ElMessage.warning('尚未配置值班人员链接，请在「磅房与绑定」页顶部配置')
+        return
+    }
+    window.open(url, '_blank')
+}
 </script>
 
 <template>
@@ -32,7 +46,18 @@ const activeName = computed(() => route.name)
                     <div class="brand-sub">氯碱厂区 · 导航</div>
                 </div>
             </div>
-            <span class="topbar-tip">配置存于 device-note · nav</span>
+            <div class="topbar-right">
+                <button class="duty-btn" @click="openDuty">
+                    <svg class="duty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="10" cy="7.5" r="3.2"/>
+                        <path d="M4 20c.7-3.6 3-5.6 6-5.6s5.3 2 6 5.6"/>
+                        <circle cx="17.5" cy="7" r="2.6"/>
+                        <path d="M15.8 12.3c.5-.2 1.1-.3 1.7-.3 2.2 0 3.9 1.4 4.5 4"/>
+                    </svg>
+                    <span class="duty-text">值班人员</span>
+                </button>
+            </div>
         </header>
 
         <div class="body">
@@ -108,10 +133,47 @@ const activeName = computed(() => route.name)
     color: #94a3b8;
 }
 
-.topbar-tip {
+.topbar-right {
     margin-left: auto;
-    font-size: 11px;
-    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+/* 值班人员跳转按钮 */
+.duty-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ff9f43, #ff7a1f);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(255, 122, 31, .32);
+    transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+
+.duty-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 18px rgba(255, 122, 31, .42);
+    filter: brightness(1.06);
+}
+
+.duty-btn:active {
+    transform: translateY(0);
+    filter: brightness(.97);
+}
+
+.duty-icon {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
 }
 
 .body {
@@ -208,9 +270,21 @@ const activeName = computed(() => route.name)
         font-size: 15px;
     }
 
-    .brand-sub,
-    .topbar-tip {
+    .brand-sub {
         display: none;
+    }
+
+    .duty-btn {
+        height: 30px;
+        padding: 0 12px;
+        font-size: 12px;
+        gap: 5px;
+    }
+
+    .duty-icon {
+        width: 15px;
+        height: 15px;
+        flex: 0 0 15px;
     }
 
     .body {
@@ -261,6 +335,14 @@ const activeName = computed(() => route.name)
 
 /* 小屏手机（≤360px）：三个标签收窄，保证一屏内全部可见 */
 @media (max-width: 360px) {
+    .duty-btn {
+        padding: 0 9px;
+        gap: 4px;
+    }
+
+    .topbar-right {
+        gap: 8px;
+    }
     .item-inner {
         gap: 4px;
         padding: 9px 8px;
