@@ -9,6 +9,8 @@
              @pointerup="onPointerUp($event)"
              @pointercancel="onPointerUp($event)"
              @dblclick="onWaypointDblClickBox">
+            <!-- 旋转组：绕底图中心旋转，浏览模式下可通过右上角按钮 90° 步进旋转 -->
+            <g :transform="rotTransform">
             <image :href="imageUrl" x="0" y="0" :width="canvas[0]" :height="canvas[1]"
                    preserveAspectRatio="none" pointer-events="none"/>
 
@@ -99,7 +101,7 @@
             <g class="poi-layer" :class="{'poi-muted': hasRoute && !editable}">
                 <g v-for="node in renderNodes" :key="node.id" class="poi"
                    :class="{'poi-bad': node.status && node.status !== 1, draggable: editable, 'poi-hidden': node.visible === false, 'poi-faded': hasRoute && !editable && !isPinned(node)}"
-                   :transform="`translate(${node.x} ${node.y}) scale(${markerScale})`"
+                   :transform="`translate(${node.x} ${node.y}) scale(${markerScale}) rotate(${-rotation})`"
                    @pointerdown.stop="onNodePointerDown(node, $event)"
                    @click.stop="onNodeClick(node)"
                    @mouseenter="hoverNodeId = node.id"
@@ -149,6 +151,7 @@
                     <circle r="8" fill="#ffffff" stroke="#7c3aed" stroke-width="3"/>
                 </g>
             </g>
+            </g><!-- /旋转组 -->
 
             <!-- 拖拽点位的坐标提示：静态元素 + DOM 直操作，避免拖动期间每帧重渲染 -->
             <g ref="nodeTipRef" class="node-tip" style="display:none" pointer-events="none">
@@ -163,8 +166,15 @@
             <button class="map-btn reset" title="复位" @click="resetView">复位</button>
         </div>
 
-        <!-- 右上角全屏开关：全屏后同一按钮变为退出 -->
+        <!-- 右上角：旋转 + 全屏开关，全屏后同一按钮变为退出 -->
         <div class="map-fs" @pointerdown.stop>
+            <button v-if="!editable" class="map-btn" title="旋转 90°" @click="rotateMap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 1 1-3-6.7"/>
+                    <path d="M21 3v6h-6"/>
+                </svg>
+            </button>
             <button class="map-btn" :title="fullscreen ? '退出全屏' : '全屏查看'" @click="toggleFullscreen">
                 <svg v-if="!fullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -178,7 +188,7 @@
         </div>
 
         <div class="compass">
-            <div class="compass-arrow"></div>
+            <div class="compass-arrow" :style="{transform: `rotate(${-rotation}deg)`}"></div>
             <span>北</span>
         </div>
 
@@ -327,9 +337,9 @@ function startCursor() {
     const step = (now) => {
         const ratio = Math.min(1, (now - start) / duration)
         const point = pathEl.getPointAtLength(total * ratio)
-        // 取前方 1px 处的点计算朝向，让光标沿路线转向
+        // 取前方 1px 处的点计算朝向，让光标沿路线转向；再补偿地图自身旋转角
         const ahead = pathEl.getPointAtLength(Math.min(total, total * ratio + 1))
-        const angle = Math.atan2(ahead.y - point.y, ahead.x - point.x) * 180 / Math.PI
+        const angle = Math.atan2(ahead.y - point.y, ahead.x - point.x) * 180 / Math.PI - rotation.value
         gEl.setAttribute('transform', `translate(${point.x} ${point.y}) rotate(${angle})`)
         if (ratio < 1) {
             cursorRaf = requestAnimationFrame(step)
@@ -589,6 +599,22 @@ function resetView() {
     syncViewBoxSize()
     vb.x = 0
     vb.y = 0
+    rotation.value = 0
+}
+
+// ===== 地图旋转（浏览模式）=====
+/** 顺时针 90° 步进；点位徽标反向自转保持文字直立，复位时归零 */
+const rotation = ref(0)
+const rotTransform = computed(() => (rotation.value
+    ? `rotate(${rotation.value} ${props.imageWidth / 2} ${props.imageHeight / 2})`
+    : null))
+
+function rotateMap() {
+    rotation.value = (rotation.value + 90) % 360
+    // 旋转后视野回中，避免旧 viewBox 裁切到旋转后内容之外
+    syncViewBoxSize()
+    vb.x = 0
+    vb.y = 0
 }
 
 /** 将视野缩放到一组坐标（寻路结果），四周留出边距，手机竖屏下也能看清整条路线 */
@@ -628,7 +654,13 @@ function fitToPoints(points) {
 // 浅监听即可：focusPoints 由父组件 computed 返回新数组引用，无需 deep 遍历整棵坐标树
 watch(() => props.focusPoints, (points) => {
     if (props.editable) return
+    rotation.value = 0 // 包围盒按未旋转坐标系计算，寻路前先回正
     fitToPoints(points)
+})
+
+// 配置模式下的拖拽坐标换算不支持旋转，进入编辑前强制回正
+watch(() => props.editable, (on) => {
+    if (on) rotation.value = 0
 })
 
 // SVGPoint 复用，避免拖动/点击时频繁创建
@@ -1184,11 +1216,13 @@ function onKeyDown(event) {
     pointer-events: none;
 }
 
-/* 全屏按钮固定在右上角；缩放按钮在手机上仍在右下，避免遮挡终点徽标 */
+/* 全屏/旋转按钮固定在右上角；缩放按钮在手机上仍在右下，避免遮挡终点徽标 */
 .map-fs {
     position: absolute;
     top: 14px;
     right: 14px;
+    display: flex;
+    gap: 6px;
     z-index: 4;
 }
 
@@ -1218,29 +1252,48 @@ function onKeyDown(event) {
     aspect-ratio: auto !important;
 }
 
-/* 手机上缩放按钮移到右下，避免遮挡右上角的终点徽标 */
+/* 手机上缩放按钮移到右下，避免遮挡右上角的终点徽标；按钮整体收紧少占版面 */
 @media (max-width: 760px) {
     .map-controls {
         top: auto;
         bottom: 40px;
-        right: 10px;
+        right: 8px;
         flex-direction: row;
+        gap: 4px;
     }
 
     .map-btn {
-        width: 40px;
-        height: 40px;
-        font-size: 19px;
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        font-size: 15px;
+        box-shadow: 0 2px 8px rgba(31, 58, 95, .22);
+    }
+
+    .map-btn.reset {
+        font-size: 10px;
+        padding: 0 6px;
+        width: auto;
+        min-width: 30px;
     }
 
     .map-btn svg {
-        width: 20px;
-        height: 20px;
+        width: 15px;
+        height: 15px;
     }
 
     .map-fs {
+        top: 8px;
+        right: 8px;
+        display: flex;
+        gap: 4px;
+    }
+
+    .compass {
         top: 10px;
-        right: 10px;
+        left: 10px;
+        transform: scale(.8);
+        transform-origin: top left;
     }
 }
 
@@ -1265,6 +1318,7 @@ function onKeyDown(event) {
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
     border-bottom: 20px solid #93c5fd;
+    transition: transform .3s;
 }
 
 .scale-bar {
