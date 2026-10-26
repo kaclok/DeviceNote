@@ -236,7 +236,7 @@ const activeName = computed(() => route.name)
     .item-inner {
         justify-content: center;
         gap: 6px;
-        padding: 8px 12px;
+        padding: 10px 12px;
     }
 
     .item-icon {
@@ -256,6 +256,22 @@ const activeName = computed(() => route.name)
 
     .main {
         padding: 10px 10px 18px;
+    }
+}
+
+/* 小屏手机（≤360px）：三个标签收窄，保证一屏内全部可见 */
+@media (max-width: 360px) {
+    .item-inner {
+        gap: 4px;
+        padding: 9px 8px;
+    }
+
+    .item-icon {
+        display: none;
+    }
+
+    .item-title {
+        font-size: 12px;
     }
 }
 </style>

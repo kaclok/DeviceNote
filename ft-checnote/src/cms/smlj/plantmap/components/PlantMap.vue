@@ -14,7 +14,7 @@
 
             <!-- 寻路结果存在时压暗底图，避免卫星图色彩干扰路线辨识 -->
             <rect v-if="hasRoute && !editable" x="0" y="0" :width="canvas[0]" :height="canvas[1]"
-                  fill="rgba(15,23,42,.5)" pointer-events="none" class="route-scrim"/>
+                  fill="rgba(15,23,42,.35)" pointer-events="none" class="route-scrim"/>
 
             <g class="road-layer" :class="{'road-muted': hasRoute && !editable}">
                 <polyline v-for="road in roads" :key="`case-${road.id}`" :points="roadPts.get(road.id)"
@@ -965,7 +965,8 @@ function onKeyDown(event) {
 }
 
 .road-muted {
-    opacity: .28;
+    /* 有路线时压低路网但保持可见：过低的透明度会让点位看起来悬空 */
+    opacity: .5;
     transition: opacity .18s ease;
 }
 

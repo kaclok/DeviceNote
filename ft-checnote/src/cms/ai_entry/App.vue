@@ -296,6 +296,12 @@ const appGridItems = ref([
         url: "http://10.8.54.24:4177/pages/smlj/cghtz/index.html?group=" + group,
         image: logo_book,
         enabled: true,
+    },
+    {
+        name: "厂区寻路",
+        url: "http://117.36.227.42:4177/pages/smlj/plantmap/index.html?group=" + group,
+        image: logo_book,
+        enabled: true,
     }
 ])
 

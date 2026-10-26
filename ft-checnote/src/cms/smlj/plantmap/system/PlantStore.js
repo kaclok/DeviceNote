@@ -117,7 +117,8 @@ export function loadConfig(force = false) {
 
 async function doLoadConfig() {
     try {
-        const res = await axiosInst.get('/nav/config', {params: {plantId: PLANT_ID}})
+        // 加时间戳防缓存：浏览器会缓存同一个 GET 响应，导致外部改库后页面仍读到旧配置
+        const res = await axiosInst.get('/nav/config', {params: {plantId: PLANT_ID, _t: Date.now()}})
         const data = res?.data?.data
         if (!data || !data.plant) throw new Error('后端未返回厂区配置')
         Object.assign(plantState, normalize(data), {loaded: true, loadError: false})

@@ -12,7 +12,7 @@
  Target Server Version : 170002 (170002)
  File Encoding         : 65001
 
- Date: 24/10/2026 20:32:37
+ Date: 26/10/2026 08:51:11
 */
 
 
@@ -98,7 +98,8 @@ INSERT INTO "nav"."node" VALUES ('n_mvknkw9u', 'default', 'c12', 'C12', 'junctio
 INSERT INTO "nav"."node" VALUES ('n_mvko2xng', 'default', 'c9', 'C9', 'junction', 67.10, 209.30, 1, '', 28, 't');
 INSERT INTO "nav"."node" VALUES ('n_mvko5jb1', 'default', 'c10', 'C10', 'junction', 1055.10, 433.50, 1, '', 29, 't');
 INSERT INTO "nav"."node" VALUES ('n_mvkoc3j6', 'default', 'c11', 'C11', 'junction', 118.10, 216.50, 1, '', 30, 't');
-INSERT INTO "nav"."node" VALUES ('j1', 'default', 'J1', 'C1', 'junction', 71.40, 50.70, 1, '', 101, 't');
+INSERT INTO "nav"."node" VALUES ('n_mvoi1tno', 'default', 'c13', 'C13', 'junction', 255.90, 73.20, 1, '', 31, 't');
+INSERT INTO "nav"."node" VALUES ('j1', 'default', 'J1', 'C1', 'junction', 70.10, 60.80, 1, '', 101, 't');
 INSERT INTO "nav"."node" VALUES ('j2', 'default', 'J2', 'C4', 'junction', 249.30, 296.90, 1, '', 102, 't');
 INSERT INTO "nav"."node" VALUES ('j4', 'default', 'J4', 'C3', 'junction', 61.70, 431.00, 1, '', 104, 't');
 INSERT INTO "nav"."node" VALUES ('j5', 'default', 'J5', 'C5', 'junction', 241.50, 436.00, 1, '', 105, 't');
@@ -141,7 +142,7 @@ CREATE TABLE "nav"."plant" (
 -- ----------------------------
 -- Records of plant
 -- ----------------------------
-INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-24 11:32:35.622354');
+INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-26 08:34:22.150038');
 
 -- ----------------------------
 -- Table structure for road
@@ -166,24 +167,23 @@ CREATE TABLE "nav"."road" (
 -- ----------------------------
 -- Records of road
 -- ----------------------------
-INSERT INTO "nav"."road" VALUES ('r_jing_er_1', 'default', '', '经二路·北段', '新增道路', 'main', 'gate_n', 'n_mvknd5up', '[[256.5,42.3],[254.5,100.2]]', 0, 1, 1);
+INSERT INTO "nav"."road" VALUES ('r_jing_er_1', 'default', '', '经二路·北段', '新增道路', 'main', 'gate_n', 'n_mvoi1tno', '[[256.5,42.3],[255.9,73.2]]', 0, 1, 1);
 INSERT INTO "nav"."road" VALUES ('r_mvkegqqu', 'default', '', '纬一路·西段', '新增道路', 'secondary', 'j4', 's2', '[[61.7,431],[108.8,428.6]]', 0, 1, 1);
 INSERT INTO "nav"."road" VALUES ('r_jing_er_2', 'default', '', '经二路·中段', '新增道路', 'main', 'n_mvknd5up', 'j2', '[[254.5,100.2],[249.3,296.9]]', 0, 1, 2);
 INSERT INTO "nav"."road" VALUES ('r_mvkehy4j', 'default', '', '纬二路·西段', '新增道路', 'secondary', 'j8', 'j2', '[[65.9,293.9],[249.3,296.9]]', 0, 1, 2);
 INSERT INTO "nav"."road" VALUES ('r_jing_er_3', 'default', '', '经二路·南段', '新增道路', 'main', 'j2', 'j5', '[[249.3,296.9],[241.5,436]]', 0, 1, 3);
 INSERT INTO "nav"."road" VALUES ('r_c11_s4', 'default', '', '电石渣通道·西段', '新增道路', 'secondary', 's4', 'n_mvkoc3j6', '[[91,217.9],[118.1,216.5]]', 0, 1, 4);
-INSERT INTO "nav"."road" VALUES ('r_mvkek55q', 'default', '', '经一路·北段', '新增道路', 'secondary', 'j1', 'n_mvko2xng', '[[71.4,50.7],[67.1,209.3]]', 0, 1, 4);
+INSERT INTO "nav"."road" VALUES ('r_mvkek55q', 'default', '', '经一路·北段', '新增道路', 'secondary', 'j1', 'n_mvko2xng', '[[70.1,60.8],[67.1,209.3]]', 0, 1, 4);
 INSERT INTO "nav"."road" VALUES ('r_c11_slag', 'default', '', '电石渣装车点支路', '新增道路', 'secondary', 'n_mvkoc3j6', 'm_slag', '[[118.1,216.5],[149.6,244.5]]', 0, 1, 5);
 INSERT INTO "nav"."road" VALUES ('r_mvkemro2', 'default', '', '经三路', '新增道路', 'secondary', 'j7', 'j9', '[[769.6,294.5],[771.4,434.9]]', 0, 1, 5);
 INSERT INTO "nav"."road" VALUES ('r_sup_01', 'default', '', '纬二路·东段', '补充路网', 'secondary', 'j2', 'j7', '[[249.3,296.9],[769.6,294.5]]', 0, 1, 99);
-INSERT INTO "nav"."road" VALUES ('r_sup_100', 'default', '', '北侧支路·西北段', '补充路网', 'branch', 'j1', 's6', '[[71.4,50.7],[115.6,68.5]]', 0, 1, 100);
+INSERT INTO "nav"."road" VALUES ('r_sup_100', 'default', '', '北侧支路·西北段', '补充路网', 'branch', 'j1', 's6', '[[70.1,60.8],[115.6,68.5]]', 0, 1, 100);
 INSERT INTO "nav"."road" VALUES ('r_sup_101', 'default', '', '卸煤点支路', '补充路网', 'branch', 's6', 'm_coal', '[[115.6,68.5],[90.7,110.3]]', 0, 1, 101);
 INSERT INTO "nav"."road" VALUES ('r_sup_102', 'default', '', '西北纵向支路·北段', '补充路网', 'branch', 'm_coal', 's5', '[[90.7,110.3],[89.9,164.1]]', 0, 1, 102);
 INSERT INTO "nav"."road" VALUES ('r_sup_103', 'default', '', '西北纵向支路·南段', '补充路网', 'branch', 's5', 's4', '[[89.9,164.1],[91,217.9]]', 0, 1, 103);
 INSERT INTO "nav"."road" VALUES ('r_sup_104', 'default', '', '4#门连接线', '补充路网', 'secondary', 'gate_w', 'n_mvko2xng', '[[47,207.6],[67.1,209.3]]', 0, 1, 104);
 INSERT INTO "nav"."road" VALUES ('r_sup_105', 'default', '', '4#门内侧支路', '补充路网', 'branch', 'n_mvko2xng', 's3', '[[67.1,209.3],[72.7,236.3]]', 0, 1, 105);
-INSERT INTO "nav"."road" VALUES ('r_sup_108', 'default', '', '北门东侧支路', '补充路网', 'secondary', 'gate_n', 's8', '[[256.5,42.3],[309.8,55.6]]', 0, 1, 108);
-INSERT INTO "nav"."road" VALUES ('r_sup_111', 'default', '', '1#停车场支路', '补充路网', 'branch', 's7', 'p1', '[[231.9,91],[172.9,73.4]]', 0, 1, 111);
+INSERT INTO "nav"."road" VALUES ('r_p1_c13', 'default', '', '1#停车场支路', '补充路网', 'branch', 'p1', 'n_mvoi1tno', '[[172.9,73.4],[255.9,73.2]]', 0, 1, 111);
 INSERT INTO "nav"."road" VALUES ('r_sup_112', 'default', '', '北侧支路·西段', '补充路网', 'branch', 'p1', 's6', '[[172.9,73.4],[115.6,68.5]]', 0, 1, 112);
 INSERT INTO "nav"."road" VALUES ('r_sup_113', 'default', '', '2#停车场支路', '补充路网', 'branch', 's1', 'p2', '[[1106.2,435.8],[1171.4,444.8]]', 0, 1, 113);
 INSERT INTO "nav"."road" VALUES ('r_sup_114', 'default', '', '烧碱装车点支路', '补充路网', 'branch', 'n_mvko5jb1', 'm_lye', '[[1055.1,433.5],[1042.9,421.6]]', 0, 1, 114);
@@ -195,10 +195,12 @@ INSERT INTO "nav"."road" VALUES ('r_nav_ww3', 'default', '', '纬一路·东延'
 INSERT INTO "nav"."road" VALUES ('r_nav_jy1', 'default', '', '经一路·南段', '补充路网', 'secondary', 'j8', 'j4', '[[65.9,293.9],[61.7,431]]', 0, 1, 121);
 INSERT INTO "nav"."road" VALUES ('r_nav_c8m', 'default', '', '电石卸车点支路', '补充路网', 'secondary', 'n_mvknd5up', 'm_carbide', '[[254.5,100.2],[277.5,117.8]]', 0, 1, 123);
 INSERT INTO "nav"."road" VALUES ('r_nav_ww0', 'default', '', '纬一路·西二段', '补充路网', 'secondary', 's2', 'j5', '[[108.8,428.6],[241.5,436]]', 0, 1, 124);
-INSERT INTO "nav"."road" VALUES ('r_nav_s7c8', 'default', '', '7#磅连接线', '补充路网', 'secondary', 's7', 'n_mvknd5up', '[[231.9,91],[254.5,100.2]]', 0, 1, 125);
 INSERT INTO "nav"."road" VALUES ('r_nav_jy2', 'default', '', '经一路·中段', '补充路网', 'secondary', 'n_mvko2xng', 'j8', '[[67.1,209.3],[65.9,293.9]]', 0, 1, 126);
 INSERT INTO "nav"."road" VALUES ('r_nav_s4c9', 'default', '', '4#磅连接线', '补充路网', 'secondary', 'n_mvko2xng', 's4', '[[67.1,209.3],[91,217.9]]', 0, 1, 127);
 INSERT INTO "nav"."road" VALUES ('r_nav_ww4', 'default', '', '纬一路·东端', '补充路网', 'secondary', 'n_mvko5jb1', 's1', '[[1055.1,433.5],[1106.2,435.8]]', 0, 1, 128);
+INSERT INTO "nav"."road" VALUES ('r_c13_c8', 'default', '', '经二路·北段下', '新增道路', 'main', 'n_mvoi1tno', 'n_mvknd5up', '[[255.9,73.2],[254.5,100.2]]', 0, 1, 131);
+INSERT INTO "nav"."road" VALUES ('r_c13_s8', 'default', '', '8#磅连接线', '补充路网', 'secondary', 'n_mvoi1tno', 's8', '[[255.9,73.2],[309.8,55.6]]', 0, 1, 132);
+INSERT INTO "nav"."road" VALUES ('r_c13_s7', 'default', '', '7#磅连接线', '补充路网', 'secondary', 'n_mvoi1tno', 's7', '[[255.9,73.2],[231.9,91]]', 0, 1, 133);
 
 -- ----------------------------
 -- Table structure for scale

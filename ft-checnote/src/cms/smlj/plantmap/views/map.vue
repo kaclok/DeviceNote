@@ -8,48 +8,59 @@
                     <el-radio-button label="free">自由寻路</el-radio-button>
                 </el-radio-group>
                 <span class="mode-tip">
-                    {{ mode === 'material' ? '起点 → 该物资绑定磅房 → 取/送货点' : '任意两点间寻路，不经过磅房' }}
+                    {{ mode === 'material'
+                        ? (materialFlow === 'out' ? '装卸点 → 该物资绑定磅房 → 出场大门' : '进厂大门 → 该物资绑定磅房 → 装卸点')
+                        : '任意两点间寻路，不经过磅房' }}
                 </span>
             </div>
 
             <div v-if="mode === 'free'" class="planner-fields">
-                <div class="field">
-                    <label>起点</label>
-                    <el-select v-model="freeStartId" filterable placeholder="选择起点" class="field-select">
-                        <el-option-group v-for="group in poiGroupOptions" :key="group.type"
-                                         :label="`${group.label}（${group.items.length}）`">
-                            <el-option v-for="node in group.items" :key="node.id" :label="node.optionLabel"
-                                       :value="node.id" :disabled="node.startDisabled">
-                                <span class="opt-body">
-                                    <i class="opt-dot" :style="{background: group.color}"></i>
-                                    <span class="opt-name">{{ node.optionLabel }}</span>
-                                    <span class="opt-type">{{ node.typeLabel }}</span>
-                                </span>
-                            </el-option>
-                        </el-option-group>
-                    </el-select>
+                <div class="pair-box">
+                    <div class="pair-rail">
+                        <i class="rail-dot start"></i>
+                        <i class="rail-line"></i>
+                        <i class="rail-dot end"></i>
+                    </div>
+                    <div class="pair-body">
+                        <div class="pair-row">
+                            <span class="pair-label">起点</span>
+                            <el-select v-model="freeStartId" filterable placeholder="选择起点" class="field-select">
+                                <el-option-group v-for="group in poiGroupOptions" :key="group.type"
+                                                 :label="`${group.label}（${group.items.length}）`">
+                                    <el-option v-for="node in group.items" :key="node.id"
+                                               :label="node.optionLabel" :value="node.id"
+                                               :disabled="node.startDisabled">
+                                        <span class="opt-body">
+                                            <i class="opt-dot" :style="{background: group.color}"></i>
+                                            <span class="opt-name">{{ node.optionLabel }}</span>
+                                            <span class="opt-type">{{ node.typeLabel }}</span>
+                                        </span>
+                                    </el-option>
+                                </el-option-group>
+                            </el-select>
+                        </div>
+                        <div class="pair-row">
+                            <span class="pair-label">终点</span>
+                            <el-select v-model="freeEndId" filterable placeholder="选择终点" class="field-select">
+                                <el-option-group v-for="group in poiGroupOptions" :key="group.type"
+                                                 :label="`${group.label}（${group.items.length}）`">
+                                    <el-option v-for="node in group.items" :key="node.id"
+                                               :label="node.optionLabel" :value="node.id"
+                                               :disabled="node.endDisabled">
+                                        <span class="opt-body">
+                                            <i class="opt-dot" :style="{background: group.color}"></i>
+                                            <span class="opt-name">{{ node.optionLabel }}</span>
+                                            <span class="opt-type">{{ node.typeLabel }}</span>
+                                        </span>
+                                    </el-option>
+                                </el-option-group>
+                            </el-select>
+                        </div>
+                    </div>
+                    <button class="swap-btn" title="互换起点与终点" @click="swapPoints">⇄</button>
                 </div>
 
-                <button class="swap-btn" title="互换起点与终点" @click="swapPoints">⇄</button>
-
-                <div class="field">
-                    <label>终点</label>
-                    <el-select v-model="freeEndId" filterable placeholder="选择终点" class="field-select wide">
-                        <el-option-group v-for="group in poiGroupOptions" :key="group.type"
-                                         :label="`${group.label}（${group.items.length}）`">
-                            <el-option v-for="node in group.items" :key="node.id" :label="node.optionLabel"
-                                       :value="node.id" :disabled="node.endDisabled">
-                                <span class="opt-body">
-                                    <i class="opt-dot" :style="{background: group.color}"></i>
-                                    <span class="opt-name">{{ node.optionLabel }}</span>
-                                    <span class="opt-type">{{ node.typeLabel }}</span>
-                                </span>
-                            </el-option>
-                        </el-option-group>
-                    </el-select>
-                </div>
-
-                <el-button type="primary" size="large" class="search-btn" @click="search()">开始寻路</el-button>
+                <el-button type="primary" size="large" class="search-btn" @click="startSearch">开始寻路</el-button>
             </div>
 
             <div v-else class="planner-fields">
@@ -81,18 +92,57 @@
                 </div>
 
                 <div class="field">
-                    <label>起点</label>
-                    <el-select v-model="materialStartId" filterable class="field-select"
-                               :placeholder="materialStartGates.length ? '选择进厂大门' : '该物资没有可进厂的大门'">
-                        <el-option v-for="gate in materialStartGates" :key="gate.id"
-                                   :label="nodeLabel(gate)" :value="gate.id">
-                            <span class="opt-body">
-                                <i class="opt-dot" style="background:#1c4785"></i>
-                                <span class="opt-name">{{ nodeLabel(gate) }}</span>
-                                <span class="opt-type">大门</span>
-                            </span>
-                        </el-option>
+                    <label>方向</label>
+                    <el-select v-model="materialFlow" class="field-select flow-select">
+                        <el-option label="进场（大门 → 磅房 → 装卸点）" value="in"/>
+                        <el-option label="出场（装卸点 → 磅房 → 大门）" value="out"/>
                     </el-select>
+                </div>
+
+                <div class="pair-box">
+                    <div class="pair-rail">
+                        <i class="rail-dot start"></i>
+                        <i class="rail-line"></i>
+                        <i class="rail-dot end"></i>
+                    </div>
+                    <div class="pair-body">
+                        <div class="pair-row">
+                            <span class="pair-label">起点</span>
+                            <el-select v-if="materialFlow === 'in'" v-model="materialStartId" filterable
+                                       class="field-select"
+                                       :placeholder="materialStartGates.length ? '选择进厂大门' : '该物资没有可进厂的大门'">
+                                <el-option v-for="gate in materialStartGates" :key="gate.id"
+                                           :label="nodeLabel(gate)" :value="gate.id">
+                                    <span class="opt-body">
+                                        <i class="opt-dot" style="background:#1c4785"></i>
+                                        <span class="opt-name">{{ nodeLabel(gate) }}</span>
+                                        <span class="opt-type">大门</span>
+                                    </span>
+                                </el-option>
+                            </el-select>
+                            <div v-else class="fixed-point">
+                                {{ materialPoint ? materialPoint.name : '该物资尚未配置装卸点' }}
+                            </div>
+                        </div>
+                        <div class="pair-row">
+                            <span class="pair-label">终点</span>
+                            <el-select v-if="materialFlow === 'out'" v-model="materialEndGateId" filterable
+                                       class="field-select"
+                                       :placeholder="materialEndGates.length ? '选择出场大门' : '该物资没有可出场的大门'">
+                                <el-option v-for="gate in materialEndGates" :key="gate.id"
+                                           :label="nodeLabel(gate)" :value="gate.id">
+                                    <span class="opt-body">
+                                        <i class="opt-dot" style="background:#1c4785"></i>
+                                        <span class="opt-name">{{ nodeLabel(gate) }}</span>
+                                        <span class="opt-type">大门</span>
+                                    </span>
+                                </el-option>
+                            </el-select>
+                            <div v-else class="fixed-point">
+                                {{ materialPoint ? materialPoint.name : '该物资尚未配置装卸点' }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="field">
@@ -105,7 +155,7 @@
                     </el-select>
                 </div>
 
-                <el-button type="primary" size="large" class="search-btn" @click="search()">开始寻路</el-button>
+                <el-button type="primary" size="large" class="search-btn" @click="startSearch">开始寻路</el-button>
             </div>
 
             <div class="planner-hint">
@@ -120,7 +170,7 @@
         <div v-if="errorMsg" class="error-tip">{{ errorMsg }}</div>
 
         <div class="workspace">
-            <section class="map-card">
+            <section ref="mapCardRef" class="map-card">
                 <div class="map-head">
                     <div class="map-head-main">
                         <div class="map-title">厂区平面图</div>
@@ -217,7 +267,7 @@
 </template>
 
 <script setup lang="js">
-import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {ElMessage} from 'element-plus'
 import PlantMap from '../components/PlantMap.vue'
 import {
@@ -259,9 +309,13 @@ const LEGEND = [
 ]
 
 const mode = ref('material')
+const mapCardRef = ref(null)
 const freeStartId = ref('gate_w')
 const freeEndId = ref('s1')
 const materialStartId = ref('gate_w')
+// 物资寻路方向：in 进场（大门 → 磅房 → 装卸点）、out 出场（装卸点 → 磅房 → 大门）
+const materialFlow = ref('in')
+const materialEndGateId = ref('')
 const materialId = ref(materialList.value[0]?.id || '')
 const routes = ref([])
 const activeId = ref('')
@@ -276,15 +330,25 @@ const legend = LEGEND
 const outMaterials = computed(() => materialList.value.filter((item) => item.direction === 'out'))
 const inMaterials = computed(() => materialList.value.filter((item) => item.direction === 'in'))
 
-const startId = computed(() => (mode.value === 'material' ? materialStartId.value : freeStartId.value))
-const endId = computed(() => (mode.value === 'material' ? effectivePointId.value : freeEndId.value))
+const startId = computed(() => {
+    if (mode.value !== 'material') return freeStartId.value
+    // 出场寻路：起点固定为该物资的装卸点
+    return materialFlow.value === 'out' ? effectivePointId.value : materialStartId.value
+})
+const endId = computed(() => {
+    if (mode.value !== 'material') return freeEndId.value
+    // 出场寻路：终点为允许该物资出场的大门
+    return materialFlow.value === 'out' ? materialEndGateId.value : effectivePointId.value
+})
 const startName = computed(() => nodeMap.value.get(startId.value)?.name || '-')
 const endName = computed(() => nodeMap.value.get(endId.value)?.name || '-')
 const routeTitle = computed(() => {
     if (mode.value !== 'material') return `${startName.value} → ${endName.value}`
     if (scaleChoice.value) {
         const scale = scaleById.value.get(scaleChoice.value)
-        if (scale?.nodeId === startId.value) return `${startName.value} → ${endName.value}`
+        if (scale?.nodeId === startId.value || scale?.nodeId === endId.value) {
+            return `${startName.value} → ${endName.value}`
+        }
         return `${startName.value} → ${scale?.name || '磅房'} → ${endName.value}`
     }
     return `${startName.value} → ${endName.value} · ${usableScales.value.length} 座磅房可选`
@@ -348,6 +412,36 @@ function normalizeMaterialStart() {
         materialStartId.value = gates[0].id
     }
 }
+
+/**
+ * 允许当前物资出场的大门：
+ * - 大门白名单为空（不限物资）或包含该物资
+ * - 大门通行方向不是「仅进厂」（in），仅进厂大门不能作为终点
+ */
+const materialEndGates = computed(() => {
+    const matId = material.value?.id
+    if (!matId) return []
+    return nodeList.value.filter((node) => {
+        if (node.type !== 'gate') return false
+        if (gateModeOf(node.id) === 'in') return false
+        const allowed = gateMaterialsOf(node.id)
+        return allowed.length === 0 || allowed.includes(matId)
+    })
+})
+
+/** 出场寻路的终点大门：当前选择失效时回退到第一个允许出场的大门 */
+function normalizeMaterialEnd() {
+    const gates = materialEndGates.value
+    if (!gates.length) {
+        materialEndGateId.value = ''
+        return
+    }
+    if (!gates.some((gate) => gate.id === materialEndGateId.value)) {
+        materialEndGateId.value = gates[0].id
+    }
+}
+
+const materialPoint = computed(() => nodeMap.value.get(material.value?.pointNodeId || ''))
 
 /** 播放当前物资的语音介绍；再次点击可停止 */
 function playMaterialVoice() {
@@ -495,15 +589,23 @@ function searchMaterial() {
     routes.value = []
     const item = material.value
     const point = nodeMap.value.get(item?.pointNodeId)
+    const exiting = materialFlow.value === 'out'
 
     if (!item || !point) {
         errorMsg.value = '该物资尚未配置取/送货点'
         return
     }
-    if (!materialStartId.value) {
-        errorMsg.value = '请选择起点'
+
+    // 进场：起点为进厂大门，终点为装卸点；出场：起点为装卸点，终点为出场大门
+    const gateId = exiting ? materialEndGateId.value : materialStartId.value
+    if (!gateId) {
+        errorMsg.value = exiting
+            ? (materialEndGates.value.length ? '请选择出场大门' : `「${item.name}」没有可出场的大门`)
+            : (materialStartGates.value.length ? '请选择进厂大门' : `「${item.name}」没有可进厂的大门`)
         return
     }
+    const fromId = exiting ? point.id : gateId
+    const toId = exiting ? gateId : point.id
 
     // 指定磅房时只用该磅房；自动模式下用该物资全部正常磅房
     const targets = scaleChoice.value
@@ -516,13 +618,16 @@ function searchMaterial() {
 
     // 按物资寻路时，大门白名单会限制该物资车辆可通行的大门
     const network = buildNetwork(plantState, closedRoadSet(), item.id)
+    // 起点或终点恰好是磅房时，该段视为零距离，直接走另一段
+    const zeroLeg = (id) => ({nodes: [id], edges: [], cost: 0})
     const combos = []
     for (const scale of targets) {
-        // 起点就是该磅房时，第一段视为零距离，直接走「磅房 → 装卸点」
-        const firstLegs = materialStartId.value === scale.nodeId
-            ? [{nodes: [scale.nodeId], edges: [], cost: 0}]
-            : kShortestPaths(network, materialStartId.value, scale.nodeId, 2)
-        const secondLegs = kShortestPaths(network, scale.nodeId, point.id, 2)
+        const firstLegs = fromId === scale.nodeId
+            ? [zeroLeg(scale.nodeId)]
+            : kShortestPaths(network, fromId, scale.nodeId, 2)
+        const secondLegs = toId === scale.nodeId
+            ? [zeroLeg(scale.nodeId)]
+            : kShortestPaths(network, scale.nodeId, toId, 2)
         for (const first of firstLegs) {
             const firstDetail = routeDetail(network, first.nodes, first.edges)
             for (const second of secondLegs) {
@@ -537,7 +642,9 @@ function searchMaterial() {
         }
     }
     if (!combos.length) {
-        errorMsg.value = `当前路网不可达：从「${startName.value}」无法经所选磅房到达「${point.name}」`
+        errorMsg.value = exiting
+            ? `当前路网不可达：从「${point.name}」无法经所选磅房到达「${endName.value}」`
+            : `当前路网不可达：从「${startName.value}」无法经所选磅房到达「${point.name}」`
         return
     }
     combos.sort((a, b) => a.cost - b.cost)
@@ -584,6 +691,13 @@ function search() {
     else searchFree()
 }
 
+/** 点「开始寻路」：手机竖屏下把地图与方案自动滚入视野，省去手动下滑 */
+function startSearch() {
+    search()
+    if (window.innerWidth > 760 || !routes.value.length) return
+    nextTick(() => mapCardRef.value?.scrollIntoView({behavior: 'smooth', block: 'start'}))
+}
+
 function swapPoints() {
     const previousStart = freeStartId.value
     freeStartId.value = freeEndId.value
@@ -601,6 +715,17 @@ function onSetStart(id) {
         return
     }
     if (mode.value === 'material') {
+        // 出场寻路起点固定为物资装卸点：点到装卸点则切换到该物资
+        if (materialFlow.value === 'out') {
+            const matched = materialList.value.find((item) => item.pointNodeId === id)
+            if (matched) {
+                if (matched.id === materialId.value) searchMaterial()
+                else materialId.value = matched.id
+                return
+            }
+            ElMessage.warning('出场寻路的起点固定为物资装卸点，请在下方选择出场大门')
+            return
+        }
         if (!materialStartGates.value.some((gate) => gate.id === id)) {
             const node = nodeMap.value.get(id)
             ElMessage.warning(`「${node?.name || id}」不允许「${material.value?.name || ''}」车辆进厂，不能作为起点`)
@@ -617,6 +742,17 @@ function onSetEnd(id) {
         return
     }
     if (mode.value === 'material') {
+        // 出场寻路终点必须是允许该物资出场的大门
+        if (materialFlow.value === 'out') {
+            if (!materialEndGates.value.some((gate) => gate.id === id)) {
+                const node = nodeMap.value.get(id)
+                ElMessage.warning(`「${node?.name || id}」不允许「${material.value?.name || ''}」车辆出场，不能作为终点`)
+                return
+            }
+            materialEndGateId.value = id
+            searchMaterial()
+            return
+        }
         const matched = materialList.value.find((item) => item.pointNodeId === id)
         if (matched) {
             materialId.value = matched.id
@@ -691,10 +827,11 @@ watch(() => plantState.scales.map((scale) => `${scale.id}:${scale.status}`).join
     if (mode.value === 'material') searchMaterial()
 })
 
-// 大门通行方向或物资白名单变化时，重新归一化起点并重算路线
+// 大门通行方向或物资白名单变化时，重新归一化起终点并重算路线
 watch(() => plantState.gates.map((gate) => `${gate.nodeId}:${gate.gateMode}:${(gate.allowedMaterialIds || []).join('|')}`).join(','), () => {
     if (mode.value === 'material') {
         normalizeMaterialStart()
+        normalizeMaterialEnd()
         searchMaterial()
     }
 })
@@ -709,7 +846,18 @@ watch(mode, () => {
 watch(materialId, () => {
     stopSpeak()
     speaking.value = false
+    // 换物资时重置磅房选择：单座自动选中该磅房，多座回到「自动」
+    scaleChoice.value = ''
     normalizeMaterialStart()
+    normalizeMaterialEnd()
+    normalizeScaleChoice()
+    if (mode.value === 'material') searchMaterial()
+})
+
+// 切换进场/出场：起终点角色互换，重新归一化后立即重算
+watch(materialFlow, () => {
+    normalizeMaterialStart()
+    normalizeMaterialEnd()
     normalizeScaleChoice()
     if (mode.value === 'material') searchMaterial()
 })
@@ -721,6 +869,7 @@ watch(scaleChoice, () => {
 onMounted(async () => {
     await loadConfig()
     normalizeMaterialStart()
+    normalizeMaterialEnd()
     normalizeScaleChoice()
     search()
 })
@@ -765,35 +914,137 @@ onBeforeUnmount(() => {
     color: #94a3b8;
 }
 
+/* 寻路条件竖向堆叠，仿高德导航面板 */
 .planner-fields {
     display: flex;
-    align-items: flex-end;
-    gap: 14px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    max-width: 620px;
 }
 
 .field {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .field label {
+    flex: 0 0 auto;
+    width: 56px;
     font-size: 13px;
     font-weight: 600;
     color: #475569;
     white-space: nowrap;
 }
 
-.field-select {
-    width: 220px;
+.field-select,
+.field-select.wide,
+.flow-select {
+    flex: 1;
+    width: auto;
+    min-width: 0;
 }
 
-.field-select.wide {
-    width: 240px;
+/* 起点/终点一组：左侧绿/红点 + 虚线连接，右侧可互换 */
+.pair-box {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+}
+
+.pair-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    flex: 0 0 auto;
+    width: 14px;
+    padding: 11px 0;
+}
+
+.rail-dot {
+    flex: 0 0 auto;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.rail-dot.start {
+    background: #00a870;
+    box-shadow: 0 0 0 3px rgba(0, 168, 112, .16);
+}
+
+.rail-dot.end {
+    background: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, .16);
+}
+
+.rail-line {
+    flex: 1;
+    width: 2px;
+    margin: 4px 0;
+    background-image: linear-gradient(#cbd5e1 60%, transparent 0);
+    background-size: 2px 8px;
+}
+
+.pair-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pair-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.pair-label {
+    flex: 0 0 auto;
+    width: 32px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.pair-row .field-select,
+.pair-row .fixed-point {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+}
+
+.pair-box .swap-btn {
+    align-self: center;
+}
+
+/* 固定起点/终点（物资装卸点）：用只读样式与可选下拉区分 */
+.fixed-point {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    width: auto;
+    height: 32px;
+    padding: 0 11px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .field-line {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -847,7 +1098,7 @@ onBeforeUnmount(() => {
 .swap-btn {
     width: 34px;
     height: 34px;
-    margin-bottom: 1px;
+    flex: 0 0 auto;
     border: 1px solid #d5dfec;
     border-radius: 8px;
     background: #f8fafc;
@@ -862,7 +1113,8 @@ onBeforeUnmount(() => {
 }
 
 .search-btn {
-    height: 34px;
+    width: 100%;
+    height: 38px;
 }
 
 .planner-hint {
@@ -1204,24 +1456,24 @@ onBeforeUnmount(() => {
     }
 
     .mode-row {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 8px;
         margin-bottom: 10px;
         padding-bottom: 10px;
     }
 
     .mode-label {
-        width: 100%;
+        flex: 0 0 auto;
+        width: auto;
     }
 
+    /* 手机端省掉说明行：方向下拉里已写明进场/出场路径 */
     .mode-tip {
-        width: 100%;
-        line-height: 1.5;
+        display: none;
     }
 
     .planner-fields {
-        flex-direction: column;
-        align-items: stretch;
+        max-width: none;
         gap: 10px;
     }
 
@@ -1232,9 +1484,16 @@ onBeforeUnmount(() => {
         width: 100%;
     }
 
+    .field label {
+        width: auto;
+    }
+
     .field-select,
     .field-select.wide,
+    .flow-select,
+    .fixed-point,
     .field :deep(.el-select) {
+        flex: none;
         width: 100%;
     }
 
@@ -1242,19 +1501,50 @@ onBeforeUnmount(() => {
         width: 100%;
     }
 
+    /* 物资行含语音按钮：下拉必须可收缩，否则会把按钮挤出容器 */
+    .field-line .field-select {
+        flex: 1;
+        width: auto;
+    }
+
+    .pair-label {
+        width: 28px;
+    }
+
+    /* 手机端触控：下拉/单选/按钮统一放大到 40px 以上 */
+    .field :deep(.el-select__wrapper) {
+        min-height: 40px;
+        font-size: 14px;
+    }
+
+    .field :deep(.el-radio-button__inner) {
+        padding: 9px 14px;
+        font-size: 13px;
+    }
+
+    .field :deep(.el-switch) {
+        height: 24px;
+    }
+
+    .fixed-point {
+        height: 40px;
+        font-size: 14px;
+    }
+
     .voice-btn {
-        height: 38px;
+        height: 40px;
         padding: 0 14px;
     }
 
     .swap-btn {
-        align-self: flex-end;
-        margin: -4px 0;
+        align-self: center;
+        width: 40px;
+        height: 40px;
     }
 
     .search-btn {
         width: 100%;
-        height: 44px;
+        height: 46px;
         font-size: 15px;
     }
 
@@ -1264,16 +1554,27 @@ onBeforeUnmount(() => {
 
     .workspace {
         gap: 10px;
+        align-items: stretch;
     }
 
+    .map-card {
+        width: 100%;
+    }
+
+    /* 地图头部压成单行：标题 + 图例横向滚动 + 道路管控，给地图让出更多高度 */
     .map-head {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        align-items: center;
         gap: 8px;
-        padding: 10px 12px;
+        padding: 8px 10px;
     }
 
     .map-head-main {
-        flex: 1 1 100%;
+        flex: 0 0 auto;
+    }
+
+    .map-title {
+        font-size: 13px;
     }
 
     .map-sub {
@@ -1281,12 +1582,24 @@ onBeforeUnmount(() => {
     }
 
     .legend {
+        flex: 1;
         justify-content: flex-start;
         flex-wrap: nowrap;
         overflow-x: auto;
-        width: 100%;
-        gap: 14px;
-        padding-bottom: 2px;
+        width: auto;
+        gap: 10px;
+        padding-bottom: 0;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .legend::-webkit-scrollbar {
+        display: none;
+    }
+
+    .map-head :deep(.el-switch) {
+        flex: 0 0 auto;
+        margin-left: auto;
     }
 
     .side {
@@ -1294,12 +1607,34 @@ onBeforeUnmount(() => {
         flex: 1 1 auto;
     }
 
+    .side-card {
+        padding: 12px;
+        border-radius: 10px;
+    }
+
     .route-card {
-        padding: 10px;
+        padding: 12px;
     }
 
     .route-time {
-        font-size: 16px;
+        font-size: 18px;
+    }
+
+    .preview-btn {
+        padding: 6px 11px 6px 9px;
+        font-size: 12px;
+    }
+
+    .link-btn {
+        padding: 4px 0;
+        font-size: 12px;
+    }
+}
+
+/* 小屏手机（≤360px）：地图头部只留图例，给图例更多可视宽度 */
+@media (max-width: 360px) {
+    .map-head-main {
+        display: none;
     }
 }
 </style>
