@@ -33,7 +33,7 @@ export function buildNetwork(config, closedRoadIds = new Set(), materialId = '')
     }
 
     const adj = new Map((config.nodes || []).map((n) => [n.id, []]))
-    // 大门通行方向单独配置在 gate 表：仅进大门不允许驶出（厂内→门），仅出大门不允许驶入（门→厂内）
+    // 大门通行方向单独配置在 gate 表：in 仅进（禁止驶出） / out 仅出（禁止驶入） / none 禁行（不让进不让出）
     // 大门允许物资同属大门属性：配置了白名单的大门，其它物资的车辆不能进出
     const gateList = config.gates || []
     const gateModes = new Map(gateList.map((gate) => [gate.nodeId, gate.gateMode]))
@@ -48,8 +48,9 @@ export function buildNetwork(config, closedRoadIds = new Set(), materialId = '')
         }
     }
     const gateMaterials = new Map(gateList.map((gate) => [gate.nodeId, parseIds(gate.allowedMaterialIds)]))
-    const blockFromOutGate = (id) => gateModes.get(id) === 'out'
-    const blockToInGate = (id) => gateModes.get(id) === 'in'
+    // 禁行(none)大门两个方向都禁止：车辆不能经它进厂也不能经它出厂
+    const blockFromOutGate = (id) => gateModes.get(id) === 'out' || gateModes.get(id) === 'none'
+    const blockToInGate = (id) => gateModes.get(id) === 'in' || gateModes.get(id) === 'none'
     const blockMaterial = (id) => {
         if (!materialId) return false
         const allowed = gateMaterials.get(id) || []

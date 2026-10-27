@@ -168,7 +168,7 @@
 
         <!-- 右上角：旋转 + 全屏开关，全屏后同一按钮变为退出 -->
         <div class="map-fs" @pointerdown.stop>
-            <button v-if="!editable" class="map-btn" title="旋转 90°" @click="rotateMap">
+            <button v-if="!editable" class="map-btn" :title="rotation ? '竖屏显示' : '横屏显示'" @click="rotateMap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 12a9 9 0 1 1-3-6.7"/>
@@ -603,14 +603,14 @@ function resetView() {
 }
 
 // ===== 地图旋转（浏览模式）=====
-/** 顺时针 90° 步进；点位徽标反向自转保持文字直立，复位时归零 */
+/** 横竖屏切换：只在 0°（竖屏）/90°（横屏）之间切换；点位徽标反向自转保持文字直立 */
 const rotation = ref(0)
 const rotTransform = computed(() => (rotation.value
     ? `rotate(${rotation.value} ${props.imageWidth / 2} ${props.imageHeight / 2})`
     : null))
 
 function rotateMap() {
-    rotation.value = (rotation.value + 90) % 360
+    rotation.value = rotation.value ? 0 : 90
     // 旋转后视野回中，避免旧 viewBox 裁切到旋转后内容之外
     syncViewBoxSize()
     vb.x = 0

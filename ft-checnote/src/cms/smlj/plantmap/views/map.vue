@@ -1,12 +1,15 @@
 <template>
-    <div class="page">
-        <section class="planner">
+    <div class="page" :style="{'--map-top': mapTop + 'px'}">
+        <section class="planner" :class="{collapsed: isPhone && !plannerOpen}">
             <div class="mode-row">
                 <span class="mode-label">寻路方式</span>
                 <el-radio-group v-model="mode" size="small">
                     <el-radio-button label="material">按物资寻路</el-radio-button>
                     <el-radio-button label="free">自由寻路</el-radio-button>
                 </el-radio-group>
+                <button v-if="isPhone" class="mode-collapse" @click="plannerOpen = !plannerOpen">
+                    {{ plannerOpen ? '收起' : '展开' }}
+                </button>
                 <span class="mode-tip">
                     {{ mode === 'material'
                         ? (materialFlow === 'out' ? '装卸点 → 该物资绑定磅房 → 出场大门' : '进厂大门 → 该物资绑定磅房 → 装卸点')
@@ -14,6 +17,7 @@
                 </span>
             </div>
 
+            <div v-show="!isPhone || plannerOpen" class="planner-body">
             <div v-if="mode === 'free'" class="planner-fields">
                 <div class="pair-box">
                     <div class="pair-rail">
@@ -159,8 +163,9 @@
             </div>
 
             <div class="planner-hint">
-                点击地图上的地点也可设置起终点；道路维修时可在右上角「道路管控」中点击道路封闭。
+                点击地图上的地点也可设置起终点；道路封闭管控请到「配置 / 地图配置」的道路页签操作。
                 磅房、物资绑定与点位坐标存于 device-note 的 nav schema，可在「地图配置」中调整。
+            </div>
             </div>
         </section>
 
@@ -174,9 +179,7 @@
                 <div class="map-head">
                     <div class="map-head-main">
                         <div class="map-title">厂区平面图</div>
-                        <div class="map-sub">
-                            {{ roadMode ? '道路管控模式：点击道路可标记或恢复通行' : '卫星底图 · 点位与路网可配置 · 滚轮缩放 / 拖拽平移' }}
-                        </div>
+                        <div class="map-sub">卫星底图 · 点位与路网可配置 · 滚轮缩放 / 拖拽平移</div>
                     </div>
                     <div class="legend">
                         <button v-for="item in legend" :key="item.type" class="legend-item legend-toggle"
@@ -186,7 +189,6 @@
                         </button>
                         <span class="legend-item"><i class="legend-route"></i>路线</span>
                     </div>
-                    <el-switch v-model="roadMode" size="small" active-text="道路管控"/>
                 </div>
 
                 <PlantMap
@@ -195,7 +197,6 @@
                     :routes="mapRoutes"
                     :start-id="startId"
                     :end-id="endId"
-                    :road-mode="roadMode"
                     :image-url="plantMeta.imageUrl"
                     :image-width="plantMeta.imageWidth"
                     :image-height="plantMeta.imageHeight"
@@ -207,7 +208,6 @@
                     @set-end="onSetEnd"
                     @select-route="selectRoute"
                     @preview-end="previewId = ''"
-                    @toggle-road="onToggleRoad"
                 />
             </section>
 
@@ -237,6 +237,8 @@
                             <span class="route-badge" :style="{background: route.color}">{{ route.rank }}</span>
                             <span class="route-time">{{ fmtDuration(route.seconds) }}</span>
                             <span class="route-dist">{{ fmtDistance(route.distance) }}</span>
+                            <!-- 手机端在此折行：上行=时长+里程，下行=途经磅房+标签+预览；桌面端隐藏 -->
+                            <i class="route-brk"></i>
                             <span v-if="route.viaScaleName" class="route-via">经 {{ route.viaScaleName }}</span>
                             <div class="route-top-right">
                                 <span v-if="route.shortest" class="route-tag">距离最短</span>
@@ -293,7 +295,6 @@ import {
     scaleStatusOf,
     setBinding,
     suggestedScaleFor,
-    toggleRoad,
 } from '../system/PlantStore.js'
 import {fmtDistance, fmtDuration} from '../utils/FmtX.js'
 import {buildNetwork, kShortestPaths, mergeDetails, routeDetail} from '../utils/RouteX.js'
@@ -325,8 +326,11 @@ const previewId = ref('')
 const previewKey = ref(0)
 const expandedId = ref('')
 const errorMsg = ref('')
-const roadMode = ref(false)
 const legend = LEGEND
+// 手机端：条件面板默认展开，可收起给地图让出空间
+const plannerOpen = ref(true)
+// 手机端地图固定铺满导航栏以下时的顶部偏移（topbar + 横向导航高度，动态测量）
+const mapTop = ref(106)
 
 const outMaterials = computed(() => materialList.value.filter((item) => item.direction === 'out'))
 const inMaterials = computed(() => materialList.value.filter((item) => item.direction === 'in'))
@@ -389,14 +393,14 @@ function normalizeScaleChoice() {
 /**
  * 允许当前物资进厂的大门：
  * - 大门白名单为空（不限物资）或包含该物资
- * - 大门通行方向不是「仅出厂」（out），仅出厂大门不能作为起点
+ * - 大门通行方向不是「仅出厂」（out）也不是「禁行」（none）
  */
 const materialStartGates = computed(() => {
     const matId = material.value?.id
     if (!matId) return []
     return nodeList.value.filter((node) => {
         if (node.type !== 'gate') return false
-        if (gateModeOf(node.id) === 'out') return false
+        if (gateModeOf(node.id) === 'out' || gateModeOf(node.id) === 'none') return false
         const allowed = gateMaterialsOf(node.id)
         return allowed.length === 0 || allowed.includes(matId)
     })
@@ -417,14 +421,14 @@ function normalizeMaterialStart() {
 /**
  * 允许当前物资出场的大门：
  * - 大门白名单为空（不限物资）或包含该物资
- * - 大门通行方向不是「仅进厂」（in），仅进厂大门不能作为终点
+ * - 大门通行方向不是「仅进厂」（in）也不是「禁行」（none）
  */
 const materialEndGates = computed(() => {
     const matId = material.value?.id
     if (!matId) return []
     return nodeList.value.filter((node) => {
         if (node.type !== 'gate') return false
-        if (gateModeOf(node.id) === 'in') return false
+        if (gateModeOf(node.id) === 'in' || gateModeOf(node.id) === 'none') return false
         const allowed = gateMaterialsOf(node.id)
         return allowed.length === 0 || allowed.includes(matId)
     })
@@ -479,8 +483,8 @@ const effectiveScale = computed(() => (materialScaleStatus.value === 1 ? materia
 const effectivePointId = computed(() => material.value?.pointNodeId || '')
 const autoSwitched = computed(() => !!(fallbackScale.value && effectiveScale.value))
 
-// 大门通行方向：in 仅进厂（不能作终点/驶出）、out 仅出厂（不能作起点/驶入）
-const GATE_MODE_TEXT = {in: '仅进', out: '仅出'}
+// 大门通行方向：in 仅进厂（不能作终点）、out 仅出厂（不能作起点）、none 禁行（起点终点都不可用）
+const GATE_MODE_TEXT = {in: '仅进', out: '仅出', none: '禁行'}
 
 function isGateIn(node) {
     return node?.type === 'gate' && gateModeOf(node.id) === 'in'
@@ -488,6 +492,10 @@ function isGateIn(node) {
 
 function isGateOut(node) {
     return node?.type === 'gate' && gateModeOf(node.id) === 'out'
+}
+
+function isGateNone(node) {
+    return node?.type === 'gate' && gateModeOf(node.id) === 'none'
 }
 
 function nodeLabel(node) {
@@ -518,13 +526,13 @@ const focusPoints = computed(() => {
 
 function isEndDisabled(node) {
     if (node.id === freeStartId.value) return true
-    if (isGateIn(node)) return true
+    if (isGateIn(node) || isGateNone(node)) return true
     return node.type === 'scale' && node.status && node.status !== 1
 }
 
 function isStartDisabled(node) {
     if (node.id === freeEndId.value) return true
-    return isGateOut(node)
+    return isGateOut(node) || isGateNone(node)
 }
 
 function summarizeRoads(roads) {
@@ -702,10 +710,10 @@ function search() {
     else searchFree()
 }
 
-/** 点「开始寻路」：手机竖屏下把地图与方案自动滚入视野，省去手动下滑 */
+/** 点「开始寻路」：手机端地图常驻全屏无需滚动；窄窗口 PC 端自动把地图滚入视野 */
 function startSearch() {
     search()
-    if (window.innerWidth > 760 || !routes.value.length) return
+    if (isPhone.value || !routes.value.length) return
     nextTick(() => mapCardRef.value?.scrollIntoView({behavior: 'smooth', block: 'start'}))
 }
 
@@ -723,6 +731,10 @@ function onSetStart(id) {
     }
     if (isGateOut(nodeMap.value.get(id))) {
         ElMessage.warning(`「${nodeMap.value.get(id)?.name}」为仅出厂大门，不能作为起点`)
+        return
+    }
+    if (isGateNone(nodeMap.value.get(id))) {
+        ElMessage.warning(`「${nodeMap.value.get(id)?.name}」为禁行大门，不允许通行`)
         return
     }
     if (mode.value === 'material') {
@@ -750,6 +762,10 @@ function onSetStart(id) {
 function onSetEnd(id) {
     if (isGateIn(nodeMap.value.get(id))) {
         ElMessage.warning(`「${nodeMap.value.get(id)?.name}」为仅进厂大门，不能作为终点`)
+        return
+    }
+    if (isGateNone(nodeMap.value.get(id))) {
+        ElMessage.warning(`「${nodeMap.value.get(id)?.name}」为禁行大门，不允许通行`)
         return
     }
     if (mode.value === 'material') {
@@ -795,14 +811,6 @@ function previewRoute(route) {
     activeId.value = route.id
     previewId.value = route.id
     previewKey.value += 1
-}
-
-function onToggleRoad(roadId) {
-    const road = plantState.roads.find((item) => item.id === roadId)
-    const willClose = road?.enabled !== 0
-    toggleRoad(roadId)
-    if (willClose) ElMessage.warning(`已封闭「${road?.name || roadId}」，路线已重新计算`)
-    else ElMessage.success(`已恢复「${road?.name || roadId}」通行`)
 }
 
 function confirmSwitch() {
@@ -882,6 +890,12 @@ const isPhone = ref(false)
 
 function syncPhoneLayout() {
     isPhone.value = window.innerWidth <= 760
+    if (isPhone.value) {
+        // 量出外壳导航的实际高度，地图从导航底边铺到屏幕底
+        const topbar = document.querySelector('.topbar')
+        const nav = document.querySelector('.sidenav')
+        mapTop.value = Math.round((topbar?.offsetHeight || 52) + (nav?.offsetHeight || 54))
+    }
 }
 
 onMounted(async () => {
@@ -934,6 +948,25 @@ onBeforeUnmount(() => {
 .mode-tip {
     font-size: 12px;
     color: #94a3b8;
+}
+
+/* 手机端模式行右侧：面板收起按钮 */
+.mode-collapse {
+    flex: 0 0 auto;
+    margin-left: auto;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid #d5dfec;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.mode-collapse:hover {
+    border-color: #1677ff;
+    color: #1677ff;
 }
 
 /* 寻路条件竖向堆叠，仿高德导航面板 */
@@ -1332,6 +1365,11 @@ onBeforeUnmount(() => {
     gap: 9px;
 }
 
+/* 手机端折行锚点，桌面端不折行 */
+.route-brk {
+    display: none;
+}
+
 .route-badge {
     padding: 2px 8px;
     border-radius: 6px;
@@ -1486,8 +1524,8 @@ onBeforeUnmount(() => {
     .mode-row {
         flex-wrap: nowrap;
         gap: 8px;
-        margin-bottom: 10px;
-        padding-bottom: 10px;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
     }
 
     .mode-label {
@@ -1502,13 +1540,14 @@ onBeforeUnmount(() => {
 
     .planner-fields {
         max-width: none;
-        gap: 10px;
+        gap: 8px;
     }
 
+    /* 标签行内左置（不再单独占一行），压缩面板纵向空间 */
     .field {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 5px;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
         width: 100%;
     }
 
@@ -1539,14 +1578,18 @@ onBeforeUnmount(() => {
         width: 28px;
     }
 
-    /* 手机端触控：下拉/单选/按钮统一放大到 40px 以上 */
+    .pair-body {
+        gap: 8px;
+    }
+
+    /* 手机端触控：控件统一 34px 高（比 40px 紧凑，仍可点按） */
     .field :deep(.el-select__wrapper) {
-        min-height: 40px;
-        font-size: 14px;
+        min-height: 34px;
+        font-size: 13px;
     }
 
     .field :deep(.el-radio-button__inner) {
-        padding: 9px 14px;
+        padding: 7px 12px;
         font-size: 13px;
     }
 
@@ -1555,25 +1598,25 @@ onBeforeUnmount(() => {
     }
 
     .fixed-point {
-        height: 40px;
-        font-size: 14px;
+        height: 34px;
+        font-size: 13px;
     }
 
     .voice-btn {
-        height: 40px;
-        padding: 0 14px;
+        height: 34px;
+        padding: 0 10px;
     }
 
     .swap-btn {
         align-self: center;
-        width: 40px;
-        height: 40px;
+        width: 34px;
+        height: 34px;
     }
 
     .search-btn {
         width: 100%;
-        height: 46px;
-        font-size: 15px;
+        height: 34px;
+        font-size: 13px;
     }
 
     .planner-hint {
@@ -1589,7 +1632,7 @@ onBeforeUnmount(() => {
         width: 100%;
     }
 
-    /* 地图头部压成单行：标题 + 图例横向滚动 + 道路管控，给地图让出更多高度 */
+    /* 地图头部压成单行：标题 + 图例横向滚动，给地图让出更多高度 */
     .map-head {
         flex-wrap: nowrap;
         align-items: center;
@@ -1663,6 +1706,213 @@ onBeforeUnmount(() => {
 @media (max-width: 360px) {
     .map-head-main {
         display: none;
+    }
+}
+
+/* ===== 手机端仿导航 App 布局：地图铺满整个屏幕，条件面板悬浮顶部（可收起），方案卡片贴底横滑 ===== */
+@media (max-width: 760px) {
+    /* 地图固定铺满导航栏以下整个屏幕 */
+    .map-card {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: var(--map-top, 106px);
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    /* 地图头部（标题/图例）收起：屏幕让给地图 */
+    .map-head {
+        display: none;
+    }
+
+    /* 模式行去掉文字标签，防止窄屏溢出 */
+    .mode-label {
+        display: none;
+    }
+
+    .map-card :deep(.map-shell) {
+        height: 100%;
+        border-radius: 0;
+    }
+
+    .map-card :deep(.plant-svg) {
+        height: 100%;
+        aspect-ratio: auto;
+    }
+
+    /* 悬浮控件上移，避开底部方案卡片条 */
+    .map-card :deep(.map-controls) {
+        bottom: 152px;
+    }
+
+    .map-card :deep(.map-fs) {
+        top: auto;
+        bottom: 194px;
+    }
+
+    .map-card :deep(.scale-bar) {
+        bottom: 126px;
+    }
+
+    .map-card :deep(.pick-card) {
+        bottom: 196px;
+    }
+
+    /* 收起态：只剩模式行，压掉所有残留间距（mode-row 下边距/下内边距 + 容器下内边距） */
+    .planner.collapsed {
+        padding-bottom: 10px;
+    }
+
+    .planner.collapsed .mode-row {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    /* 条件面板：半透明悬浮在地图上方 */
+    .planner {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        top: calc(var(--map-top, 106px) + 6px);
+        z-index: 20;
+        padding: 10px 12px;
+        max-height: calc(100vh - var(--map-top, 106px) - 160px);
+        max-height: calc(100dvh - var(--map-top, 106px) - 160px);
+        overflow-y: auto;
+        background: rgba(255, 255, 255, .97);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        border: none;
+        border-radius: 14px;
+        box-shadow: 0 10px 30px rgba(31, 58, 95, .22);
+    }
+
+    /* 错误提示浮在方案卡片条上方 */
+    .error-tip {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: 132px;
+        z-index: 24;
+    }
+
+    /* 方案区：固定贴底，卡片横向滑动；空态整体不可见也不挡地图触摸 */
+    .side {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        bottom: 10px;
+        z-index: 22;
+        width: auto;
+        pointer-events: none;
+    }
+
+    .side-card {
+        position: relative;
+        display: flex;
+        align-items: stretch;
+        gap: 10px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        padding: 2px;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .side-card::-webkit-scrollbar {
+        display: none;
+    }
+
+    .side-head,
+    .speed-tip,
+    .empty-tip {
+        display: none;
+    }
+
+    /* 磅房切换提示浮在卡片条上方 */
+    .switch-notice {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: calc(100% + 6px);
+        margin: 0;
+        pointer-events: auto;
+    }
+
+    /* 高德式紧凑卡片：竖屏约可见 2.5 张，两行结构（时长+里程 / 磅房+标签+预览） */
+    .route-card {
+        flex: 0 0 auto;
+        width: 37vw;
+        max-width: 150px;
+        margin: 0;
+        padding: 7px 8px;
+        scroll-snap-align: start;
+        pointer-events: auto;
+        background: rgba(255, 255, 255, .97);
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(31, 58, 95, .2);
+    }
+
+    /* 只留：时长 / 里程 / 途经磅房 / 预览；推荐备选标签、道路摘要、详情链接不展示 */
+    .route-badge,
+    .route-roads,
+    .route-meta,
+    .route-steps {
+        display: none;
+    }
+
+    .route-top {
+        flex-wrap: wrap;
+        gap: 2px 5px;
+    }
+
+    /* 折行：上行 时长+里程，下行 磅房+标签+预览 */
+    .route-brk {
+        display: block;
+        flex-basis: 100%;
+        height: 0;
+    }
+
+    .route-time {
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .route-dist {
+        font-size: 10.5px;
+        white-space: nowrap;
+    }
+
+    .route-via {
+        padding: 1px 4px;
+        font-size: 9.5px;
+    }
+
+    .route-tag {
+        padding: 1px 3px;
+        font-size: 9px;
+    }
+
+    /* 预览压成纯图标圆钮（悬停提示仍在） */
+    .preview-btn {
+        padding: 3px;
+        border-radius: 50%;
+    }
+
+    .preview-btn span {
+        display: none;
+    }
+
+    .preview-btn svg {
+        width: 9px;
+        height: 11px;
     }
 }
 </style>

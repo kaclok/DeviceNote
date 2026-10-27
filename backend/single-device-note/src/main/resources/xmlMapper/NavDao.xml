@@ -166,7 +166,7 @@
         insert into nav.node (id, plant_id, code, name, type, x, y, status, description, sort_no, visible)
         values
         <foreach collection="list" item="item" separator=",">
-            (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.type},
+            (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.type,jdbcType=SMALLINT},
              #{item.x}, #{item.y}, #{item.status,jdbcType=SMALLINT}, #{item.description,jdbcType=VARCHAR},
              #{item.sortNo,jdbcType=INTEGER}, #{item.visible,jdbcType=BOOLEAN})
         </foreach>
@@ -178,7 +178,7 @@
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name},
-             #{item.groupName,jdbcType=VARCHAR}, #{item.level}, #{item.fromNodeId}, #{item.toNodeId},
+             #{item.groupName,jdbcType=VARCHAR}, #{item.level,jdbcType=SMALLINT}, #{item.fromNodeId}, #{item.toNodeId},
              #{item.points}, #{item.oneWay,jdbcType=SMALLINT}, #{item.enabled,jdbcType=SMALLINT},
              #{item.sortNo,jdbcType=INTEGER})
         </foreach>
@@ -190,7 +190,7 @@
         <foreach collection="list" item="item" separator=",">
             (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.nodeId},
              #{item.area,jdbcType=VARCHAR}, #{item.capacity,jdbcType=VARCHAR}, #{item.status,jdbcType=SMALLINT},
-             #{item.sortNo,jdbcType=INTEGER}, #{item.gbNo,jdbcType=VARCHAR})
+             #{item.sortNo,jdbcType=INTEGER}, #{item.gbNo,jdbcType=SMALLINT})
         </foreach>
     </insert>
 
@@ -198,7 +198,7 @@
         insert into nav.gate (id, plant_id, node_id, gate_mode, allowed_material_ids, sort_no)
         values
         <foreach collection="list" item="item" separator=",">
-            (#{item.id}, #{item.plantId}, #{item.nodeId}, #{item.gateMode,jdbcType=VARCHAR},
+            (#{item.id}, #{item.plantId}, #{item.nodeId}, #{item.gateMode,jdbcType=SMALLINT},
              #{item.allowedMaterialIds,jdbcType=VARCHAR}, #{item.sortNo,jdbcType=INTEGER})
         </foreach>
     </insert>
@@ -208,7 +208,7 @@
                                   point_node_id, voice_text, enabled, sort_no)
         values
         <foreach collection="list" item="item" separator=",">
-            (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.direction},
+            (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.direction,jdbcType=SMALLINT},
              #{item.category,jdbcType=VARCHAR}, #{item.scaleId,jdbcType=VARCHAR},
              #{item.backupScaleIds,jdbcType=VARCHAR}, #{item.pointNodeId,jdbcType=VARCHAR},
              #{item.voiceText,jdbcType=VARCHAR}, #{item.enabled,jdbcType=SMALLINT},

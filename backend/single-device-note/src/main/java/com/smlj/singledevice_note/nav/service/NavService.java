@@ -82,7 +82,8 @@ public class NavService {
         if (!gates.isEmpty()) {
             gates.forEach(item -> {
                 item.setPlantId(plantId);
-                if (item.getGateMode() == null || item.getGateMode().isBlank()) item.setGateMode("both");
+                // 通行方向缺省=1 双向（编码见 nav.gate.gate_mode 列注释）
+                if (item.getGateMode() == null) item.setGateMode(1);
             });
             navDao.insertGates(gates);
         }

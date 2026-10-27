@@ -204,7 +204,7 @@
                         <span class="panel-title">大门通行方向</span>
                         <span class="count-chip">{{ gateCards.length }} 座大门</span>
                     </div>
-                    <div class="panel-sub">仅进厂的大门不能作为终点驶出，仅出厂的大门不能作为起点驶入；修改后立即写入数据库</div>
+                    <div class="panel-sub">仅进厂的大门不能作为终点驶出，仅出厂的大门不能作为起点驶入，禁行的大门不允许任何车辆进出；修改后立即写入数据库</div>
                 </div>
             </div>
 
@@ -359,6 +359,7 @@ const GATE_MODE_OPTIONS = [
     {value: 'both', label: '双向'},
     {value: 'in', label: '仅进'},
     {value: 'out', label: '仅出'},
+    {value: 'none', label: '禁行'},
 ]
 
 // 0 表示全部：按 正常 → 检修 → 停用 分组排序展示
@@ -1024,6 +1025,10 @@ onMounted(async () => {
 
 .gate-card.g-out::before {
     background: #ff8f1f;
+}
+
+.gate-card.g-none::before {
+    background: #e5484d;
 }
 
 .gate-card:hover {

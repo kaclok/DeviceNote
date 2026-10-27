@@ -10,6 +10,31 @@ export const DIRECTION_TEXT = {out: '拉货', in: '送货'}
 export const TYPE_LABEL = {gate: '大门', junction: '路口', scale: '磅房', parking: '停车场', pickup: '拉货点', delivery: '送货点'}
 export const TYPE_COLOR = {gate: '#1c4785', scale: '#1677ff', parking: '#8b5cf6', pickup: '#00a870', delivery: '#ff8f1f'}
 
+// nav 库数值编码 ↔ 前端字符串枚举（编码唯一口径见 backend/db/nav-numeric-types.sql 列注释）。
+// 前端内部一律使用字符串枚举，仅在 normalize（读）/ toPayload（写）边界做转换。
+export const NODE_TYPE_CODE = {gate: 1, junction: 2, scale: 3, parking: 4, pickup: 5, delivery: 6}
+export const ROAD_LEVEL_CODE = {main: 1, secondary: 2, branch: 3}
+export const GATE_MODE_CODE = {both: 1, in: 2, out: 3, none: 4}
+export const MATERIAL_DIRECTION_CODE = {in: 1, out: 2}
+const NODE_TYPE_BY_CODE = invertCode(NODE_TYPE_CODE)
+const ROAD_LEVEL_BY_CODE = invertCode(ROAD_LEVEL_CODE)
+const GATE_MODE_BY_CODE = invertCode(GATE_MODE_CODE)
+const MATERIAL_DIRECTION_BY_CODE = invertCode(MATERIAL_DIRECTION_CODE)
+
+function invertCode(map) {
+    return Object.fromEntries(Object.entries(map).map(([k, v]) => [v, k]))
+}
+
+/** 数值编码 → 字符串枚举；已是字符串或未知值原样透传 */
+function fromCode(byCode, value) {
+    return byCode[value] ?? value
+}
+
+/** 字符串枚举 → 数值编码；未知/空值返回 undefined，由调用方的默认编码兜底 */
+function toCode(codeMap, value) {
+    return codeMap[value]
+}
+
 function clone(value) {
     return JSON.parse(JSON.stringify(value))
 }
@@ -52,6 +77,7 @@ function normalize(raw) {
             ...node,
             x: Number(node.x),
             y: Number(node.y),
+            type: fromCode(NODE_TYPE_BY_CODE, node.type),
             status: Number(node.status) || 1,
             description: node.description ?? node.desc ?? '',
             sortNo: Number(node.sortNo) || 0,
@@ -63,6 +89,7 @@ function normalize(raw) {
             to: road.to ?? road.toNodeId ?? '',
             group: road.groupName ?? road.group ?? '',
             groupName: road.groupName ?? road.group ?? '',
+            level: fromCode(ROAD_LEVEL_BY_CODE, road.level),
             points: parsePoints(road.points),
             oneWay: Number(road.oneWay) || 0,
             enabled: road.enabled === 0 || road.enabled === '0' ? 0 : 1,
@@ -77,12 +104,13 @@ function normalize(raw) {
         // 大门通行规则单独配置，与 type=gate 的点位一一对应
         gates: (raw?.gates || []).map((gate) => ({
             ...gate,
-            gateMode: gate.gateMode || 'both',
+            gateMode: fromCode(GATE_MODE_BY_CODE, gate.gateMode) || 'both',
             allowedMaterialIds: parseIds(gate.allowedMaterialIds),
             sortNo: Number(gate.sortNo) || 0,
         })),
         materials: (raw?.materials || []).map((material) => ({
             ...material,
+            direction: fromCode(MATERIAL_DIRECTION_BY_CODE, material.direction),
             backupScaleIds: parseIds(material.backupScaleIds),
             voiceText: material.voiceText || '',
             enabled: material.enabled === 0 || material.enabled === '0' ? 0 : 1,
@@ -141,7 +169,7 @@ function toPayload() {
             plantId: PLANT_ID,
             code: node.code || '',
             name: node.name,
-            type: node.type,
+            type: toCode(NODE_TYPE_CODE, node.type),
             x: Number(node.x),
             y: Number(node.y),
             status: Number(node.status) || 1,
@@ -155,7 +183,7 @@ function toPayload() {
             code: road.code || '',
             name: road.name,
             groupName: road.groupName || road.group || '',
-            level: road.level || 'secondary',
+            level: toCode(ROAD_LEVEL_CODE, road.level) ?? 2,
             fromNodeId: road.from,
             toNodeId: road.to,
             points: JSON.stringify(road.points || []),
@@ -173,7 +201,8 @@ function toPayload() {
             capacity: scale.capacity || '',
             status: Number(scale.status) || 1,
             sortNo: scale.sortNo || 0,
-            gbNo: scale.gbNo || '',
+            // 库列 smallint：空串/非数字 → NULL（未绑定）
+            gbNo: /^\d+$/.test(String(scale.gbNo ?? '').trim()) ? Number(String(scale.gbNo).trim()) : null,
         })),
         // 以 type=gate 的点位为准派生，保证大门与规则一一对应（删除点位时规则自动消失）
         gates: plantState.nodes
@@ -184,7 +213,7 @@ function toPayload() {
                     id: gate?.id || `gate_${node.id}`,
                     plantId: PLANT_ID,
                     nodeId: node.id,
-                    gateMode: gate?.gateMode || 'both',
+                    gateMode: toCode(GATE_MODE_CODE, gate?.gateMode || 'both') ?? 1,
                     allowedMaterialIds: JSON.stringify(gate?.allowedMaterialIds || []),
                     sortNo: gate?.sortNo || index + 1,
                 }
@@ -194,7 +223,7 @@ function toPayload() {
             plantId: PLANT_ID,
             code: material.code || '',
             name: material.name,
-            direction: material.direction,
+            direction: toCode(MATERIAL_DIRECTION_CODE, material.direction) ?? 2,
             category: material.category || '',
             scaleId: material.scaleId,
             backupScaleIds: JSON.stringify(material.backupScaleIds || []),
@@ -231,7 +260,7 @@ export function scaleStatusOf(scaleId) {
     return Number(scaleById.value.get(scaleId)?.status) || 1
 }
 
-/** 大门通行方向：both 双向 / in 仅进厂（禁止驶出）/ out 仅出厂（禁止驶入） */
+/** 大门通行方向：both 双向 / in 仅进厂（禁止驶出）/ out 仅出厂（禁止驶入）/ none 禁行（不让进不让出） */
 export function gateModeOf(nodeId) {
     return plantState.gates.find((gate) => gate.nodeId === nodeId)?.gateMode || 'both'
 }

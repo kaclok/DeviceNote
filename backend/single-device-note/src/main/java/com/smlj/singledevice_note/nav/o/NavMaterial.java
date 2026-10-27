@@ -8,8 +8,8 @@ public class NavMaterial {
     private String plantId;
     private String code;
     private String name;
-    /** in 送货（入厂）/ out 拉货（出厂） */
-    private String direction;
+    /** 物流方向：1 送货(进厂) / 2 拉货(出厂)（见列注释） */
+    private Integer direction;
     private String category;
     private String scaleId;
     /** JSON 数组，备用磅顺序，如 ["s2","s5"] */

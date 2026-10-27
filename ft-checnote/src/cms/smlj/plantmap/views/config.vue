@@ -18,10 +18,12 @@
                 <div class="map-head">
                     <span class="map-title">厂区平面图</span>
                     <span class="map-sub">滚轮缩放 · 拖拽平移 · 拖动点位/道路控制点调整</span>
+                    <el-switch v-model="roadMode" size="small" class="map-road-switch" active-text="道路管控"/>
                 </div>
                 <PlantMap
                     :nodes="plantState.nodes"
                     :roads="roadsWithState"
+                    :road-mode="roadMode"
                     :image-url="plantState.plant.imageUrl"
                     :image-width="plantState.plant.imageWidth"
                     :image-height="plantState.plant.imageHeight"
@@ -36,6 +38,7 @@
                     @move-waypoint="onMoveWaypoint"
                     @insert-waypoint="onInsertWaypoint"
                     @remove-waypoint="onRemoveWaypoint"
+                    @toggle-road="onToggleRoad"
                 />
             </section>
 
@@ -299,6 +302,8 @@ const TYPE_OPTIONS = [
 const ROAD_LEVEL_TEXT = {main: '主干道', secondary: '次干道', branch: '支路'}
 
 const tab = ref('node')
+// 道路管控模式：开启后点击地图道路直接封路/恢复（与道路页签的按钮等价）
+const roadMode = ref(false)
 const selectedId = ref('')
 const selectedRoadId = ref('')
 const dirty = ref(false)
@@ -620,6 +625,15 @@ function toggleRoad(roadId, persist) {
     }
 }
 
+/** 地图道路管控模式：点击道路切换封路/恢复（即时写库） */
+function onToggleRoad(roadId) {
+    const road = plantState.roads.find((item) => item.id === roadId)
+    const willClose = road?.enabled !== 0
+    toggleRoad(roadId, true)
+    if (willClose) ElMessage.warning(`已封闭「${road?.name || roadId}」`)
+    else ElMessage.success(`已恢复「${road?.name || roadId}」通行`)
+}
+
 async function save() {
     try {
         await saveConfig()
@@ -713,6 +727,13 @@ onMounted(loadConfig)
     gap: 12px;
     padding: 12px 16px;
     border-bottom: 1px solid #edf2f8;
+}
+
+/* 道路管控开关：贴地图卡片右上角 */
+.map-road-switch {
+    margin-left: auto;
+    align-self: center;
+    flex: 0 0 auto;
 }
 
 .map-title {
