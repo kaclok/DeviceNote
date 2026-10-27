@@ -52,8 +52,8 @@ export const dev_backends = {
         api: "/api",
         url: 'http://10.8.13.66:7090'
     }, plantmap: {
-        api: "/api-nav",
-        url: 'http://localhost:8092'
+        api: "/api",
+        url: 'http://10.8.13.66:7090'
     },
 }
 // 未登记入口的兜底后端（绝大多数入口连它）

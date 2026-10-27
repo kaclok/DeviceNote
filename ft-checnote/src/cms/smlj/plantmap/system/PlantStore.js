@@ -70,6 +70,7 @@ function normalize(raw) {
             ...scale,
             status: Number(scale.status) || 1,
             sortNo: Number(scale.sortNo) || 0,
+            gbNo: scale.gbNo == null ? '' : String(scale.gbNo),
         })),
         // 大门通行规则单独配置，与 type=gate 的点位一一对应
         gates: (raw?.gates || []).map((gate) => ({
@@ -170,6 +171,7 @@ function toPayload() {
             capacity: scale.capacity || '',
             status: Number(scale.status) || 1,
             sortNo: scale.sortNo || 0,
+            gbNo: scale.gbNo || '',
         })),
         // 以 type=gate 的点位为准派生，保证大门与规则一一对应（删除点位时规则自动消失）
         gates: plantState.nodes

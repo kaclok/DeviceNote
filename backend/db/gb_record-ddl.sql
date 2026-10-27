@@ -1,9 +1,12 @@
 -- =====================================================================
 -- 过磅日志监控器（gb-watcher）落库脚本
--- 目标库：PostgreSQL 10.8.54.24:5432/gb_record（单独建库，不与 device-note 混用）
--- 执行方式：psql -h 10.8.54.24 -U postgres -d gb_record -f gb_record-ddl.sql
+-- 位置：device-note 库 · gb_record 模式（不是独立的 gb_record 数据库！）
+-- 执行方式：psql -h 10.8.54.24 -U postgres -d device-note -f gb_record-ddl.sql
 -- 可重复执行（全部 if not exists）
 -- =====================================================================
+
+create schema if not exists gb_record;
+set search_path to gb_record;
 
 -- ---------------------------------------------------------------------
 -- 1. gb_log：监控器上报的原始日志行（一行一条）
@@ -44,3 +47,9 @@ create table if not exists gb_weigh_event (
 create index if not exists idx_gb_event_order  on gb_weigh_event (order_no);
 create index if not exists idx_gb_event_time   on gb_weigh_event (event_time);
 create index if not exists idx_gb_event_source on gb_weigh_event (source, event_time desc);
+
+-- 查询示例（其他客户端/程序里注意带模式前缀）：
+--   select * from gb_record.gb_log order by id desc limit 20;
+--   select * from gb_record.gb_weigh_event order by id desc limit 20;
+--   select order_no, min(event_time) 进磅, max(event_time) 出磅, count(*) 次数
+--     from gb_record.gb_weigh_event where order_no = 'WH2026102700030' group by order_no;

@@ -12,7 +12,7 @@
  Target Server Version : 170002 (170002)
  File Encoding         : 65001
 
- Date: 26/10/2026 16:59:22
+ Date: 27/10/2026 11:35:12
 */
 
 
@@ -146,7 +146,7 @@ COMMENT ON COLUMN "nav"."plant"."duty_url" IS '值班人员网页链接，空表
 -- ----------------------------
 -- Records of plant
 -- ----------------------------
-INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-26 16:21:10.334847', 'http://kszr.sxjthxjt.com:8089/weighbridgeDuty');
+INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-26 17:22:52.127896', 'http://kszr.sxjthxjt.com:8089/weighbridgeDuty');
 
 -- ----------------------------
 -- Table structure for road
@@ -219,22 +219,24 @@ CREATE TABLE "nav"."scale" (
   "area" varchar(100) COLLATE "pg_catalog"."default",
   "capacity" varchar(50) COLLATE "pg_catalog"."default",
   "status" int2 NOT NULL DEFAULT 1,
-  "sort_no" int4 NOT NULL DEFAULT 0
+  "sort_no" int4 NOT NULL DEFAULT 0,
+  "gb_no" varchar(32) COLLATE "pg_catalog"."default"
 )
 ;
 COMMENT ON COLUMN "nav"."scale"."status" IS '磅房状态：1=正常 2=检修 3=停用；非正常状态的磅房不会出现在可称重列表中';
+COMMENT ON COLUMN "nav"."scale"."gb_no" IS '关联磅号（gb-watcher 上报 source），空=未绑定';
 
 -- ----------------------------
 -- Records of scale
 -- ----------------------------
-INSERT INTO "nav"."scale" VALUES ('s1', 'default', 'B1', '1#磅房', 's1', '', '51t', 1, 1);
-INSERT INTO "nav"."scale" VALUES ('s2', 'default', 'B2', '2#磅房', 's2', '', '51t', 2, 2);
-INSERT INTO "nav"."scale" VALUES ('s3', 'default', 'B3', '3#磅房', 's3', '', '51t', 3, 3);
-INSERT INTO "nav"."scale" VALUES ('s4', 'default', 'B4', '4#磅房', 's4', '', '51t', 1, 4);
-INSERT INTO "nav"."scale" VALUES ('s5', 'default', 'B5', '5#磅房', 's5', '', '51t', 3, 5);
-INSERT INTO "nav"."scale" VALUES ('s6', 'default', 'B6', '6#磅房', 's6', '', '51t', 3, 6);
-INSERT INTO "nav"."scale" VALUES ('s7', 'default', 'B7', '7#磅房', 's7', '', '51t', 2, 7);
-INSERT INTO "nav"."scale" VALUES ('s8', 'default', 'B8', '8#磅房', 's8', '', '51t', 1, 8);
+INSERT INTO "nav"."scale" VALUES ('s7', 'default', 'B7', '7#磅房', 's7', '', '51t', 2, 7, '7');
+INSERT INTO "nav"."scale" VALUES ('s8', 'default', 'B8', '8#磅房', 's8', '', '51t', 1, 8, '8');
+INSERT INTO "nav"."scale" VALUES ('s1', 'default', 'B1', '1#磅房', 's1', '', '51.4t', 1, 1, '1');
+INSERT INTO "nav"."scale" VALUES ('s2', 'default', 'B2', '2#磅房', 's2', '', '51.4t', 2, 2, '2');
+INSERT INTO "nav"."scale" VALUES ('s4', 'default', 'B4', '4#磅房', 's4', '', '51t', 1, 4, '4');
+INSERT INTO "nav"."scale" VALUES ('s3', 'default', 'B3', '3#磅房', 's3', '', '51t', 3, 3, '3');
+INSERT INTO "nav"."scale" VALUES ('s5', 'default', 'B5', '5#磅房', 's5', '', '51t', 3, 5, '5');
+INSERT INTO "nav"."scale" VALUES ('s6', 'default', 'B6', '6#磅房', 's6', '', '51t', 3, 6, '6');
 
 -- ----------------------------
 -- Indexes structure for table gate

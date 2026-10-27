@@ -29,11 +29,15 @@ public class GbService {
             Pattern.compile("单号\\[([^\\]]+)\\]\\s*,\\s*车牌号\\[([^\\]]+)\\]");
     /** 监控器上报的时间格式：月/日/小时不补零 */
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy/M/d H:mm:ss");
+    /** 数据保留天数：超过即被懒清理删除（gb_log 按 log_time / gb_weigh_event 按 event_time） */
+    private static final int RETENTION_DAYS = 10;
+    /** 上次保留期清理时间（懒触发：每小时最多跑一次） */
+    private volatile LocalDateTime lastRetention = LocalDateTime.MIN;
 
     /**
      * 接收监控器批量上报的日志行：原始行全量落库（fp 幂等去重），
      * 能解析出单号+车牌的行额外写一条过磅事件。
-     * ⚠️ 不加 @Transactional：本服务走 @DS("gb") 独立库，事务内切库不生效。
+     * ⚠️ 不加 @Transactional：写库走主数据源 main（gb_record 模式），保持与查询相同的轻量语义。
      */
     public Map<String, Object> receive(List<GbLogLine> lines) {
         List<GbLogLine> valid = new ArrayList<>();
@@ -68,7 +72,25 @@ public class GbService {
         r.put("events", 0);
         if (!valid.isEmpty()) r.put("saved", gbDao.insertLines(valid));
         if (!events.isEmpty()) r.put("events", gbDao.insertEvents(events));
+        retention();
         return r;
+    }
+
+    /** 保留期懒清理：随上报触发，每小时最多一次，删除超过保留期的数据 */
+    private void retention() {
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(lastRetention.plusHours(1))) return;
+        lastRetention = now;
+        try {
+            LocalDateTime before = now.minusDays(RETENTION_DAYS);
+            int l = gbDao.deleteExpiredLines(before);
+            int e = gbDao.deleteExpiredEvents(before);
+            if (l > 0 || e > 0) {
+                log.info("过磅日志保留期清理(>{}天): 删除原始行 {} 条, 事件 {} 条", RETENTION_DAYS, l, e);
+            }
+        } catch (Exception ex) {
+            log.warn("过磅日志保留期清理失败（不影响上报）", ex);
+        }
     }
 
     public Map<String, Object> listLines(String source, LocalDateTime beginTime, LocalDateTime endTime,

@@ -12,11 +12,11 @@ const NAVS = [
         icon: 'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z M9 4v14 M15 6v14',
     },
     {
-        name: 'home_scales', path: '/home/scales', title: '磅房与绑定', sub: '状态 · 物资换磅',
-        icon: 'M12 4v16 M5 7h14 M7 7l-3 7a3.5 3.5 0 0 0 7 0L7 7Z M17 7l-3 7a3.5 3.5 0 0 0 7 0l-3-7',
+        name: 'home_gb', path: '/home/gb', title: '地磅查询', sub: '过磅日志 · 车牌记录',
+        icon: 'M12 3v3 M5 7h14 M6 7l-3.2 7a3.6 3.6 0 0 0 7.2 0L6.8 7Z M17.2 7l-3.2 7a3.6 3.6 0 0 0 7.2 0L17 7Z M12 6v15 M8 21h8',
     },
     {
-        name: 'home_config', path: '/home/config', title: '地图配置', sub: '点位 · 道路 · 底图',
+        name: 'home_setting', path: '/home/setting', title: '配置', sub: '磅房绑定 · 地图配置',
         icon: 'M4 7h5 M13 7h7 M4 17h9 M17 17h3 M11 4v6 M6 14v6',
     },
 ]
@@ -29,7 +29,7 @@ onMounted(loadConfig)
 function openDuty() {
     const url = (plantState.plant.dutyUrl || '').trim()
     if (!url) {
-        ElMessage.warning('尚未配置值班人员链接，请在「磅房与绑定」页顶部配置')
+        ElMessage.warning('尚未配置值班人员链接，请在「配置」页顶部设置')
         return
     }
     window.open(url, '_blank')

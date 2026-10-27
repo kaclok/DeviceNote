@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- jt_dev 过磅系统查询（wlcc 数据源）：dic_weigh_weight 按 receipt_type 关联单据头
+     220=送货通知 biz_receipt_delivery_notice_head / 811=派车管理 biz_receipt_send_car_head
+     idx_plate_time(plate_no, weighing_time)：exact 走索引反向扫描（毫秒级）；
+     模糊 like '%x%' 无法走索引，仅作兜底（全表扫 ~0.3s）。 -->
+<mapper namespace="com.smlj.singledevice_note.gb.dao.JtWeighDao">
+
+    <resultMap id="VehicleWeighMap" type="com.smlj.singledevice_note.gb.o.GbVehicleWeigh">
+        <id column="id" property="id"/>
+        <result column="weighing_no" property="weighingNo"/>
+        <result column="plate_no" property="plateNo"/>
+        <result column="weighing_type" property="weighingType"/>
+        <result column="goods_name" property="goodsName"/>
+        <result column="goods_spec" property="goodsSpec"/>
+        <result column="weighing_weight" property="weighingWeight"/>
+        <result column="weight_unit" property="weightUnit"/>
+        <result column="weighing_station" property="weighingStation"/>
+        <result column="weighing_time" property="weighingTime"/>
+        <result column="receipt_type" property="receiptType"/>
+        <result column="doc_code" property="docCode"/>
+        <result column="doc_status" property="docStatus"/>
+        <result column="doc_type" property="docType"/>
+    </resultMap>
+
+    <select id="selectVehicleWeighs" resultMap="VehicleWeighMap">
+        select w.id, w.weighing_no, w.plate_no, w.weighing_type, w.goods_name, w.goods_spec,
+               w.weighing_weight, w.weight_unit, w.weighing_station, w.weighing_time,
+               w.receipt_type,
+               case when d.id is not null then d.receipt_code
+                    when s.id is not null then s.receipt_code end as doc_code,
+               case when d.id is not null then d.receipt_status
+                    when s.id is not null then s.receipt_status end as doc_status,
+               case when d.id is not null then 'delivery'
+                    when s.id is not null then 'sendcar' end as doc_type
+        from (
+            select id, weighing_no, plate_no, weighing_type, goods_name, goods_spec,
+                   weighing_weight, weight_unit, weighing_station, weighing_time,
+                   receipt_type, receipt_head_id
+            from dic_weigh_weight
+            where is_delete = 0
+              and
+            <choose>
+                <when test="exact">plate_no = #{vehicleNo}</when>
+                <otherwise>plate_no like concat('%', #{vehicleNo}, '%')</otherwise>
+            </choose>
+            order by weighing_time desc, id desc
+            limit #{size}
+        ) w
+        left join biz_receipt_delivery_notice_head d
+               on w.receipt_type = 220 and w.receipt_head_id = d.id
+        left join biz_receipt_send_car_head s
+               on w.receipt_type = 811 and w.receipt_head_id = s.id
+        order by w.weighing_time desc, w.id desc
+    </select>
+
+</mapper>

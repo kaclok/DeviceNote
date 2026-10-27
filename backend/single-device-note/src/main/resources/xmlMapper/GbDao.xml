@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- 过磅日志（gb_record 独立库）：@DS("gb") 由 GbDao 类上注解声明 -->
+<!-- 过磅日志：device-note 库 · gb_record 模式，走主数据源 main（表名以 gb_record. 前缀限定） -->
 <mapper namespace="com.smlj.singledevice_note.gb.dao.GbDao">
 
     <resultMap id="LineMap" type="com.smlj.singledevice_note.gb.o.GbLogLine">
@@ -33,7 +33,7 @@
 
     <!-- 批量插入原始行：(source, fp) 冲突跳过，返回实际插入行数 -->
     <insert id="insertLines">
-        insert into gb_log (source, fp, type, log_time, content) values
+        insert into gb_record.gb_log (source, fp, type, log_time, content) values
         <foreach collection="list" item="it" separator=",">
             (#{it.no}, #{it.fp}, #{it.type}, #{it.logTime}, #{it.content})
         </foreach>
@@ -42,7 +42,7 @@
 
     <!-- 批量插入过磅事件：(source, order_no, event_time) 冲突跳过 -->
     <insert id="insertEvents">
-        insert into gb_weigh_event (source, fp, order_no, vehicle_no, event_time) values
+        insert into gb_record.gb_weigh_event (source, fp, order_no, vehicle_no, event_time) values
         <foreach collection="list" item="ev" separator=",">
             (#{ev.source}, #{ev.fp}, #{ev.orderNo}, #{ev.vehicleNo}, #{ev.eventTime})
         </foreach>
@@ -53,7 +53,7 @@
         select id, source, fp, type,
                to_char(log_time, 'YYYY/MM/DD HH24:MI:SS') as "time",
                content, log_time, create_time
-        from gb_log
+        from gb_record.gb_log
         <where>
             <if test="source != null and source != ''">and source = #{source}</if>
             <if test="beginTime != null">and log_time &gt;= #{beginTime}</if>
@@ -66,7 +66,7 @@
 
     <select id="countLines" resultType="long">
         select count(*)
-        from gb_log
+        from gb_record.gb_log
         <where>
             <if test="source != null and source != ''">and source = #{source}</if>
             <if test="beginTime != null">and log_time &gt;= #{beginTime}</if>
@@ -77,7 +77,7 @@
 
     <select id="selectEvents" resultMap="EventMap">
         select id, source, fp, order_no, vehicle_no, event_time, create_time
-        from gb_weigh_event
+        from gb_record.gb_weigh_event
         <where>
             <if test="source != null and source != ''">and source = #{source}</if>
             <if test="orderNo != null and orderNo != ''">and order_no = #{orderNo}</if>
@@ -91,7 +91,7 @@
 
     <select id="countEvents" resultType="long">
         select count(*)
-        from gb_weigh_event
+        from gb_record.gb_weigh_event
         <where>
             <if test="source != null and source != ''">and source = #{source}</if>
             <if test="orderNo != null and orderNo != ''">and order_no = #{orderNo}</if>
@@ -107,9 +107,20 @@
                min(event_time) as in_time,
                max(event_time) as out_time,
                count(*)        as cnt
-        from gb_weigh_event
+        from gb_record.gb_weigh_event
         where order_no = #{orderNo}
         group by order_no
     </select>
+
+    <!-- 保留期清理（数据只留 10 天，由 GbService 在上报链路上懒触发） -->
+    <delete id="deleteExpiredLines">
+        delete from gb_record.gb_log
+        where log_time &lt; #{before}
+    </delete>
+
+    <delete id="deleteExpiredEvents">
+        delete from gb_record.gb_weigh_event
+        where event_time &lt; #{before}
+    </delete>
 
 </mapper>

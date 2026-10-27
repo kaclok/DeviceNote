@@ -75,6 +75,51 @@ namespace GbWatch
         public long SavedLineNo;    // 已成功上报的行数
     }
 
+    // ============================ 断点缓存文件（路径可配置） ============================
+    // 与 Shared.Cfg 同格式（k=v 行），但以完整路径为键；默认 %APPDATA%\DevLauncher\gb-watcher-state.ini
+    // 注意：监控运行中会被程序周期性覆写，手动修改须在停止监控时进行
+    static class StateIO
+    {
+        public static string DefaultFile()
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "DevLauncher", "gb-watcher-state.ini");
+        }
+
+        public static Dictionary<string, string> Load(string file)
+        {
+            Dictionary<string, string> d = new Dictionary<string, string>();
+            try
+            {
+                if (string.IsNullOrEmpty(file) || !File.Exists(file)) return d;
+                foreach (string line in File.ReadAllLines(file, Encoding.UTF8))
+                {
+                    int i = line.IndexOf('=');
+                    if (i <= 0) continue;
+                    string k = line.Substring(0, i).Trim();
+                    string v = line.Substring(i + 1);
+                    if (k.Length > 0) d[k] = v;
+                }
+            }
+            catch (Exception) { }
+            return d;
+        }
+
+        public static void Save(string file, Dictionary<string, string> d)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(Path.GetFullPath(file));
+                if (dir.Length > 0 && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                List<string> lines = new List<string>();
+                foreach (KeyValuePair<string, string> kv in d)
+                    lines.Add(kv.Key + "=" + kv.Value);
+                File.WriteAllLines(file, lines.ToArray(), new UTF8Encoding(false));
+            }
+            catch (Exception) { }
+        }
+    }
+
     // ============================ 监听引擎 ============================
     class Engine : IDisposable
     {
@@ -82,6 +127,7 @@ namespace GbWatch
         public string Server;       // plantmap 后端地址，如 http://x.x.x.x:8080（空 = 不上报，自检用）
         public string Source;       // 磅点编号，如 GB01
         public Encoding Enc;        // 日志文件编码（GBK / UTF-8）
+        public string StateFile;    // 断点缓存文件完整路径（空 = 默认 %APPDATA%\DevLauncher\gb-watcher-state.ini）
         public LogView Log;         // UI 日志（可为 null，自检模式）
         public Control Ui;          // 用于 BeginInvoke 刷新（可为 null）
 
@@ -104,7 +150,8 @@ namespace GbWatch
         static readonly Regex LineRe = new Regex(@"^\[([A-Z])\](\d{4}/\d{2}/\d{2} \d{1,2}:\d{2}:\d{2})->(.*)$",
             RegexOptions.Compiled);
 
-        public Engine(string root, string server, string source, Encoding enc, LogView log, Control ui)
+        public Engine(string root, string server, string source, Encoding enc, LogView log, Control ui,
+            string stateFile)
         {
             Root = root;
             Server = server;
@@ -112,7 +159,8 @@ namespace GbWatch
             Enc = enc != null ? enc : Encoding.GetEncoding(936);
             Log = log;
             Ui = ui;
-            _state = Cfg.Load("gb-watcher-state");
+            StateFile = string.IsNullOrEmpty(stateFile) ? StateIO.DefaultFile() : stateFile;
+            _state = StateIO.Load(StateFile);
         }
 
         public void Start()
@@ -327,23 +375,24 @@ namespace GbWatch
             }
 
             StringBuilder sb = new StringBuilder();
-            sb.Append("{\"source\":\"").Append(Esc(Source)).Append("\",\"lines\":[");
+            sb.Append("[");
             for (int i = 0; i < batch.Count; i++)
             {
                 LineItem it = batch[i];
                 if (i > 0) sb.Append(',');
                 sb.Append("{\"fp\":\"").Append(it.Fp)
-                  .Append("\",\"no\":").Append(it.No)
-                  .Append(",\"type\":\"").Append(Esc(it.Type))
+                  .Append("\",\"no\":\"").Append(Esc(Source))
+                  .Append("\",\"type\":\"").Append(Esc(it.Type))
                   .Append("\",\"time\":\"").Append(Esc(it.Time))
                   .Append("\",\"content\":\"").Append(Esc(it.Content))
                   .Append("\",\"file\":\"").Append(Esc(it.File))
                   .Append("\"}");
             }
-            sb.Append("]}");
+            sb.Append("]");
 
+            string url = Server.TrimEnd('/') + "/api/gb/log";
             string err;
-            int code = PostJson(Server.TrimEnd('/') + "/api/gb/log", sb.ToString(), out err);
+            int code = PostJson(url, sb.ToString(), out err);
             if (code >= 200 && code < 300)
             {
                 lock (_buffer)
@@ -361,7 +410,7 @@ namespace GbWatch
             {
                 if (_nextFlush == DateTime.MinValue) _nextFlush = DateTime.Now;
                 _nextFlush = DateTime.Now.AddSeconds(10);
-                UiLog("上报失败(HTTP " + code + "): " + err + "，10s 后重试（缓冲 " + batch.Count + " 行）", Th.Err);
+                UiLog("上报失败(" + url + " HTTP " + code + "): " + err + "，10s 后重试（缓冲 " + batch.Count + " 行）", Th.Err);
             }
         }
 
@@ -411,7 +460,7 @@ namespace GbWatch
                 foreach (KeyValuePair<string, Tail> kv in _tails)
                     d[kv.Key] = kv.Value.SavedOffset + "|" + kv.Value.SavedLineNo;   // 只落已上报断点 index
             }
-            Cfg.Save("gb-watcher-state", d);
+            StateIO.Save(StateFile, d);
             _stateDirty = false;
             _lastStateSave = DateTime.Now;
         }
@@ -450,6 +499,7 @@ namespace GbWatch
                 req.Method = "POST";
                 req.ContentType = "application/json";
                 req.Timeout = 10000;
+                req.Proxy = new WebProxy();   // 禁用系统代理：磅房电脑若配了代理，代理层可能劫持返回 404
                 byte[] bs = Encoding.UTF8.GetBytes(body);
                 req.ContentLength = bs.Length;
                 using (Stream s = req.GetRequestStream()) s.Write(bs, 0, bs.Length);
@@ -495,7 +545,8 @@ namespace GbWatch
                 "[A]" + now.ToString("yyyy/MM/dd") + " 0:08:59->等待出口车辆上磅:陕KM9368\r\n",
                 Encoding.GetEncoding(936));
 
-            Engine eng = new Engine(root, "", "TEST", Encoding.GetEncoding(936), null, null);
+            Engine eng = new Engine(root, "", "TEST", Encoding.GetEncoding(936), null, null,
+                outFile + ".st1");
             eng.LineCaptured += delegate(LineItem it) { lock (lines) lines.Add(it); };
             eng.Start();
 
@@ -549,7 +600,8 @@ namespace GbWatch
             File.WriteAllText(daily2, "", Encoding.GetEncoding(936));   // 空文件，启动后追加
 
             List<LineItem> cap2 = new List<LineItem>();
-            Engine e2 = new Engine(root2, "http://127.0.0.1:9", "TEST", Encoding.GetEncoding(936), null, null);
+            Engine e2 = new Engine(root2, "http://127.0.0.1:9", "TEST", Encoding.GetEncoding(936), null, null,
+                outFile + ".st2");
             e2.LineCaptured += delegate(LineItem it) { lock (cap2) cap2.Add(it); };
             e2.Start();
             Thread.Sleep(1200);
@@ -560,7 +612,8 @@ namespace GbWatch
             e2.Dispose();
 
             List<LineItem> cap3 = new List<LineItem>();
-            Engine e3 = new Engine(root2, "http://127.0.0.1:9", "TEST", Encoding.GetEncoding(936), null, null);
+            Engine e3 = new Engine(root2, "http://127.0.0.1:9", "TEST", Encoding.GetEncoding(936), null, null,
+                outFile + ".st2");
             e3.LineCaptured += delegate(LineItem it) { lock (cap3) cap3.Add(it); };
             e3.Start();
             Thread.Sleep(3000);   // 重启后应从断点重读，重新捕获同一行（同 fp）
@@ -659,6 +712,7 @@ namespace GbWatch
         TextBox txtRoot;
         TextBox txtServer;
         TextBox txtSource;
+        TextBox txtState;
         FlatCombo cmbEnc;
         LogView log;
         Label lblState;
@@ -679,7 +733,7 @@ namespace GbWatch
         public MainForm()
         {
             Text = "过磅日志监控器";
-            ClientSize = new Size(660, 470);
+            ClientSize = new Size(660, 514);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
@@ -689,7 +743,7 @@ namespace GbWatch
             tip = new ToolTip();
 
             // ---- 卡片：配置 ----
-            GwCard cC = Gw.AddCard(this, "配置", 16, 12, 628, 152);
+            GwCard cC = Gw.AddCard(this, "配置", 16, 12, 628, 196);
 
             Gw.LblC(cC, "日志目录", 16, 40, 60, Th.Dim);
             txtRoot = new TextBox();
@@ -723,15 +777,32 @@ namespace GbWatch
             Gw.FieldC(cC, txtSource, 506, 76, 106, 28);
             tip.SetToolTip(txtSource, "本程序绑定的地磅编号，随每条上报数据带给服务端，如 1 / 2 / GB01");
 
-            btnStart = Gw.BtnC(cC, "开始监控", 16, 114, 120, true);
+            Gw.LblC(cC, "缓存文件", 16, 120, 60, Th.Dim);
+            txtState = new TextBox();
+            Gw.FieldC(cC, txtState, 80, 116, 352, 28);
+            FlatBtn bState = Gw.BtnC(cC, "浏览", 440, 116, 64, false);
+            bState.Click += delegate
+            {
+                using (OpenFileDialog d = new OpenFileDialog())
+                {
+                    d.Title = "选择断点缓存文件（新建请直接输入路径）";
+                    d.Filter = "INI 文件 (*.ini)|*.ini|全部文件 (*.*)|*.*";
+                    if (File.Exists(txtState.Text)) d.FileName = txtState.Text;
+                    if (d.ShowDialog(this) == DialogResult.OK) txtState.Text = d.FileName;
+                }
+            };
+            tip.SetToolTip(txtState, "断点缓存文件（记录各日志文件已上报到的位置，k=路径 v=offset|行号）。\r\n"
+                + "手动修改请在【停止监控】状态下进行：监控中会被程序周期性覆写。");
+
+            btnStart = Gw.BtnC(cC, "开始监控", 16, 158, 120, true);
             btnStart.Height = 30;
             btnStart.Click += delegate { ToggleRun(); };
 
-            lblState = Gw.LblC(cC, "未启动", 148, 122, 470, Th.Dim);
+            lblState = Gw.LblC(cC, "未启动", 148, 166, 470, Th.Dim);
             lblState.Font = Th.UiB;
 
             // ---- 卡片：实时日志 ----
-            GwCard cL = Gw.AddCard(this, "实时日志", 16, 176, 628, 250);
+            GwCard cL = Gw.AddCard(this, "实时日志", 16, 220, 628, 250);
 
             FlatBtn bCopy = Gw.BtnC(cL, "复制", 476, 2, 64, false);
             bCopy.Height = 22;
@@ -759,6 +830,9 @@ namespace GbWatch
             if (cfg.ContainsKey("root")) txtRoot.Text = cfg["root"];
             if (cfg.ContainsKey("server")) txtServer.Text = cfg["server"];
             if (cfg.ContainsKey("source")) txtSource.Text = cfg["source"];
+            // 缓存文件默认就有值（现用路径），与「服务端等默认留空」不同
+            txtState.Text = cfg.ContainsKey("statefile") && cfg["statefile"].Length > 0
+                ? cfg["statefile"] : StateIO.DefaultFile();
             if (cfg.ContainsKey("enc"))
             {
                 int idx = cmbEnc.Items.IndexOf(cfg["enc"]);
@@ -798,16 +872,19 @@ namespace GbWatch
                 return;
             }
             if (source.Length == 0) source = "1";
+            string stateFile = txtState.Text.Trim();
+            if (stateFile.Length == 0) stateFile = StateIO.DefaultFile();
             Encoding enc = SelectedEncoding();
 
             Dictionary<string, string> cfg = new Dictionary<string, string>();
             cfg["root"] = root;
             cfg["server"] = server;
             cfg["source"] = source;
+            cfg["statefile"] = stateFile;
             cfg["enc"] = cmbEnc.Text;
             Cfg.Save("gb-watcher", cfg);
 
-            _eng = new Engine(root, server, source, enc, log, this);
+            _eng = new Engine(root, server, source, enc, log, this, stateFile);
             _eng.StateChanged += delegate(string s)
             {
                 lblState.Text = s;

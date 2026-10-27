@@ -1,6 +1,5 @@
 package com.smlj.singledevice_note.gb.dao;
 
-import com.baomidou.dynamic.datasource.annotation.DS;
 import com.smlj.singledevice_note.gb.o.GbLogLine;
 import com.smlj.singledevice_note.gb.o.GbTimeline;
 import com.smlj.singledevice_note.gb.o.GbWeighEvent;
@@ -12,11 +11,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 过磅日志落库（gb_record 库，独立 PostgreSQL 数据库）。
- * ⚠️ 类上 @DS("gb") 切独立数据源：本 DAO 的所有方法都不得包在 @Transactional 事务里
- * （事务开启时 dynamic-datasource 已把连接绑到主库，事务内切库不生效 —— 与 CCGHT 同坑）。
+ * 过磅日志落库：device-note 库 · gb_record 模式（表名在 XML 里以 gb_record. 前缀限定）。
+ * 走主数据源 main，无需切库。
  */
-@DS("gb")
 @Mapper
 @Repository
 public interface GbDao {
@@ -54,4 +51,10 @@ public interface GbDao {
 
     /** 单号聚合（进/出磅时间） */
     List<GbTimeline> selectTimeline(@Param("orderNo") String orderNo);
+
+    /** 保留期清理：删除 log_time 早于 before 的原始日志行，返回删除行数 */
+    int deleteExpiredLines(@Param("before") LocalDateTime before);
+
+    /** 保留期清理：删除 event_time 早于 before 的过磅事件，返回删除行数 */
+    int deleteExpiredEvents(@Param("before") LocalDateTime before);
 }

@@ -9,8 +9,8 @@ const _homeRouter = {
     component: () => import('../views/home.vue'),
     children: [
         {path: 'map', name: 'home_map', component: () => import('../views/map.vue'), meta: {title: '厂区寻路'}},
-        {path: 'scales', name: 'home_scales', component: () => import('../views/scales.vue'), meta: {title: '磅房与绑定'}},
-        {path: 'config', name: 'home_config', component: () => import('../views/config.vue'), meta: {title: '地图配置'}},
+        {path: 'gb', name: 'home_gb', component: () => import('../views/gbquery.vue'), meta: {title: '地磅查询'}},
+        {path: 'setting', name: 'home_setting', component: () => import('../views/setting.vue'), meta: {title: '配置'}},
     ],
 }
 

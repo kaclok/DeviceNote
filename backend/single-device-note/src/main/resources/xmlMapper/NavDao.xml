@@ -61,6 +61,7 @@
         <result column="capacity" property="capacity"/>
         <result column="status" property="status"/>
         <result column="sort_no" property="sortNo"/>
+        <result column="gb_no" property="gbNo"/>
     </resultMap>
 
     <resultMap id="materialMap" type="com.smlj.singledevice_note.nav.o.NavMaterial">
@@ -99,7 +100,7 @@
     </select>
 
     <select id="selectScales" resultMap="scaleMap">
-        select id, plant_id, code, name, node_id, area, capacity, status, sort_no
+        select id, plant_id, code, name, node_id, area, capacity, status, sort_no, gb_no
         from nav.scale
         where plant_id = #{plant_id}
         order by sort_no, id
@@ -178,12 +179,12 @@
     </insert>
 
     <insert id="insertScales">
-        insert into nav.scale (id, plant_id, code, name, node_id, area, capacity, status, sort_no)
+        insert into nav.scale (id, plant_id, code, name, node_id, area, capacity, status, sort_no, gb_no)
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.id}, #{item.plantId}, #{item.code,jdbcType=VARCHAR}, #{item.name}, #{item.nodeId},
              #{item.area,jdbcType=VARCHAR}, #{item.capacity,jdbcType=VARCHAR}, #{item.status,jdbcType=SMALLINT},
-             #{item.sortNo,jdbcType=INTEGER})
+             #{item.sortNo,jdbcType=INTEGER}, #{item.gbNo,jdbcType=VARCHAR})
         </foreach>
     </insert>
 

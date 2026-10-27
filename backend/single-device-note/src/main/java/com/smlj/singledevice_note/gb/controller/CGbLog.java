@@ -3,7 +3,9 @@ package com.smlj.singledevice_note.gb.controller;
 import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.gb.o.GbLogLine;
 import com.smlj.singledevice_note.gb.o.GbTimeline;
+import com.smlj.singledevice_note.gb.o.GbVehicleWeigh;
 import com.smlj.singledevice_note.gb.service.GbService;
+import com.smlj.singledevice_note.gb.service.JtWeighService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,7 @@ import java.util.Map;
 @Tag(name = "CGbLog", description = "过磅日志上报与查询（gb_record 库）")
 public class CGbLog {
     private final GbService gbService;
+    private final JtWeighService jtWeighService;
 
     /** 监控器上报入口：POST {server}/api/gb/log，请求体为日志行数组 */
     @PostMapping("/log")
@@ -91,6 +94,24 @@ public class CGbLog {
         } catch (Exception e) {
             log.error("过磅时间线查询失败 orderNo={}", orderNo, e);
             return Result.fail("过磅时间线查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 车辆过磅记录（jt_dev 过磅系统）：按车牌模糊查最近过磅记录，
+     * 带 receipt_type 关联的送货（220）/拉货（811）单据号与状态。
+     * ⚠️ JtWeighService 内部走 wlcc 数据源，本方法不可加 @Transactional（事务内切库失效）。
+     */
+    @GetMapping("/vehicleWeighs")
+    public Result<List<GbVehicleWeigh>> vehicleWeighs(@RequestParam String vehicleNo,
+                                                      @RequestParam(defaultValue = "6") int size) {
+        try {
+            String no = vehicleNo == null ? "" : vehicleNo.trim();
+            if (no.isEmpty()) return Result.fail("请输入车牌号");
+            return Result.success(jtWeighService.vehicleWeighs(no, Math.min(Math.max(size, 1), 50)));
+        } catch (Exception e) {
+            log.error("jt_dev 车辆过磅记录查询失败 vehicleNo={}", vehicleNo, e);
+            return Result.fail("过磅记录查询失败：" + e.getMessage());
         }
     }
 }
