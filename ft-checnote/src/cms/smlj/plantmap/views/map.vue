@@ -8,7 +8,7 @@
                     <el-radio-button label="free">自由寻路</el-radio-button>
                 </el-radio-group>
                 <button v-if="isPhone" class="mode-collapse" @click="plannerOpen = !plannerOpen">
-                    {{ plannerOpen ? '收起' : '展开' }}
+                    <i class="tri" :class="{open: plannerOpen}"></i>{{ plannerOpen ? '收起' : '展开' }}
                 </button>
                 <span class="mode-tip">
                     {{ mode === 'material'
@@ -19,144 +19,132 @@
 
             <div v-show="!isPhone || plannerOpen" class="planner-body">
             <div v-if="mode === 'free'" class="planner-fields">
-                <div class="pair-box">
-                    <div class="pair-rail">
-                        <i class="rail-dot start"></i>
-                        <i class="rail-line"></i>
-                        <i class="rail-dot end"></i>
+                <div class="field-row">
+                    <div class="field">
+                        <label><i class="lbl-dot start"></i>起点</label>
+                        <el-select v-model="freeStartId" :filterable="!isPhone" placeholder="选择起点" class="field-select">
+                            <el-option-group v-for="group in poiGroupOptions" :key="group.type"
+                                             :label="`${group.label}（${group.items.length}）`">
+                                <el-option v-for="node in group.items" :key="node.id"
+                                           :label="node.optionLabel" :value="node.id"
+                                           :disabled="node.startDisabled">
+                                    <span class="opt-body">
+                                        <i class="opt-dot" :style="{background: group.color}"></i>
+                                        <span class="opt-name">{{ node.optionLabel }}</span>
+                                        <span class="opt-type">{{ node.typeLabel }}</span>
+                                    </span>
+                                </el-option>
+                            </el-option-group>
+                        </el-select>
                     </div>
-                    <div class="pair-body">
-                        <div class="pair-row">
-                            <span class="pair-label">起点</span>
-                            <el-select v-model="freeStartId" :filterable="!isPhone" placeholder="选择起点" class="field-select">
-                                <el-option-group v-for="group in poiGroupOptions" :key="group.type"
-                                                 :label="`${group.label}（${group.items.length}）`">
-                                    <el-option v-for="node in group.items" :key="node.id"
-                                               :label="node.optionLabel" :value="node.id"
-                                               :disabled="node.startDisabled">
-                                        <span class="opt-body">
-                                            <i class="opt-dot" :style="{background: group.color}"></i>
-                                            <span class="opt-name">{{ node.optionLabel }}</span>
-                                            <span class="opt-type">{{ node.typeLabel }}</span>
-                                        </span>
-                                    </el-option>
-                                </el-option-group>
-                            </el-select>
-                        </div>
-                        <div class="pair-row">
-                            <span class="pair-label">终点</span>
-                            <el-select v-model="freeEndId" :filterable="!isPhone" placeholder="选择终点" class="field-select">
-                                <el-option-group v-for="group in poiGroupOptions" :key="group.type"
-                                                 :label="`${group.label}（${group.items.length}）`">
-                                    <el-option v-for="node in group.items" :key="node.id"
-                                               :label="node.optionLabel" :value="node.id"
-                                               :disabled="node.endDisabled">
-                                        <span class="opt-body">
-                                            <i class="opt-dot" :style="{background: group.color}"></i>
-                                            <span class="opt-name">{{ node.optionLabel }}</span>
-                                            <span class="opt-type">{{ node.typeLabel }}</span>
-                                        </span>
-                                    </el-option>
-                                </el-option-group>
-                            </el-select>
-                        </div>
-                    </div>
+
                     <button class="swap-btn" title="互换起点与终点" @click="swapPoints">⇄</button>
+
+                    <div class="field">
+                        <label><i class="lbl-dot end"></i>终点</label>
+                        <el-select v-model="freeEndId" :filterable="!isPhone" placeholder="选择终点" class="field-select">
+                            <el-option-group v-for="group in poiGroupOptions" :key="group.type"
+                                             :label="`${group.label}（${group.items.length}）`">
+                                <el-option v-for="node in group.items" :key="node.id"
+                                           :label="node.optionLabel" :value="node.id"
+                                           :disabled="node.endDisabled">
+                                    <span class="opt-body">
+                                        <i class="opt-dot" :style="{background: group.color}"></i>
+                                        <span class="opt-name">{{ node.optionLabel }}</span>
+                                        <span class="opt-type">{{ node.typeLabel }}</span>
+                                    </span>
+                                </el-option>
+                            </el-option-group>
+                        </el-select>
+                    </div>
                 </div>
 
                 <el-button type="primary" size="large" class="search-btn" @click="startSearch">开始寻路</el-button>
             </div>
 
             <div v-else class="planner-fields">
-                <div class="field">
-                    <label>物资</label>
-                    <div class="field-line">
-                        <el-select v-model="materialId" :filterable="!isPhone" class="field-select">
-                            <el-option-group label="拉货（出厂）">
-                                <el-option v-for="item in outMaterials" :key="item.id" :label="item.name"
-                                           :value="item.id"/>
-                            </el-option-group>
-                            <el-option-group label="送货（入厂）">
-                                <el-option v-for="item in inMaterials" :key="item.id" :label="item.name"
-                                           :value="item.id"/>
-                            </el-option-group>
+                <div class="field-row">
+                    <div class="field">
+                        <label>物资</label>
+                        <div class="field-line">
+                            <el-select v-model="materialId" :filterable="!isPhone" class="field-select">
+                                <el-option-group label="拉货（出厂）">
+                                    <el-option v-for="item in outMaterials" :key="item.id" :label="item.name"
+                                               :value="item.id"/>
+                                </el-option-group>
+                                <el-option-group label="送货（入厂）">
+                                    <el-option v-for="item in inMaterials" :key="item.id" :label="item.name"
+                                               :value="item.id"/>
+                                </el-option-group>
+                            </el-select>
+                            <button class="voice-btn" :class="{playing: speaking}" :disabled="!voiceReady"
+                                    :title="materialVoice ? '播放物资语音介绍' : '该物资尚未配置语音介绍'"
+                                    @click="playMaterialVoice">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                     stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4 9v6h4l5 4V5L8 9H4Z"/>
+                                    <path d="M16.5 8.5a5 5 0 0 1 0 7"/>
+                                    <path d="M19 6a8.5 8.5 0 0 1 0 12"/>
+                                </svg>
+                                <span>{{ speaking ? '播放中' : '语音' }}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="field flow-field">
+                        <label>方向</label>
+                        <el-select v-model="materialFlow" class="field-select flow-select">
+                            <el-option label="进场（大门 → 磅房 → 装卸点）" value="in"/>
+                            <el-option label="出场（装卸点 → 磅房 → 大门）" value="out"/>
                         </el-select>
-                        <button class="voice-btn" :class="{playing: speaking}" :disabled="!voiceReady"
-                                :title="materialVoice ? '播放物资语音介绍' : '该物资尚未配置语音介绍'"
-                                @click="playMaterialVoice">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M4 9v6h4l5 4V5L8 9H4Z"/>
-                                <path d="M16.5 8.5a5 5 0 0 1 0 7"/>
-                                <path d="M19 6a8.5 8.5 0 0 1 0 12"/>
-                            </svg>
-                            <span>{{ speaking ? '播放中' : '语音' }}</span>
-                        </button>
                     </div>
                 </div>
 
-                <div class="field">
-                    <label>方向</label>
-                    <el-select v-model="materialFlow" class="field-select flow-select">
-                        <el-option label="进场（大门 → 磅房 → 装卸点）" value="in"/>
-                        <el-option label="出场（装卸点 → 磅房 → 大门）" value="out"/>
-                    </el-select>
-                </div>
-
-                <div class="pair-box">
-                    <div class="pair-rail">
-                        <i class="rail-dot start"></i>
-                        <i class="rail-line"></i>
-                        <i class="rail-dot end"></i>
-                    </div>
-                    <div class="pair-body">
-                        <div class="pair-row">
-                            <span class="pair-label">起点</span>
-                            <el-select v-if="materialFlow === 'in'" v-model="materialStartId" :filterable="!isPhone"
-                                       class="field-select"
-                                       :placeholder="materialStartGates.length ? '选择进厂大门' : '该物资没有可进厂的大门'">
-                                <el-option v-for="gate in materialStartGates" :key="gate.id"
-                                           :label="nodeLabel(gate)" :value="gate.id">
-                                    <span class="opt-body">
-                                        <i class="opt-dot" style="background:#1c4785"></i>
-                                        <span class="opt-name">{{ nodeLabel(gate) }}</span>
-                                        <span class="opt-type">大门</span>
-                                    </span>
-                                </el-option>
-                            </el-select>
-                            <div v-else class="fixed-point">
-                                {{ materialPoint ? materialPoint.name : '该物资尚未配置装卸点' }}
-                            </div>
-                        </div>
-                        <div class="pair-row">
-                            <span class="pair-label">终点</span>
-                            <el-select v-if="materialFlow === 'out'" v-model="materialEndGateId" :filterable="!isPhone"
-                                       class="field-select"
-                                       :placeholder="materialEndGates.length ? '选择出场大门' : '该物资没有可出场的大门'">
-                                <el-option v-for="gate in materialEndGates" :key="gate.id"
-                                           :label="nodeLabel(gate)" :value="gate.id">
-                                    <span class="opt-body">
-                                        <i class="opt-dot" style="background:#1c4785"></i>
-                                        <span class="opt-name">{{ nodeLabel(gate) }}</span>
-                                        <span class="opt-type">大门</span>
-                                    </span>
-                                </el-option>
-                            </el-select>
-                            <div v-else class="fixed-point">
-                                {{ materialPoint ? materialPoint.name : '该物资尚未配置装卸点' }}
-                            </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label><i class="lbl-dot start"></i>起点</label>
+                        <el-select v-if="materialFlow === 'in'" v-model="materialStartId" :filterable="!isPhone"
+                                   class="field-select"
+                                   :placeholder="materialStartGates.length ? '选择进厂大门' : '该物资没有可进厂的大门'">
+                            <el-option v-for="gate in materialStartGates" :key="gate.id"
+                                       :label="nodeLabel(gate)" :value="gate.id">
+                                <span class="opt-body">
+                                    <i class="opt-dot" style="background:#1c4785"></i>
+                                    <span class="opt-name">{{ nodeLabel(gate) }}</span>
+                                    <span class="opt-type">大门</span>
+                                </span>
+                            </el-option>
+                        </el-select>
+                        <div v-else class="fixed-point">
+                            {{ materialPoint ? materialPoint.name : '该物资尚未配置装卸点' }}
                         </div>
                     </div>
-                </div>
-
-                <div class="field">
-                    <label>途经磅房</label>
-                    <el-select v-model="scaleChoice" class="field-select" placeholder="自动选择可用磅房">
-                        <el-option v-if="usableScales.length > 1" label="自动（每座可用磅房各出一条方案）" value=""/>
-                        <el-option v-for="scale in usableScales" :key="scale.id"
-                                   :label="`${scale.name}${scale.area ? ' · ' + scale.area : ''}`"
-                                   :value="scale.id"/>
-                    </el-select>
+                    <div class="field">
+                        <label><i class="lbl-dot end"></i>终点</label>
+                        <el-select v-if="materialFlow === 'out'" v-model="materialEndGateId" :filterable="!isPhone"
+                                   class="field-select"
+                                   :placeholder="materialEndGates.length ? '选择出场大门' : '该物资没有可出场的大门'">
+                            <el-option v-for="gate in materialEndGates" :key="gate.id"
+                                       :label="nodeLabel(gate)" :value="gate.id">
+                                <span class="opt-body">
+                                    <i class="opt-dot" style="background:#1c4785"></i>
+                                    <span class="opt-name">{{ nodeLabel(gate) }}</span>
+                                    <span class="opt-type">大门</span>
+                                </span>
+                            </el-option>
+                        </el-select>
+                        <div v-else class="fixed-point">
+                            {{ materialPoint ? materialPoint.name : '该物资尚未配置装卸点' }}
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label><span class="full">途经</span>磅房</label>
+                        <el-select v-model="scaleChoice" class="field-select" placeholder="自动选择可用磅房">
+                            <el-option v-if="usableScales.length > 1" label="自动（每座可用磅房各出一条方案）" value=""/>
+                            <el-option v-for="scale in usableScales" :key="scale.id"
+                                       :label="`${scale.name}${scale.area ? ' · ' + scale.area : ''}`"
+                                       :value="scale.id"/>
+                        </el-select>
+                    </div>
                 </div>
 
                 <el-button type="primary" size="large" class="search-btn" @click="startSearch">开始寻路</el-button>
@@ -969,6 +957,23 @@ onBeforeUnmount(() => {
     color: #1677ff;
 }
 
+/* 展开/收起前的三角：收起态 ▶（横向），展开态旋转 90° 变 ▼ */
+.mode-collapse .tri {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-right: 4px;
+    vertical-align: 1px;
+    border-left: 6px solid currentColor;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transition: transform .15s;
+}
+
+.mode-collapse .tri.open {
+    transform: rotate(90deg);
+}
+
 /* 寻路条件竖向堆叠，仿高德导航面板 */
 .planner-fields {
     display: flex;
@@ -1001,83 +1006,6 @@ onBeforeUnmount(() => {
     min-width: 0;
 }
 
-/* 起点/终点一组：左侧绿/红点 + 虚线连接，右侧可互换 */
-.pair-box {
-    display: flex;
-    align-items: stretch;
-    gap: 10px;
-}
-
-.pair-rail {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    flex: 0 0 auto;
-    width: 14px;
-    padding: 11px 0;
-}
-
-.rail-dot {
-    flex: 0 0 auto;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-}
-
-.rail-dot.start {
-    background: #00a870;
-    box-shadow: 0 0 0 3px rgba(0, 168, 112, .16);
-}
-
-.rail-dot.end {
-    background: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, .16);
-}
-
-.rail-line {
-    flex: 1;
-    width: 2px;
-    margin: 4px 0;
-    background-image: linear-gradient(#cbd5e1 60%, transparent 0);
-    background-size: 2px 8px;
-}
-
-.pair-body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.pair-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-}
-
-.pair-label {
-    flex: 0 0 auto;
-    width: 32px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #475569;
-    white-space: nowrap;
-}
-
-.pair-row .field-select,
-.pair-row .fixed-point {
-    flex: 1;
-    width: auto;
-    min-width: 0;
-}
-
-.pair-box .swap-btn {
-    align-self: center;
-}
-
 /* 固定起点/终点（物资装卸点）：用只读样式与可选下拉区分 */
 .fixed-point {
     display: flex;
@@ -1108,6 +1036,52 @@ onBeforeUnmount(() => {
 .field-line .field-select {
     flex: 1;
     min-width: 0;
+}
+
+/* 合并行：物资+语音+方向 一行、起点+终点+途经磅房 一行。
+   全部成员 min-width:0 可收缩，容器再窄也只压缩下拉、永不重叠；
+   flex-wrap 仅兜底固定宽成员（桌面端方向 220px 放不下时才落到下一行） */
+.field-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.field-row > .field {
+    flex: 1;
+    min-width: 0;
+    gap: 8px;
+}
+
+.field-row > .field label {
+    width: auto;
+    flex: 0 0 auto;
+    gap: 0;
+}
+
+.field-row .flow-field {
+    flex: 0 0 220px;
+}
+
+/* 起点/终点标签前的小色点（合行后左侧竖轨放不下，改为行内圆点） */
+.lbl-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 5px;
+    vertical-align: 1px;
+    border-radius: 50%;
+}
+
+.lbl-dot.start {
+    background: #00a870;
+    box-shadow: 0 0 0 2px rgba(0, 168, 112, .16);
+}
+
+.lbl-dot.end {
+    background: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, .16);
 }
 
 /* 物资语音介绍：司机不认识学名时点喇叭听一遍 */
@@ -1574,12 +1548,43 @@ onBeforeUnmount(() => {
         width: auto;
     }
 
-    .pair-label {
-        width: 28px;
+    /* 合行窄屏压缩：标签 12px、方向下拉固定窄宽、「途经」二字隐藏成「磅房」 */
+    .field-row {
+        gap: 6px;
     }
 
-    .pair-body {
-        gap: 8px;
+    .field-row > .field {
+        gap: 6px;
+    }
+
+    /* 压掉上方通用的 flex:none/width:100%（合行内必须可收缩等分） */
+    .field-row > .field .field-select,
+    .field-row > .field .fixed-point,
+    .field-row > .field .field-line {
+        flex: 1;
+        width: auto;
+        min-width: 0;
+    }
+
+    .field-row > .field label {
+        font-size: 12px;
+    }
+
+    .field-row .flow-field {
+        flex: 0 0 auto;
+    }
+
+    .field-row .flow-field .field-select {
+        flex: 0 0 118px;
+    }
+
+    .field-row .full {
+        display: none;
+    }
+
+    /* 语音按钮收成纯图标，把宽度让给物资下拉；整行仍保持一行 */
+    .voice-btn span {
+        display: none;
     }
 
     /* 手机端触控：控件统一 34px 高（比 40px 紧凑，仍可点按） */
