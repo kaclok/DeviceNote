@@ -28,6 +28,8 @@ public class GbVehicleWeigh {
     private String weightUnit;
     /** 过磅磅号 */
     private String weighingStation;
+    /** 过磅人员/过磅编号（前端「过磅编号」列取此字段） */
+    private String weighingUserName;
     /** 过磅时间 */
     private LocalDateTime weighingTime;
     /** 原始单据类型：220 送货通知 / 811 派车管理 */

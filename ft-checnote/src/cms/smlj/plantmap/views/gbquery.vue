@@ -6,7 +6,7 @@
                     <div class="panel-title-row">
                         <span class="panel-title">车牌过磅记录</span>
                     </div>
-                    <div class="panel-sub">按车牌号（支持模糊）查询最近 6 条过磅记录及关联的送货/拉货单据（数据来自 jt_dev 过磅系统）</div>
+                    <div class="panel-sub">按车牌号（支持模糊）查询最近的过磅记录及关联的送货/拉货单据（数据来自 jt_dev 过磅系统）</div>
                 </div>
                 <div class="panel-tools">
                     <el-input v-model="vehicleNo" size="small" class="vehicle-input" clearable
@@ -114,7 +114,7 @@
                             <template #default="{ row }">{{ row.weighingNo || '-' }}</template>
                         </el-table-column>
                         <el-table-column label="过磅编号" width="76" align="center">
-                            <template #default="{ row }">{{ scaleNo(row.weighingStation) }}</template>
+                            <template #default="{ row }">{{ scaleNo(row.weighingUserName) }}</template>
                         </el-table-column>
                         <el-table-column label="过磅时间" width="150">
                             <template #default="{ row }">{{ fmtTime(row.weighingTime) }}</template>
@@ -195,13 +195,19 @@ const logRows = ref([])
 const logTotal = ref(0)
 const eventRows = ref([])
 
-// 送货/拉货类型文案；过磅编号取磅号里的数字（如「4#磅」显示 4）
+// 送货/拉货类型文案；过磅编号取过磅人员列（weighing_user_name），「4#磅」这类值只显示数字 4
 const DOC_TYPE_TEXT = {delivery: '送货', sendcar: '拉货'}
 
-function scaleNo(station) {
-    const m = (station || '').match(/\d+/)
-    return m ? m[0] : '-'
+function scaleNo(value) {
+    const text = (value || '').trim()
+    if (!text) return '-'
+    const m = text.match(/\d+/)
+    return m ? m[0] : text
 }
+
+// 查询条数：配置页可配（存于 nav.plant），兜底 6 / 50
+const vehicleWeighCount = computed(() => Number(plantState.plant.vehicleWeighCount) || 6)
+const scaleLogCount = computed(() => Number(plantState.plant.scaleLogCount) || 50)
 
 // 全部磅房（含检修/停用，历史日志仍可查），按状态筛选 + 排序；
 // 磅号只读展示，数据始终来自 plantState.scales（nav.scale.gb_no）
@@ -261,7 +267,7 @@ async function queryScale(scale) {
     startCd(scale.id)
     queryingId.value = scale.id
     try {
-        const res = await axiosInst.get('/api/gb/list', {params: {source: gbNo, page: 1, size: 50}})
+        const res = await axiosInst.get('/api/gb/list', {params: {source: gbNo, page: 1, size: scaleLogCount.value}})
         const data = res?.data?.data
         logRows.value = data?.list || []
         logTotal.value = Number(data?.total) || 0
@@ -284,8 +290,8 @@ async function searchByVehicle() {
     startCd(VEHICLE_KEY)
     searching.value = true
     try {
-        // jt_dev 过磅系统：最近 6 条过磅记录（含送货/拉货单据）
-        const res = await axiosInst.get('/api/gb/vehicleWeighs', {params: {vehicleNo: no, size: 6}})
+        // jt_dev 过磅系统：最近 N 条过磅记录（含送货/拉货单据），N 由配置页设定
+        const res = await axiosInst.get('/api/gb/vehicleWeighs', {params: {vehicleNo: no, size: vehicleWeighCount.value}})
         const data = res?.data?.data
         eventRows.value = Array.isArray(data) ? data : []
         resultMode.value = 'events'

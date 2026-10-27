@@ -45,6 +45,8 @@ function normalize(raw) {
             imageHeight: Number(plant.imageHeight) || 558,
             metersPerPixel: Number(plant.metersPerPixel) || 1,
             dutyUrl: plant.dutyUrl || '',
+            vehicleWeighCount: Number(plant.vehicleWeighCount) || 6,
+            scaleLogCount: Number(plant.scaleLogCount) || 50,
         },
         nodes: (raw?.nodes || []).map((node) => ({
             ...node,

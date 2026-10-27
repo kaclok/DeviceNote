@@ -7,6 +7,8 @@
     "imageHeight": 558,
     "metersPerPixel": 0.9,
     "dutyUrl": "http://kszr.sxjthxjt.com:8089/weighbridgeDuty",
+    "vehicleWeighCount": 6,
+    "scaleLogCount": 50,
     "remark": "坐标基于卫星平面图估算，可在「地图配置」中拖拽修正"
   },
   "nodes": [

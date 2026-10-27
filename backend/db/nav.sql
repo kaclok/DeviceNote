@@ -12,7 +12,7 @@
  Target Server Version : 170002 (170002)
  File Encoding         : 65001
 
- Date: 27/10/2026 11:35:12
+ Date: 27/10/2026 14:45:48
 */
 
 
@@ -138,7 +138,9 @@ CREATE TABLE "nav"."plant" (
   "meters_per_pixel" numeric(10,4) NOT NULL DEFAULT 0.9,
   "remark" varchar(500) COLLATE "pg_catalog"."default",
   "update_time" timestamp(6) NOT NULL DEFAULT now(),
-  "duty_url" varchar(500) COLLATE "pg_catalog"."default"
+  "duty_url" varchar(500) COLLATE "pg_catalog"."default",
+  "vehicle_weigh_count" int4 NOT NULL DEFAULT 6,
+  "scale_log_count" int4 NOT NULL DEFAULT 50
 )
 ;
 COMMENT ON COLUMN "nav"."plant"."duty_url" IS '值班人员网页链接，空表示未配置';
@@ -146,7 +148,7 @@ COMMENT ON COLUMN "nav"."plant"."duty_url" IS '值班人员网页链接，空表
 -- ----------------------------
 -- Records of plant
 -- ----------------------------
-INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-26 17:22:52.127896', 'http://kszr.sxjthxjt.com:8089/weighbridgeDuty');
+INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-26 17:22:52.127896', 'http://kszr.sxjthxjt.com:8089/weighbridgeDuty', 6, 50);
 
 -- ----------------------------
 -- Table structure for road

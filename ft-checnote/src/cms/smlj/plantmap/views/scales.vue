@@ -18,6 +18,34 @@
         </section>
 
         <section class="panel">
+            <div class="panel-head duty-head">
+                <div class="panel-head-main">
+                    <div class="panel-title-row">
+                        <span class="panel-title">地磅查询条数</span>
+                    </div>
+                    <div class="panel-sub">配置「地磅查询」页两类查询各自返回的记录条数，保存后立即生效</div>
+                </div>
+                <div class="panel-tools duty-tools limits-tools">
+                    <label class="limit-item">
+                        <span class="limit-label">车牌过磅记录</span>
+                        <el-input-number v-model="vehicleWeighDraft" size="small" :min="1" :max="100"
+                                         :step="1" step-strictly controls-position="right" class="limit-input"/>
+                        <span class="limit-unit">条</span>
+                    </label>
+                    <label class="limit-item">
+                        <span class="limit-label">磅房过磅日志</span>
+                        <el-input-number v-model="scaleLogDraft" size="small" :min="1" :max="200"
+                                         :step="1" step-strictly controls-position="right" class="limit-input"/>
+                        <span class="limit-unit">条</span>
+                    </label>
+                    <el-button size="small" type="primary" :loading="limitsSaving" @click="saveQueryLimits">
+                        保存条数
+                    </el-button>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
             <div class="panel-head">
                 <div class="panel-head-main">
                     <div class="panel-title-row">
@@ -314,6 +342,7 @@ import {
     materialList,
     nodeList,
     plantState,
+    saveConfig,
     scaleById,
     scaleList,
     scaleStatusOf,
@@ -366,6 +395,27 @@ async function saveDutyUrl() {
         ElMessage.error(plantState.saveError || '保存失败，请检查后端服务')
     } finally {
         dutySaving.value = false
+    }
+}
+
+// 地磅查询条数配置（存于 nav.plant.vehicle_weigh_count / scale_log_count）
+const vehicleWeighDraft = ref(6)
+const scaleLogDraft = ref(50)
+const limitsSaving = ref(false)
+
+async function saveQueryLimits() {
+    const vehicleCount = Number(vehicleWeighDraft.value) || 6
+    const logCount = Number(scaleLogDraft.value) || 50
+    limitsSaving.value = true
+    try {
+        plantState.plant.vehicleWeighCount = vehicleCount
+        plantState.plant.scaleLogCount = logCount
+        await saveConfig()
+        ElMessage.success(`查询条数已保存：车牌记录 ${vehicleCount} 条、磅房日志 ${logCount} 条`)
+    } catch (e) {
+        ElMessage.error(plantState.saveError || '保存失败，请检查后端服务')
+    } finally {
+        limitsSaving.value = false
     }
 }
 
@@ -603,6 +653,8 @@ async function reload() {
 onMounted(async () => {
     await loadConfig()
     dutyUrlDraft.value = plantState.plant.dutyUrl || ''
+    vehicleWeighDraft.value = Number(plantState.plant.vehicleWeighCount) || 6
+    scaleLogDraft.value = Number(plantState.plant.scaleLogCount) || 50
 })
 </script>
 
@@ -882,6 +934,32 @@ onMounted(async () => {
 
 .duty-input {
     width: 320px;
+}
+
+/* 地磅查询条数配置 */
+.limits-tools {
+    flex-wrap: wrap;
+}
+
+.limit-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.limit-label {
+    font-size: 12px;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.limit-input {
+    width: 96px;
+}
+
+.limit-unit {
+    font-size: 12px;
+    color: #94a3b8;
 }
 
 @media (max-width: 760px) {

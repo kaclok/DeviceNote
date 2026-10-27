@@ -16,6 +16,7 @@
         <result column="weighing_weight" property="weighingWeight"/>
         <result column="weight_unit" property="weightUnit"/>
         <result column="weighing_station" property="weighingStation"/>
+        <result column="weighing_user_name" property="weighingUserName"/>
         <result column="weighing_time" property="weighingTime"/>
         <result column="receipt_type" property="receiptType"/>
         <result column="doc_code" property="docCode"/>
@@ -25,7 +26,7 @@
 
     <select id="selectVehicleWeighs" resultMap="VehicleWeighMap">
         select w.id, w.weighing_no, w.plate_no, w.weighing_type, w.goods_name, w.goods_spec,
-               w.weighing_weight, w.weight_unit, w.weighing_station, w.weighing_time,
+               w.weighing_weight, w.weight_unit, w.weighing_station, w.weighing_user_name, w.weighing_time,
                w.receipt_type,
                case when d.id is not null then d.receipt_code
                     when s.id is not null then s.receipt_code end as doc_code,
@@ -35,7 +36,7 @@
                     when s.id is not null then 'sendcar' end as doc_type
         from (
             select id, weighing_no, plate_no, weighing_type, goods_name, goods_spec,
-                   weighing_weight, weight_unit, weighing_station, weighing_time,
+                   weighing_weight, weight_unit, weighing_station, weighing_user_name, weighing_time,
                    receipt_type, receipt_head_id
             from dic_weigh_weight
             where is_delete = 0
