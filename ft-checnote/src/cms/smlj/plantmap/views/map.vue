@@ -212,7 +212,7 @@
             </section>
 
             <aside class="side">
-                <section class="side-card">
+                <section class="side-card" :class="{'is-empty': !routes.length}">
                     <div class="side-head">
                         <span class="side-title">寻路方案</span>
                         <span class="side-sub" v-if="routes.length">
@@ -1817,13 +1817,22 @@ onBeforeUnmount(() => {
         align-items: stretch;
         gap: 10px;
         overflow-x: auto;
-        scroll-snap-type: x mandatory;
+        /* 滚动容器自身必须可命中：iOS Safari 按命中测试构建触摸滚动链，
+           pointer-events:none 的滚动容器真机上拖不动（桌面仿真走滚轮路径无感） */
+        pointer-events: auto;
+        scroll-snap-type: x proximity;
+        overscroll-behavior-x: contain;
+        touch-action: pan-x;
         padding: 2px;
         background: transparent;
         border: none;
         box-shadow: none;
-        -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
+    }
+
+    /* 无方案时整体放行触摸，不挡地图 */
+    .side-card.is-empty {
+        pointer-events: none;
     }
 
     .side-card::-webkit-scrollbar {
