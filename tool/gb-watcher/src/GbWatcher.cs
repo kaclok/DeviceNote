@@ -64,12 +64,15 @@ namespace GbWatch
         public string Time;     // 2026/10/26 0:08:59
         public string Content;  // -> 之后的内容
         public string File;     // 相对日志根目录的路径，如 202610\20261026.txt
+        public long Pos;        // 本行在文件中的结束字节偏移（含换行），仅用于推进上报断点
     }
 
     class Tail
     {
-        public long Offset;     // 已消费到的字节位置
-        public long LineNo;     // 已消费的行数
+        public long Offset;         // 已读取到的字节位置（读游标）
+        public long LineNo;         // 已读取的行数（fp 依赖，须跨重启稳定）
+        public long SavedOffset;    // 已成功上报到的字节位置（断点，落盘的就是它）
+        public long SavedLineNo;    // 已成功上报的行数
     }
 
     // ============================ 监听引擎 ============================
@@ -122,6 +125,9 @@ namespace GbWatch
                 Tail t = new Tail();
                 long.TryParse(p[0], out t.Offset);
                 if (p.Length > 1) long.TryParse(p[1], out t.LineNo);
+                // 断点只记「已上报位置」：从断点重读，未上报的行重新进入缓冲
+                t.SavedOffset = t.Offset;
+                t.SavedLineNo = t.LineNo;
                 _tails[kv.Key] = t;
             }
 
@@ -211,6 +217,7 @@ namespace GbWatch
                 Tail t = new Tail();
                 // 首次见到已存在的文件：跳过历史（从末尾开始）；全新文件从 0 开始
                 t.Offset = new FileInfo(path).Length;
+                t.SavedOffset = t.Offset;   // 历史视为已上报
                 _tails[path] = t;
                 _state[path] = t.Offset + "|" + t.LineNo;
                 _stateDirty = true;
@@ -232,6 +239,7 @@ namespace GbWatch
                     if (fs.Length < t.Offset)
                     {
                         t.Offset = 0; t.LineNo = 0;   // 文件被截断/重建
+                        t.SavedOffset = 0; t.SavedLineNo = 0;
                         _stateDirty = true;
                     }
                     if (fs.Length == t.Offset) return;
@@ -247,20 +255,25 @@ namespace GbWatch
                     }
                     if (lastNl < 0) return;
                     string chunk = Enc.GetString(buf, 0, lastNl);
+                    long basePos = t.Offset;          // 本段在文件中的起始绝对偏移
                     t.Offset += lastNl + 1;
                     _stateDirty = true;
+                    // 各行结束字节位置（\n 所在索引），与 Split('\n') 结果一一对应
+                    List<int> nls = new List<int>();
+                    for (int i = 0; i <= lastNl; i++) if (buf[i] == 10) nls.Add(i);
                     string rel = path.Length > Root.Length ? path.Substring(Root.Length).TrimStart('\\', '/') : Path.GetFileName(path);
                     string[] lines = chunk.Split('\n');
                     List<LineItem> batch = new List<LineItem>();
-                    foreach (string raw in lines)
+                    for (int j = 0; j < lines.Length; j++)
                     {
-                        string line = raw.TrimEnd('\r').Trim();
+                        string line = lines[j].TrimEnd('\r').Trim();
                         if (line.Length == 0) continue;
                         t.LineNo++;
                         Match m = LineRe.Match(line);
                         LineItem it = new LineItem();
                         it.No = t.LineNo;
                         it.File = rel;
+                        it.Pos = basePos + nls[j] + 1;   // 行末（含换行）绝对偏移
                         if (m.Success)
                         {
                             it.Type = m.Groups[1].Value;
@@ -278,7 +291,16 @@ namespace GbWatch
                         if (LineCaptured != null) LineCaptured(it);
                         UiLog("[" + it.Type + "] " + it.Content, Th.LogFg);
                     }
-                    lock (_buffer) _buffer.AddRange(batch);
+                    lock (_buffer)
+                    {
+                        _buffer.AddRange(batch);
+                        if (_buffer.Count > 100000)
+                        {
+                            int drop = _buffer.Count - 100000;
+                            _buffer.RemoveRange(0, drop);
+                            UiLog("积压超 10 万行，丢弃最早 " + drop + " 行", Th.Warn);
+                        }
+                    }
                 }
             }
             catch (IOException)
@@ -299,7 +321,7 @@ namespace GbWatch
 
             if (string.IsNullOrEmpty(Server))
             {
-                // 自检模式：不上报，直接清空
+                // 自检模式：不上报，直接清空（缓存文件保留，切回上报模式后仍可恢复）
                 lock (_buffer) _buffer.Clear();
                 return;
             }
@@ -332,6 +354,7 @@ namespace GbWatch
                 }
                 SentCount += batch.Count;
                 _nextFlush = DateTime.MinValue;
+                AdvanceSaved(batch);   // 断点推进到「已上报位置」并标脏，SaveState 周期落盘
                 UiLog("↑ 已上报 " + batch.Count + " 行 (HTTP " + code + ")", Th.Ok);
             }
             else
@@ -340,6 +363,28 @@ namespace GbWatch
                 _nextFlush = DateTime.Now.AddSeconds(10);
                 UiLog("上报失败(HTTP " + code + "): " + err + "，10s 后重试（缓冲 " + batch.Count + " 行）", Th.Err);
             }
+        }
+
+        // 上报成功后推进各文件的「已上报」断点（state.ini 只落这个 index，不落日志内容）
+        void AdvanceSaved(List<LineItem> batch)
+        {
+            lock (_tails)
+            {
+                foreach (LineItem it in batch)
+                {
+                    foreach (KeyValuePair<string, Tail> kv in _tails)
+                    {
+                        string rel = kv.Key.Length > Root.Length
+                            ? kv.Key.Substring(Root.Length).TrimStart('\\', '/')
+                            : Path.GetFileName(kv.Key);
+                        if (rel != it.File) continue;
+                        if (it.Pos > kv.Value.SavedOffset) kv.Value.SavedOffset = it.Pos;
+                        if (it.No > kv.Value.SavedLineNo) kv.Value.SavedLineNo = it.No;
+                        break;
+                    }
+                }
+            }
+            _stateDirty = true;
         }
 
         void NotifyState()
@@ -364,7 +409,7 @@ namespace GbWatch
             lock (_tails)
             {
                 foreach (KeyValuePair<string, Tail> kv in _tails)
-                    d[kv.Key] = kv.Value.Offset + "|" + kv.Value.LineNo;
+                    d[kv.Key] = kv.Value.SavedOffset + "|" + kv.Value.SavedLineNo;   // 只落已上报断点 index
             }
             Cfg.Save("gb-watcher-state", d);
             _stateDirty = false;
@@ -496,6 +541,37 @@ namespace GbWatch
             Thread.Sleep(seconds * 1000);
             eng.Dispose();
 
+            // ---- 断点回归：服务端不可达 → 退出（只落 index）→ 重启后未上报行被重读重捕 ----
+            string root2 = root + "_c2";
+            string month2 = Path.Combine(root2, now.ToString("yyyyMM"));
+            Directory.CreateDirectory(month2);
+            string daily2 = Path.Combine(month2, now.ToString("yyyyMMdd") + ".txt");
+            File.WriteAllText(daily2, "", Encoding.GetEncoding(936));   // 空文件，启动后追加
+
+            List<LineItem> cap2 = new List<LineItem>();
+            Engine e2 = new Engine(root2, "http://127.0.0.1:9", "TEST", Encoding.GetEncoding(936), null, null);
+            e2.LineCaptured += delegate(LineItem it) { lock (cap2) cap2.Add(it); };
+            e2.Start();
+            Thread.Sleep(1200);
+            File.AppendAllText(daily2,
+                "[A]" + now.ToString("yyyy/MM/dd") + " 1:00:00->缓存测试单号[WHCACHE0001],车牌号[冀A12345]\r\n",
+                Encoding.GetEncoding(936));
+            Thread.Sleep(3000);   // 捕获 + flush 失败（断点不推进）
+            e2.Dispose();
+
+            List<LineItem> cap3 = new List<LineItem>();
+            Engine e3 = new Engine(root2, "http://127.0.0.1:9", "TEST", Encoding.GetEncoding(936), null, null);
+            e3.LineCaptured += delegate(LineItem it) { lock (cap3) cap3.Add(it); };
+            e3.Start();
+            Thread.Sleep(3000);   // 重启后应从断点重读，重新捕获同一行（同 fp）
+            e3.Dispose();
+
+            bool sameFp = cap2.Count > 0 && cap3.Count > 0 && cap2[0].Fp == cap3[0].Fp;
+            File.WriteAllText(outFile + ".index",
+                "{\"captured\":" + cap2.Count
+                + ",\"recaptured\":" + cap3.Count
+                + ",\"same_fp\":" + (sameFp ? "true" : "false") + "}", new UTF8Encoding(false));
+
             // 输出 JSON 数组
             StringBuilder sb = new StringBuilder();
             sb.Append("[");
@@ -514,7 +590,7 @@ namespace GbWatch
             }
             sb.Append("]");
             File.WriteAllText(outFile, sb.ToString(), new UTF8Encoding(false));
-            return lines.Count > 0 ? 0 : 1;
+            return (lines.Count > 0 && cap2.Count > 0 && cap3.Count > 0 && sameFp) ? 0 : 1;
         }
     }
 
@@ -656,6 +732,18 @@ namespace GbWatch
 
             // ---- 卡片：实时日志 ----
             GwCard cL = Gw.AddCard(this, "实时日志", 16, 176, 628, 250);
+
+            FlatBtn bCopy = Gw.BtnC(cL, "复制", 476, 2, 64, false);
+            bCopy.Height = 22;
+            bCopy.Click += delegate
+            {
+                string text = log.Box.Text;
+                if (text.Length > 0) Clipboard.SetText(text);
+            };
+            FlatBtn bClear = Gw.BtnC(cL, "清空", 548, 2, 64, false);
+            bClear.Height = 22;
+            bClear.Click += delegate { log.Clear(); };
+            tip.SetToolTip(bClear, "只清空控制台显示，不影响日志文件与待上报数据");
 
             Panel pl = new Panel();
             pl.SetBounds(16, 36, 596, 196);

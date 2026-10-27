@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 过磅日志（gb_record 独立库）：@DS("gb") 由 GbDao 类上注解声明 -->
+<mapper namespace="com.smlj.singledevice_note.gb.dao.GbDao">
+
+    <resultMap id="LineMap" type="com.smlj.singledevice_note.gb.o.GbLogLine">
+        <id column="id" property="id"/>
+        <result column="source" property="no"/>
+        <result column="fp" property="fp"/>
+        <result column="type" property="type"/>
+        <result column="time" property="time"/>
+        <result column="content" property="content"/>
+        <result column="log_time" property="logTime"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <resultMap id="EventMap" type="com.smlj.singledevice_note.gb.o.GbWeighEvent">
+        <id column="id" property="id"/>
+        <result column="source" property="source"/>
+        <result column="fp" property="fp"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="vehicle_no" property="vehicleNo"/>
+        <result column="event_time" property="eventTime"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <resultMap id="TimelineMap" type="com.smlj.singledevice_note.gb.o.GbTimeline">
+        <result column="order_no" property="orderNo"/>
+        <result column="in_time" property="inTime"/>
+        <result column="out_time" property="outTime"/>
+        <result column="cnt" property="cnt"/>
+    </resultMap>
+
+    <!-- 批量插入原始行：(source, fp) 冲突跳过，返回实际插入行数 -->
+    <insert id="insertLines">
+        insert into gb_log (source, fp, type, log_time, content) values
+        <foreach collection="list" item="it" separator=",">
+            (#{it.no}, #{it.fp}, #{it.type}, #{it.logTime}, #{it.content})
+        </foreach>
+        on conflict (source, fp) do nothing
+    </insert>
+
+    <!-- 批量插入过磅事件：(source, order_no, event_time) 冲突跳过 -->
+    <insert id="insertEvents">
+        insert into gb_weigh_event (source, fp, order_no, vehicle_no, event_time) values
+        <foreach collection="list" item="ev" separator=",">
+            (#{ev.source}, #{ev.fp}, #{ev.orderNo}, #{ev.vehicleNo}, #{ev.eventTime})
+        </foreach>
+        on conflict (source, order_no, event_time) do nothing
+    </insert>
+
+    <select id="selectLines" resultMap="LineMap">
+        select id, source, fp, type,
+               to_char(log_time, 'YYYY/MM/DD HH24:MI:SS') as "time",
+               content, log_time, create_time
+        from gb_log
+        <where>
+            <if test="source != null and source != ''">and source = #{source}</if>
+            <if test="beginTime != null">and log_time &gt;= #{beginTime}</if>
+            <if test="endTime != null">and log_time &lt; #{endTime}</if>
+            <if test="keyword != null and keyword != ''">and content like '%' || #{keyword} || '%'</if>
+        </where>
+        order by log_time desc nulls last, id desc
+        limit #{size} offset #{offset}
+    </select>
+
+    <select id="countLines" resultType="long">
+        select count(*)
+        from gb_log
+        <where>
+            <if test="source != null and source != ''">and source = #{source}</if>
+            <if test="beginTime != null">and log_time &gt;= #{beginTime}</if>
+            <if test="endTime != null">and log_time &lt; #{endTime}</if>
+            <if test="keyword != null and keyword != ''">and content like '%' || #{keyword} || '%'</if>
+        </where>
+    </select>
+
+    <select id="selectEvents" resultMap="EventMap">
+        select id, source, fp, order_no, vehicle_no, event_time, create_time
+        from gb_weigh_event
+        <where>
+            <if test="source != null and source != ''">and source = #{source}</if>
+            <if test="orderNo != null and orderNo != ''">and order_no = #{orderNo}</if>
+            <if test="vehicleNo != null and vehicleNo != ''">and vehicle_no like '%' || #{vehicleNo} || '%'</if>
+            <if test="beginTime != null">and event_time &gt;= #{beginTime}</if>
+            <if test="endTime != null">and event_time &lt; #{endTime}</if>
+        </where>
+        order by event_time desc, id desc
+        limit #{size} offset #{offset}
+    </select>
+
+    <select id="countEvents" resultType="long">
+        select count(*)
+        from gb_weigh_event
+        <where>
+            <if test="source != null and source != ''">and source = #{source}</if>
+            <if test="orderNo != null and orderNo != ''">and order_no = #{orderNo}</if>
+            <if test="vehicleNo != null and vehicleNo != ''">and vehicle_no like '%' || #{vehicleNo} || '%'</if>
+            <if test="beginTime != null">and event_time &gt;= #{beginTime}</if>
+            <if test="endTime != null">and event_time &lt; #{endTime}</if>
+        </where>
+    </select>
+
+    <!-- 单号聚合：首次过磅=进场，最后一次=出场 -->
+    <select id="selectTimeline" resultMap="TimelineMap">
+        select order_no,
+               min(event_time) as in_time,
+               max(event_time) as out_time,
+               count(*)        as cnt
+        from gb_weigh_event
+        where order_no = #{orderNo}
+        group by order_no
+    </select>
+
+</mapper>
