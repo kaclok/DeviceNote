@@ -64,10 +64,12 @@
                     </div>
                     <el-radio-group :model-value="orientationOf(page.code)" size="small"
                                     :disabled="pageSaving"
+                                    :title="orientationLocked(page.code) ? '该切页固定跟随手机系统' : undefined"
                                     @update:model-value="(value) => changeOrientation(page, value)">
                         <el-radio-button :value="0">跟随手机横竖屏</el-radio-button>
-                        <el-radio-button :value="1">始终横屏</el-radio-button>
-                        <el-radio-button :value="2">始终竖屏</el-radio-button>
+                        <!-- 地磅查询 / 配置没有横屏版式：另两档只读（PlantStore.orientationLocked） -->
+                        <el-radio-button :value="1" :disabled="orientationLocked(page.code)">始终横屏</el-radio-button>
+                        <el-radio-button :value="2" :disabled="orientationLocked(page.code)">始终竖屏</el-radio-button>
                     </el-radio-group>
                 </div>
             </div>
@@ -362,6 +364,7 @@ import {ElMessage} from 'element-plus'
 import {
     DIRECTION_TEXT,
     ORIENTATION_TEXT,
+    orientationLocked,
     ORIENT_PORTRAIT,
     PAGE_LIST,
     STATUS_TEXT,

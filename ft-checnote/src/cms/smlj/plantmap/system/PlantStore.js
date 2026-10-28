@@ -32,6 +32,8 @@ export const PAGE_LIST = [
     {code: 'home_gb', label: '地磅查询', sub: '过磅日志 · 车牌记录'},
     {code: 'home_setting', label: '配置', sub: '磅房绑定 · 地图配置'},
 ]
+// 只允许「跟随手机横竖屏」的切页：页面自身没有横屏车机版式，配置页里另两档只读
+const FOLLOW_ONLY_PAGES = new Set(['home_gb', 'home_setting'])
 const NODE_TYPE_BY_CODE = invertCode(NODE_TYPE_CODE)
 const ROAD_LEVEL_BY_CODE = invertCode(ROAD_LEVEL_CODE)
 const GATE_MODE_BY_CODE = invertCode(GATE_MODE_CODE)
@@ -145,9 +147,11 @@ function normalizePages(rawPages) {
         const code = String(item?.pageCode || item?.code || '').trim()
         if (!code) continue
         const value = Number(item?.orientation)
+        // 锁定切页无视库里存的值：一律按「跟随系统」生效，历史数据里残留的 1/2 也读不回来
+        const allowed = !FOLLOW_ONLY_PAGES.has(code) && (value === ORIENT_LANDSCAPE || value === ORIENT_PORTRAIT)
         byCode.set(code, {
             pageCode: code,
-            orientation: value === ORIENT_LANDSCAPE || value === ORIENT_PORTRAIT ? value : ORIENT_FOLLOW,
+            orientation: allowed ? value : ORIENT_FOLLOW,
             sortNo: Number(item?.sortNo) || 0,
         })
     }
@@ -386,7 +390,14 @@ export function setDutyUrl(url) {
 }
 
 /** 某切页的显示方向（0 跟随系统 / 1 始终横屏 / 2 始终竖屏），未配置按「跟随系统」 */
+/** 该切页是否锁定为「跟随手机横竖屏」（配置页据此把另两档置灰） */
+export function orientationLocked(pageCode) {
+    return FOLLOW_ONLY_PAGES.has(pageCode)
+}
+
 export function pageOrientationOf(pageCode) {
+    // 锁定切页永远返回跟随系统（历史库值 1/2 不生效）
+    if (FOLLOW_ONLY_PAGES.has(pageCode)) return ORIENT_FOLLOW
     const page = (plantState.pages || []).find((item) => item.pageCode === pageCode)
     const value = Number(page?.orientation)
     return value === ORIENT_LANDSCAPE || value === ORIENT_PORTRAIT ? value : ORIENT_FOLLOW
@@ -469,6 +480,8 @@ export function pageCanvasSize(pageCode) {
 
 /** 修改切页显示方向并写库；失败时由调用方提示 */
 export function setPageOrientation(pageCode, orientation) {
+    // 锁定切页不接设置（配置页按钮已置灰，这里兜底防绕过）
+    if (FOLLOW_ONLY_PAGES.has(pageCode)) return Promise.resolve()
     const value = Number(orientation)
     const next = value === ORIENT_LANDSCAPE || value === ORIENT_PORTRAIT ? value : ORIENT_FOLLOW
     const page = (plantState.pages || []).find((item) => item.pageCode === pageCode)
