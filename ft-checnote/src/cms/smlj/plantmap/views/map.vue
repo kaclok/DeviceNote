@@ -1,14 +1,16 @@
 <template>
-    <div class="page" :style="{'--map-top': mapTop + 'px'}">
-        <section class="planner" :class="{collapsed: isPhone && !plannerOpen}">
+    <div class="page" :class="{'rail-collapsed': isPhone && !railOpen}"
+         :style="{'--map-top': mapTop + 'px', '--map-left': mapLeft + 'px'}">
+        <section class="planner">
             <div class="mode-row">
                 <span class="mode-label">寻路方式</span>
                 <el-radio-group v-model="mode" size="small">
                     <el-radio-button label="material">按物资寻路</el-radio-button>
                     <el-radio-button label="free">自由寻路</el-radio-button>
                 </el-radio-group>
-                <button v-if="isPhone" class="mode-collapse" @click="plannerOpen = !plannerOpen">
-                    <i class="tri" :class="{open: plannerOpen}"></i>{{ plannerOpen ? '收起' : '展开' }}
+                <!-- 手机端：一枚按钮整体收起/展开左栏（条件 + 方案），把屏幕让给地图 -->
+                <button v-if="isPhone" class="mode-collapse" @click="railOpen = !railOpen">
+                    <i class="tri" :class="{open: railOpen}"></i>{{ railOpen ? '收起' : '展开' }}
                 </button>
                 <span class="mode-tip">
                     {{ mode === 'material'
@@ -17,12 +19,13 @@
                 </span>
             </div>
 
-            <div v-show="!isPhone || plannerOpen" class="planner-body">
+            <!-- 收起时整块 .planner 被隐藏，这里不再单独 v-show（否则两处状态要同步） -->
+            <div class="planner-body">
             <div v-if="mode === 'free'" class="planner-fields">
                 <div class="field-row">
                     <div class="field">
                         <label><i class="lbl-dot start"></i>起点</label>
-                        <el-select v-model="freeStartId" :filterable="!isPhone" placeholder="选择起点" class="field-select">
+                        <el-select v-model="freeStartId" :filterable="!isPhone" :teleported="!isPhone" placeholder="选择起点" class="field-select">
                             <el-option-group v-for="group in poiGroupOptions" :key="group.type"
                                              :label="`${group.label}（${group.items.length}）`">
                                 <el-option v-for="node in group.items" :key="node.id"
@@ -42,7 +45,7 @@
 
                     <div class="field">
                         <label><i class="lbl-dot end"></i>终点</label>
-                        <el-select v-model="freeEndId" :filterable="!isPhone" placeholder="选择终点" class="field-select">
+                        <el-select v-model="freeEndId" :filterable="!isPhone" :teleported="!isPhone" placeholder="选择终点" class="field-select">
                             <el-option-group v-for="group in poiGroupOptions" :key="group.type"
                                              :label="`${group.label}（${group.items.length}）`">
                                 <el-option v-for="node in group.items" :key="node.id"
@@ -64,15 +67,15 @@
 
             <div v-else class="planner-fields">
                 <div class="field-row">
-                    <div class="field">
+                    <div class="field material-field">
                         <label>物资</label>
                         <div class="field-line">
-                            <el-select v-model="materialId" :filterable="!isPhone" class="field-select">
-                                <el-option-group label="拉货（出厂）">
+                            <el-select v-model="materialId" :filterable="!isPhone" :teleported="!isPhone" class="field-select">
+                                <el-option-group label="拉货">
                                     <el-option v-for="item in outMaterials" :key="item.id" :label="item.name"
                                                :value="item.id"/>
                                 </el-option-group>
-                                <el-option-group label="送货（入厂）">
+                                <el-option-group label="送货">
                                     <el-option v-for="item in inMaterials" :key="item.id" :label="item.name"
                                                :value="item.id"/>
                                 </el-option-group>
@@ -92,9 +95,20 @@
                     </div>
                     <div class="field flow-field">
                         <label>方向</label>
-                        <el-select v-model="materialFlow" class="field-select flow-select">
-                            <el-option label="进场（大门 → 磅房 → 装卸点）" value="in"/>
-                            <el-option label="出场（装卸点 → 磅房 → 大门）" value="out"/>
+                        <el-select v-model="materialFlow" :teleported="!isPhone" class="field-select flow-select">
+                            <!-- 字段里只显示「进场/出场」，完整路径放在下拉项右侧，避免窄栏里被截成「进场（…」 -->
+                            <el-option label="进场" value="in">
+                                <span class="opt-body">
+                                    <span class="opt-name">进场</span>
+                                    <span class="opt-type">大门 → 磅房 → 装卸点</span>
+                                </span>
+                            </el-option>
+                            <el-option label="出场" value="out">
+                                <span class="opt-body">
+                                    <span class="opt-name">出场</span>
+                                    <span class="opt-type">装卸点 → 磅房 → 大门</span>
+                                </span>
+                            </el-option>
                         </el-select>
                     </div>
                 </div>
@@ -102,7 +116,7 @@
                 <div class="field-row">
                     <div class="field">
                         <label><i class="lbl-dot start"></i>起点</label>
-                        <el-select v-if="materialFlow === 'in'" v-model="materialStartId" :filterable="!isPhone"
+                        <el-select v-if="materialFlow === 'in'" v-model="materialStartId" :filterable="!isPhone" :teleported="!isPhone"
                                    class="field-select"
                                    :placeholder="materialStartGates.length ? '选择进厂大门' : '该物资没有可进厂的大门'">
                             <el-option v-for="gate in materialStartGates" :key="gate.id"
@@ -120,7 +134,7 @@
                     </div>
                     <div class="field">
                         <label><i class="lbl-dot end"></i>终点</label>
-                        <el-select v-if="materialFlow === 'out'" v-model="materialEndGateId" :filterable="!isPhone"
+                        <el-select v-if="materialFlow === 'out'" v-model="materialEndGateId" :filterable="!isPhone" :teleported="!isPhone"
                                    class="field-select"
                                    :placeholder="materialEndGates.length ? '选择出场大门' : '该物资没有可出场的大门'">
                             <el-option v-for="gate in materialEndGates" :key="gate.id"
@@ -138,7 +152,7 @@
                     </div>
                     <div class="field">
                         <label><span class="full">途经</span>磅房</label>
-                        <el-select v-model="scaleChoice" class="field-select" placeholder="自动选择可用磅房">
+                        <el-select v-model="scaleChoice" :teleported="!isPhone" class="field-select" placeholder="自动选择可用磅房">
                             <el-option v-if="usableScales.length > 1" label="自动（每座可用磅房各出一条方案）" value=""/>
                             <el-option v-for="scale in usableScales" :key="scale.id"
                                        :label="`${scale.name}${scale.area ? ' · ' + scale.area : ''}`"
@@ -156,6 +170,11 @@
             </div>
             </div>
         </section>
+
+        <!-- 收起态：左栏整块隐藏后，地图左上角浮出这枚按钮把左栏放回来 -->
+        <button v-if="isPhone && !railOpen" class="rail-open" @click="railOpen = true">
+            <i class="tri"></i>展开
+        </button>
 
         <div v-if="plantState.loadError" class="error-tip">
             后端配置不可用，当前展示的是内置默认配置；修改状态或保存会失败，请检查 device-note 服务（8092）。
@@ -220,7 +239,8 @@
                     </div>
 
                     <div v-for="route in routes" :key="route.id" class="route-card"
-                         :class="{active: route.id === activeId}" @click="selectRoute(route.id)">
+                         :class="{active: route.id === activeId}"
+                         :style="{'--route-color': route.color}" @click="selectRoute(route.id)">
                         <div class="route-top">
                             <span class="route-badge" :style="{background: route.color}">{{ route.rank }}</span>
                             <span class="route-time">{{ fmtDuration(route.seconds) }}</span>
@@ -315,10 +335,12 @@ const previewKey = ref(0)
 const expandedId = ref('')
 const errorMsg = ref('')
 const legend = LEGEND
-// 手机端：条件面板默认展开，可收起给地图让出空间
-const plannerOpen = ref(true)
+// 手机端：左栏（寻路条件 + 寻路方案）整体展开/收起，收起后地图独占整屏
+const railOpen = ref(true)
 // 手机端地图固定铺满导航栏以下时的顶部偏移（topbar + 横向导航高度，动态测量）
 const mapTop = ref(106)
+// 手机横屏时左侧图标导航的宽度（地图/面板整体右移让位）
+const mapLeft = ref(0)
 
 const outMaterials = computed(() => materialList.value.filter((item) => item.direction === 'out'))
 const inMaterials = computed(() => materialList.value.filter((item) => item.direction === 'in'))
@@ -873,32 +895,104 @@ watch(scaleChoice, () => {
     if (mode.value === 'material') searchMaterial()
 })
 
-// 手机端（≤760px）关闭下拉搜索：filterable 会渲染可聚焦输入框，点开选择框时会弹出软键盘
+// 手机端（竖屏 ≤760px，或横屏且高 ≤560px）关闭下拉搜索：filterable 会渲染可聚焦输入框，
+// iOS（Safari/Edge/Chrome 同为 WebKit）聚焦到字号 <16px 的输入框会整页放大，还会弹软键盘
 const isPhone = ref(false)
 
+// 判据直接复用 CSS 的两条媒体查询：设备旋转时 innerWidth/innerHeight 可能晚一拍才更新，
+// 用 matchMedia 可保证 JS 与样式表永远认同一个视口状态（否则网格会拿旧偏移量布局）
+const PHONE_MQ = '(max-width: 760px), (orientation: landscape) and (max-height: 560px), (orientation: portrait)'
+const LANDSCAPE_MQ = '(orientation: landscape) and (max-height: 560px)'
+// 只看「视口是竖的」这一个条件：竖着就整页转 90° 按横屏铺（home.vue「强制横屏」块）。
+// 刻意不带宽度门槛 —— 页面版式由自己决定，不交给操作系统的横竖屏开关。
+const FORCE_LANDSCAPE_MQ = '(orientation: portrait)'
+
+/** 是否按横屏车机版式排版：真横屏，或手机竖屏被强制旋转 */
+function landscapeLayout() {
+    return window.matchMedia(LANDSCAPE_MQ).matches || window.matchMedia(FORCE_LANDSCAPE_MQ).matches
+}
+
 function syncPhoneLayout() {
-    isPhone.value = window.innerWidth <= 760
+    const landscape = landscapeLayout()
+    isPhone.value = window.matchMedia(PHONE_MQ).matches
+    const topbar = document.querySelector('.topbar')
+    const nav = document.querySelector('.sidenav')
+    if (landscape) {
+        // 横屏外壳：顶栏压扁、导航变左侧图标条 ⇒ 页面从顶栏底边铺到屏幕底，左侧让出图标条宽度
+        mapTop.value = Math.round(topbar?.offsetHeight || 42)
+        mapLeft.value = Math.round(nav?.offsetWidth || 64)
+        return
+    }
+    mapLeft.value = 0
     if (isPhone.value) {
-        // 量出外壳导航的实际高度，地图从导航底边铺到屏幕底
-        const topbar = document.querySelector('.topbar')
-        const nav = document.querySelector('.sidenav')
+        // 竖屏：导航在顶部横排，量出实际高度，地图从导航底边铺到屏幕底
         mapTop.value = Math.round((topbar?.offsetHeight || 52) + (nav?.offsetHeight || 54))
     }
 }
 
+// 旋转/缩放后补一次测量：iOS 上 offsetHeight 可能晚一拍才反映新布局
+let syncTimer = 0
+
+function onViewportChange() {
+    syncPhoneLayout()
+    clearTimeout(syncTimer)
+    syncTimer = setTimeout(syncPhoneLayout, 320)
+}
+
+// 首帧就把偏移算对：mapTop 默认值是竖屏量级(106)，横屏若不提前同步会先按 106 铺一次再跳
+syncPhoneLayout()
+
+/*
+ * 移动浏览器（iOS Safari/Edge、Android Chrome）只在**文档真的能滚动**时才收起地址栏。
+ * 本页是 fixed 铺满的（横屏车机版式 / 竖屏强制旋转），文档本身没有可滚动高度，地址栏就永远杵在那。
+ * 做法：往 body 末尾垫一个 60px 的「滚距」元素（在 fixed 版式之外，不参与页面布局），
+ * 再把文档往下滚这 60px —— 地址栏随之收走，而页面纹丝不动（fixed 定位不受文档滚动影响）。
+ * ⚠️ 每次挂载都要清理：这是直接写 body 的副作用，不清理会漏到其它页面。
+ */
+const ADDR_SCROLL = 60
+let addrSpacer = null
+let addrTimer = 0
+
+function nudgeAddressBar() {
+    if (!isPhone.value) return
+    if (!addrSpacer) {
+        addrSpacer = document.createElement('div')
+        addrSpacer.className = 'addr-nudge'
+        addrSpacer.setAttribute('aria-hidden', 'true')
+        addrSpacer.style.cssText = `height:${ADDR_SCROLL}px;pointer-events:none`
+        document.body.appendChild(addrSpacer)
+    }
+    window.scrollTo(0, ADDR_SCROLL)
+}
+
+function clearAddressBarNudge() {
+    if (!addrSpacer) return
+    addrSpacer.remove()
+    addrSpacer = null
+    window.scrollTo(0, 0)
+}
+
 onMounted(async () => {
     syncPhoneLayout()
-    window.addEventListener('resize', syncPhoneLayout)
+    window.addEventListener('resize', onViewportChange)
+    window.addEventListener('orientationchange', onViewportChange)
     primeSpeech()
     await loadConfig()
     normalizeMaterialStart()
     normalizeMaterialEnd()
     normalizeScaleChoice()
     search()
+    // 地址栏：首屏后与布局稳定后各试一次（iOS 有时第一帧还没算完滚动高度）
+    nextTick(nudgeAddressBar)
+    addrTimer = setTimeout(nudgeAddressBar, 320)
 })
 
 onBeforeUnmount(() => {
-    window.removeEventListener('resize', syncPhoneLayout)
+    clearTimeout(syncTimer)
+    clearTimeout(addrTimer)
+    window.removeEventListener('resize', onViewportChange)
+    window.removeEventListener('orientationchange', onViewportChange)
+    clearAddressBarNudge()
     stopSpeak()
 })
 </script>
@@ -957,8 +1051,9 @@ onBeforeUnmount(() => {
     color: #1677ff;
 }
 
-/* 展开/收起前的三角：收起态 ▶（横向），展开态旋转 90° 变 ▼ */
-.mode-collapse .tri {
+/* 展开/收起的三角：默认 ▶（把左栏拉出来的方向）；展开态转 180° 变 ◀（把左栏收回去的方向）。
+ * ⚠️ 之前是 rotate(90deg) 变 ▼，可左栏是往左收的，箭头朝下与动作方向不一致。 */
+.tri {
     display: inline-block;
     width: 0;
     height: 0;
@@ -970,8 +1065,34 @@ onBeforeUnmount(() => {
     transition: transform .15s;
 }
 
-.mode-collapse .tri.open {
-    transform: rotate(90deg);
+.tri.open {
+    transform: rotate(180deg);
+}
+
+/* 收起态：左栏整体隐藏，地图左上角浮出这枚按钮把左栏放回来（位置按横竖屏各自覆盖） */
+.rail-open {
+    position: fixed;
+    z-index: 26;
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 12px 0 10px;
+    border: 1px solid rgba(148, 163, 184, .55);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, .74);
+    color: #e2e8f0;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .35);
+}
+
+.rail-open:hover {
+    border-color: #1677ff;
+    color: #ffffff;
 }
 
 /* 寻路条件竖向堆叠，仿高德导航面板 */
@@ -980,7 +1101,7 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
-    max-width: 620px;
+    max-width: 500px;
 }
 
 .field {
@@ -1060,8 +1181,17 @@ onBeforeUnmount(() => {
     gap: 0;
 }
 
+/* 物资字段：下拉按「最长物资名」给宽，不再把整行吃满（语音按钮紧随其后） */
+.field-row > .field.material-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 300px;
+}
+
+/* 方向只显示「进场/出场」两个字：150px 够用，剩余宽度留给物资行（手机横屏块里另有更紧的一套） */
 .field-row .flow-field {
-    flex: 0 0 220px;
+    flex: 0 1 150px;
+    min-width: 0;
 }
 
 /* 起点/终点标签前的小色点（合行后左侧竖轨放不下，改为行内圆点） */
@@ -1176,6 +1306,11 @@ onBeforeUnmount(() => {
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 4px 16px rgba(31, 58, 95, .05);
+}
+
+/* 寻路页只留「复位」：放大/缩小由双指捏合与滚轮承担（配置页仍保留按钮做精修） */
+.map-card :deep(.map-controls .map-btn.zoom) {
+    display: none;
 }
 
 .map-head {
@@ -1311,7 +1446,9 @@ onBeforeUnmount(() => {
 
 .route-card {
     padding: 11px 12px;
+    /* 左侧色条 = 该方案在地图上的线色（替代原来的 推荐/备选 文字徽标） */
     border: 1px solid #e6edf6;
+    border-left: 3px solid var(--route-color, #e6edf6);
     border-radius: 10px;
     margin-bottom: 9px;
     cursor: pointer;
@@ -1344,7 +1481,10 @@ onBeforeUnmount(() => {
     display: none;
 }
 
+/* 「推荐 / 备选一 / 备选二」文字徽标不再展示（三种版式一致）：
+ * 与地图线色的对应关系由 .route-card 左侧 3px 色条承担，卡片更安静也省宽度 */
 .route-badge {
+    display: none;
     padding: 2px 8px;
     border-radius: 6px;
     color: #ffffff;
@@ -1766,16 +1906,8 @@ onBeforeUnmount(() => {
         bottom: 196px;
     }
 
-    /* 收起态：只剩模式行，压掉所有残留间距（mode-row 下边距/下内边距 + 容器下内边距） */
-    .planner.collapsed {
-        padding-bottom: 10px;
-    }
-
-    .planner.collapsed .mode-row {
-        margin-bottom: 0;
-        padding-bottom: 0;
-        border-bottom: none;
-    }
+    /* 收起态见文件末尾「竖屏收起」块：小屏横屏也会命中本块，
+       若把 top/bottom 覆盖写在这里会踩到横屏那套（6xx×3xx 两套媒体查询同时命中） */
 
     /* 条件面板：半透明悬浮在地图上方 */
     .planner {
@@ -1927,6 +2059,605 @@ onBeforeUnmount(() => {
     .preview-btn svg {
         width: 9px;
         height: 11px;
+    }
+}
+
+/* ===== 手机横屏：车机式（CarPlay / CarLife）导航布局 =====
+ * 页面整体铺满顶栏以下区域，两列网格：左栏 = 寻路条件 + 候选方案（与整页共用一条垂直滚动条），
+ * 右列 = 地图吃满剩余空间，图例/控件以浮层压在地图上。
+ * ⚠️ 断点有两个分支：① 真横屏（orientation: landscape + 高度 ≤560）；
+ *    ② 竖着拿 / 竖屏锁定 —— 整页被旋转 90° 后仍按横屏铺（home.vue「强制横屏」）。
+ *    旋转不改媒体查询的求值基准（视口还是竖的），所以必须把竖屏整体列进来，
+ *    且**不加宽度门槛**：本页版式永远横屏，跟操作系统方向、屏幕多宽都无关。
+ * ⚠️ 本块必须排在竖屏块之后：后者（max-width:760px）在窄竖屏里同样命中，靠顺序覆盖。
+ */
+@media (orientation: landscape) and (max-height: 560px), (orientation: portrait) {
+    .page {
+        --rail-w: clamp(266px, 40%, 380px);
+        position: fixed;
+        left: var(--map-left, 0);
+        right: 0;
+        top: var(--map-top, 42px);
+        bottom: 0;
+        display: grid;
+        grid-template-columns: var(--rail-w) minmax(0, 1fr);
+        /* 行 1 = 条件面板（按内容），行 2 = 方案（吃掉剩余高度）：两块都在 .page 这一个
+           滚动容器里，共用一条垂直滚动条。
+           ⚠️ 行 2 必须写 1fr，不能两条都 max-content：地图是跨两行的定高项，网格会把它
+           的高度「分摊」进两条 max-content 轨道（跨轨道项的尺寸分配），结果
+           ① 条件面板被拉到跟地图一样高 ⇒ 开始寻路按钮下方一大片白；
+           ② 两行加起来恒等于可视高 ⇒ 永远没有可滚距离（看着像「滚不动」）。
+           1fr 让剩余空间只落在行 2，条件面板始终是内容高度；
+           行 2 的 1fr 带 auto 下限（= 方案内容高度），方案一多整页照常出现滚动。 */
+        grid-template-rows: max-content 1fr;
+        align-content: start;
+        gap: 8px;
+        padding: 8px;
+        background: #0b1220;
+        overflow-x: hidden;
+        overflow-y: auto;
+        /* 不要加 -webkit-overflow-scrolling: touch：祖先 .layout 有 transform（强制横屏），
+           该属性在这个结构下会让触摸滚动失效；iOS 13 起原生滚动已足够跟手 */
+        overscroll-behavior-y: contain;
+    }
+
+    /* 拆掉工作区这层盒子，让地图与方案栏直接成为 .page 的网格项 */
+    .workspace {
+        display: contents;
+    }
+
+    /* ---------- 左栏上：寻路条件 ---------- */
+    .planner {
+        grid-column: 1;
+        grid-row: 1;
+        /* 条件面板永远只有内容那么高：剩余高度归行 2（方案面板），
+           否则卡片被拉高后按钮下方会留一大片空白 */
+        align-self: start;
+        position: static;
+        left: auto;
+        right: auto;
+        top: auto;
+        max-height: none;
+        overflow: visible;
+        padding: 5px 8px;
+        border: none;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+
+    .mode-row {
+        flex-wrap: nowrap;
+        gap: 5px;
+        margin-bottom: 4px;
+        padding-bottom: 4px;
+    }
+
+    /* 左栏窄：省掉「寻路方式」文字与底部提示，只留分段按钮 + 收起 */
+    .mode-label,
+    .mode-tip {
+        display: none;
+    }
+
+    .mode-row :deep(.el-radio-button__inner) {
+        padding: 5px 9px;
+        font-size: 12px;
+    }
+
+    .mode-collapse {
+        height: 26px;
+        padding: 0 8px;
+        font-size: 11px;
+    }
+
+    /* 标签移到控件上方（竖排单列），窄栏里下拉才有足够宽度可读 */
+    .planner-fields {
+        max-width: none;
+        gap: 4px;
+    }
+
+    .field-row {
+        flex-wrap: nowrap;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .field-row > .field {
+        flex: 1;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1px;
+    }
+
+    .field-row > .field label {
+        width: 100%;
+        font-size: 10px;
+        line-height: 1.15;
+        color: #64748b;
+    }
+
+    /* 物资：物资名最长 3 字（烧碱/盐酸/电石渣），150px 已到顶 —— 之前吃满整行 189px 太浪费 */
+    .field-row > .field.material-field {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 150px;
+    }
+
+    /* 方向只显示「进场/出场」两个汉字：110px 封顶（iPhone Pro Max 横屏时它曾被撑到 169px） */
+    .field-row .flow-field {
+        flex: 1 1 auto;
+        min-width: 64px;
+        max-width: 110px;
+    }
+
+    /* 压掉竖屏的整行铺满（合行内必须可收缩等分）；
+       列方向下不能沿用 flex:1（那是纵向拉伸），统一改成按内容高度。
+       ⚠️ 必须带 `> .field` 才够竖屏那条 `.field-row > .field .xxx` 的优先级（小屏横屏两块会同时命中） */
+    .field-row > .field .field-select,
+    .field-row > .field .fixed-point,
+    .field-row > .field .field-line {
+        flex: 0 0 auto;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .field-row .field-line {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    /* 方向下拉固定占 96px 字段宽；竖屏那条把它钉成 118px，这里要压回来 */
+    .field-row .flow-field .field-select {
+        flex: 0 0 auto;
+        width: 100%;
+    }
+
+    /* 物资下拉跟着字段宽度走（字段已被 material-field 限到 150px），语音方形按钮固定 26px */
+    .field-row .field-line .field-select {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+    }
+
+    /* 控件统一压到 26px：左栏每省 4px，方案区就多 4px（靠捏合/点按仍够用） */
+    .field :deep(.el-select__wrapper) {
+        min-height: 26px;
+        padding: 0 6px;
+        font-size: 12px;
+    }
+
+    .fixed-point {
+        height: 26px;
+        padding: 0 6px;
+        font-size: 12px;
+    }
+
+    /* 语音按钮收成方形图标，把宽度让给物资下拉 */
+    .voice-btn {
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .voice-btn span {
+        display: none;
+    }
+
+    .voice-btn svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    /* 互换按钮贴到下拉那一行的底部 */
+    .swap-btn {
+        align-self: flex-end;
+        width: 26px;
+        height: 26px;
+        font-size: 13px;
+    }
+
+    .search-btn {
+        height: 28px;
+        margin-top: 2px;
+        font-size: 13px;
+    }
+
+    .planner-hint {
+        display: none;
+    }
+
+    /* 收起态：左栏整列移除，地图独占整屏 */
+    .page.rail-collapsed {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rail-collapsed .planner,
+    .rail-collapsed .side {
+        display: none;
+    }
+
+    .rail-collapsed .map-card {
+        grid-column: 1 / -1;
+    }
+
+    /* 顶部图例胶囊让开左上角的「展开」浮钮（浮钮与图例同高同顶边，中间留 6px） */
+    .rail-collapsed .map-head {
+        left: 72px;
+    }
+
+    /* 没有左栏可让位，错误提示贴回地图左边 */
+    .rail-collapsed .error-tip {
+        left: 16px;
+    }
+
+    /* 浮钮压在地图左上角，与图例胶囊同顶边同高（.page 自带 8px 内边距，这里要加回来） */
+    .rail-open {
+        top: calc(var(--map-top, 42px) + 14px);
+        left: calc(var(--map-left, 64px) + 14px);
+        height: 24px;
+        padding: 0 10px 0 9px;
+        font-size: 11.5px;
+    }
+
+    /* ---------- 左栏下：候选方案（竖向滚动） ---------- */
+    .side {
+        grid-column: 1;
+        grid-row: 2;
+        position: static;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        width: auto;
+        /* 不要写 min-height: 0：行 2 的 auto 下限因此变成 0，方案一多面板会冲出轨道，
+           整页的可滚高度就算少（表现为「滚不到最后一条」） */
+        min-height: auto;
+        z-index: auto;
+        pointer-events: auto;
+    }
+
+    .side-card {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        /* 面板只占内容高度：方案少于剩余高度时不再被行 2 的行高拉长
+           （写 1 1 auto 时最后一条方案下面会留一大片白色空白）。
+           多余高度留给 .page 的深色底，视觉上就是「内容到此为止」；
+           内容高于可视区时行 2 的 auto 下限照常把 .page 撑出滚动 */
+        flex: 0 0 auto;
+        /* 方案全量展开：不再自己圈滚动区，由 .page 统一滚（与条件面板共用一条滚动条） */
+        height: auto;
+        padding: 8px;
+        overflow: visible;
+        background: #ffffff;
+        border: 1px solid #e3eaf3;
+        border-radius: 12px;
+        box-shadow: none;
+        pointer-events: auto;
+        scroll-snap-type: none;
+        touch-action: auto;
+        scrollbar-width: thin;
+    }
+
+    .side-card.is-empty {
+        pointer-events: auto;
+    }
+
+    .side-head {
+        display: flex;
+        margin-bottom: 2px;
+    }
+
+    .side-title {
+        font-size: 12px;
+    }
+
+    .side-sub {
+        max-width: 62%;
+        font-size: 10.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* 限速提示：横屏也要留（去掉了方案徽标，这里是唯一的口径说明）。
+       ⚠️ display 必须显式写 block：竖屏块里同名的 .speed-tip 是 display:none，
+          竖屏强制旋转时两条媒体查询同时命中，只写字号会被压回 none */
+    .speed-tip {
+        display: block;
+        margin: 0 0 2px;
+        font-size: 10.5px;
+        line-height: 1.5;
+        color: #94a3b8;
+    }
+
+    .empty-tip {
+        display: block;
+        padding: 10px 4px;
+        font-size: 11.5px;
+        line-height: 1.6;
+    }
+
+    /* 磅房切换提示原本浮在卡片条上方，横屏改为列表内的一行 */
+    .switch-notice {
+        position: static;
+        margin: 0 0 6px;
+        padding: 6px 8px;
+        font-size: 11px;
+        line-height: 1.6;
+    }
+
+    .route-card {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: none;
+        margin: 0;
+        padding: 7px 9px;
+        background: #ffffff;
+        border-radius: 10px;
+        box-shadow: none;
+    }
+
+    .route-top {
+        flex-wrap: nowrap;
+        gap: 6px;
+        overflow: hidden;
+    }
+
+    /* 中文可在任意字间断行：窄栏里必须钉死 nowrap + 不参与收缩，
+       否则「3 分钟」「1.18 公里」会被压成竖排单字 */
+    .route-badge,
+    .route-time,
+    .route-dist,
+    .route-via,
+    .route-tag {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    /* 横屏一行放得下，去掉竖屏的折行锚点 */
+    .route-brk {
+        display: none;
+    }
+
+    .route-time {
+        font-size: 14px;
+    }
+
+    .route-dist {
+        font-size: 10.5px;
+    }
+
+    .route-via {
+        max-width: 42%;
+        padding: 1px 5px;
+        font-size: 9.5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .route-top-right {
+        margin-left: auto;
+        gap: 4px;
+        flex: 0 0 auto;
+    }
+
+    /* 横屏卡片一行内要放下 时长/里程/磅房/标签，预览压成圆形图标省宽度 */
+    .preview-btn {
+        flex: 0 0 auto;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border-radius: 50%;
+        justify-content: center;
+    }
+
+    .preview-btn span {
+        display: none;
+    }
+
+    .preview-btn svg {
+        width: 8px;
+        height: 10px;
+    }
+
+    /* 只保留一行道路摘要，够区分方案又不撑高卡片 */
+    .route-roads {
+        display: -webkit-box;
+        margin-top: 4px;
+        font-size: 11px;
+        -webkit-line-clamp: 1;
+    }
+
+    .route-meta,
+    .route-steps {
+        display: none;
+    }
+
+    /* ---------- 右列：地图 ---------- */
+    .map-card {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        /* 左栏变长时地图不跟着拉长：sticky 钉在可视区顶部，高度恒为「可视高 - 顶栏 - 上下留白」。
+           --vp-h 由 home.vue 给（真横屏 100dvh；竖屏强制旋转 100dvw，因为那时页面被转了 90°） */
+        position: sticky;
+        top: 0;
+        align-self: start;
+        height: calc(var(--vp-h, 100dvh) - var(--map-top, 42px) - 16px);
+        left: auto;
+        right: auto;
+        bottom: auto;
+        min-width: 0;
+        border: none;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: none;
+    }
+
+    .map-card :deep(.map-shell) {
+        height: 100%;
+        border-radius: 0;
+    }
+
+    .map-card :deep(.plant-svg) {
+        height: 100%;
+        aspect-ratio: auto;
+    }
+
+    /* 图例悬浮成一枚胶囊压在地图顶部，不再占一行高度 */
+    .map-head {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        right: 6px;
+        z-index: 6;
+        display: flex;
+        padding: 0;
+        border: none;
+        background: none;
+        pointer-events: none;
+    }
+
+    .map-head-main {
+        display: none;
+    }
+
+    .legend {
+        flex: 1;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        gap: 10px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, .62);
+        -webkit-backdrop-filter: blur(6px);
+        backdrop-filter: blur(6px);
+        pointer-events: auto;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .legend::-webkit-scrollbar {
+        display: none;
+    }
+
+    .legend-item {
+        font-size: 10.5px;
+        color: #e2e8f0;
+    }
+
+    .legend-toggle:hover {
+        color: #ffffff;
+    }
+
+    /* 下拉面板：E2 的浮层用 client 坐标（floating-ui）定位，页面被旋转 90° 后这套坐标
+       与布局坐标系不是同一个（实测面板被甩到 left:803px 的屏幕外）。手机端一律改成
+       内联渲染（模板里 :teleported="!isPhone"）再用 CSS 定死「字段正下方、至少同宽」，
+       面板就会跟着页面一起旋转。
+       ⚠️ 不要覆盖 display：开合由组件自己控制，写死会让面板一直显示 */
+    .planner :deep(.el-select__popper) {
+        position: absolute !important;
+        top: 100% !important;
+        /* 必须同时清掉 bottom/right：浮层翻转朝上时组件会写 inset: auto auto 38px 0px，
+           留着 bottom 会和 top:100% 一起把高度压成 0（实测面板只剩 2px 高，等于不显示） */
+        right: auto !important;
+        bottom: auto !important;
+        left: 0 !important;
+        transform: none !important;
+        width: max-content !important;
+        min-width: 100% !important;
+        max-width: 260px !important;
+        margin: 4px 0 0;
+        max-height: 180px;
+        overflow-y: auto;
+    }
+
+    /* 全屏 + 复位并成一组，贴地图右上角横排（复位 30px + 间距 4px ⇒ 右移 42px，两者同高同顶边） */
+    .map-card :deep(.map-fs) {
+        top: 42px;
+        right: 8px;
+        bottom: auto;
+        gap: 4px;
+    }
+
+    .map-card :deep(.map-controls) {
+        top: 42px;
+        bottom: auto;
+        right: 42px;
+        flex-direction: row;
+        gap: 4px;
+    }
+
+    .map-card :deep(.map-btn) {
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        font-size: 15px;
+        box-shadow: 0 2px 8px rgba(31, 58, 95, .22);
+    }
+
+    .map-card :deep(.map-btn.reset) {
+        width: auto;
+        min-width: 30px;
+        padding: 0 6px;
+        font-size: 10px;
+    }
+
+    .map-card :deep(.map-btn svg) {
+        width: 15px;
+        height: 15px;
+    }
+
+    .map-card :deep(.compass) {
+        top: 42px;
+        left: 8px;
+        transform: scale(.8);
+        transform-origin: top left;
+    }
+
+    .map-card :deep(.scale-bar) {
+        left: 8px;
+        bottom: 8px;
+    }
+
+    .map-card :deep(.pick-card) {
+        left: 8px;
+        bottom: 30px;
+        width: 200px;
+      }
+
+    .map-card :deep(.road-mode-tip),
+    .map-card :deep(.edit-tip) {
+        top: 44px;
+        font-size: 11px;
+    }
+
+    .map-card :deep(.road-edit-tip) {
+        top: 76px;
+    }
+
+    /* 错误提示压在地图底部，不占网格位 */
+    .error-tip {
+        position: absolute;
+        left: calc(var(--rail-w) + 16px);
+        right: 16px;
+        bottom: 12px;
+        z-index: 25;
+        padding: 6px 10px;
+        font-size: 11px;
+        line-height: 1.5;
+    }
+}
+
+/* 小屏横屏（≤760px，如 iPhone SE 横放）与竖屏强制横屏：卡片一行放不下「距离最短」，
+   优先保住 时长/里程/磅房/预览 */
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 760px),
+       (orientation: portrait) and (max-width: 760px) {
+    .route-tag {
+        display: none;
     }
 }
 </style>

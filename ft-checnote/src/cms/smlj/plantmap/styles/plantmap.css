@@ -88,8 +88,11 @@ body .el-select-dropdown__item .opt-type {
  *       ② touch-action: manipulation 去掉双击缩放判定（"点下拉 → 点选项"本身就是两连击）。
  * ⚠️ 不要用 viewport 的 maximum-scale=1 / user-scalable=no 兜底：iOS 10 起直接忽略，
  *    还会破坏用户双指缩放的无障碍能力。
+ * ⚠️ 断点必须同时覆盖**横屏与竖屏两种视口**：iPhone 横屏约 852×393，宽度超过 760 不会命中
+ *    max-width 规则；而寻路页在竖着拿时整页被旋转 90°（版式是横的，视口还是竖的），
+ *    焦点缩放的判定只看字号、与屏幕方向无关，所以竖屏（≤1180，含平板）也要一起提到 16px。
  */
-@media (max-width: 760px) {
+@media (max-width: 760px), (orientation: landscape) and (max-height: 560px), (orientation: portrait) and (max-width: 1180px) {
     body .el-select__input,
     body .el-input__inner,
     body .el-textarea__inner,

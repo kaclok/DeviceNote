@@ -23,13 +23,13 @@ const NAVS = [
 
 const activeName = computed(() => route.name)
 
-// 值班人员：跳转到「磅房与绑定」页配置的网页链接
+// 地磅值班：跳转到「磅房与绑定」页配置的网页链接
 onMounted(loadConfig)
 
 function openDuty() {
     const url = (plantState.plant.dutyUrl || '').trim()
     if (!url) {
-        ElMessage.warning('尚未配置值班人员链接，请在「配置」页顶部设置')
+        ElMessage.warning('尚未配置地磅值班链接，请在「配置」页顶部设置')
         return
     }
     window.open(url, '_blank')
@@ -37,7 +37,7 @@ function openDuty() {
 </script>
 
 <template>
-    <div class="layout">
+    <div class="layout" :class="{'is-map': activeName === 'home_map'}">
         <header class="topbar">
             <div class="brand">
                 <span class="brand-mark">🗺</span>
@@ -55,7 +55,7 @@ function openDuty() {
                         <circle cx="17.5" cy="7" r="2.6"/>
                         <path d="M15.8 12.3c.5-.2 1.1-.3 1.7-.3 2.2 0 3.9 1.4 4.5 4"/>
                     </svg>
-                    <span class="duty-text">值班人员</span>
+                    <span class="duty-text">地磅值班</span>
                 </button>
             </div>
         </header>
@@ -140,7 +140,7 @@ function openDuty() {
     gap: 14px;
 }
 
-/* 值班人员跳转按钮 */
+/* 地磅值班跳转按钮 */
 .duty-btn {
     display: inline-flex;
     align-items: center;
@@ -354,6 +354,146 @@ function openDuty() {
 
     .item-title {
         font-size: 12px;
+    }
+}
+
+/* ===== 横屏 / 竖屏锁定：车机式外壳 =====
+ * 高度只有 390 上下，顶栏压到 42px，导航从顶部横排改为左侧图标条，
+ * 内容区完全交给 map.vue 的导航布局（那张页面会 fixed 铺满，用 --map-top/--map-left 对齐）。
+ * ⚠️ 条件里多带了「竖屏」这一整支，且**不带宽度门槛**：寻路页要求「不受操作系统横屏/竖屏控制，
+ *    永远横屏展示」，竖着拿时整页会旋转 90°（见文件末尾「强制横屏」块）；旋转后视口仍是竖屏、
+ *    媒体查询不认旋转，所以竖屏这一支必须把同一套参数一起给出，宽度多大的竖屏都一样。
+ */
+@media (orientation: landscape) and (max-height: 560px), (orientation: portrait) {
+    .layout {
+        /* 地图卡片高度按「可视高 - 顶栏 - 上下留白」算；旋转场景由末尾的强制横屏块改写 */
+        --vp-h: 100dvh;
+    }
+
+    /* 寻路页的壳钉死在视口：地址栏收起那套「往文档底部垫滚距再滚过去」的操作
+       会把静态定位的顶栏/导航一起滚走（实测顶栏被顶出屏幕 60px），钉住后文档滚动不影响观感 */
+    .layout.is-map {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        min-height: 0;
+    }
+
+    .topbar {
+        height: 42px;
+        gap: 10px;
+        padding: 0 10px;
+    }
+
+    .brand-mark {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        font-size: 15px;
+    }
+
+    .brand-title {
+        font-size: 14px;
+        line-height: 1.2;
+    }
+
+    .brand-sub {
+        display: none;
+    }
+
+    .duty-btn {
+        height: 28px;
+        padding: 0 10px;
+        font-size: 12px;
+        gap: 5px;
+    }
+
+    .duty-icon {
+        width: 14px;
+        height: 14px;
+        flex: 0 0 14px;
+    }
+
+    .body {
+        flex-direction: row;
+        overflow: hidden;
+    }
+
+    /* 导航收成 64px 图标条，宽度全部让给地图 */
+    .sidenav {
+        width: 64px;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px;
+        overflow: visible;
+        position: static;
+        z-index: auto;
+    }
+
+    .sidenav-item {
+        flex: 0 0 auto;
+    }
+
+    .item-inner {
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        padding: 8px 2px;
+    }
+
+    .item-icon {
+        width: 18px;
+        height: 18px;
+        flex: 0 0 18px;
+    }
+
+    .item-title {
+        font-size: 10px;
+        margin-bottom: 0;
+        letter-spacing: 0;
+        white-space: nowrap;
+    }
+
+    .item-sub {
+        display: none;
+    }
+
+    .main {
+        padding: 0;
+        overflow: hidden;
+    }
+}
+
+/* ===== 竖屏视口：厂区寻路页强制横屏 =====
+ * 寻路页是车机式横屏版式，要求「无论操作系统开关是横屏还是竖屏，页面始终横屏展示」——
+ * 唯一判据是**视口本身是不是竖的**（宽 < 高），跟屏幕多大、系统方向锁定都无关。
+ * 竖着拿时把整层壳旋转 90°：393×852 的竖屏 → 852×393 的横屏画布，横过来即可正向阅读。
+ *
+ * ⚠️ 几何：宽取视口高（100dvh/dvw 跟随地址栏收放）、高取视口宽，transform-origin 左上，
+ *    rotate(90deg) 后再 translateY(-100%) 把旋转后的盒子平移回可视区。
+ * ⚠️ 旋转（transform）会让 .layout 成为 fixed 后代的包含块：map.vue 里 .page 的
+ *    position:fixed + --map-top/--map-left 全部落在旋转后的坐标系里，无需换算；
+ *    但 100vh / 100dvh 这类视口单位不会跟着转，所以 --vp-h 要改成 100dvw（旋转后的「高度」= 视口宽度）。
+ * ⚠️ min-height 必须归零：基础样式里 .layout{min-height:100%}（= 竖屏视口高 852）会顶开
+ *    height:100dvw(393)，不归零的话旋转后的画布尺寸直接错位。
+ * ⚠️ 只作用于寻路页（.is-map）：地磅查询、配置页仍是普通竖屏页面。
+ */
+@media (orientation: portrait) {
+    .layout.is-map {
+        --vp-h: 100dvw;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vh;
+        height: 100vw;
+        width: 100dvh;
+        height: 100dvw;
+        min-height: 0;
+        transform-origin: 0 0;
+        transform: rotate(90deg) translateY(-100%);
+        overflow: hidden;
     }
 }
 </style>

@@ -6,7 +6,7 @@
                     <div class="panel-title-row">
                         <span class="panel-title">值班人员</span>
                     </div>
-                    <div class="panel-sub">配置值班查询网页链接，保存后全站右上角的「值班人员」按钮将跳转到该页面</div>
+                    <div class="panel-sub">配置值班查询网页链接，保存后全站右上角的「地磅值班」按钮将跳转到该页面</div>
                 </div>
                 <div class="panel-tools duty-tools">
                     <el-input v-model="dutyUrlDraft" size="small" class="duty-input" clearable

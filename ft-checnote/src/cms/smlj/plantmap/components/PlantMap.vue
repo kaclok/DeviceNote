@@ -161,20 +161,13 @@
         </svg>
 
         <div class="map-controls" @pointerdown.stop>
-            <button class="map-btn" title="放大" @click="zoomBy(0.8)">+</button>
-            <button class="map-btn" title="缩小" @click="zoomBy(1.25)">−</button>
+            <button class="map-btn zoom" title="放大" @click="zoomBy(0.8)">+</button>
+            <button class="map-btn zoom" title="缩小" @click="zoomBy(1.25)">−</button>
             <button class="map-btn reset" title="复位" @click="resetView">复位</button>
         </div>
 
-        <!-- 右上角：旋转 + 全屏开关，全屏后同一按钮变为退出 -->
+        <!-- 右上角：全屏开关，全屏后同一按钮变为退出（地图旋转已下线，页面改用横屏布局） -->
         <div class="map-fs" @pointerdown.stop>
-            <button v-if="!editable" class="map-btn" :title="rotation ? '竖屏显示' : '横屏显示'" @click="rotateMap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 12a9 9 0 1 1-3-6.7"/>
-                    <path d="M21 3v6h-6"/>
-                </svg>
-            </button>
             <button class="map-btn" :title="fullscreen ? '退出全屏' : '全屏查看'" @click="toggleFullscreen">
                 <svg v-if="!fullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -602,20 +595,13 @@ function resetView() {
     rotation.value = 0
 }
 
-// ===== 地图旋转（浏览模式）=====
-/** 横竖屏切换：只在 0°（竖屏）/90°（横屏）之间切换；点位徽标反向自转保持文字直立 */
+// ===== 地图旋转（已下线）=====
+// 寻路页改用横屏布局后不再需要「竖屏地图转 90°」；rotation 恒为 0，
+// 旋转组、罗盘与徽标反向自转的结构保留，日后要恢复只需加回一个切换按钮。
 const rotation = ref(0)
 const rotTransform = computed(() => (rotation.value
     ? `rotate(${rotation.value} ${props.imageWidth / 2} ${props.imageHeight / 2})`
     : null))
-
-function rotateMap() {
-    rotation.value = rotation.value ? 0 : 90
-    // 旋转后视野回中，避免旧 viewBox 裁切到旋转后内容之外
-    syncViewBoxSize()
-    vb.x = 0
-    vb.y = 0
-}
 
 /** 将视野缩放到一组坐标（寻路结果），四周留出边距，手机竖屏下也能看清整条路线 */
 function fitToPoints(points) {
