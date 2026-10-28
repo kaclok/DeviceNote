@@ -65,9 +65,9 @@
                     <el-radio-group :model-value="orientationOf(page.code)" size="small"
                                     :disabled="pageSaving"
                                     @update:model-value="(value) => changeOrientation(page, value)">
-                        <el-radio-button :label="0">跟随手机横竖屏</el-radio-button>
-                        <el-radio-button :label="1">始终横屏</el-radio-button>
-                        <el-radio-button :label="2">始终竖屏</el-radio-button>
+                        <el-radio-button :value="0">跟随手机横竖屏</el-radio-button>
+                        <el-radio-button :value="1">始终横屏</el-radio-button>
+                        <el-radio-button :value="2">始终竖屏</el-radio-button>
                     </el-radio-group>
                 </div>
             </div>
@@ -247,7 +247,7 @@
                     </div>
                     <el-radio-group :model-value="gate.gateMode" size="small" class="gate-modes"
                                     @change="(value) => changeGateMode(gate, value)">
-                        <el-radio-button v-for="item in GATE_MODE_OPTIONS" :key="item.value" :label="item.value">
+                        <el-radio-button v-for="item in GATE_MODE_OPTIONS" :key="item.value" :value="item.value">
                             {{ item.label }}
                         </el-radio-button>
                     </el-radio-group>

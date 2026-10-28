@@ -1,12 +1,13 @@
 ﻿<template>
-    <div class="page" :class="{'rail-collapsed': isPhone && !railOpen, land: landLayout, narrow: narrowLayout}"
+    <div ref="pageRef" class="page"
+         :class="{'rail-collapsed': isPhone && !railOpen, land: landLayout, narrow: narrowLayout}"
          :style="{'--map-top': mapTop + 'px', '--map-left': mapLeft + 'px'}">
         <section class="planner">
             <div class="mode-row">
                 <span class="mode-label">寻路方式</span>
                 <el-radio-group v-model="mode" size="small">
-                    <el-radio-button label="material">按物资寻路</el-radio-button>
-                    <el-radio-button label="free">自由寻路</el-radio-button>
+                    <el-radio-button value="material">按物资寻路</el-radio-button>
+                    <el-radio-button value="free">自由寻路</el-radio-button>
                 </el-radio-group>
                 <span class="mode-tip">
                     {{ mode === 'material'
@@ -167,9 +168,11 @@
             </div>
         </section>
 
-        <!-- 收起态：左栏整块隐藏后，地图左上角浮出这枚按钮把左栏放回来 -->
-        <button v-if="isPhone && !railOpen" class="rail-open" @click="railOpen = true">
-            <i class="tri"></i>展开
+        <!-- 收起态：左栏整块隐藏后，地图左边框上浮出这枚三角小把把左栏放回来
+             （落点固定：骑在地图卡片左边框、垂直居中，见 .page.land .rail-open） -->
+        <button v-if="isPhone && !railOpen" class="rail-open" :title="RAIL_EXPAND_TIP"
+                @click="toggleRail">
+            <i class="tri"></i><span class="rail-label">展开</span>
         </button>
 
         <div v-if="plantState.loadError" class="error-tip">
@@ -195,6 +198,7 @@
                 </div>
 
                 <PlantMap
+                    ref="plantMapRef"
                     :nodes="visibleNodes"
                     :roads="roadsWithState"
                     :routes="mapRoutes"
@@ -225,10 +229,13 @@
                         <span class="side-sub" v-if="routes.length && !isPhone">
                             {{ routes.length }} 条 · {{ routeTitle }}
                         </span>
-                        <!-- 收起/展开按钮放在方案卡右上角：条件卡会随页面滚走，按钮留在方案区顶部
-                             （再配 sticky 头，方案较多时也不会被滚出视野） -->
-                        <button v-if="isPhone" class="mode-collapse" @click="railOpen = !railOpen">
-                            <i class="tri" :class="{open: railOpen}"></i>{{ railOpen ? '收起' : '展开' }}
+                        <!-- 收起/展开按钮挂在方案卡右框边（横屏车机版式下只露一枚三角，
+                             一半在框内一半在框外，见 .page.land .mode-collapse） -->
+                        <button v-if="isPhone" class="mode-collapse"
+                                :title="railOpen ? RAIL_COLLAPSE_TIP : RAIL_EXPAND_TIP"
+                                @click="toggleRail">
+                            <i class="tri" :class="{open: railOpen}"></i>
+                            <span class="rail-label">{{ railOpen ? '收起' : '展开' }}</span>
                         </button>
                     </div>
                     <div class="speed-tip">厂区道路统一限速 25 km/h，用时为估算值</div>
@@ -287,8 +294,6 @@ import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {ElMessage} from 'element-plus'
 import PlantMap from '../components/PlantMap.vue'
 import {
-    ORIENT_LANDSCAPE,
-    ORIENT_PORTRAIT,
     STATUS_TEXT,
     TYPE_COLOR,
     TYPE_LABEL,
@@ -300,7 +305,8 @@ import {
     materialList,
     nodeList,
     nodeMap,
-    pageOrientationOf,
+    pageCanvasNarrow,
+    pageLandscape,
     plantMeta,
     plantState,
     poiGroups,
@@ -345,10 +351,34 @@ const errorMsg = ref('')
 const legend = LEGEND
 // 手机端：左栏（寻路条件 + 寻路方案）整体展开/收起，收起后地图独占整屏
 const railOpen = ref(true)
+// 收起/展开小把的提示：横屏车机版式下按钮只剩一枚三角（文字隐藏），含义靠 title 补
+const RAIL_COLLAPSE_TIP = '收起寻路条件与方案'
+const RAIL_EXPAND_TIP = '展开寻路条件与方案'
 // 手机端地图固定铺满导航栏以下时的顶部偏移（topbar + 横向导航高度，动态测量）
 const mapTop = ref(106)
 // 手机横屏时左侧图标导航的宽度（地图/面板整体右移让位）
 const mapLeft = ref(0)
+
+const pageRef = ref(null)
+const plantMapRef = ref(null)
+
+/**
+ * 收起 / 展开左栏（手机端）。
+ * 收起时复位一次地图视图 —— 地图从「右侧一列」变成满屏，viewBox 还是按旧尺寸算的，
+ * 不复位会停在放大的局部。要等两帧：一帧让 display:none 生效，一帧等布局/尺寸观察器上报。
+ */
+async function toggleRail() {
+    if (!railOpen.value) {
+        railOpen.value = true
+        return
+    }
+    railOpen.value = false
+    // 只有横屏车机版式里左栏消失才会让地图变宽（竖屏下地图本来就是 fixed 满屏），
+    // 那种情况才需要复位，别把竖屏里刚缩放到想要的视野也一并打回整图
+    if (!landLayout.value) return
+    await nextTick()
+    requestAnimationFrame(() => requestAnimationFrame(() => plantMapRef.value?.resetView?.()))
+}
 
 const outMaterials = computed(() => materialList.value.filter((item) => item.direction === 'out'))
 const inMaterials = computed(() => materialList.value.filter((item) => item.direction === 'in'))
@@ -925,24 +955,20 @@ const landLayout = ref(false)
 // 是否套用窄屏手机版式（.page.narrow）：同上，见 narrowCanvas()
 const narrowLayout = ref(false)
 
-// 判据直接复用 CSS 的两条媒体查询：设备旋转时 innerWidth/innerHeight 可能晚一拍才更新，
+// 判据直接复用 CSS 的媒体查询：设备旋转时 innerWidth/innerHeight 可能晚一拍才更新，
 // 用 matchMedia 可保证 JS 与样式表永远认同一个视口状态（否则网格会拿旧偏移量布局）
 const PHONE_MQ = '(max-width: 760px), (orientation: landscape) and (max-height: 560px), (orientation: portrait)'
-const LANDSCAPE_MQ = '(orientation: landscape) and (max-height: 560px)'
 // 本页在 nav.page_display 里的标识（与路由 name 一致）
 const PAGE_CODE = 'home_map'
 
 /**
- * 是否套用横屏车机版式（.page.land）：由「配置 / 磅房与绑定」里本页的显示方向决定——
+ * 是否套用横屏车机版式（.page.land）：判据在 PlantStore.pageLandscape（切页配置 + 视口形状）。
  * 1 始终横屏：竖着拿时也算横屏（home.vue 会把整层壳旋转 90°）；
  * 2 始终竖屏：永远竖屏版式；
  * 0 跟随手机横竖屏：视口横着才用横屏版式（大屏仍走桌面版式，所以还要看高度）。
  */
 function landscapeLayout() {
-    const orientation = pageOrientationOf(PAGE_CODE)
-    if (orientation === ORIENT_PORTRAIT) return false
-    if (window.matchMedia('(orientation: portrait)').matches) return orientation === ORIENT_LANDSCAPE
-    return window.matchMedia(LANDSCAPE_MQ).matches
+    return pageLandscape(PAGE_CODE)
 }
 
 /**
@@ -952,8 +978,7 @@ function landscapeLayout() {
  * 强制横屏（.land）自带一整套横屏版式，不叠加 narrow（调用方已用 !landscape 短路）。
  */
 function narrowCanvas() {
-    if (pageOrientationOf(PAGE_CODE) === ORIENT_PORTRAIT) return true
-    return window.matchMedia('(max-width: 760px)').matches
+    return pageCanvasNarrow(PAGE_CODE)
 }
 
 function syncPhoneLayout() {
@@ -1148,6 +1173,12 @@ onBeforeUnmount(() => {
 .rail-open:hover {
     border-color: #1677ff;
     color: #ffffff;
+}
+/* 竖屏（.narrow）本来就没有收起入口（.side-head 被隐藏），只有从横屏版式切过来时会停在收起态：
+   fixed 按画布坐标贴地图左上角，别跟着静态位置乱飘 */
+.page.narrow .rail-open {
+    top: calc(var(--map-top, 106px) + 8px);
+    left: 8px;
 }
 
 /* 寻路条件竖向堆叠，仿高德导航面板 */
@@ -2210,10 +2241,44 @@ onBeforeUnmount(() => {
     font-size: 12px;
 }
 
+/* 收起/展开：横屏下不再占标题行，改成挂在「寻路方案」右框边上的小把 —— 框内一半、框外一半，
+ * 露在框外的部分只看得见那一枚三角（文字隐藏，含义靠 title）。点它就收起/展开整条左栏。
+ * ⚠️ 它挂在 sticky 的 .side-head 里：absolute 相对表头定位，表头 margin-right:-8px 已对齐卡片右框边，
+ *    所以 right 取负值才是「探出框外」，同时 z-index 要压过表头（否则被同层白底盖住）。 */
 .page.land .mode-collapse {
+    position: absolute;
+    top: 3px;
+    right: -12px;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
     height: 26px;
-    padding: 0 8px;
+    padding: 0;
+    border: 1px solid #dbe4f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #35639f;
     font-size: 11px;
+    box-shadow: 0 2px 8px rgba(31, 58, 95, .18);
+}
+
+.page.land .mode-collapse:hover {
+    border-color: #1677ff;
+    color: #1677ff;
+}
+
+.page.land .mode-collapse .rail-label {
+    display: none;
+}
+
+/* 三角放大一档：框外那半只有 ~12px，太小就看不出来是个可点的把 */
+.page.land .mode-collapse .tri {
+    margin-right: 0;
+    border-left-width: 7px;
+    border-top-width: 5px;
+    border-bottom-width: 5px;
 }
 
 /* 标签移到控件上方（竖排单列），窄栏里下拉才有足够宽度可读 */
@@ -2341,23 +2406,50 @@ onBeforeUnmount(() => {
     grid-column: 1 / -1;
 }
 
-/* 顶部图例胶囊让开左上角的「展开」浮钮（浮钮与图例同高同顶边，中间留 6px） */
-.page.land.rail-collapsed .map-head {
-    left: 72px;
-}
+/* 顶部图例胶囊不用再给「展开」小把让位：小把落在左边框中段，离顶部图例很远 */
 
 /* 没有左栏可让位，错误提示贴回地图左边 */
 .page.land.rail-collapsed .error-tip {
     left: 16px;
 }
 
-/* 浮钮压在地图左上角，与图例胶囊同顶边同高（.page 自带 8px 内边距，这里要加回来） */
+/* 收起态的小把：骑在地图左边框上、垂直居中（红框位）。
+ * 用 absolute 相对 .page（横屏下 .page 是 fixed，天然是包含块）：布局坐标不受祖先旋转影响，
+ * 而 fixed / vw / vh 的 client 坐标在旋转壳里都会错轴。
+ * ⚠️ left 只能取 0（= .page 内边距盒左沿）：再往左就被 overflow-x: hidden 裁掉半只；
+ *    地图卡片左边框就在这条线往右 8px（.page 的 padding），所以小把自然跨在框内外。 */
 .page.land .rail-open {
-    top: calc(var(--map-top, 42px) + 14px);
-    left: calc(var(--map-left, 64px) + 14px);
-    height: 24px;
-    padding: 0 10px 0 9px;
+    position: absolute;
+    /* 13 = 自身高度的一半（下同）：用 calc 而不是 transform 居中，
+       这样 offsetTop 就是真实落点（transform 不参与布局，量出来的位置会差半只） */
+    top: calc(50% - 13px);
+    left: 0;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-color: #dbe4f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #35639f;
     font-size: 11.5px;
+    box-shadow: 0 2px 8px rgba(31, 58, 95, .2);
+}
+
+.page.land .rail-open:hover {
+    border-color: #1677ff;
+    color: #1677ff;
+}
+
+.page.land .rail-open .rail-label {
+    display: none;
+}
+
+.page.land .rail-open .tri {
+    margin-right: 0;
+    border-left-width: 7px;
+    border-top-width: 5px;
+    border-bottom-width: 5px;
 }
 
 /* ---------- 左栏下：候选方案（竖向滚动） ---------- */

@@ -1034,6 +1034,10 @@ function onKeyDown(event) {
         y: Math.round((Number(node.y) + delta[1]) * 10) / 10,
     })
 }
+
+// 对外方法：调用方容器尺寸变了（如寻路页收起左栏、地图从 60% 宽变满屏）时复位一次视图。
+// 不复位的话 viewBox 还是按小尺寸算的，地图会停在「放大的局部」而不是整图。
+defineExpose({resetView})
 </script>
 
 <style scoped>

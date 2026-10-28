@@ -392,6 +392,81 @@ export function pageOrientationOf(pageCode) {
     return value === ORIENT_LANDSCAPE || value === ORIENT_PORTRAIT ? value : ORIENT_FOLLOW
 }
 
+/**
+ * 某切页最终呈现的画布是否算「横着的」：
+ * 1 始终横屏 → 竖着拿也算（home.vue 会把整层壳旋转 90°，画布变成横的）；
+ * 2 始终竖屏 → 永远不算；
+ * 0 跟随系统 → 视口横着才算。
+ */
+function canvasIsWide(pageCode) {
+    const orientation = pageOrientationOf(pageCode)
+    if (orientation === ORIENT_LANDSCAPE) return true
+    if (orientation === ORIENT_PORTRAIT) return false
+    return window.matchMedia('(orientation: landscape)').matches
+}
+
+/**
+ * 画布的某个尺寸是否 ≤ max。关键点：切页被配成「始终横屏/竖屏」时 home.vue 会旋转整层壳，
+ * 画布的宽/高取的是视口的**另一边** —— `@media(max-width:760px)` 只认视口，这时就判反了。
+ * 全部用 matchMedia 判（与样式表认同同一状态），不用 innerWidth（旋转瞬间会滞后一拍）。
+ */
+function canvasMedia(pageCode, dim, max) {
+    const wide = canvasIsWide(pageCode)
+    const portraitView = window.matchMedia('(orientation: portrait)').matches
+    // 画布方向与视口形状相反 ⇒ 画布的宽取视口高、高取视口宽
+    const swapped = wide === portraitView
+    const side = dim === 'w' ? (swapped ? 'height' : 'width') : (swapped ? 'width' : 'height')
+    return window.matchMedia(`(max-${side}: ${max}px)`).matches
+}
+
+/**
+ * 某切页最终呈现的画布是否算「横屏矮版式」（页面根节点加 .land）。
+ * 除了画布是横的，还要求画布够矮 —— 跟随系统的桌面横屏（高 900）仍走桌面版式，
+ * 只有手机横放那种矮画布才压成车机版式。
+ */
+export function pageLandscape(pageCode) {
+    return canvasIsWide(pageCode) && canvasMedia(pageCode, 'h', 560)
+}
+
+/**
+ * 该切页此刻的整层壳**是否被旋转**（home.vue 的 .force-land / .force-port）：
+ * 「始终横屏」+ 竖视口 → 顺时针 90°；「始终竖屏」+ 横视口 → 逆时针 90°；跟随系统永不旋转。
+ * 用途：旋转态下 **teleport 到 body 的浮层不在旋转坐标系里** —— el-select 的下拉面板
+ * 用 client 坐标定位，弹出来是正的（相对手机是竖的）、还会被甩到画布外。
+ * 这些组件必须按这个判据关掉 teleport 改内联渲染（再配合 CSS 定死位置）。
+ */
+export function pageRotated(pageCode) {
+    const orientation = pageOrientationOf(pageCode)
+    if (orientation === ORIENT_FOLLOW) return false
+    const portraitView = window.matchMedia('(orientation: portrait)').matches
+    return orientation === ORIENT_LANDSCAPE ? portraitView : !portraitView
+}
+
+/**
+ * 某切页最终呈现的**画布宽度**是否 ≤ max（窄屏手机版式判据）。
+ * 这批规则原先写在 `@media (max-width:760px)` 里，改成类名的原因同上：
+ * 「始终竖屏」的切页在横屏视口下画布只有 393 宽，媒体查询看到的却还是 852。
+ */
+export function pageCanvasNarrow(pageCode, max = 760) {
+    return canvasMedia(pageCode, 'w', max)
+}
+
+/**
+ * 某切页最终呈现的画布尺寸（像素）。用途：旋转态下 `vw/vh` **不跟着 transform 转**
+ * （竖视口 + 始终横屏时画布是 852×393，但 100vh 仍是 852），弹窗宽度、列表最大高度
+ * 这类只能按画布像素算，用 vw/vh 会算错。
+ */
+export function pageCanvasSize(pageCode) {
+    const wide = canvasIsWide(pageCode)
+    const portraitView = window.innerHeight > window.innerWidth
+    const swapped = wide === portraitView
+    return {
+        w: swapped ? window.innerHeight : window.innerWidth,
+        h: swapped ? window.innerWidth : window.innerHeight,
+        wide,
+    }
+}
+
 /** 修改切页显示方向并写库；失败时由调用方提示 */
 export function setPageOrientation(pageCode, orientation) {
     const value = Number(orientation)

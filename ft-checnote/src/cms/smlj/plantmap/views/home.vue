@@ -303,6 +303,9 @@ function openDuty() {
 
 .main {
     flex: 1;
+    /* flex 子项默认 min-height:auto：内容高于外壳时会把 .main 撑破，
+       于是 overflow-y:auto 永远没有可滚空间、超出的部分直接被裁掉（横屏矮画布必踩） */
+    min-height: 0;
     overflow-y: auto;
     padding: 16px 20px 24px;
 }
@@ -425,8 +428,11 @@ function openDuty() {
     --vp-h: 100dvh;
 }
 
-/* 寻路页的壳钉死在视口：地址栏收起那套「往文档底部垫滚距再滚过去」的操作 会把静态定位的顶栏/导航一起滚走（实测顶栏被顶出屏幕 60px），钉住后文档滚动不影响观感 */
-.layout.is-car.is-map {
+/* 横屏车机壳一律钉死在视口：
+ * ① 寻路页靠 `.main` 里的地址栏滚距把地址栏收起来，静态定位的顶栏/导航会被一起滚走（实测顶栏被顶出屏幕 60px）；
+ * ② 其余切页（地磅查询、配置）若不钉死，`.layout` 只有 min-height:100%、会被内容撑高，
+ *    `.main` 跟着内容长高 ⇒ overflow-y:auto 永无可滚空间，多出来的部分要么被裁要么整页滚走顶栏。 */
+.layout.is-car {
     position: fixed;
     top: 0;
     left: 0;
@@ -439,6 +445,12 @@ function openDuty() {
     height: 42px;
     gap: 10px;
     padding: 0 10px;
+}
+
+/* 横屏矮画布（351px 内容高）每一像素都要留给内容：默认 16/20/24 的外留白占掉 40px。
+ * 寻路页另有更紧的 padding:0（地图要贴边），见下方 .is-map 规则。 */
+.layout.is-car .main {
+    padding: 10px 12px 12px;
 }
 
 .layout.is-car .brand-mark {
@@ -514,7 +526,10 @@ function openDuty() {
     display: none;
 }
 
-.layout.is-car .main {
+/* ⚠️ 只有寻路页要「地图贴边 + 由地图卡自己滚」。其余切页必须沿用 .main 的默认
+ * padding + overflow-y:auto —— 否则车机外壳（is-car）会把地磅查询等页面的滚动一并关掉，
+ * 内容超出 351px 可视高就只能被裁掉、滚不动。 */
+.layout.is-car.is-map .main {
     padding: 0;
     overflow: hidden;
 }
@@ -570,5 +585,14 @@ function openDuty() {
     transform-origin: 0 0;
     transform: rotate(-90deg) translateX(-100%);
     overflow: hidden;
+}
+
+/* 定高壳（旋转壳 / 钉死在视口的寻路页）里的 .body 必须允许收缩：
+ * flex 子项默认 min-height:auto 会被内容撑破壳高，.main 于是长得跟内容一样高、
+ * overflow-y:auto 永远没有可滚空间（表现就是「内容被裁且滚不动」）。 */
+.layout.is-car .body,
+.layout.force-land .body,
+.layout.force-port .body {
+    min-height: 0;
 }
 </style>
