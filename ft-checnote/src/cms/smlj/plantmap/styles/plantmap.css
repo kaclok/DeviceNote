@@ -76,3 +76,32 @@ body .el-select-dropdown__item .opt-type {
     color: #94a3b8;
     font-size: 10px;
 }
+
+/* ---------- iOS 焦点自动缩放 / 双击缩放 ----------
+ * 现象：iPhone（Safari / Edge / Chrome 全是 WebKit 内核）点一下下拉框，整页被放大一下，
+ *       观感像在空白处双击放大，且每次点下拉都会发生。
+ * 原因：iOS 在 focus 到 font-size < 16px 的输入类控件时会自动放大页面；el-select 内部
+ *       就是一个 readonly input（.el-select__input），上面的基础规则把它的字号压到了 12px。
+ * 修法：① 移动端把**可聚焦控件本身**提到 16px。下拉里展示的已选项是另一层元素
+ *          （.el-select__placeholder / .el-select__selected-item），仍保持 12px —— 视觉不变，
+ *          只有真正的输入框字号变大，页面不再触发焦点缩放；
+ *       ② touch-action: manipulation 去掉双击缩放判定（"点下拉 → 点选项"本身就是两连击）。
+ * ⚠️ 不要用 viewport 的 maximum-scale=1 / user-scalable=no 兜底：iOS 10 起直接忽略，
+ *    还会破坏用户双指缩放的无障碍能力。
+ */
+@media (max-width: 760px) {
+    body .el-select__input,
+    body .el-input__inner,
+    body .el-textarea__inner,
+    body .el-date-editor input {
+        font-size: 16px;
+    }
+
+    body .el-select__wrapper,
+    body .el-select-dropdown__item,
+    body .el-input__wrapper,
+    body .el-date-editor .el-input__wrapper,
+    body button {
+        touch-action: manipulation;
+    }
+}
