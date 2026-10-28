@@ -77,6 +77,13 @@
         <result column="sort_no" property="sortNo"/>
     </resultMap>
 
+    <resultMap id="pageMap" type="com.smlj.nav.o.NavPage">
+        <result column="plant_id" property="plantId"/>
+        <result column="page_code" property="pageCode"/>
+        <result column="orientation" property="orientation"/>
+        <result column="sort_no" property="sortNo"/>
+    </resultMap>
+
     <select id="selectPlant" resultMap="plantMap">
         select id, name, image_url, image_width, image_height, meters_per_pixel, remark, update_time
         from nav.plant
@@ -122,6 +129,26 @@
     <delete id="deleteMaterials">
         delete from nav.material where plant_id = #{plant_id}
     </delete>
+
+    <select id="selectPages" resultMap="pageMap">
+        select plant_id, page_code, orientation, sort_no
+        from nav.page_display
+        where plant_id = #{plant_id}
+        order by sort_no, page_code
+    </select>
+
+    <delete id="deletePages">
+        delete from nav.page_display where plant_id = #{plant_id}
+    </delete>
+
+    <insert id="insertPages">
+        insert into nav.page_display (plant_id, page_code, orientation, sort_no)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.plantId}, #{item.pageCode}, #{item.orientation,jdbcType=SMALLINT},
+             #{item.sortNo,jdbcType=INTEGER})
+        </foreach>
+    </insert>
 
     <delete id="deleteScales">
         delete from nav.scale where plant_id = #{plant_id}

@@ -1,10 +1,10 @@
-<template>
-    <div class="page">
+﻿<template>
+    <div class="page" :class="{narrow: narrowLayout}">
         <section class="panel">
             <div class="panel-head duty-head">
                 <div class="panel-head-main">
                     <div class="panel-title-row">
-                        <span class="panel-title">值班人员</span>
+                        <span class="panel-title">地磅值班人员</span>
                     </div>
                     <div class="panel-sub">配置值班查询网页链接，保存后全站右上角的「地磅值班」按钮将跳转到该页面</div>
                 </div>
@@ -41,6 +41,34 @@
                     <el-button size="small" type="primary" :loading="limitsSaving" @click="saveQueryLimits">
                         保存条数
                     </el-button>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head duty-head">
+                <div class="panel-head-main">
+                    <div class="panel-title-row">
+                        <span class="panel-title">切页显示方向</span>
+                    </div>
+                    <div class="panel-sub">
+                        每个切页单独设置「始终横屏 / 始终竖屏 / 跟随手机横竖屏」，切换即时写库，刷新页面后生效
+                    </div>
+                </div>
+            </div>
+            <div class="orient-list">
+                <div v-for="page in PAGE_LIST" :key="page.code" class="orient-row">
+                    <div class="orient-name">
+                        <span class="orient-title">{{ page.label }}</span>
+                        <span class="orient-sub">{{ page.sub }}</span>
+                    </div>
+                    <el-radio-group :model-value="orientationOf(page.code)" size="small"
+                                    :disabled="pageSaving"
+                                    @update:model-value="(value) => changeOrientation(page, value)">
+                        <el-radio-button :label="0">跟随手机横竖屏</el-radio-button>
+                        <el-radio-button :label="1">始终横屏</el-radio-button>
+                        <el-radio-button :label="2">始终竖屏</el-radio-button>
+                    </el-radio-group>
                 </div>
             </div>
         </section>
@@ -329,10 +357,13 @@
 </template>
 
 <script setup lang="js">
-import {computed, onMounted, reactive, ref} from 'vue'
+import {computed, onBeforeUnmount, onMounted, reactive, ref} from 'vue'
 import {ElMessage} from 'element-plus'
 import {
     DIRECTION_TEXT,
+    ORIENTATION_TEXT,
+    ORIENT_PORTRAIT,
+    PAGE_LIST,
     STATUS_TEXT,
     addMaterial,
     boundScaleIds,
@@ -341,6 +372,7 @@ import {
     loadConfig,
     materialList,
     nodeList,
+    pageOrientationOf,
     plantState,
     saveConfig,
     scaleById,
@@ -351,6 +383,7 @@ import {
     setGateMaterials,
     setGateMode,
     setMaterialVoice,
+    setPageOrientation,
     setScaleStatus,
 } from '../system/PlantStore.js'
 import {speak} from '../utils/SpeechX.js'
@@ -422,6 +455,44 @@ async function saveQueryLimits() {
 
 function statusActions(status) {
     return STATUS_ACTIONS[status] || []
+}
+
+// 切页显示方向：0 跟随手机横竖屏 / 1 始终横屏 / 2 始终竖屏（存 nav.page_display.orientation）
+const pageSaving = ref(false)
+
+/*
+ * 窄屏版式（.page.narrow）：这批规则原先写在 @media (max-width:760px) 里。
+ * 改成类名是为了照顾「始终竖屏」——横屏视口下 home.vue 会把整层壳反向旋转成竖画布，
+ * 画布只有 393 宽而媒体查询看到的仍是宽视口，媒体查询表达不了这种组合。
+ * 本页不在 map.vue 那套 .land 体系里，所以「始终横屏」时仍沿用窄屏规则（旋转后视觉宽度不变）。
+ */
+const PAGE_CODE = 'home_setting'
+const narrowMq = window.matchMedia('(max-width: 760px)')
+const narrowViewport = ref(narrowMq.matches)
+const narrowLayout = computed(() => narrowViewport.value || pageOrientationOf(PAGE_CODE) === ORIENT_PORTRAIT)
+
+function onNarrowChange(event) {
+    narrowViewport.value = event.matches
+}
+
+onBeforeUnmount(() => narrowMq.removeEventListener('change', onNarrowChange))
+
+function orientationOf(code) {
+    return pageOrientationOf(code)
+}
+
+async function changeOrientation(page, value) {
+    const next = Number(value)
+    if (pageOrientationOf(page.code) === next) return
+    pageSaving.value = true
+    try {
+        await setPageOrientation(page.code, next)
+        ElMessage.success(`「${page.label}」已设为${ORIENTATION_TEXT[next] || '跟随手机横竖屏'}`)
+    } catch (e) {
+        ElMessage.error(plantState.saveError || '保存失败，请检查后端服务')
+    } finally {
+        pageSaving.value = false
+    }
 }
 
 const scaleCards = computed(() => scaleList.value
@@ -652,6 +723,7 @@ async function reload() {
 }
 
 onMounted(async () => {
+    narrowMq.addEventListener('change', onNarrowChange)
     await loadConfig()
     dutyUrlDraft.value = plantState.plant.dutyUrl || ''
     vehicleWeighDraft.value = Number(plantState.plant.vehicleWeighCount) || 6
@@ -963,18 +1035,60 @@ onMounted(async () => {
     color: #94a3b8;
 }
 
-@media (max-width: 760px) {
-    .duty-head {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .duty-input {
-        width: 100%;
-        flex: 1;
-        min-width: 0;
-    }
+/* 切页显示方向配置 */
+.orient-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 16px 16px;
 }
+
+.orient-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    border: 1px solid #e7edf5;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.orient-name {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 190px;
+}
+
+.orient-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.orient-sub {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.page.narrow .orient-name {
+    min-width: 0;
+    flex: 1 1 100%;
+}
+
+
+.page.narrow .duty-head {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.page.narrow .duty-input {
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+}
+
 
 .status-filter {
     width: 110px;

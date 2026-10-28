@@ -12,7 +12,7 @@
  Target Server Version : 170002 (170002)
  File Encoding         : 65001
 
- Date: 27/10/2026 16:52:57
+ Date: 28/10/2026 11:20:00
 */
 
 
@@ -128,6 +128,29 @@ INSERT INTO "nav"."node" VALUES ('p1', 'default', 'P1', '1#停车场', 4, 178.70
 INSERT INTO "nav"."node" VALUES ('p2', 'default', 'P2', '2#停车场', 4, 1171.40, 444.80, 1, '南门内侧待卸车辆停车场', 402, 't');
 
 -- ----------------------------
+-- Table structure for page_display
+-- ----------------------------
+DROP TABLE IF EXISTS "nav"."page_display";
+CREATE TABLE "nav"."page_display" (
+  "plant_id" varchar(32) COLLATE "pg_catalog"."default" NOT NULL,
+  "page_code" varchar(32) COLLATE "pg_catalog"."default" NOT NULL,
+  "orientation" int2 NOT NULL DEFAULT 0,
+  "sort_no" int4 NOT NULL DEFAULT 0
+)
+;
+COMMENT ON COLUMN "nav"."page_display"."page_code" IS '切页标识，与前端路由 name 一致：home_map=厂区寻路 home_gb=地磅查询 home_setting=配置';
+COMMENT ON COLUMN "nav"."page_display"."orientation" IS '显示方向：0=跟随手机横竖屏 1=始终横屏 2=始终竖屏';
+COMMENT ON COLUMN "nav"."page_display"."sort_no" IS '配置页展示顺序';
+COMMENT ON TABLE "nav"."page_display" IS '各切页的屏幕显示方向配置';
+
+-- ----------------------------
+-- Records of page_display
+-- ----------------------------
+INSERT INTO "nav"."page_display" VALUES ('default', 'home_map', 1, 1);
+INSERT INTO "nav"."page_display" VALUES ('default', 'home_gb', 0, 2);
+INSERT INTO "nav"."page_display" VALUES ('default', 'home_setting', 0, 3);
+
+-- ----------------------------
 -- Table structure for plant
 -- ----------------------------
 DROP TABLE IF EXISTS "nav"."plant";
@@ -150,7 +173,7 @@ COMMENT ON COLUMN "nav"."plant"."duty_url" IS '值班人员网页链接，空表
 -- ----------------------------
 -- Records of plant
 -- ----------------------------
-INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-27 15:57:40.888474', 'http://kszr.sxjthxjt.com:8089/weighbridgeDuty', 6, 50);
+INSERT INTO "nav"."plant" VALUES ('default', '陕西金泰化学神木氯碱有限公司厂区图', '/plantmap/plant.png', 1280, 558, 0.9000, '坐标基于卫星平面图估算，可在「地图配置」中拖拽修正', '2026-10-27 16:59:18.061434', 'http://kszr.sxjthxjt.com:8089/weighbridgeDuty', 6, 50);
 
 -- ----------------------------
 -- Table structure for road
@@ -234,14 +257,14 @@ COMMENT ON COLUMN "nav"."scale"."gb_no" IS '磅号(1~99)，对应 gb-watcher 上
 -- ----------------------------
 -- Records of scale
 -- ----------------------------
-INSERT INTO "nav"."scale" VALUES ('s1', 'default', 'B1', '1#磅房', 's1', '', '51.4t', 1, 1, 1);
-INSERT INTO "nav"."scale" VALUES ('s2', 'default', 'B2', '2#磅房', 's2', '', '51.4t', 2, 2, 2);
-INSERT INTO "nav"."scale" VALUES ('s3', 'default', 'B3', '3#磅房', 's3', '', '51t', 3, 3, 3);
-INSERT INTO "nav"."scale" VALUES ('s4', 'default', 'B4', '4#磅房', 's4', '', '51t', 1, 4, 4);
-INSERT INTO "nav"."scale" VALUES ('s5', 'default', 'B5', '5#磅房', 's5', '', '51t', 3, 5, 5);
-INSERT INTO "nav"."scale" VALUES ('s6', 'default', 'B6', '6#磅房', 's6', '', '51t', 3, 6, 6);
-INSERT INTO "nav"."scale" VALUES ('s7', 'default', 'B7', '7#磅房', 's7', '', '51t', 2, 7, 7);
-INSERT INTO "nav"."scale" VALUES ('s8', 'default', 'B8', '8#磅房', 's8', '', '51t', 1, 8, 8);
+INSERT INTO "nav"."scale" VALUES ('s1', 'default', 'B1', '1#磅', 's1', '', '51.4t', 1, 1, 1);
+INSERT INTO "nav"."scale" VALUES ('s2', 'default', 'B2', '2#磅', 's2', '', '51.4t', 2, 2, 2);
+INSERT INTO "nav"."scale" VALUES ('s3', 'default', 'B3', '3#磅', 's3', '', '51t', 3, 3, 3);
+INSERT INTO "nav"."scale" VALUES ('s4', 'default', 'B4', '4#磅', 's4', '', '51t', 1, 4, 4);
+INSERT INTO "nav"."scale" VALUES ('s5', 'default', 'B5', '5#磅', 's5', '', '51t', 3, 5, 5);
+INSERT INTO "nav"."scale" VALUES ('s6', 'default', 'B6', '6#磅', 's6', '', '51t', 3, 6, 6);
+INSERT INTO "nav"."scale" VALUES ('s7', 'default', 'B7', '7#磅', 's7', '', '51t', 2, 7, 7);
+INSERT INTO "nav"."scale" VALUES ('s8', 'default', 'B8', '8#磅', 's8', '', '51t', 1, 8, 8);
 
 -- ----------------------------
 -- Indexes structure for table gate
@@ -278,6 +301,11 @@ CREATE INDEX "idx_nav_node_plant" ON "nav"."node" USING btree (
 -- Primary Key structure for table node
 -- ----------------------------
 ALTER TABLE "nav"."node" ADD CONSTRAINT "node_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Primary Key structure for table page_display
+-- ----------------------------
+ALTER TABLE "nav"."page_display" ADD CONSTRAINT "page_display_pkey" PRIMARY KEY ("plant_id", "page_code");
 
 -- ----------------------------
 -- Primary Key structure for table plant

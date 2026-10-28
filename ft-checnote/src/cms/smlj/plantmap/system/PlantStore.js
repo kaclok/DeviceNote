@@ -16,6 +16,22 @@ export const NODE_TYPE_CODE = {gate: 1, junction: 2, scale: 3, parking: 4, picku
 export const ROAD_LEVEL_CODE = {main: 1, secondary: 2, branch: 3}
 export const GATE_MODE_CODE = {both: 1, in: 2, out: 3, none: 4}
 export const MATERIAL_DIRECTION_CODE = {in: 1, out: 2}
+
+// 切页显示方向（nav.page_display.orientation，库里存数值）：0 跟随手机横竖屏、1 始终横屏、2 始终竖屏
+export const ORIENT_FOLLOW = 0
+export const ORIENT_LANDSCAPE = 1
+export const ORIENT_PORTRAIT = 2
+export const ORIENTATION_TEXT = {
+    [ORIENT_FOLLOW]: '跟随手机横竖屏',
+    [ORIENT_LANDSCAPE]: '始终横屏',
+    [ORIENT_PORTRAIT]: '始终竖屏',
+}
+// 可配置的切页，code 与路由 name 一致（顺序即配置页展示顺序）
+export const PAGE_LIST = [
+    {code: 'home_map', label: '厂区寻路', sub: '起点 → 磅房 → 装卸点'},
+    {code: 'home_gb', label: '地磅查询', sub: '过磅日志 · 车牌记录'},
+    {code: 'home_setting', label: '配置', sub: '磅房绑定 · 地图配置'},
+]
 const NODE_TYPE_BY_CODE = invertCode(NODE_TYPE_CODE)
 const ROAD_LEVEL_BY_CODE = invertCode(ROAD_LEVEL_CODE)
 const GATE_MODE_BY_CODE = invertCode(GATE_MODE_CODE)
@@ -116,7 +132,30 @@ function normalize(raw) {
             enabled: material.enabled === 0 || material.enabled === '0' ? 0 : 1,
             sortNo: Number(material.sortNo) || 0,
         })),
+        // 切页显示方向：后端未返回（老库/未迁移）时回落到 plant.json 的默认值
+        pages: normalizePages(raw?.pages),
     }
+}
+
+/** 补齐三档合法值；缺失的切页用默认（跟随系统）补上，保证配置页永远列出全部切页 */
+function normalizePages(rawPages) {
+    const source = Array.isArray(rawPages) && rawPages.length ? rawPages : defaultConfig.pages || []
+    const byCode = new Map()
+    for (const item of source) {
+        const code = String(item?.pageCode || item?.code || '').trim()
+        if (!code) continue
+        const value = Number(item?.orientation)
+        byCode.set(code, {
+            pageCode: code,
+            orientation: value === ORIENT_LANDSCAPE || value === ORIENT_PORTRAIT ? value : ORIENT_FOLLOW,
+            sortNo: Number(item?.sortNo) || 0,
+        })
+    }
+    return PAGE_LIST.map((page, index) => byCode.get(page.code) || {
+        pageCode: page.code,
+        orientation: ORIENT_FOLLOW,
+        sortNo: index + 1,
+    }).sort((a, b) => (a.sortNo || 0) - (b.sortNo || 0))
 }
 
 export const plantState = reactive({
@@ -232,6 +271,12 @@ function toPayload() {
             enabled: material.enabled === 0 ? 0 : 1,
             sortNo: material.sortNo || 0,
         })),
+        pages: (plantState.pages || []).map((page, index) => ({
+            plantId: PLANT_ID,
+            pageCode: page.pageCode,
+            orientation: Number(page.orientation) || ORIENT_FOLLOW,
+            sortNo: page.sortNo || index + 1,
+        })),
     }
 }
 
@@ -337,6 +382,32 @@ export function setMaterialVoice(materialId, voiceText) {
 /** 设置值班人员网页链接（存于 plant.dutyUrl）并写库；失败时由调用方提示 */
 export function setDutyUrl(url) {
     plantState.plant.dutyUrl = (url || '').trim()
+    return saveConfig()
+}
+
+/** 某切页的显示方向（0 跟随系统 / 1 始终横屏 / 2 始终竖屏），未配置按「跟随系统」 */
+export function pageOrientationOf(pageCode) {
+    const page = (plantState.pages || []).find((item) => item.pageCode === pageCode)
+    const value = Number(page?.orientation)
+    return value === ORIENT_LANDSCAPE || value === ORIENT_PORTRAIT ? value : ORIENT_FOLLOW
+}
+
+/** 修改切页显示方向并写库；失败时由调用方提示 */
+export function setPageOrientation(pageCode, orientation) {
+    const value = Number(orientation)
+    const next = value === ORIENT_LANDSCAPE || value === ORIENT_PORTRAIT ? value : ORIENT_FOLLOW
+    const page = (plantState.pages || []).find((item) => item.pageCode === pageCode)
+    if (!page) {
+        plantState.pages = [...(plantState.pages || []), {
+            pageCode,
+            orientation: next,
+            sortNo: (plantState.pages || []).length + 1,
+        }]
+    } else if (page.orientation === next) {
+        return Promise.resolve()
+    } else {
+        page.orientation = next
+    }
     return saveConfig()
 }
 

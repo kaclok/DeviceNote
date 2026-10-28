@@ -13,4 +13,5 @@ public class NavConfig {
     private List<NavScale> scales = new ArrayList<>();
     private List<NavGate> gates = new ArrayList<>();
     private List<NavMaterial> materials = new ArrayList<>();
+    private List<NavPage> pages = new ArrayList<>();
 }

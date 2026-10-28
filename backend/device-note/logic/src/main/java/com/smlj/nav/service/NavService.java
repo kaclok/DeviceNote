@@ -5,6 +5,7 @@ import com.smlj.nav.o.NavConfig;
 import com.smlj.nav.o.NavGate;
 import com.smlj.nav.o.NavMaterial;
 import com.smlj.nav.o.NavNode;
+import com.smlj.nav.o.NavPage;
 import com.smlj.nav.o.NavRoad;
 import com.smlj.nav.o.NavScale;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class NavService {
         config.setScales(navDao.selectScales(plantId));
         config.setGates(navDao.selectGates(plantId));
         config.setMaterials(navDao.selectMaterials(plantId));
+        config.setPages(navDao.selectPages(plantId));
         return config;
     }
 
@@ -54,6 +56,7 @@ public class NavService {
         List<NavScale> scales = safe(config.getScales());
         List<NavGate> gates = safe(config.getGates());
         List<NavMaterial> materials = safe(config.getMaterials());
+        List<NavPage> pages = safe(config.getPages());
 
         validateNoDuplicate(nodes, roads);
 
@@ -89,6 +92,20 @@ public class NavService {
         if (!materials.isEmpty()) {
             materials.forEach(item -> item.setPlantId(plantId));
             navDao.insertMaterials(materials);
+        }
+        // 切页显示方向：老客户端不带 pages 字段时保持库里原值，避免被空列表清空
+        if (!pages.isEmpty()) {
+            pages.forEach(item -> {
+                if (item.getPageCode() == null || item.getPageCode().isBlank()) {
+                    throw new IllegalArgumentException("切页标识不能为空");
+                }
+                item.setPlantId(plantId);
+                if (item.getOrientation() == null || item.getOrientation() < 0 || item.getOrientation() > 2) {
+                    item.setOrientation(0);
+                }
+            });
+            navDao.deletePages(plantId);
+            navDao.insertPages(pages);
         }
     }
 

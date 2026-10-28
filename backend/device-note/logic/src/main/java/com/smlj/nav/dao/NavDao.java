@@ -3,6 +3,7 @@ package com.smlj.nav.dao;
 import com.smlj.nav.o.NavGate;
 import com.smlj.nav.o.NavMaterial;
 import com.smlj.nav.o.NavNode;
+import com.smlj.nav.o.NavPage;
 import com.smlj.nav.o.NavPlant;
 import com.smlj.nav.o.NavRoad;
 import com.smlj.nav.o.NavScale;
@@ -27,6 +28,8 @@ public interface NavDao {
 
     List<NavMaterial> selectMaterials(@Param("plant_id") String plantId);
 
+    List<NavPage> selectPages(@Param("plant_id") String plantId);
+
     int deleteMaterials(@Param("plant_id") String plantId);
 
     int deleteScales(@Param("plant_id") String plantId);
@@ -36,6 +39,8 @@ public interface NavDao {
     int deleteRoads(@Param("plant_id") String plantId);
 
     int deleteNodes(@Param("plant_id") String plantId);
+
+    int deletePages(@Param("plant_id") String plantId);
 
     int upsertPlant(NavPlant plant);
 
@@ -48,4 +53,6 @@ public interface NavDao {
     int insertGates(@Param("list") List<NavGate> list);
 
     int insertMaterials(@Param("list") List<NavMaterial> list);
+
+    int insertPages(@Param("list") List<NavPage> list);
 }

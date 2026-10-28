@@ -29,6 +29,7 @@
                     :image-height="plantState.plant.imageHeight"
                     :meters-per-pixel="plantState.plant.metersPerPixel"
                     editable
+                    fullscreenable
                     :selected-node-id="selectedId"
                     :selected-road-id="selectedRoadId"
                     @move-node="onMoveNode"

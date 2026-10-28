@@ -161,13 +161,22 @@
         </svg>
 
         <div class="map-controls" @pointerdown.stop>
-            <button class="map-btn zoom" title="放大" @click="zoomBy(0.8)">+</button>
-            <button class="map-btn zoom" title="缩小" @click="zoomBy(1.25)">−</button>
             <button class="map-btn reset" title="复位" @click="resetView">复位</button>
+            <!-- 预览播放/停止：由使用方通过 playable 打开（寻路页开，配置页不开） -->
+            <button v-if="playable" class="map-btn play" :class="{playing}" :disabled="!routes.length"
+                    :title="playing ? '停止预览' : '预览当前路线'" @click="emit('toggle-play')">
+                <svg v-if="!playing" viewBox="0 0 12 14" aria-hidden="true">
+                    <path d="M2 1.6v10.8c0 .6.65.95 1.15.65l8.1-5.4a.76.76 0 0 0 0-1.3L3.15.95C2.65.65 2 1 2 1.6Z"
+                          fill="currentColor"/>
+                </svg>
+                <svg v-else viewBox="0 0 12 12" aria-hidden="true">
+                    <rect x="1.4" y="1.4" width="9.2" height="9.2" rx="1.8" fill="currentColor"/>
+                </svg>
+            </button>
         </div>
 
-        <!-- 右上角：全屏开关，全屏后同一按钮变为退出（地图旋转已下线，页面改用横屏布局） -->
-        <div class="map-fs" @pointerdown.stop>
+        <!-- 右上角：全屏开关，仅使用方通过 fullscreenable 打开（配置/地图配置页开，寻路页不开） -->
+        <div v-if="fullscreenable" class="map-fs" @pointerdown.stop>
             <button class="map-btn" :title="fullscreen ? '退出全屏' : '全屏查看'" @click="toggleFullscreen">
                 <svg v-if="!fullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -230,6 +239,12 @@ const props = defineProps({
     previewRouteId: {type: String, default: ''},
     /** 每次播放递增，用于同一条路线重复播放时重启动画 */
     previewKey: {type: Number, default: 0},
+    /** 是否显示「预览播放」按钮（寻路页开，配置页不开） */
+    playable: {type: Boolean, default: false},
+    /** 是否显示「全屏查看」按钮（配置/地图配置页开，寻路页不开） */
+    fullscreenable: {type: Boolean, default: false},
+    /** 是否正在播放：按钮图标在 三角 / 方块 之间切换 */
+    playing: {type: Boolean, default: false},
     roadMode: {type: Boolean, default: false},
     editable: {type: Boolean, default: false},
     selectedNodeId: {type: String, default: ''},
@@ -243,7 +258,7 @@ const props = defineProps({
 const emit = defineEmits([
     'set-start', 'set-end', 'toggle-road', 'select-route', 'select-node', 'select-road',
     'move-node', 'pick-point', 'move-waypoint', 'insert-waypoint', 'remove-waypoint',
-    'preview-end',
+    'preview-end', 'toggle-play',
 ])
 
 const TYPE_META = {
@@ -440,54 +455,6 @@ const scaleBarPx = computed(() => {
     return Math.max(26, Math.min(180, (units / vb.w) * svgWidth.value))
 })
 
-// ===== 全屏查看 =====
-const fullscreen = ref(false)
-// 浏览器不支持元素全屏（如 iOS Safari）时，退化为页面内满屏
-const immersive = ref(false)
-
-function setFullscreen(on) {
-    fullscreen.value = on
-    if (!on) immersive.value = false
-}
-
-async function toggleFullscreen() {
-    const el = shellRef.value
-    if (!el) return
-    if (fullscreen.value) {
-        if (document.fullscreenElement) {
-            try {
-                await document.exitFullscreen()
-            } catch (e) {
-                // 已被浏览器退出，忽略
-            }
-        }
-        setFullscreen(false)
-        return
-    }
-    const request = el.requestFullscreen || el.webkitRequestFullscreen
-    if (request) {
-        try {
-            await request.call(el)
-            setFullscreen(true)
-            return
-        } catch (e) {
-            // 不支持时走下面的页面内满屏
-        }
-    }
-    immersive.value = true
-    fullscreen.value = true
-}
-
-function onFullscreenChange() {
-    const on = document.fullscreenElement === shellRef.value
-    if (on) setFullscreen(true)
-    else if (!immersive.value) setFullscreen(false)
-}
-
-function onFullscreenKeydown(event) {
-    if (event.key === 'Escape' && immersive.value) setFullscreen(false)
-}
-
 onMounted(() => {
     ro = new ResizeObserver((entries) => {
         svgWidth.value = entries[0].contentRect.width
@@ -561,12 +528,11 @@ function clampView() {
 }
 
 function onWheel(event) {
-    const rect = svgRef.value?.getBoundingClientRect()
-    if (!rect) return
-    const ratioX = (event.clientX - rect.left) / rect.width
-    const ratioY = (event.clientY - rect.top) / rect.height
-    const px = vb.x + ratioX * vb.w
-    const py = vb.y + ratioY * vb.h
+    // 以光标下的底图点为锚点缩放：用逆矩阵换算，旋转坐标系里包围盒比例会把 x/y 弄反
+    const point = clientToSvg(event)
+    if (!point) return
+    const px = point.x
+    const py = point.y
     const factor = event.deltaY > 0 ? 1.12 : 0.89
     const nextW = vb.w * factor
     const k = nextW / vb.w
@@ -577,22 +543,71 @@ function onWheel(event) {
     clampView()
 }
 
-function zoomBy(factor) {
-    const cx = vb.x + vb.w / 2
-    const cy = vb.y + vb.h / 2
-    const nextW = vb.w * factor
-    vb.w = nextW
-    vb.h = nextW * (props.imageHeight / props.imageWidth)
-    vb.x = cx - vb.w / 2
-    vb.y = cy - vb.h / 2
-    clampView()
-}
-
 function resetView() {
     syncViewBoxSize()
     vb.x = 0
     vb.y = 0
     rotation.value = 0
+}
+
+// ===== 全屏查看（只有 fullscreenable 的调用方渲染按钮）=====
+const fullscreen = ref(false)
+// 浏览器不支持元素全屏（如 iOS Safari）或祖先被旋转（原生全屏会脱离祖先 transform）时，退化为页面内满屏
+const immersive = ref(false)
+
+function setFullscreen(on) {
+    fullscreen.value = on
+    if (!on) immersive.value = false
+}
+
+/**
+ * 祖先里有没有人被 rotate 过：切页配成「始终横屏 / 始终竖屏」时 home.vue 会把整层壳旋转 90°。
+ * 原生全屏会把元素提到顶层、脱离祖先 transform，手机上会缩成侧边一条 ⇒ 这种场合只能走页面内满屏。
+ * 判据：getBoundingClientRect 已含 transform，offsetWidth 不含，旋转 90° 后两者必然互换。
+ */
+function rotatedByAncestor() {
+    const el = shellRef.value
+    if (!el) return false
+    const rect = el.getBoundingClientRect()
+    return Math.abs(rect.width - el.offsetWidth) > 1 || Math.abs(rect.height - el.offsetHeight) > 1
+}
+
+async function toggleFullscreen() {
+    const el = shellRef.value
+    if (!el) return
+    if (fullscreen.value) {
+        if (document.fullscreenElement) {
+            try {
+                await document.exitFullscreen()
+            } catch (e) {
+                // 已被浏览器退出，忽略
+            }
+        }
+        setFullscreen(false)
+        return
+    }
+    const request = el.requestFullscreen || el.webkitRequestFullscreen
+    if (request && !rotatedByAncestor()) {
+        try {
+            await request.call(el)
+            setFullscreen(true)
+            return
+        } catch (e) {
+            // 不支持时走下面的页面内满屏
+        }
+    }
+    immersive.value = true
+    fullscreen.value = true
+}
+
+function onFullscreenChange() {
+    const on = document.fullscreenElement === shellRef.value
+    if (on) setFullscreen(true)
+    else if (!immersive.value) setFullscreen(false)
+}
+
+function onFullscreenKeydown(event) {
+    if (event.key === 'Escape' && immersive.value) setFullscreen(false)
 }
 
 // ===== 地图旋转（已下线）=====
@@ -670,6 +685,18 @@ function clientToSvg(event, invMatrix) {
     return {x: target.x, y: target.y}
 }
 
+/**
+ * 屏幕位移 → 底图位移（向量，忽略平移项）。
+ * 必须走逆矩阵而不是直接吃 clientX/clientY 差值：竖屏强制横屏时整页被祖先 CSS
+ * rotate(90deg)，屏幕水平方向对应的是底图的 -y（实测 CTM a=0,b>0,c<0,d=0），
+ * 直接取差值会让拖拽的横竖两个轴完全错位。
+ * 平移只改 viewBox 的 x/y，不改变缩放，所以按下时取一次矩阵即可沿用整段拖动。
+ */
+function screenDeltaToView(inv, dx, dy) {
+    if (!inv) return null
+    return {x: inv.a * dx + inv.c * dy, y: inv.b * dx + inv.d * dy}
+}
+
 function onPointerDown(event) {
     if (event.button !== 0 || props.roadMode) return
     activePointers.set(event.pointerId, {x: event.clientX, y: event.clientY})
@@ -677,9 +704,10 @@ function onPointerDown(event) {
         startPinch()
         return
     }
-    // rect 在拖动期间不变（元素尺寸不随 viewBox 变），按下时取一次，避免 move 中每帧强制布局
+    // 逆矩阵在拖动期间不变（平移不改比例），按下时取一次，避免 move 中每帧强制布局
     dragState = {
         sx: event.clientX, sy: event.clientY, x: vb.x, y: vb.y, moved: false,
+        inv: svgInvMatrix(),
         rect: svgRef.value?.getBoundingClientRect(),
     }
     dragging.value = true
@@ -692,14 +720,21 @@ function startPinch() {
     const p1 = it.next().value
     const p2 = it.next().value
     if (!p1 || !p2) return
-    const rect = svgRef.value?.getBoundingClientRect()
-    if (!rect) return
+    const inv = svgInvMatrix()
+    if (!inv) return
     const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1
+    const center = {x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2}
+    // 锚点按逆矩阵换算：旋转坐标系里用包围盒比例会把 x/y 张冠李戴
+    const anchor = clientToSvg({clientX: center.x, clientY: center.y}, inv)
+    if (!anchor) return
     pinchState = {
         dist,
-        rect,
-        center: {x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2},
-        vb: {x: vb.x, y: vb.y, w: vb.w},
+        inv,
+        center,
+        anchor,
+        w: vb.w,
+        x: vb.x,
+        y: vb.y,
     }
     dragState = null
     nodeDrag = null
@@ -801,17 +836,18 @@ function onPointerMove(event) {
         const p2 = it.next().value
         if (!p1 || !p2) return
         const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1
-        const {rect, vb: startVb, center} = pinchState
+        const {inv, center, anchor, w: startW, x: startX, y: startY} = pinchState
         const cx = (p1.x + p2.x) / 2
         const cy = (p1.y + p2.y) / 2
-        // 两指初始按下的中心点对应的底图坐标保持不变
-        const ax = startVb.x + ((center.x - rect.left) / rect.width) * startVb.w
-        const ay = startVb.y + ((center.y - rect.top) / rect.height) * (startVb.w * (props.imageHeight / props.imageWidth))
-        const nextW = Math.max(240, Math.min(props.imageWidth * 1.15, startVb.w * (pinchState.dist / dist)))
+        const nextW = Math.max(240, Math.min(props.imageWidth * 1.15, startW * (pinchState.dist / dist)))
+        // 实际生效的比例以截断后的宽度为准，否则到上下限时锚点会漂
+        const k = nextW / startW
+        const move = screenDeltaToView(inv, cx - center.x, cy - center.y) || {x: 0, y: 0}
         vb.w = nextW
         vb.h = nextW * (props.imageHeight / props.imageWidth)
-        vb.x = ax - ((cx - rect.left) / rect.width) * vb.w
-        vb.y = ay - ((cy - rect.top) / rect.height) * vb.h
+        // 两指初始中点下的底图坐标（anchor）始终跟着当前中点走
+        vb.x = anchor.x - k * (anchor.x - startX + move.x)
+        vb.y = anchor.y - k * (anchor.y - startY + move.y)
         clampView()
         return
     }
@@ -850,13 +886,18 @@ function onPointerMove(event) {
         return
     }
     if (!dragState) return
-    const rect = dragState.rect
-    if (!rect) return
     const dx = event.clientX - dragState.sx
     const dy = event.clientY - dragState.sy
     if (Math.abs(dx) + Math.abs(dy) > 4) dragState.moved = true
-    vb.x = dragState.x - dx * (vb.w / rect.width)
-    vb.y = dragState.y - dy * (vb.h / rect.height)
+    const delta = screenDeltaToView(dragState.inv, dx, dy)
+    if (delta) {
+        vb.x = dragState.x - delta.x
+        vb.y = dragState.y - delta.y
+    } else if (dragState.rect) {
+        // 兜底（拿不到 CTM 时按包围盒比例换算，仅适用于未旋转的普通页面）
+        vb.x = dragState.x - dx * (vb.w / dragState.rect.width)
+        vb.y = dragState.y - dy * (vb.h / dragState.rect.height)
+    }
     clampView()
 }
 
@@ -1202,7 +1243,7 @@ function onKeyDown(event) {
     pointer-events: none;
 }
 
-/* 全屏/旋转按钮固定在右上角；缩放按钮在手机上仍在右下，避免遮挡终点徽标 */
+/* ===== 全屏查看：只有 fullscreenable 的调用方（配置/地图配置）才渲染这枚按钮 ===== */
 .map-fs {
     position: absolute;
     top: 14px;
@@ -1212,10 +1253,9 @@ function onKeyDown(event) {
     z-index: 4;
 }
 
-/* 原生全屏或页面内满屏：地图铺满整屏 */
+/* 原生全屏：元素被提到顶层、脱离祖先 transform，用视口单位铺满 */
 .map-shell:fullscreen,
-.map-shell:-webkit-full-screen,
-.map-shell.immersive {
+.map-shell:-webkit-full-screen {
     width: 100vw;
     height: 100vh;
     aspect-ratio: auto !important;
@@ -1223,13 +1263,21 @@ function onKeyDown(event) {
     background: #0f172a;
 }
 
+/* 页面内满屏：祖先被旋转时（切页配成「始终横屏 / 始终竖屏」）原生全屏会缩成侧边一条，
+ * 改走这里。此时 fixed 的包含块是那层旋转壳而非视口，所以用 inset:0 而不是 100vw/100vh
+ * （视口单位不跟着 transform 转），这样正好铺满屏幕。 */
 .map-shell.immersive {
     position: fixed;
     inset: 0;
+    width: auto;
+    height: auto;
+    aspect-ratio: auto !important;
+    border-radius: 0;
+    background: #0f172a;
     z-index: 9999;
 }
 
-/* 全屏时让 SVG 撑满整屏，由 preserveAspectRatio 居中留边 */
+/* 全屏时让 SVG 撑满，由 preserveAspectRatio 居中留边 */
 .map-shell:fullscreen .plant-svg,
 .map-shell:-webkit-full-screen .plant-svg,
 .map-shell.immersive .plant-svg {
@@ -1238,13 +1286,19 @@ function onKeyDown(event) {
     aspect-ratio: auto !important;
 }
 
-/* 手机上缩放按钮移到右下，避免遮挡右上角的终点徽标；按钮整体收紧少占版面 */
+/* 手机上按钮移到右下，避免遮挡右上角的终点徽标与全屏键；按钮整体收紧少占版面 */
 @media (max-width: 760px) {
     .map-controls {
         top: auto;
         bottom: 40px;
         right: 8px;
         flex-direction: row;
+        gap: 4px;
+    }
+
+    .map-fs {
+        top: 8px;
+        right: 8px;
         gap: 4px;
     }
 
@@ -1266,13 +1320,6 @@ function onKeyDown(event) {
     .map-btn svg {
         width: 15px;
         height: 15px;
-    }
-
-    .map-fs {
-        top: 8px;
-        right: 8px;
-        display: flex;
-        gap: 4px;
     }
 
     .compass {

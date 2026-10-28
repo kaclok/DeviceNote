@@ -92,14 +92,14 @@
     {"id": "r_c13_s7", "code": "", "name": "7#磅连接线", "group": "补充路网", "level": 2, "from": "n_mvoi1tno", "to": "s7", "points": [[253.7, 73.2], [231.9, 91]], "oneWay": 0, "enabled": 1, "sortNo": 133}
   ],
   "scales": [
-    {"id": "s1", "code": "B1", "name": "1#磅房", "nodeId": "s1", "area": "", "capacity": "51.4t", "status": 1, "sortNo": 1, "gbNo": 1},
-    {"id": "s2", "code": "B2", "name": "2#磅房", "nodeId": "s2", "area": "", "capacity": "51.4t", "status": 2, "sortNo": 2, "gbNo": 2},
-    {"id": "s3", "code": "B3", "name": "3#磅房", "nodeId": "s3", "area": "", "capacity": "51t", "status": 3, "sortNo": 3, "gbNo": 3},
-    {"id": "s4", "code": "B4", "name": "4#磅房", "nodeId": "s4", "area": "", "capacity": "51t", "status": 1, "sortNo": 4, "gbNo": 4},
-    {"id": "s5", "code": "B5", "name": "5#磅房", "nodeId": "s5", "area": "", "capacity": "51t", "status": 3, "sortNo": 5, "gbNo": 5},
-    {"id": "s6", "code": "B6", "name": "6#磅房", "nodeId": "s6", "area": "", "capacity": "51t", "status": 3, "sortNo": 6, "gbNo": 6},
-    {"id": "s7", "code": "B7", "name": "7#磅房", "nodeId": "s7", "area": "", "capacity": "51t", "status": 2, "sortNo": 7, "gbNo": 7},
-    {"id": "s8", "code": "B8", "name": "8#磅房", "nodeId": "s8", "area": "", "capacity": "51t", "status": 1, "sortNo": 8, "gbNo": 8}
+    {"id": "s1", "code": "B1", "name": "1#磅", "nodeId": "s1", "area": "", "capacity": "51.4t", "status": 1, "sortNo": 1, "gbNo": 1},
+    {"id": "s2", "code": "B2", "name": "2#磅", "nodeId": "s2", "area": "", "capacity": "51.4t", "status": 2, "sortNo": 2, "gbNo": 2},
+    {"id": "s3", "code": "B3", "name": "3#磅", "nodeId": "s3", "area": "", "capacity": "51t", "status": 3, "sortNo": 3, "gbNo": 3},
+    {"id": "s4", "code": "B4", "name": "4#磅", "nodeId": "s4", "area": "", "capacity": "51t", "status": 1, "sortNo": 4, "gbNo": 4},
+    {"id": "s5", "code": "B5", "name": "5#磅", "nodeId": "s5", "area": "", "capacity": "51t", "status": 3, "sortNo": 5, "gbNo": 5},
+    {"id": "s6", "code": "B6", "name": "6#磅", "nodeId": "s6", "area": "", "capacity": "51t", "status": 3, "sortNo": 6, "gbNo": 6},
+    {"id": "s7", "code": "B7", "name": "7#磅", "nodeId": "s7", "area": "", "capacity": "51t", "status": 2, "sortNo": 7, "gbNo": 7},
+    {"id": "s8", "code": "B8", "name": "8#磅", "nodeId": "s8", "area": "", "capacity": "51t", "status": 1, "sortNo": 8, "gbNo": 8}
   ],
   "materials": [
     {"id": "m_lye", "code": "WZ01", "name": "烧碱", "direction": 2, "category": "液碱类", "scaleId": "s1", "backupScaleIds": "[]", "pointNodeId": "m_lye", "voiceText": "烧碱，学名氢氧化钠，也叫火碱、苛性钠，液碱。", "enabled": 1, "sortNo": 1},
@@ -108,11 +108,15 @@
     {"id": "m_slag", "code": "WZ04", "name": "电石渣", "direction": 2, "category": "固废", "scaleId": "s4", "backupScaleIds": "[]", "pointNodeId": "m_slag", "voiceText": "电石渣，也叫渣浆、干渣。装车时请听从现场人员指挥。", "enabled": 1, "sortNo": 4},
     {"id": "m_carbide", "code": "WZ05", "name": "电石", "direction": 1, "category": "原料", "scaleId": "s8", "backupScaleIds": "[]", "pointNodeId": "m_carbide", "voiceText": "电石，学名碳化钙，遇水会产生乙炔气体，属于危险品。", "enabled": 1, "sortNo": 5},
     {"id": "m_coal", "code": "WZ06", "name": "煤", "direction": 1, "category": "原料", "scaleId": "s8", "backupScaleIds": "[]", "pointNodeId": "m_coal", "voiceText": "煤", "enabled": 1, "sortNo": 6}
-  ]
-,
+  ],
   "gates": [
     {"id": "gate_gate_w", "nodeId": "gate_w", "gateMode": 1, "allowedMaterialIds": "[\"m_lye\",\"m_hcl\",\"m_pvc\",\"m_slag\"]", "sortNo": 1},
     {"id": "gate_gate_n", "nodeId": "gate_n", "gateMode": 1, "allowedMaterialIds": "[\"m_carbide\",\"m_coal\"]", "sortNo": 2},
     {"id": "gate_n_mvowab4e", "nodeId": "n_mvowab4e", "gateMode": 4, "allowedMaterialIds": "[]", "sortNo": 3}
+  ],
+  "pages": [
+    {"pageCode": "home_map", "orientation": 1, "sortNo": 1},
+    {"pageCode": "home_gb", "orientation": 0, "sortNo": 2},
+    {"pageCode": "home_setting", "orientation": 0, "sortNo": 3}
   ]
 }

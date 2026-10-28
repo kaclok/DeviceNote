@@ -1,8 +1,8 @@
-<script setup lang="js">
-import {computed, onMounted} from 'vue'
+﻿<script setup lang="js">
+import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import {useRoute} from 'vue-router'
 import {ElMessage} from 'element-plus'
-import {loadConfig, plantState} from '../system/PlantStore.js'
+import {ORIENT_LANDSCAPE, ORIENT_PORTRAIT, loadConfig, pageOrientationOf, plantState} from '../system/PlantStore.js'
 
 const route = useRoute()
 
@@ -23,8 +23,63 @@ const NAVS = [
 
 const activeName = computed(() => route.name)
 
+/*
+ * 切页显示方向：每个切页在「配置 / 磅房与绑定」里配一档（nav.page_display.orientation）——
+ * 0 跟随手机横竖屏、1 始终横屏、2 始终竖屏。
+ * Web 端锁不住系统方向，1 档的做法是：视口竖着时把整层壳旋转 90° 当成横屏画布（横过来即可正向读）；
+ * 0 / 2 档都不旋转，区别只在页面自己用哪套版式（见 map.vue 的 landscapeLayout）。
+ */
+const portraitMq = window.matchMedia('(orientation: portrait)')
+// 车机式外壳的原始判据：真横屏且高度很矮（手机横放）
+const shortMq = window.matchMedia('(orientation: landscape) and (max-height: 560px)')
+// 窄屏手机版式的原始判据（原先写死在 @media (max-width:760px)）
+const narrowMq = window.matchMedia('(max-width: 760px)')
+const portraitViewport = ref(portraitMq.matches)
+const shortLandscape = ref(shortMq.matches)
+const narrowViewport = ref(narrowMq.matches)
+
+function onViewportChange(event) {
+    if (event.media === portraitMq.media) portraitViewport.value = event.matches
+    else if (event.media === shortMq.media) shortLandscape.value = event.matches
+    else if (event.media === narrowMq.media) narrowViewport.value = event.matches
+}
+
+const activeOrientation = computed(() => pageOrientationOf(activeName.value))
+// 竖着拿且本页「始终横屏」→ 整层壳旋转 90° 当横屏画布
+const forceLandscape = computed(() => activeOrientation.value === ORIENT_LANDSCAPE && portraitViewport.value)
+// 横着拿且本页「始终竖屏」→ 反过来旋转 -90°，把横视口当成竖画布（否则会退化成桌面版式塞进矮视口）
+const forcePortrait = computed(() => activeOrientation.value === ORIENT_PORTRAIT && !portraitViewport.value)
+/*
+ * 是否套用车机式横屏外壳（顶栏压扁 + 左侧图标条）：
+ * 2 始终竖屏 → 永远不套；竖屏视口下只有 1 始终横屏 才套（配合旋转）；
+ * 横屏视口下按原判据（高度 ≤560 的手机横放），大屏仍走普通外壳。
+ */
+const carShell = computed(() => {
+    if (activeOrientation.value === ORIENT_PORTRAIT) return false
+    if (portraitViewport.value) return activeOrientation.value === ORIENT_LANDSCAPE
+    return shortLandscape.value
+})
+/*
+ * 是否套用窄屏手机外壳（顶栏压扁 + 导航横排）：规则原先写死在 @media (max-width:760px) 里，
+ * 改成类名是为了照顾两种「画布宽度 ≠ 视口宽度」的强制旋转——媒体查询看到的永远是视口。
+ * 横屏外壳（carShell）和旋转横屏（forceLandscape）各自带版式，不叠加 narrow。
+ */
+const narrowShell = computed(() => {
+    if (forceLandscape.value || carShell.value) return false
+    return forcePortrait.value || narrowViewport.value
+})
+
 // 地磅值班：跳转到「磅房与绑定」页配置的网页链接
-onMounted(loadConfig)
+onMounted(() => {
+    portraitMq.addEventListener('change', onViewportChange)
+    shortMq.addEventListener('change', onViewportChange)
+    loadConfig()
+})
+
+onBeforeUnmount(() => {
+    portraitMq.removeEventListener('change', onViewportChange)
+    shortMq.removeEventListener('change', onViewportChange)
+})
 
 function openDuty() {
     const url = (plantState.plant.dutyUrl || '').trim()
@@ -37,7 +92,8 @@ function openDuty() {
 </script>
 
 <template>
-    <div class="layout" :class="{'is-map': activeName === 'home_map'}">
+    <div class="layout"
+         :class="{'is-map': activeName === 'home_map', 'force-land': forceLandscape, 'force-port': forcePortrait, 'is-car': carShell, narrow: narrowShell}">
         <header class="topbar">
             <div class="brand">
                 <span class="brand-mark">🗺</span>
@@ -251,87 +307,87 @@ function openDuty() {
     padding: 16px 20px 24px;
 }
 
-/* 竖屏手机：左侧导航改为顶部横向标签，把宽度全部留给内容 */
-@media (max-width: 760px) {
-    .topbar {
-        height: 52px;
-        gap: 10px;
-        padding: 0 12px;
-    }
-
-    .brand-mark {
-        width: 30px;
-        height: 30px;
-        border-radius: 7px;
-        font-size: 16px;
-    }
-
-    .brand-title {
-        font-size: 15px;
-    }
-
-    .brand-sub {
-        display: none;
-    }
-
-    .duty-btn {
-        height: 30px;
-        padding: 0 12px;
-        font-size: 12px;
-        gap: 5px;
-    }
-
-    .duty-icon {
-        width: 15px;
-        height: 15px;
-        flex: 0 0 15px;
-    }
-
-    .body {
-        flex-direction: column;
-        overflow: visible;
-    }
-
-    .sidenav {
-        width: 100%;
-        flex-direction: row;
-        gap: 4px;
-        padding: 8px;
-        overflow-x: auto;
-        position: sticky;
-        top: 0;
-        z-index: 5;
-    }
-
-    .sidenav-item {
-        flex: 1 0 auto;
-    }
-
-    .item-inner {
-        justify-content: center;
-        gap: 6px;
-        padding: 10px 12px;
-    }
-
-    .item-icon {
-        width: 16px;
-        height: 16px;
-        flex: 0 0 16px;
-    }
-
-    .item-title {
-        margin-bottom: 0;
-        font-size: 13px;
-    }
-
-    .item-sub {
-        display: none;
-    }
-
-    .main {
-        padding: 10px 10px 18px;
-    }
+/* 窄屏手机外壳（.narrow）：左侧导航改为顶部横向标签，把宽度全部留给内容。
+ * 由 narrowShell 计算（原 @media max-width:760px 只认视口宽度，识别不了强制旋转后的窄画布）。 */
+.layout.narrow .topbar {
+    height: 52px;
+    gap: 10px;
+    padding: 0 12px;
 }
+
+.layout.narrow .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    font-size: 16px;
+}
+
+.layout.narrow .brand-title {
+    font-size: 15px;
+}
+
+.layout.narrow .brand-sub {
+    display: none;
+}
+
+.layout.narrow .duty-btn {
+    height: 30px;
+    padding: 0 12px;
+    font-size: 12px;
+    gap: 5px;
+}
+
+.layout.narrow .duty-icon {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+}
+
+.layout.narrow .body {
+    flex-direction: column;
+    overflow: visible;
+}
+
+.layout.narrow .sidenav {
+    width: 100%;
+    flex-direction: row;
+    gap: 4px;
+    padding: 8px;
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.layout.narrow .sidenav-item {
+    flex: 1 0 auto;
+}
+
+.layout.narrow .item-inner {
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+}
+
+.layout.narrow .item-icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+}
+
+.layout.narrow .item-title {
+    margin-bottom: 0;
+    font-size: 13px;
+}
+
+.layout.narrow .item-sub {
+    display: none;
+}
+
+.layout.narrow .main {
+    padding: 10px 10px 18px;
+}
+
 
 /* 小屏手机（≤360px）：三个标签收窄，保证一屏内全部可见 */
 @media (max-width: 360px) {
@@ -360,114 +416,111 @@ function openDuty() {
 /* ===== 横屏 / 竖屏锁定：车机式外壳 =====
  * 高度只有 390 上下，顶栏压到 42px，导航从顶部横排改为左侧图标条，
  * 内容区完全交给 map.vue 的导航布局（那张页面会 fixed 铺满，用 --map-top/--map-left 对齐）。
- * ⚠️ 条件里多带了「竖屏」这一整支，且**不带宽度门槛**：寻路页要求「不受操作系统横屏/竖屏控制，
- *    永远横屏展示」，竖着拿时整页会旋转 90°（见文件末尾「强制横屏」块）；旋转后视口仍是竖屏、
- *    媒体查询不认旋转，所以竖屏这一支必须把同一套参数一起给出，宽度多大的竖屏都一样。
+ * ⚠️ 触发条件不再写在媒体查询里：切页显示方向可配置后，「竖屏视口也用横屏版式」只对
+ *    「始终横屏」的切页成立，媒体查询表达不了 ⇒ 改由 .layout.is-car 类名驱动（见 carShell）。
  */
-@media (orientation: landscape) and (max-height: 560px), (orientation: portrait) {
-    .layout {
-        /* 地图卡片高度按「可视高 - 顶栏 - 上下留白」算；旋转场景由末尾的强制横屏块改写 */
-        --vp-h: 100dvh;
-    }
-
-    /* 寻路页的壳钉死在视口：地址栏收起那套「往文档底部垫滚距再滚过去」的操作
-       会把静态定位的顶栏/导航一起滚走（实测顶栏被顶出屏幕 60px），钉住后文档滚动不影响观感 */
-    .layout.is-map {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        min-height: 0;
-    }
-
-    .topbar {
-        height: 42px;
-        gap: 10px;
-        padding: 0 10px;
-    }
-
-    .brand-mark {
-        width: 26px;
-        height: 26px;
-        border-radius: 7px;
-        font-size: 15px;
-    }
-
-    .brand-title {
-        font-size: 14px;
-        line-height: 1.2;
-    }
-
-    .brand-sub {
-        display: none;
-    }
-
-    .duty-btn {
-        height: 28px;
-        padding: 0 10px;
-        font-size: 12px;
-        gap: 5px;
-    }
-
-    .duty-icon {
-        width: 14px;
-        height: 14px;
-        flex: 0 0 14px;
-    }
-
-    .body {
-        flex-direction: row;
-        overflow: hidden;
-    }
-
-    /* 导航收成 64px 图标条，宽度全部让给地图 */
-    .sidenav {
-        width: 64px;
-        flex-direction: column;
-        gap: 6px;
-        padding: 6px;
-        overflow: visible;
-        position: static;
-        z-index: auto;
-    }
-
-    .sidenav-item {
-        flex: 0 0 auto;
-    }
-
-    .item-inner {
-        flex-direction: column;
-        justify-content: center;
-        gap: 2px;
-        padding: 8px 2px;
-    }
-
-    .item-icon {
-        width: 18px;
-        height: 18px;
-        flex: 0 0 18px;
-    }
-
-    .item-title {
-        font-size: 10px;
-        margin-bottom: 0;
-        letter-spacing: 0;
-        white-space: nowrap;
-    }
-
-    .item-sub {
-        display: none;
-    }
-
-    .main {
-        padding: 0;
-        overflow: hidden;
-    }
+/* ===== 车机式横屏外壳：由 .layout.is-car 驱动（JS 按切页配置 + 视口判定，见 carShell） ===== */
+.layout.is-car {
+    /* 地图卡片高度按「可视高 - 顶栏 - 上下留白」算；旋转场景由末尾的强制横屏块改写 */
+    --vp-h: 100dvh;
 }
 
-/* ===== 竖屏视口：厂区寻路页强制横屏 =====
- * 寻路页是车机式横屏版式，要求「无论操作系统开关是横屏还是竖屏，页面始终横屏展示」——
+/* 寻路页的壳钉死在视口：地址栏收起那套「往文档底部垫滚距再滚过去」的操作 会把静态定位的顶栏/导航一起滚走（实测顶栏被顶出屏幕 60px），钉住后文档滚动不影响观感 */
+.layout.is-car.is-map {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 0;
+}
+
+.layout.is-car .topbar {
+    height: 42px;
+    gap: 10px;
+    padding: 0 10px;
+}
+
+.layout.is-car .brand-mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    font-size: 15px;
+}
+
+.layout.is-car .brand-title {
+    font-size: 14px;
+    line-height: 1.2;
+}
+
+.layout.is-car .brand-sub {
+    display: none;
+}
+
+.layout.is-car .duty-btn {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+    gap: 5px;
+}
+
+.layout.is-car .duty-icon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+}
+
+.layout.is-car .body {
+    flex-direction: row;
+    overflow: hidden;
+}
+
+/* 导航收成 64px 图标条，宽度全部让给地图 */
+.layout.is-car .sidenav {
+    width: 64px;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px;
+    overflow: visible;
+    position: static;
+    z-index: auto;
+}
+
+.layout.is-car .sidenav-item {
+    flex: 0 0 auto;
+}
+
+.layout.is-car .item-inner {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 2px;
+}
+
+.layout.is-car .item-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+}
+
+.layout.is-car .item-title {
+    font-size: 10px;
+    margin-bottom: 0;
+    letter-spacing: 0;
+    white-space: nowrap;
+}
+
+.layout.is-car .item-sub {
+    display: none;
+}
+
+.layout.is-car .main {
+    padding: 0;
+    overflow: hidden;
+}
+
+/* ===== 视口竖着 + 当前切页配了「始终横屏」：整层壳旋转 90° 当横屏画布 =====
+ * 是否旋转由配置决定（nav.page_display.orientation = 1），不再写死某个页面：
  * 唯一判据是**视口本身是不是竖的**（宽 < 高），跟屏幕多大、系统方向锁定都无关。
  * 竖着拿时把整层壳旋转 90°：393×852 的竖屏 → 852×393 的横屏画布，横过来即可正向阅读。
  *
@@ -478,22 +531,44 @@ function openDuty() {
  *    但 100vh / 100dvh 这类视口单位不会跟着转，所以 --vp-h 要改成 100dvw（旋转后的「高度」= 视口宽度）。
  * ⚠️ min-height 必须归零：基础样式里 .layout{min-height:100%}（= 竖屏视口高 852）会顶开
  *    height:100dvw(393)，不归零的话旋转后的画布尺寸直接错位。
- * ⚠️ 只作用于寻路页（.is-map）：地磅查询、配置页仍是普通竖屏页面。
+ * ⚠️ 只有 .force-land（配置成「始终横屏」且视口是竖的）才旋转：其余页面保持普通竖屏版式。
  */
-@media (orientation: portrait) {
-    .layout.is-map {
-        --vp-h: 100dvw;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vh;
-        height: 100vw;
-        width: 100dvh;
-        height: 100dvw;
-        min-height: 0;
-        transform-origin: 0 0;
-        transform: rotate(90deg) translateY(-100%);
-        overflow: hidden;
-    }
+.layout.force-land {
+    --vp-h: 100dvw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vh;
+    height: 100vw;
+    width: 100dvh;
+    height: 100dvw;
+    min-height: 0;
+    transform-origin: 0 0;
+    transform: rotate(90deg) translateY(-100%);
+    overflow: hidden;
+}
+
+/* ===== 视口横着 + 当前切页配了「始终竖屏」：反向旋转 -90° 当竖画布 =====
+ * 与 .force-land 对称：横屏视口下不旋转的话，页面会按视口宽度走成桌面版式
+ * （左导航 + 852 宽内容塞进 393 高），既不是「竖屏展示」也留不住地图。
+ *
+ * ⚠️ 几何：宽取视口高、高取视口宽（即一块 393×852 的竖画布），transform-origin 左上，
+ *    R(-90) 把盒子甩到视口上方（y ∈ [-852, 0]），translateX(-100%) 沿本地 x 轴左移一个宽，
+ *    旋转后正好下移 852，落回 [0, 852]×[0, 393]。
+ * ⚠️ 配套：窄屏版式必须走 .layout.narrow / .page.narrow 类名（媒体查询看到的是 852 宽视口）。
+ */
+.layout.force-port {
+    --vp-h: 100dvw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vh;
+    height: 100vw;
+    width: 100dvh;
+    height: 100dvw;
+    min-height: 0;
+    transform-origin: 0 0;
+    transform: rotate(-90deg) translateX(-100%);
+    overflow: hidden;
 }
 </style>
