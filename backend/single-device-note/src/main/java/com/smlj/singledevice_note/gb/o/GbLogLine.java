@@ -31,4 +31,6 @@ public class GbLogLine {
     private LocalDateTime logTime;
     /** 入库时间 */
     private LocalDateTime createTime;
+    /** 命中的关键异常组合记录（查询时按 source+fp 联表带出，上报链路不写） */
+    private GbCombine combine;
 }

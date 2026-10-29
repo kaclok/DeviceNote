@@ -28,7 +28,7 @@
                         <span class="panel-title">磅房过磅日志</span>
                         <span class="count-chip">{{ gbScales.length }} 座磅房</span>
                     </div>
-                    <div class="panel-sub">点击「查询记录」查看该磅最近上报的日志（超重、异常等会标红）；「磅号」读取自磅房配置（nav.scale.gb_no）</div>
+                    <div class="panel-sub">点击「查询记录」查看该磅最近上报的日志；关键异常（超载、主键冲突、未完成记录、身份证未维护、重复过磅等）会以「分类 + 车牌」组合标签标红；「磅号」读取自磅房配置（nav.scale.gb_no）</div>
                 </div>
                 <div class="panel-tools">
                     <el-select v-model="statusFilter" size="small" class="status-filter">
@@ -87,7 +87,15 @@
                         <div v-for="row in logRows" :key="row.id" class="log-row"
                              :class="{warn: isAbnormal(row.content)}">
                             <span class="log-time">{{ row.time }}</span>
-                            <span class="log-content">{{ row.content }}</span>
+                            <span class="log-content">
+                                <!-- 命中关键异常：后端 gb_combine 组合记录带回，标签展示分类与车牌/单号 -->
+                                <template v-if="row.combine">
+                                    <span class="abn-type">{{ row.combine.abnormalType }}</span>
+                                    <span v-if="row.combine.vehicleNo" class="abn-plate">{{ row.combine.vehicleNo }}</span>
+                                    <span v-else-if="row.combine.orderNo" class="abn-order">{{ row.combine.orderNo }}</span>
+                                </template>
+                                {{ row.content }}
+                            </span>
                         </div>
                     </div>
                     <div v-else class="gb-empty">该磅还没有上报过日志（请确认磅号配置与监控器一致）</div>
@@ -691,6 +699,35 @@ onBeforeUnmount(() => {
 
 .log-row.warn .log-time {
     color: #d97575;
+}
+
+/* 关键异常组合标签：异常分类（红底）+ 车牌/单号（描边） */
+.abn-type {
+    display: inline-block;
+    padding: 0 6px;
+    margin-right: 6px;
+    border-radius: 6px;
+    background: #c62828;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    vertical-align: 1px;
+}
+
+.abn-plate,
+.abn-order {
+    display: inline-block;
+    padding: 0 6px;
+    margin-right: 6px;
+    border: 1px solid #e08a8a;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #c62828;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+    vertical-align: 1px;
 }
 
 .log-content {

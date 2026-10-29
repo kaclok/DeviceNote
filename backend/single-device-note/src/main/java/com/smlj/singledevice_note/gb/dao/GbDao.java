@@ -1,5 +1,6 @@
 package com.smlj.singledevice_note.gb.dao;
 
+import com.smlj.singledevice_note.gb.o.GbCombine;
 import com.smlj.singledevice_note.gb.o.GbLogLine;
 import com.smlj.singledevice_note.gb.o.GbTimeline;
 import com.smlj.singledevice_note.gb.o.GbWeighEvent;
@@ -22,6 +23,9 @@ public interface GbDao {
 
     /** 批量插入过磅事件，(source, order_no, event_time) 冲突跳过；返回实际插入行数 */
     int insertEvents(@Param("list") List<GbWeighEvent> list);
+
+    /** 批量插入关键异常组合记录，(source, fp) 冲突跳过；返回实际插入行数 */
+    int insertCombines(@Param("list") List<GbCombine> list);
 
     List<GbLogLine> selectLines(@Param("source") String source,
                                 @Param("beginTime") LocalDateTime beginTime,
@@ -57,4 +61,7 @@ public interface GbDao {
 
     /** 保留期清理：删除 event_time 早于 before 的过磅事件，返回删除行数 */
     int deleteExpiredEvents(@Param("before") LocalDateTime before);
+
+    /** 保留期清理：删除 log_time 早于 before 的关键异常组合记录，返回删除行数 */
+    int deleteExpiredCombines(@Param("before") LocalDateTime before);
 }

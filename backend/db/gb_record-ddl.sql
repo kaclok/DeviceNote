@@ -48,6 +48,29 @@ create index if not exists idx_gb_event_order  on gb_weigh_event (order_no);
 create index if not exists idx_gb_event_time   on gb_weigh_event (event_time);
 create index if not exists idx_gb_event_source on gb_weigh_event (source, event_time desc);
 
+-- ---------------------------------------------------------------------
+-- 3. gb_combine：关键异常组合记录（车牌/单号 + 异常分类 + 原文）
+--    上报链路同步生成：一行原始日志命中 7 类关键异常之一即写一条，
+--    幂等键 (source, fp) 与 gb_log 一一对应，查询时按 (source, fp) 联回。
+--    车牌识别规则：车牌号[陕KM8567] / 1#[宁AD3107]无效；
+--    无车牌的异常（超出载重范围/主键重复/不可重复称/重量小于0）只带单号。
+-- ---------------------------------------------------------------------
+create table if not exists gb_combine (
+    id            bigserial primary key,
+    source        varchar(32)  not null,              -- 磅号
+    fp            varchar(32)  not null,              -- 来源原始行指纹（溯源 + 联表键）
+    vehicle_no    varchar(32),                        -- 识别到的车牌号（可能为空）
+    order_no      varchar(64),                        -- 单号（可能为空）
+    abnormal_type varchar(32)  not null,              -- 异常分类（7 类之一）
+    content       varchar(1000) not null,             -- 异常原文（组合信息的正文）
+    log_time      timestamp,                          -- 日志行时间
+    create_time   timestamp(6) not null default now(),
+    constraint uq_gb_combine unique (source, fp)
+);
+
+create index if not exists idx_gb_combine_source_time on gb_combine (source, log_time desc);
+create index if not exists idx_gb_combine_vehicle     on gb_combine (vehicle_no);
+
 -- 查询示例（其他客户端/程序里注意带模式前缀）：
 --   select * from gb_record.gb_log order by id desc limit 20;
 --   select * from gb_record.gb_weigh_event order by id desc limit 20;

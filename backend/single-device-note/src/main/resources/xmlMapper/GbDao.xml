@@ -3,6 +3,18 @@
 <!-- 过磅日志：device-note 库 · gb_record 模式，走主数据源 main（表名以 gb_record. 前缀限定） -->
 <mapper namespace="com.smlj.singledevice_note.gb.dao.GbDao">
 
+    <resultMap id="CombineMap" type="com.smlj.singledevice_note.gb.o.GbCombine">
+        <id column="id" property="id"/>
+        <result column="source" property="source"/>
+        <result column="fp" property="fp"/>
+        <result column="vehicle_no" property="vehicleNo"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="abnormal_type" property="abnormalType"/>
+        <result column="content" property="content"/>
+        <result column="log_time" property="logTime"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
     <resultMap id="LineMap" type="com.smlj.singledevice_note.gb.o.GbLogLine">
         <id column="id" property="id"/>
         <result column="source" property="no"/>
@@ -12,6 +24,17 @@
         <result column="content" property="content"/>
         <result column="log_time" property="logTime"/>
         <result column="create_time" property="createTime"/>
+        <!-- 命中关键异常的组合记录（left join gb_combine，未命中为 null） -->
+        <association property="combine" javaType="com.smlj.singledevice_note.gb.o.GbCombine"
+                     columnPrefix="c_">
+            <id column="id" property="id"/>
+            <result column="vehicle_no" property="vehicleNo"/>
+            <result column="order_no" property="orderNo"/>
+            <result column="abnormal_type" property="abnormalType"/>
+            <result column="content" property="content"/>
+            <result column="log_time" property="logTime"/>
+            <result column="create_time" property="createTime"/>
+        </association>
     </resultMap>
 
     <resultMap id="EventMap" type="com.smlj.singledevice_note.gb.o.GbWeighEvent">
@@ -49,18 +72,31 @@
         on conflict (source, order_no, event_time) do nothing
     </insert>
 
+    <!-- 批量插入关键异常组合记录：(source, fp) 冲突跳过 -->
+    <insert id="insertCombines">
+        insert into gb_record.gb_combine (source, fp, vehicle_no, order_no, abnormal_type, content, log_time) values
+        <foreach collection="list" item="it" separator=",">
+            (#{it.source}, #{it.fp}, #{it.vehicleNo}, #{it.orderNo}, #{it.abnormalType}, #{it.content}, #{it.logTime})
+        </foreach>
+        on conflict (source, fp) do nothing
+    </insert>
+
     <select id="selectLines" resultMap="LineMap">
-        select id, source, fp, type,
-               to_char(log_time, 'YYYY/MM/DD HH24:MI:SS') as "time",
-               content, log_time, create_time
-        from gb_record.gb_log
+        select l.id, l.source, l.fp, l.type,
+               to_char(l.log_time, 'YYYY/MM/DD HH24:MI:SS') as "time",
+               l.content, l.log_time, l.create_time,
+               c.id as c_id, c.vehicle_no as c_vehicle_no, c.order_no as c_order_no,
+               c.abnormal_type as c_abnormal_type, c.content as c_content,
+               c.log_time as c_log_time, c.create_time as c_create_time
+        from gb_record.gb_log l
+        left join gb_record.gb_combine c on c.source = l.source and c.fp = l.fp
         <where>
-            <if test="source != null and source != ''">and source = #{source}</if>
-            <if test="beginTime != null">and log_time &gt;= #{beginTime}</if>
-            <if test="endTime != null">and log_time &lt; #{endTime}</if>
-            <if test="keyword != null and keyword != ''">and content like '%' || #{keyword} || '%'</if>
+            <if test="source != null and source != ''">and l.source = #{source}</if>
+            <if test="beginTime != null">and l.log_time &gt;= #{beginTime}</if>
+            <if test="endTime != null">and l.log_time &lt; #{endTime}</if>
+            <if test="keyword != null and keyword != ''">and l.content like '%' || #{keyword} || '%'</if>
         </where>
-        order by log_time desc nulls last, id desc
+        order by l.log_time desc nulls last, l.id desc
         limit #{size} offset #{offset}
     </select>
 
@@ -121,6 +157,11 @@
     <delete id="deleteExpiredEvents">
         delete from gb_record.gb_weigh_event
         where event_time &lt; #{before}
+    </delete>
+
+    <delete id="deleteExpiredCombines">
+        delete from gb_record.gb_combine
+        where log_time &lt; #{before}
     </delete>
 
 </mapper>
