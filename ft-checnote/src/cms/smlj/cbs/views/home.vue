@@ -27,6 +27,7 @@ const menus = computed(() => {
         {path: '/home/contractor', title: '承包商管理', icon: '🏢', perm: 'cbs:contractor'},
         {path: '/home/project', title: '项目管理', icon: '📋', perm: 'cbs:project'},
         {path: '/home/promise', title: '安全承诺', icon: '📝', perm: 'cbs:promise'},
+        {path: '/home/spotcheck', title: '在线抽查', icon: '🔍', perm: 'cbs:spotcheck'},
     ]
     return list.filter(m => hasPerm(m.perm))
 })

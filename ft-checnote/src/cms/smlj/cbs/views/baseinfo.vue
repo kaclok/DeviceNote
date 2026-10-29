@@ -232,6 +232,71 @@ function certStatus(row) {
     return {desc: `剩余 ${days} 天`, type: 'success'}
 }
 
+/* ============ Tab7 类型字典（承包商类型/处罚类型/项目类型） ============ */
+const dictLoading = ref(false)
+const dictRows = ref([])
+const dictType = ref('contractor_type')
+const dictDialogVisible = ref(false)
+const dictSaving = ref(false)
+const dictFormRef = ref()
+const dictForm = ref({})
+const DICT_BLANK = {item_id: '', dict_type: 'contractor_type', item_name: '', sort_no: 0, is_using: true}
+
+function loadDicts() {
+    AC.abort()
+    AC = new AbortController()
+    dictLoading.value = true
+    sys.biz('cbs/dict/list', {dictType: dictType.value}, AC.signal, () => {}, (r, data) => {
+        dictLoading.value = false
+        if (r) dictRows.value = data.data || []
+        else notifyError(data, '字典加载失败')
+    })
+}
+
+watch(dictType, loadDicts)
+
+function openDictDialog(edit, row) {
+    dictForm.value = edit
+        ? {
+            item_id: row.item_id, dict_type: row.dict_type, item_name: row.item_name,
+            sort_no: row.sort_no ?? 0, is_using: row.is_using !== false,
+        }
+        : {...DICT_BLANK, dict_type: dictType.value}
+    dictDialogVisible.value = true
+}
+
+function saveDict() {
+    dictFormRef.value.validate(valid => {
+        if (!valid) return
+        dictSaving.value = true
+        sys.biz('cbs/dict/save', dictForm.value, AC.signal, () => {}, (r, data) => {
+            dictSaving.value = false
+            if (r) {
+                ElMessage.success('保存成功')
+                dictDialogVisible.value = false
+                loadDicts()
+            } else {
+                notifyError(data, '保存失败')
+            }
+        })
+    })
+}
+
+function removeDict(row) {
+    ElMessageBox.confirm(`确定删除字典项「${row.item_name}」吗？`, '提示', {type: 'warning'}).then(() => {
+        dictLoading.value = true
+        sys.biz('cbs/dict/delete', {itemId: row.item_id}, AC.signal, () => {}, (r, data) => {
+            dictLoading.value = false
+            if (r) {
+                ElMessage.success('删除成功')
+                loadDicts()
+            } else {
+                notifyError(data, '删除失败')
+            }
+        })
+    }).catch(() => {})
+}
+
 /* ============ Tab 懒加载 + 生命周期 ============ */
 const tabLoaded = ref({ent: false})
 
@@ -243,6 +308,7 @@ watch(activeTab, t => {
     if (t === 'chem') chem.load()
     if (t === 'proc') proc.load()
     if (t === 'cert') cert.load()
+    if (t === 'dict') loadDicts()
 })
 
 onMounted(loadEnt)
@@ -415,6 +481,38 @@ onUnmounted(() => AC.abort())
                     <el-empty v-if="!cert.loading.value && cert.rows.value.length === 0" description="暂无证照"/>
                 </div>
             </el-tab-pane>
+
+            <!-- ==================== 类型字典 ==================== -->
+            <el-tab-pane label="类型字典" name="dict">
+                <div class="card">
+                    <div class="toolbar">
+                        <el-radio-group v-model="dictType">
+                            <el-radio-button v-for="t in gd.dictTypes" :key="t.id" :value="t.id">
+                                {{ t.desc }}
+                            </el-radio-button>
+                        </el-radio-group>
+                        <el-button type="primary" @click="openDictDialog(false)">新增字典项</el-button>
+                    </div>
+                    <el-table :data="dictRows" v-loading="dictLoading" border stripe>
+                        <el-table-column prop="item_name" label="名称" min-width="200"/>
+                        <el-table-column prop="sort_no" label="排序" width="90" align="center"/>
+                        <el-table-column label="状态" width="100" align="center">
+                            <template #default="{row}">
+                                <el-tag :type="row.is_using ? 'success' : 'info'" effect="light" size="small">
+                                    {{ row.is_using ? '启用' : '停用' }}
+                                </el-tag>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="操作" width="130" align="center" fixed="right">
+                            <template #default="{row}">
+                                <el-link type="primary" @click="openDictDialog(true, row)">编辑</el-link>
+                                <el-link type="danger" style="margin-left:10px" @click="removeDict(row)">删除</el-link>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-empty v-if="!dictLoading && dictRows.length === 0" description="暂无字典项"/>
+                </div>
+            </el-tab-pane>
         </el-tabs>
 
         <!-- 三同时编辑弹窗 -->
@@ -549,6 +647,33 @@ onUnmounted(() => AC.abort())
             <template #footer>
                 <el-button @click="cert.dialogVisible.value = false">取消</el-button>
                 <el-button type="primary" :loading="cert.saving.value" @click="cert.save">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 类型字典编辑弹窗 -->
+        <el-dialog v-model="dictDialogVisible" :title="dictForm.item_id ? '编辑字典项' : '新增字典项'"
+                   width="460px" destroy-on-close>
+            <el-form ref="dictFormRef" :model="dictForm" label-width="90px"
+                     :rules="{item_name: [{required: true, message: '请输入名称', trigger: 'blur'}]}">
+                <el-form-item label="所属类型">
+                    <el-select v-model="dictForm.dict_type" style="width:100%">
+                        <el-option v-for="t in gd.dictTypes" :key="t.id" :value="t.id" :label="t.desc"/>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="名称" prop="item_name">
+                    <el-input v-model="dictForm.item_name" placeholder="字典项名称"/>
+                </el-form-item>
+                <el-form-item label="排序">
+                    <el-input-number v-model="dictForm.sort_no" :min="0" :precision="0" :controls="false"/>
+                    <span class="form-tip" style="margin-left:8px">数值越小越靠前</span>
+                </el-form-item>
+                <el-form-item label="状态">
+                    <el-switch v-model="dictForm.is_using" active-text="启用"/>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="dictDialogVisible = false">取消</el-button>
+                <el-button type="primary" :loading="dictSaving" @click="saveDict">保存</el-button>
             </template>
         </el-dialog>
     </div>

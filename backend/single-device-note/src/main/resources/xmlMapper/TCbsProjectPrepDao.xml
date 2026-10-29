@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsProjectPrepDao">
+
+    <sql id="cols">
+        p.prep_id, p.project_id, p.prep_date, p.content, p.status, p.checker,
+        p.remark, p.creator, p.open_status
+    </sql>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectPrep">
+        select <include refid="cols"/>, pr.proj_name
+        from cbs.t_project_prep p left join cbs.t_project pr on pr.project_id = p.project_id
+        where p.prep_id = #{id}
+    </select>
+
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectPrep">
+        select <include refid="cols"/>, pr.proj_name
+        from cbs.t_project_prep p left join cbs.t_project pr on pr.project_id = p.project_id
+        <where>
+            p.open_status = true
+            <if test="projectId != null and projectId != ''">
+                and p.project_id = #{projectId}
+            </if>
+        </where>
+        order by p.create_time desc
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectPrep">
+        insert into cbs.t_project_prep (prep_id, project_id, prep_date, content, status, checker,
+            remark, creator, open_status)
+        values (#{p.prep_id}, #{p.project_id}, #{p.prep_date}, #{p.content}, #{p.status}, #{p.checker},
+            #{p.remark}, #{p.creator}, #{p.open_status})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectPrep">
+        update cbs.t_project_prep
+        <set>
+            project_id = #{p.project_id},
+            prep_date = #{p.prep_date},
+            content = #{p.content},
+            status = #{p.status},
+            checker = #{p.checker},
+            remark = #{p.remark},
+        </set>
+        where prep_id = #{p.prep_id}
+    </update>
+
+    <update id="remove">
+        update cbs.t_project_prep set open_status = false where prep_id = #{id}
+    </update>
+</mapper>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsSpotcheckDao">
+
+    <sql id="cols">
+        s.check_id, s.work_type, s.check_date, s.checker, s.contractor_id, s.spot_content,
+        s.result, s.problem_desc, s.rectify_status, s.creator, s.open_status
+    </sql>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
+        select <include refid="cols"/>, c.name as contractor_name
+        from cbs.t_spotcheck s left join cbs.t_contractor c on c.contractor_id = s.contractor_id
+        where s.check_id = #{id}
+    </select>
+
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
+        select <include refid="cols"/>, c.name as contractor_name
+        from cbs.t_spotcheck s left join cbs.t_contractor c on c.contractor_id = s.contractor_id
+        <where>
+            s.open_status = true
+            <if test="kw != null and kw != ''">
+                and (s.spot_content like concat('%', #{kw}, '%') or s.checker like concat('%', #{kw}, '%'))
+            </if>
+            <if test="contractorId != null and contractorId != ''">
+                and s.contractor_id = #{contractorId}
+            </if>
+            <if test="workType != null">
+                and s.work_type = #{workType}
+            </if>
+        </where>
+        order by s.check_date desc nulls last, s.create_time desc
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
+        insert into cbs.t_spotcheck (check_id, work_type, check_date, checker, contractor_id, spot_content,
+            result, problem_desc, rectify_status, creator, open_status)
+        values (#{p.check_id}, #{p.work_type}, #{p.check_date}, #{p.checker}, #{p.contractor_id}, #{p.spot_content},
+            #{p.result}, #{p.problem_desc}, #{p.rectify_status}, #{p.creator}, #{p.open_status})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
+        update cbs.t_spotcheck
+        <set>
+            work_type = #{p.work_type},
+            check_date = #{p.check_date},
+            checker = #{p.checker},
+            contractor_id = #{p.contractor_id},
+            spot_content = #{p.spot_content},
+            result = #{p.result},
+            problem_desc = #{p.problem_desc},
+            rectify_status = #{p.rectify_status},
+        </set>
+        where check_id = #{p.check_id}
+    </update>
+
+    <update id="remove">
+        update cbs.t_spotcheck set open_status = false where check_id = #{id}
+    </update>
+</mapper>

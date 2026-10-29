@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsProjectEnterDao">
+
+    <sql id="cols">
+        e.enter_id, e.project_id, e.enter_date, e.person_count, e.leader, e.leader_phone,
+        e.remark, e.creator, e.open_status
+    </sql>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectEnter">
+        select <include refid="cols"/>, p.proj_name
+        from cbs.t_project_enter e left join cbs.t_project p on p.project_id = e.project_id
+        where e.enter_id = #{id}
+    </select>
+
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectEnter">
+        select <include refid="cols"/>, p.proj_name
+        from cbs.t_project_enter e left join cbs.t_project p on p.project_id = e.project_id
+        <where>
+            e.open_status = true
+            <if test="projectId != null and projectId != ''">
+                and e.project_id = #{projectId}
+            </if>
+        </where>
+        order by e.create_time desc
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectEnter">
+        insert into cbs.t_project_enter (enter_id, project_id, enter_date, person_count, leader, leader_phone,
+            remark, creator, open_status)
+        values (#{p.enter_id}, #{p.project_id}, #{p.enter_date}, #{p.person_count}, #{p.leader}, #{p.leader_phone},
+            #{p.remark}, #{p.creator}, #{p.open_status})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectEnter">
+        update cbs.t_project_enter
+        <set>
+            project_id = #{p.project_id},
+            enter_date = #{p.enter_date},
+            person_count = #{p.person_count},
+            leader = #{p.leader},
+            leader_phone = #{p.leader_phone},
+            remark = #{p.remark},
+        </set>
+        where enter_id = #{p.enter_id}
+    </update>
+
+    <update id="remove">
+        update cbs.t_project_enter set open_status = false where enter_id = #{id}
+    </update>
+</mapper>

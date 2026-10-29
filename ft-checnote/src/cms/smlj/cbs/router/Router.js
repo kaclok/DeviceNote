@@ -13,6 +13,7 @@ const _homeRouter = {
         {path: 'contractor', name: 'home_contractor', component: () => import('../views/contractor.vue'), meta: {title: '承包商管理', perms: ['cbs:contractor']}},
         {path: 'project', name: 'home_project', component: () => import('../views/project.vue'), meta: {title: '项目管理', perms: ['cbs:project']}},
         {path: 'promise', name: 'home_promise', component: () => import('../views/promise.vue'), meta: {title: '安全承诺', perms: ['cbs:promise']}},
+        {path: 'spotcheck', name: 'home_spotcheck', component: () => import('../views/spotcheck.vue'), meta: {title: '在线抽查', perms: ['cbs:spotcheck']}},
         {path: 'baseinfo', name: 'home_baseinfo', component: () => import('../views/baseinfo.vue'), meta: {title: '基础设置', perms: ['cbs:baseinfo']}},
     ],
 }

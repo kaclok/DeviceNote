@@ -338,19 +338,99 @@ function loadContractorOptions() {
     })
 }
 
+/* ============ Tab4 岗位管理 ============ */
+const postLoading = ref(false)
+const postList = ref([])
+const postKeyword = ref('')
+let kwPostTimer = null
+
+let AC_post = new AbortController()
+
+function loadPosts() {
+    AC_post.abort()
+    AC_post = new AbortController()
+    postLoading.value = true
+    const paras = {}
+    const kw = postKeyword.value.trim()
+    if (kw) paras.kw = kw
+    sys.biz('cbs/post/list', paras, AC_post.signal, () => {}, (r, data) => {
+        postLoading.value = false
+        if (r) postList.value = data.data || []
+        else notifyError(data, '岗位列表加载失败')
+    })
+}
+
+watch(postKeyword, () => {
+    clearTimeout(kwPostTimer)
+    kwPostTimer = setTimeout(loadPosts, 300)
+})
+
+const postDialogVisible = ref(false)
+const postSaving = ref(false)
+const postFormRef = ref()
+const postForm = ref({post_code: '', post_name: '', post_status: 1, remark: '', _edit: false})
+const postRules = {
+    post_code: [{required: true, message: '请输入岗位编码', trigger: 'blur'}],
+    post_name: [{required: true, message: '请输入岗位名称', trigger: 'blur'}],
+}
+
+function openPostDialog(edit, row) {
+    postForm.value = edit
+        ? {post_code: row.post_code, post_name: row.post_name, post_status: row.post_status ?? 1, remark: row.remark || '', _edit: true}
+        : {post_code: '', post_name: '', post_status: 1, remark: '', _edit: false}
+    postDialogVisible.value = true
+}
+
+function savePost() {
+    postFormRef.value.validate(valid => {
+        if (!valid) return
+        postSaving.value = true
+        const f = {...postForm.value}
+        delete f._edit
+        sys.biz('cbs/post/save', f, AC_post.signal, () => {}, (r, data) => {
+            postSaving.value = false
+            if (r) {
+                ElMessage.success('保存成功')
+                postDialogVisible.value = false
+                loadPosts()
+            } else {
+                notifyError(data, '保存失败')
+            }
+        })
+    })
+}
+
+function removePost(row) {
+    ElMessageBox.confirm(`确定删除岗位「${row.post_name}」吗？`, '提示', {type: 'warning'}).then(() => {
+        postLoading.value = true
+        sys.biz('cbs/post/delete', {postId: row.post_id}, AC_post.signal, () => {}, (r, data) => {
+            postLoading.value = false
+            if (r) {
+                ElMessage.success('删除成功')
+                loadPosts()
+            } else {
+                notifyError(data, '删除失败')
+            }
+        })
+    }).catch(() => {})
+}
+
 /* ============ 生命周期 ============ */
 onMounted(() => {
     loadDepts(AC_dept.signal)
     loadRoles()
     loadUsers()
     loadContractorOptions()
+    loadPosts()
 })
 
 onUnmounted(() => {
     AC_dept.abort()
     AC_role.abort()
     AC_user.abort()
+    AC_post.abort()
     clearTimeout(kwTimer)
+    clearTimeout(kwPostTimer)
 })
 </script>
 
@@ -472,6 +552,40 @@ onUnmounted(() => {
                     </el-table>
                 </div>
             </el-tab-pane>
+            <!-- ==================== 岗位管理 ==================== -->
+            <el-tab-pane label="岗位管理" name="post">
+                <div class="card">
+                    <div class="toolbar">
+                        <el-input v-model="postKeyword" placeholder="搜索岗位名称/编码" clearable
+                                  style="width:220px" :prefix-icon="Search"/>
+                        <el-button type="primary" @click="openPostDialog(false)">新增岗位</el-button>
+                    </div>
+                    <el-table :data="postList" v-loading="postLoading" border stripe>
+                        <el-table-column prop="post_code" label="岗位编码" width="160"/>
+                        <el-table-column prop="post_name" label="岗位名称" min-width="160"/>
+                        <el-table-column label="状态" width="100" align="center">
+                            <template #default="{row}">
+                                <el-tag :type="row.post_status === 1 ? 'success' : 'info'" effect="light" size="small">
+                                    {{ row.post_status === 1 ? '启用' : '停用' }}
+                                </el-tag>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip>
+                            <template #default="{row}">
+                                <span v-if="row.remark">{{ row.remark }}</span>
+                                <span v-else class="dim">—</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="操作" width="130" align="center" fixed="right">
+                            <template #default="{row}">
+                                <el-link type="primary" @click="openPostDialog(true, row)">编辑</el-link>
+                                <el-link type="danger" style="margin-left:10px" @click="removePost(row)">删除</el-link>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-empty v-if="!postLoading && postList.length === 0" description="暂无岗位"/>
+                </div>
+            </el-tab-pane>
         </el-tabs>
 
         <!-- 部门编辑弹窗 -->
@@ -563,6 +677,31 @@ onUnmounted(() => {
             <template #footer>
                 <el-button @click="userDialogVisible = false">取消</el-button>
                 <el-button type="primary" :loading="userSaving" @click="saveUser">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 岗位编辑弹窗 -->
+        <el-dialog v-model="postDialogVisible" :title="postForm._edit ? '编辑岗位' : '新增岗位'" width="460px" destroy-on-close>
+            <el-form ref="postFormRef" :model="postForm" :rules="postRules" label-width="90px">
+                <el-form-item label="岗位编码" prop="post_code">
+                    <el-input v-model="postForm.post_code" placeholder="唯一编码，启用中不允许重复"/>
+                </el-form-item>
+                <el-form-item label="岗位名称" prop="post_name">
+                    <el-input v-model="postForm.post_name" placeholder="请输入岗位名称"/>
+                </el-form-item>
+                <el-form-item label="状态">
+                    <el-radio-group v-model="postForm.post_status">
+                        <el-radio :value="1">启用</el-radio>
+                        <el-radio :value="0">停用</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item label="备注">
+                    <el-input v-model="postForm.remark" type="textarea" :rows="2" placeholder="选填"/>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="postDialogVisible = false">取消</el-button>
+                <el-button type="primary" :loading="postSaving" @click="savePost">保存</el-button>
             </template>
         </el-dialog>
     </div>

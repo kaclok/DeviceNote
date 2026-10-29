@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsDictDao">
+
+    <sql id="cols">
+        item_id, dict_type, item_name, sort_no, is_using, creator, open_status
+    </sql>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict">
+        select <include refid="cols"/>
+        from cbs.t_dict
+        where item_id = #{id}
+    </select>
+
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict">
+        select <include refid="cols"/>
+        from cbs.t_dict
+        <where>
+            open_status = true
+            <if test="dictType != null and dictType != ''">
+                and dict_type = #{dictType}
+            </if>
+            <if test="onlyUsing">
+                and is_using = true
+            </if>
+        </where>
+        order by sort_no, create_time
+    </select>
+
+    <select id="countName" resultType="int">
+        select count(*) from cbs.t_dict
+        where open_status = true and dict_type = #{dictType} and item_name = #{name}
+        <if test="excludeId != null and excludeId != ''">
+            and item_id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict">
+        insert into cbs.t_dict (item_id, dict_type, item_name, sort_no, is_using, creator, open_status)
+        values (#{p.item_id}, #{p.dict_type}, #{p.item_name}, #{p.sort_no}, #{p.is_using}, #{p.creator}, #{p.open_status})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict">
+        update cbs.t_dict
+        <set>
+            dict_type = #{p.dict_type},
+            item_name = #{p.item_name},
+            sort_no = #{p.sort_no},
+            is_using = #{p.is_using},
+        </set>
+        where item_id = #{p.item_id}
+    </update>
+
+    <update id="remove">
+        update cbs.t_dict set open_status = false where item_id = #{id}
+    </update>
+</mapper>

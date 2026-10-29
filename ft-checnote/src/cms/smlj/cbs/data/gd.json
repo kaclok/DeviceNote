@@ -18,7 +18,8 @@
         "cbs:audit",
         "cbs:project",
         "cbs:promise",
-        "cbs:baseinfo"
+        "cbs:baseinfo",
+        "cbs:spotcheck"
     ],
     "approveStatus": [
         {"id": 0, "desc": "待审核", "type": "warning"},
@@ -37,6 +38,38 @@
         {"id": 0, "desc": "未开始", "type": "info"},
         {"id": 1, "desc": "进行中", "type": "primary"},
         {"id": 2, "desc": "已结束", "type": "success"}
+    ],
+    "workTypes": [
+        {"id": 1, "desc": "动火"},
+        {"id": 2, "desc": "受限空间"},
+        {"id": 3, "desc": "盲板抽堵"},
+        {"id": 4, "desc": "高处作业"},
+        {"id": 5, "desc": "吊装"},
+        {"id": 6, "desc": "临时用电"},
+        {"id": 7, "desc": "动土"},
+        {"id": 8, "desc": "断路"}
+    ],
+    "checkResult": [
+        {"id": 1, "desc": "合格", "type": "success"},
+        {"id": 0, "desc": "不合格", "type": "danger"}
+    ],
+    "rectifyStatus": [
+        {"id": 0, "desc": "无需整改", "type": "info"},
+        {"id": 1, "desc": "待整改", "type": "warning"},
+        {"id": 2, "desc": "已整改", "type": "success"}
+    ],
+    "prepStatus": [
+        {"id": 0, "desc": "未完成", "type": "warning"},
+        {"id": 1, "desc": "已完成", "type": "success"}
+    ],
+    "acceptResult": [
+        {"id": 1, "desc": "通过", "type": "success"},
+        {"id": 0, "desc": "未通过", "type": "danger"}
+    ],
+    "dictTypes": [
+        {"id": "contractor_type", "desc": "承包商类型"},
+        {"id": "penalty_type", "desc": "承包商处罚类型"},
+        {"id": "project_type", "desc": "项目类型"}
     ],
     "yesNoNa": ["是", "否", "不涉及"]
 }

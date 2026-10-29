@@ -277,3 +277,103 @@ CREATE TABLE IF NOT EXISTS cbs.t_supervise_process (
 -- VALUES ('ROOT', '集团公司', NULL, true, 1, 1);
 -- INSERT INTO cbs.t_user (account, username, pwd, role_code, dept_code, user_type)
 -- VALUES ('admin', '系统管理员', '<PWD_HASH>', 'ADMIN', 'ROOT', 1);
+
+-- =====================================================================
+-- 二期补齐（2026-10-29）：岗位管理 / 在线抽查 / 项目入场·开工·验收 / 类型字典
+-- 枚举列一律数值类型 + 列注释全枚举（docs/数据库设计规范.md 铁律）
+-- =====================================================================
+
+-- 岗位管理（挂 cbs:org 权限；t_user 一期未关联岗位，仅台账）
+CREATE TABLE IF NOT EXISTS cbs.t_post (
+    post_id             varchar      NOT NULL,
+    post_code           varchar      NOT NULL,                 -- 岗位编码（启用行内唯一）
+    post_name           varchar      NOT NULL,
+    post_status         int2         NOT NULL DEFAULT 1,       -- 1=启用 0=停用
+    remark              varchar,
+    creator             varchar,
+    create_time         timestamp    NOT NULL DEFAULT now(),
+    open_status         bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_post_pkey PRIMARY KEY (post_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS t_post_code ON cbs.t_post (post_code) WHERE open_status;
+
+-- 在线抽查（特殊作业报备；挂 cbs:spotcheck 权限；数据待从原系统迁移）
+CREATE TABLE IF NOT EXISTS cbs.t_spotcheck (
+    check_id            varchar      NOT NULL,
+    work_type           int2         NOT NULL,                 -- 1=动火 2=受限空间 3=盲板抽堵 4=高处作业 5=吊装 6=临时用电 7=动土 8=断路
+    check_date          date,
+    checker             varchar,                               -- 抽查人
+    contractor_id       varchar,                               -- 被抽查承包商（可空=厂内自查）
+    spot_content        varchar,                               -- 抽查内容
+    result              int2         NOT NULL DEFAULT 1,       -- 1=合格 0=不合格
+    problem_desc        varchar,                               -- 问题描述（不合格时）
+    rectify_status      int2         NOT NULL DEFAULT 0,       -- 0=无需整改 1=待整改 2=已整改
+    creator             varchar,
+    create_time         timestamp    NOT NULL DEFAULT now(),
+    open_status         bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_spotcheck_pkey PRIMARY KEY (check_id)
+);
+CREATE INDEX IF NOT EXISTS t_spotcheck_date ON cbs.t_spotcheck (check_date);
+
+-- 入场管理（清单第18项：不做关联培训/关联考试/进出场管理/设备管理，按钮不展示）
+CREATE TABLE IF NOT EXISTS cbs.t_project_enter (
+    enter_id            varchar      NOT NULL,
+    project_id          varchar      NOT NULL,
+    enter_date          date,
+    person_count        int4,
+    leader              varchar,                               -- 入场负责人
+    leader_phone        varchar,
+    remark              varchar,
+    creator             varchar,
+    create_time         timestamp    NOT NULL DEFAULT now(),
+    open_status         bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_project_enter_pkey PRIMARY KEY (enter_id)
+);
+CREATE INDEX IF NOT EXISTS t_project_enter_proj ON cbs.t_project_enter (project_id);
+
+-- 开工准备
+CREATE TABLE IF NOT EXISTS cbs.t_project_prep (
+    prep_id             varchar      NOT NULL,
+    project_id          varchar      NOT NULL,
+    prep_date           date,
+    content             varchar,                               -- 准备事项
+    status              int2         NOT NULL DEFAULT 0,       -- 0=未完成 1=已完成
+    checker             varchar,                               -- 确认人
+    remark              varchar,
+    creator             varchar,
+    create_time         timestamp    NOT NULL DEFAULT now(),
+    open_status         bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_project_prep_pkey PRIMARY KEY (prep_id)
+);
+CREATE INDEX IF NOT EXISTS t_project_prep_proj ON cbs.t_project_prep (project_id);
+
+-- 项目验收
+CREATE TABLE IF NOT EXISTS cbs.t_project_accept (
+    accept_id           varchar      NOT NULL,
+    project_id          varchar      NOT NULL,
+    accept_date         date,
+    acceptor            varchar,                               -- 验收人
+    result              int2         NOT NULL DEFAULT 1,       -- 1=通过 0=未通过
+    opinion             varchar,                               -- 验收意见
+    remark              varchar,
+    creator             varchar,
+    create_time         timestamp    NOT NULL DEFAULT now(),
+    open_status         bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_project_accept_pkey PRIMARY KEY (accept_id)
+);
+CREATE INDEX IF NOT EXISTS t_project_accept_proj ON cbs.t_project_accept (project_id);
+
+-- 类型字典（通用：承包商类型/承包商处罚类型/项目类型，清单第21~23项）
+-- dict_type 枚举：contractor_type=承包商类型 penalty_type=承包商处罚类型 project_type=项目类型
+CREATE TABLE IF NOT EXISTS cbs.t_dict (
+    item_id             varchar      NOT NULL,
+    dict_type           varchar      NOT NULL,
+    item_name           varchar      NOT NULL,
+    sort_no             int2         NOT NULL DEFAULT 0,
+    is_using            bool         NOT NULL DEFAULT true,
+    creator             varchar,
+    create_time         timestamp    NOT NULL DEFAULT now(),
+    open_status         bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_dict_pkey PRIMARY KEY (item_id)
+);
+CREATE INDEX IF NOT EXISTS t_dict_type ON cbs.t_dict (dict_type, sort_no);

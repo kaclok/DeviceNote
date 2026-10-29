@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsProjectAcceptDao">
+
+    <sql id="cols">
+        a.accept_id, a.project_id, a.accept_date, a.acceptor, a.result, a.opinion,
+        a.remark, a.creator, a.open_status
+    </sql>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectAccept">
+        select <include refid="cols"/>, p.proj_name
+        from cbs.t_project_accept a left join cbs.t_project p on p.project_id = a.project_id
+        where a.accept_id = #{id}
+    </select>
+
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectAccept">
+        select <include refid="cols"/>, p.proj_name
+        from cbs.t_project_accept a left join cbs.t_project p on p.project_id = a.project_id
+        <where>
+            a.open_status = true
+            <if test="projectId != null and projectId != ''">
+                and a.project_id = #{projectId}
+            </if>
+        </where>
+        order by a.create_time desc
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectAccept">
+        insert into cbs.t_project_accept (accept_id, project_id, accept_date, acceptor, result, opinion,
+            remark, creator, open_status)
+        values (#{a.accept_id}, #{a.project_id}, #{a.accept_date}, #{a.acceptor}, #{a.result}, #{a.opinion},
+            #{a.remark}, #{a.creator}, #{a.open_status})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectAccept">
+        update cbs.t_project_accept
+        <set>
+            project_id = #{a.project_id},
+            accept_date = #{a.accept_date},
+            acceptor = #{a.acceptor},
+            result = #{a.result},
+            opinion = #{a.opinion},
+            remark = #{a.remark},
+        </set>
+        where accept_id = #{a.accept_id}
+    </update>
+
+    <update id="remove">
+        update cbs.t_project_accept set open_status = false where accept_id = #{id}
+    </update>
+</mapper>

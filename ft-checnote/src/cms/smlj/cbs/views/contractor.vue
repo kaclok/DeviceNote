@@ -43,6 +43,20 @@ function statusMeta(s) {
     return gd.approveStatus.find(x => x.id === Number(s)) || {desc: s, type: 'info'}
 }
 
+/* 承包商类型：后端字典（contractor_type）优先，gd.json 兜底（字典未维护时仍可选） */
+const ctypeDict = ref([])
+
+function loadCtypeDict() {
+    sys.biz('cbs/dict/list', {dictType: 'contractor_type', onlyUsing: true}, AC.signal, () => {}, (r, data) => {
+        if (r) ctypeDict.value = (data.data || []).map(d => d.item_name)
+    })
+}
+
+const ctypeOptions = computed(() => {
+    const names = ctypeDict.value.filter(Boolean)
+    return names.length ? names : gd.ctypeOptions
+})
+
 /* ============ 新增/编辑 ============ */
 const dialogVisible = ref(false)
 const saving = ref(false)
@@ -144,7 +158,10 @@ function removeRow(row) {
 }
 
 /* ============ 生命周期 ============ */
-onMounted(loadRows)
+onMounted(() => {
+    loadRows()
+    loadCtypeDict()
+})
 onUnmounted(() => {
     AC.abort()
     clearTimeout(kwTimer)
@@ -211,7 +228,7 @@ onUnmounted(() => {
                     <el-col :span="12">
                         <el-form-item label="承包商类型">
                             <el-select v-model="form.ctype" placeholder="请选择类型" clearable style="width:100%">
-                                <el-option v-for="t in gd.ctypeOptions" :key="t" :value="t" :label="t"/>
+                                <el-option v-for="t in ctypeOptions" :key="t" :value="t" :label="t"/>
                             </el-select>
                         </el-form-item>
                     </el-col>

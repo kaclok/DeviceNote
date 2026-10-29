@@ -6,18 +6,30 @@ import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsCertDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsDictDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsEnterpriseDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsLicenseChemDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsPostDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsProjectAcceptDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsProjectDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsProjectEnterDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsProjectPrepDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsPromiseDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsSpotcheckDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsSuperviseProcessDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsThreeSameDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsCert;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsEnterprise;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsLicenseChem;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPost;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProject;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectAccept;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectEnter;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectPrep;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPromise;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSuperviseProcess;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsThreeSame;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsUser;
@@ -57,6 +69,16 @@ public class CCbsBiz {
     private final TCbsThreeSameDao threeSameDao;
     private final TCbsLicenseChemDao chemDao;
     private final TCbsSuperviseProcessDao procDao;
+    private final TCbsPostDao postDao;
+    private final TCbsSpotcheckDao spotcheckDao;
+    private final TCbsProjectEnterDao enterDao;
+    private final TCbsProjectPrepDao prepDao;
+    private final TCbsProjectAcceptDao acceptDao;
+    private final TCbsDictDao dictDao;
+
+    /** 类型字典合法键（fail-closed，清单第21~23项） */
+    private static final java.util.Set<String> DICT_TYPES =
+            java.util.Set.of("contractor_type", "penalty_type", "project_type");
 
     private static String newId() {
         return UUID.randomUUID().toString().replace("-", "");
@@ -198,6 +220,313 @@ public class CCbsBiz {
             return Result.fail(ResultCode.RC10101, "项目不存在");
         }
         projectDao.remove(id);
+        return Result.success();
+    }
+
+    // ---------------- 项目子档：入场管理 / 开工准备 / 项目验收 ----------------
+
+    @RequirePermission("cbs:project")
+    @PostMapping("/project/enter/list")
+    public Result<?> enterList(@RequestBody(required = false) Map<String, Object> q) {
+        return Result.success(enterDao.queryAll(str(q, "projectId")));
+    }
+
+    @RequirePermission("cbs:project")
+    @Transactional
+    @PostMapping("/project/enter/save")
+    public Result<?> enterSave(@RequestBody TCbsProjectEnter e, @Acc TCbsUser me) {
+        if (!StringUtils.hasText(e.getProject_id()) || projectDao.query(e.getProject_id()) == null) {
+            return Result.fail(ResultCode.RC10101, "关联项目不存在");
+        }
+        if (!StringUtils.hasText(e.getEnter_id())) {
+            e.setEnter_id(newId());
+            e.setCreator(me.getAccount());
+            e.setOpen_status(true);
+            enterDao.insert(e);
+        } else {
+            TCbsProjectEnter old = enterDao.query(e.getEnter_id());
+            if (old == null) {
+                return Result.fail(ResultCode.RC10103, "入场记录不存在");
+            }
+            e.setCreator(old.getCreator());
+            e.setOpen_status(old.getOpen_status());
+            enterDao.update(e);
+        }
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:project")
+    @Transactional
+    @PostMapping("/project/enter/delete")
+    public Result<?> enterDelete(@RequestBody Map<String, Object> b) {
+        String id = str(b, "enterId");
+        if (!StringUtils.hasText(id) || enterDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "入场记录不存在");
+        }
+        enterDao.remove(id);
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:project")
+    @PostMapping("/project/prep/list")
+    public Result<?> prepList(@RequestBody(required = false) Map<String, Object> q) {
+        return Result.success(prepDao.queryAll(str(q, "projectId")));
+    }
+
+    @RequirePermission("cbs:project")
+    @Transactional
+    @PostMapping("/project/prep/save")
+    public Result<?> prepSave(@RequestBody TCbsProjectPrep p, @Acc TCbsUser me) {
+        if (!StringUtils.hasText(p.getProject_id()) || projectDao.query(p.getProject_id()) == null) {
+            return Result.fail(ResultCode.RC10101, "关联项目不存在");
+        }
+        if (!StringUtils.hasText(p.getContent())) {
+            return Result.fail(ResultCode.RC10101, "准备事项不能为空");
+        }
+        if (p.getStatus() == null) {
+            p.setStatus(0);
+        }
+        if (!StringUtils.hasText(p.getPrep_id())) {
+            p.setPrep_id(newId());
+            p.setCreator(me.getAccount());
+            p.setOpen_status(true);
+            prepDao.insert(p);
+        } else {
+            TCbsProjectPrep old = prepDao.query(p.getPrep_id());
+            if (old == null) {
+                return Result.fail(ResultCode.RC10103, "开工准备记录不存在");
+            }
+            p.setCreator(old.getCreator());
+            p.setOpen_status(old.getOpen_status());
+            prepDao.update(p);
+        }
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:project")
+    @Transactional
+    @PostMapping("/project/prep/delete")
+    public Result<?> prepDelete(@RequestBody Map<String, Object> b) {
+        String id = str(b, "prepId");
+        if (!StringUtils.hasText(id) || prepDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "开工准备记录不存在");
+        }
+        prepDao.remove(id);
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:project")
+    @PostMapping("/project/accept/list")
+    public Result<?> acceptList(@RequestBody(required = false) Map<String, Object> q) {
+        return Result.success(acceptDao.queryAll(str(q, "projectId")));
+    }
+
+    @RequirePermission("cbs:project")
+    @Transactional
+    @PostMapping("/project/accept/save")
+    public Result<?> acceptSave(@RequestBody TCbsProjectAccept a, @Acc TCbsUser me) {
+        if (!StringUtils.hasText(a.getProject_id()) || projectDao.query(a.getProject_id()) == null) {
+            return Result.fail(ResultCode.RC10101, "关联项目不存在");
+        }
+        if (a.getResult() == null) {
+            a.setResult(1);
+        }
+        if (!StringUtils.hasText(a.getAccept_id())) {
+            a.setAccept_id(newId());
+            a.setCreator(me.getAccount());
+            a.setOpen_status(true);
+            acceptDao.insert(a);
+        } else {
+            TCbsProjectAccept old = acceptDao.query(a.getAccept_id());
+            if (old == null) {
+                return Result.fail(ResultCode.RC10103, "验收记录不存在");
+            }
+            a.setCreator(old.getCreator());
+            a.setOpen_status(old.getOpen_status());
+            acceptDao.update(a);
+        }
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:project")
+    @Transactional
+    @PostMapping("/project/accept/delete")
+    public Result<?> acceptDelete(@RequestBody Map<String, Object> b) {
+        String id = str(b, "acceptId");
+        if (!StringUtils.hasText(id) || acceptDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "验收记录不存在");
+        }
+        acceptDao.remove(id);
+        return Result.success();
+    }
+
+    // ---------------- 岗位管理（挂 cbs:org） ----------------
+
+    @RequirePermission("cbs:org")
+    @PostMapping("/post/list")
+    public Result<?> postList(@RequestBody(required = false) Map<String, Object> q) {
+        return Result.success(postDao.queryAll(str(q, "kw")));
+    }
+
+    @RequirePermission("cbs:org")
+    @Transactional
+    @PostMapping("/post/save")
+    public Result<?> postSave(@RequestBody TCbsPost p, @Acc TCbsUser me) {
+        if (!StringUtils.hasText(p.getPost_code()) || !StringUtils.hasText(p.getPost_name())) {
+            return Result.fail(ResultCode.RC10101, "岗位编码/名称不能为空");
+        }
+        if (postDao.countCode(p.getPost_code(), p.getPost_id()) > 0) {
+            return Result.fail(ResultCode.RC10101, "岗位编码已存在");
+        }
+        if (p.getPost_status() == null) {
+            p.setPost_status(1);
+        }
+        if (!StringUtils.hasText(p.getPost_id())) {
+            p.setPost_id(newId());
+            p.setCreator(me.getAccount());
+            p.setOpen_status(true);
+            postDao.insert(p);
+        } else {
+            TCbsPost old = postDao.query(p.getPost_id());
+            if (old == null) {
+                return Result.fail(ResultCode.RC10103, "岗位不存在");
+            }
+            p.setCreator(old.getCreator());
+            p.setOpen_status(old.getOpen_status());
+            postDao.update(p);
+        }
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:org")
+    @Transactional
+    @PostMapping("/post/delete")
+    public Result<?> postDelete(@RequestBody Map<String, Object> b) {
+        String id = str(b, "postId");
+        if (!StringUtils.hasText(id) || postDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "岗位不存在");
+        }
+        postDao.remove(id);
+        return Result.success();
+    }
+
+    // ---------------- 在线抽查（特殊作业报备，挂 cbs:spotcheck） ----------------
+
+    @RequirePermission("cbs:spotcheck")
+    @PostMapping("/spotcheck/list")
+    public Result<?> spotcheckList(@RequestBody(required = false) Map<String, Object> q) {
+        return Result.success(spotcheckDao.queryAll(str(q, "kw"), str(q, "contractorId"), intVal(q, "workType")));
+    }
+
+    @RequirePermission("cbs:spotcheck")
+    @Transactional
+    @PostMapping("/spotcheck/save")
+    public Result<?> spotcheckSave(@RequestBody TCbsSpotcheck s, @Acc TCbsUser me) {
+        if (s.getWork_type() == null || s.getWork_type() < 1 || s.getWork_type() > 8) {
+            return Result.fail(ResultCode.RC10101, "特殊作业类型不合法");
+        }
+        if (!StringUtils.hasText(s.getSpot_content())) {
+            return Result.fail(ResultCode.RC10101, "抽查内容不能为空");
+        }
+        if (s.getResult() == null) {
+            s.setResult(1);
+        }
+        if (s.getResult() == 0 && s.getRectify_status() == null) {
+            s.setRectify_status(1);
+        }
+        if (s.getRectify_status() == null) {
+            s.setRectify_status(0);
+        }
+        if (StringUtils.hasText(s.getContractor_id()) && contractorDao.query(s.getContractor_id()) == null) {
+            return Result.fail(ResultCode.RC10101, "被抽查承包商不存在");
+        }
+        if (!StringUtils.hasText(s.getCheck_id())) {
+            s.setCheck_id(newId());
+            s.setCreator(me.getAccount());
+            s.setOpen_status(true);
+            spotcheckDao.insert(s);
+        } else {
+            TCbsSpotcheck old = spotcheckDao.query(s.getCheck_id());
+            if (old == null) {
+                return Result.fail(ResultCode.RC10103, "抽查记录不存在");
+            }
+            s.setCreator(old.getCreator());
+            s.setOpen_status(old.getOpen_status());
+            spotcheckDao.update(s);
+        }
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:spotcheck")
+    @Transactional
+    @PostMapping("/spotcheck/delete")
+    public Result<?> spotcheckDelete(@RequestBody Map<String, Object> b) {
+        String id = str(b, "checkId");
+        if (!StringUtils.hasText(id) || spotcheckDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "抽查记录不存在");
+        }
+        spotcheckDao.remove(id);
+        return Result.success();
+    }
+
+    // ---------------- 类型字典（挂 cbs:baseinfo，清单第21~23项） ----------------
+
+    @RequirePermission("cbs:baseinfo")
+    @PostMapping("/dict/list")
+    public Result<?> dictList(@RequestBody(required = false) Map<String, Object> q) {
+        String type = str(q, "dictType");
+        if (StringUtils.hasText(type) && !DICT_TYPES.contains(type)) {
+            return Result.fail(ResultCode.RC10101, "dict_type 不合法");
+        }
+        boolean onlyUsing = Boolean.parseBoolean(String.valueOf(q == null ? null : q.get("onlyUsing")));
+        return Result.success(dictDao.queryAll(type, onlyUsing));
+    }
+
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/dict/save")
+    public Result<?> dictSave(@RequestBody TCbsDict d, @Acc TCbsUser me) {
+        if (!DICT_TYPES.contains(d.getDict_type())) {
+            return Result.fail(ResultCode.RC10101, "dict_type 不合法");
+        }
+        if (!StringUtils.hasText(d.getItem_name())) {
+            return Result.fail(ResultCode.RC10101, "字典项名称不能为空");
+        }
+        if (dictDao.countName(d.getDict_type(), d.getItem_name(), d.getItem_id()) > 0) {
+            return Result.fail(ResultCode.RC10101, "该类型下字典项名称已存在");
+        }
+        if (d.getSort_no() == null) {
+            d.setSort_no(0);
+        }
+        if (d.getIs_using() == null) {
+            d.setIs_using(true);
+        }
+        if (!StringUtils.hasText(d.getItem_id())) {
+            d.setItem_id(newId());
+            d.setCreator(me.getAccount());
+            d.setOpen_status(true);
+            dictDao.insert(d);
+        } else {
+            TCbsDict old = dictDao.query(d.getItem_id());
+            if (old == null) {
+                return Result.fail(ResultCode.RC10103, "字典项不存在");
+            }
+            d.setCreator(old.getCreator());
+            d.setOpen_status(old.getOpen_status());
+            dictDao.update(d);
+        }
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/dict/delete")
+    public Result<?> dictDelete(@RequestBody Map<String, Object> b) {
+        String id = str(b, "itemId");
+        if (!StringUtils.hasText(id) || dictDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "字典项不存在");
+        }
+        dictDao.remove(id);
         return Result.success();
     }
 
