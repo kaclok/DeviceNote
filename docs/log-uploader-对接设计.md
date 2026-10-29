@@ -1,6 +1,6 @@
-# 过磅日志监控 · 对接设计（gb-watcher → plantmap）
+# 过磅日志监控 · 对接设计（LogUploader → plantmap）
 
-> 监控端：`tool/gb-watcher/`（WinForms，常驻过磅电脑）
+> 监控端：`tool/log-uploader/`（WinForms，常驻过磅电脑）
 > 本文定义监控端 → 服务端的上报契约、服务端建表与解析规则、plantmap 前端展示方案。
 
 ## 1. 数据流
@@ -9,7 +9,7 @@
 过磅软件 ──写──▶ 日志根目录\yyyyMM\yyyyMMdd.txt
                     │ FileSystemWatcher + Tail(断点续读)
                     ▼
-        GbWatcher.exe（磅点编号随数据上报）
+        LogUploader.exe（磅点编号随数据上报）
                     │ POST /api/gb/log（批量，失败重试）
                     ▼
         plantmap 后端 ── 原始行表 gb_log_line（全量留痕）
@@ -128,9 +128,9 @@ ORDER BY MIN(event_time) DESC;
 
 ## 6. 监控端部署与运维
 
-1. 拷贝 `GbWatcher.exe` 到过磅电脑任意目录，双击运行；
-2. 配置日志根目录（过磅软件日志目录）、plantmap 后端地址、磅点编号 → 点「开始监控」，配置自动持久化（%APPDATA%\DevLauncher\gb-watcher.ini）；
-3. 断点状态存 `%APPDATA%\DevLauncher\gb-watcher-state.ini`，重启续读不重不漏；
+1. 拷贝 `LogUploader.exe` 到过磅电脑任意目录，双击运行；
+2. 配置日志根目录（过磅软件日志目录）、plantmap 后端地址、磅点编号 → 点「开始监控」，配置自动持久化（%APPDATA%\DevLauncher\log-uploader.ini）；
+3. 断点状态存 `%APPDATA%\DevLauncher\log-uploader-state.ini`，重启续读不重不漏；
 4. 首次部署当日已存在的日志会被跳过（只上报部署之后新增的行）；如需补历史，删掉 state.ini 重启并把 SkipHistory 逻辑改为从 0 读（目前默认跳过，避免灌入整日历史）；
 5. 建议加开机自启（快捷方式放 shell:startup）。
 

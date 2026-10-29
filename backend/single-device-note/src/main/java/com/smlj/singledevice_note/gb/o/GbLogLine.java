@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 过磅日志监控器（gb-watcher）上报的一条原始日志行。
+ * 过磅日志监控器（LogUploader）上报的一条原始日志行。
  * POST /api/gb/log 请求体是本对象的数组：
  * [{"no":1,"type":"A","time":"2026/10/26 0:10:05","content":"...","fp":"66139e904360430b"},...]
  * 其中 no 为监控器配置的磅号（JSON 里是数字，按 String 接收以兼容 "GB01" 这类配置）；

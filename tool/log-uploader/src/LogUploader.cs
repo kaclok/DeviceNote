@@ -1,4 +1,4 @@
-// 过磅日志监控器 (Weighbridge Log Watcher) —— WinForms 单文件工具（复用 dev-launcher 的 Shared.cs）
+// 过磅日志监控器 (Weighbridge Log Uploader) —— WinForms 单文件工具（复用 dev-launcher 的 Shared.cs）
 //
 // 用途：常驻过磅软件所在电脑，实时监听过磅软件产生的日志（按月目录\按日 txt），日志一旦
 //   新增一行立即批量 POST 到 plantmap 后端。
@@ -19,7 +19,7 @@
 //   - 指纹 fp = MD5(文件|行号|内容) 前 16 位，服务端按 (source, fp) 幂等去重
 //
 // 自检入口（无需真实服务端）：
-//   GbWatcher.exe --selftest <rootDir> <outFile> [seconds]
+//   LogUploader.exe --selftest <rootDir> <outFile> [seconds]
 //     模拟过磅软件追加日志，把捕获到的行以 JSON 数组写入 outFile
 
 using System;
@@ -36,7 +36,7 @@ using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using DevLaunch;
 
-namespace GbWatch
+namespace LogUploader
 {
     static class Program
     {
@@ -76,14 +76,14 @@ namespace GbWatch
     }
 
     // ============================ 断点缓存文件（路径可配置） ============================
-    // 与 Shared.Cfg 同格式（k=v 行），但以完整路径为键；默认 %APPDATA%\DevLauncher\gb-watcher-state.ini
+    // 与 Shared.Cfg 同格式（k=v 行），但以完整路径为键；默认 %APPDATA%\DevLauncher\log-uploader-state.ini
     // 注意：监控运行中会被程序周期性覆写，手动修改须在停止监控时进行
     static class StateIO
     {
         public static string DefaultFile()
         {
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "DevLauncher", "gb-watcher-state.ini");
+                "DevLauncher", "log-uploader-state.ini");
         }
 
         public static Dictionary<string, string> Load(string file)
@@ -127,7 +127,7 @@ namespace GbWatch
         public string Server;       // plantmap 后端地址，如 http://x.x.x.x:8080（空 = 不上报，自检用）
         public string Source;       // 磅点编号，如 GB01
         public Encoding Enc;        // 日志文件编码（GBK / UTF-8）
-        public string StateFile;    // 断点缓存文件完整路径（空 = 默认 %APPDATA%\DevLauncher\gb-watcher-state.ini）
+        public string StateFile;    // 断点缓存文件完整路径（空 = 默认 %APPDATA%\DevLauncher\log-uploader-state.ini）
         public LogView Log;         // UI 日志（可为 null，自检模式）
         public Control Ui;          // 用于 BeginInvoke 刷新（可为 null）
 
@@ -648,12 +648,12 @@ namespace GbWatch
     }
 
     // ============================ 卡片容器（本工具自带，不依赖 Shared.cs 美化组件） ============================
-    class GwCard : Panel
+    class LuCard : Panel
     {
         public string Title = "";
         const int HeadH = 26;
 
-        public GwCard()
+        public LuCard()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer
                 | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
@@ -672,11 +672,11 @@ namespace GbWatch
         }
     }
 
-    static class Gw
+    static class Lu
     {
-        public static GwCard AddCard(Form f, string title, int x, int y, int w, int h)
+        public static LuCard AddCard(Form f, string title, int x, int y, int w, int h)
         {
-            GwCard c = new GwCard();
+            LuCard c = new LuCard();
             c.Title = title;
             c.SetBounds(x, y, w, h);
             f.Controls.Add(c);
@@ -743,12 +743,12 @@ namespace GbWatch
             tip = new ToolTip();
 
             // ---- 卡片：配置 ----
-            GwCard cC = Gw.AddCard(this, "配置", 16, 12, 628, 196);
+            LuCard cC = Lu.AddCard(this, "配置", 16, 12, 628, 196);
 
-            Gw.LblC(cC, "日志目录", 16, 40, 60, Th.Dim);
+            Lu.LblC(cC, "日志目录", 16, 40, 60, Th.Dim);
             txtRoot = new TextBox();
-            Gw.FieldC(cC, txtRoot, 80, 36, 352, 28);
-            FlatBtn bRoot = Gw.BtnC(cC, "浏览", 440, 36, 64, false);
+            Lu.FieldC(cC, txtRoot, 80, 36, 352, 28);
+            FlatBtn bRoot = Lu.BtnC(cC, "浏览", 440, 36, 64, false);
             bRoot.Click += delegate
             {
                 using (FolderBrowserDialog d = new FolderBrowserDialog())
@@ -759,28 +759,28 @@ namespace GbWatch
                 }
             };
 
-            Gw.LblC(cC, "服务端", 16, 80, 50, Th.Dim);
+            Lu.LblC(cC, "服务端", 16, 80, 50, Th.Dim);
             txtServer = new TextBox();
-            Gw.FieldC(cC, txtServer, 80, 76, 240, 28);
+            Lu.FieldC(cC, txtServer, 80, 76, 240, 28);
             tip.SetToolTip(txtServer, "plantmap 后端地址，如 http://192.168.1.10:8080");
 
-            Gw.LblC(cC, "编码", 332, 80, 34, Th.Dim);
+            Lu.LblC(cC, "编码", 332, 80, 34, Th.Dim);
             cmbEnc = new FlatCombo();
             cmbEnc.Items.Add("GBK");
             cmbEnc.Items.Add("UTF-8");
             cmbEnc.SelectedIndex = 0;
             tip.SetToolTip(cmbEnc, "过磅软件日志文件的文本编码，默认 GBK");
-            Gw.FieldC(cC, cmbEnc, 370, 76, 90, 28);
+            Lu.FieldC(cC, cmbEnc, 370, 76, 90, 28);
 
-            Gw.LblC(cC, "磅号", 470, 80, 34, Th.Dim);
+            Lu.LblC(cC, "磅号", 470, 80, 34, Th.Dim);
             txtSource = new TextBox();
-            Gw.FieldC(cC, txtSource, 506, 76, 106, 28);
+            Lu.FieldC(cC, txtSource, 506, 76, 106, 28);
             tip.SetToolTip(txtSource, "本程序绑定的地磅编号，随每条上报数据带给服务端，如 1 / 2 / GB01");
 
-            Gw.LblC(cC, "缓存文件", 16, 120, 60, Th.Dim);
+            Lu.LblC(cC, "缓存文件", 16, 120, 60, Th.Dim);
             txtState = new TextBox();
-            Gw.FieldC(cC, txtState, 80, 116, 352, 28);
-            FlatBtn bState = Gw.BtnC(cC, "浏览", 440, 116, 64, false);
+            Lu.FieldC(cC, txtState, 80, 116, 352, 28);
+            FlatBtn bState = Lu.BtnC(cC, "浏览", 440, 116, 64, false);
             bState.Click += delegate
             {
                 using (OpenFileDialog d = new OpenFileDialog())
@@ -794,24 +794,24 @@ namespace GbWatch
             tip.SetToolTip(txtState, "断点缓存文件（记录各日志文件已上报到的位置，k=路径 v=offset|行号）。\r\n"
                 + "手动修改请在【停止监控】状态下进行：监控中会被程序周期性覆写。");
 
-            btnStart = Gw.BtnC(cC, "开始监控", 16, 158, 120, true);
+            btnStart = Lu.BtnC(cC, "开始监控", 16, 158, 120, true);
             btnStart.Height = 30;
             btnStart.Click += delegate { ToggleRun(); };
 
-            lblState = Gw.LblC(cC, "未启动", 148, 166, 470, Th.Dim);
+            lblState = Lu.LblC(cC, "未启动", 148, 166, 470, Th.Dim);
             lblState.Font = Th.UiB;
 
             // ---- 卡片：实时日志 ----
-            GwCard cL = Gw.AddCard(this, "实时日志", 16, 220, 628, 250);
+            LuCard cL = Lu.AddCard(this, "实时日志", 16, 220, 628, 250);
 
-            FlatBtn bCopy = Gw.BtnC(cL, "复制", 476, 2, 64, false);
+            FlatBtn bCopy = Lu.BtnC(cL, "复制", 476, 2, 64, false);
             bCopy.Height = 22;
             bCopy.Click += delegate
             {
                 string text = log.Box.Text;
                 if (text.Length > 0) Clipboard.SetText(text);
             };
-            FlatBtn bClear = Gw.BtnC(cL, "清空", 548, 2, 64, false);
+            FlatBtn bClear = Lu.BtnC(cL, "清空", 548, 2, 64, false);
             bClear.Height = 22;
             bClear.Click += delegate { log.Clear(); };
             tip.SetToolTip(bClear, "只清空控制台显示，不影响日志文件与待上报数据");
@@ -826,7 +826,7 @@ namespace GbWatch
             cL.Controls.Add(pl);
 
             // ---- 恢复配置 ----
-            Dictionary<string, string> cfg = Cfg.Load("gb-watcher");
+            Dictionary<string, string> cfg = Cfg.Load("log-uploader");
             if (cfg.ContainsKey("root")) txtRoot.Text = cfg["root"];
             if (cfg.ContainsKey("server")) txtServer.Text = cfg["server"];
             if (cfg.ContainsKey("source")) txtSource.Text = cfg["source"];
@@ -882,7 +882,7 @@ namespace GbWatch
             cfg["source"] = source;
             cfg["statefile"] = stateFile;
             cfg["enc"] = cmbEnc.Text;
-            Cfg.Save("gb-watcher", cfg);
+            Cfg.Save("log-uploader", cfg);
 
             _eng = new Engine(root, server, source, enc, log, this, stateFile);
             _eng.StateChanged += delegate(string s)

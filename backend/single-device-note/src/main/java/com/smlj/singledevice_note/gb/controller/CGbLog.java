@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 过磅日志监控器（gb-watcher）上报接口 + 日志/过磅事件查询。
+ * 过磅日志监控器（LogUploader）上报接口 + 日志/过磅事件查询。
  *
  * ⚠️ 路径刻意挂在 /api/gb 下：TokenInterceptor / SignInterceptor 只拦 /cghtz/**，
  * 监控器（磅房电脑上的 exe）不带 JWT/签名，这里保持免认证直写。

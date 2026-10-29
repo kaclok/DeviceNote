@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""gb-watcher 自检回归：行捕获 + 缓存落盘/恢复。"""
+"""log-uploader 自检回归：行捕获 + 缓存落盘/恢复。"""
 import subprocess, sys, os, shutil, json
 
-EXE = r"F:\Projects\Study\github\DeviceNote\tool\gb-watcher\bin\GbWatcher.exe"
-WORK = r"F:\Projects\Study\github\DeviceNote\tool\gb-watcher\_st_root"
+EXE = r"F:\Projects\Study\github\DeviceNote\tool\log-uploader\bin\LogUploader.exe"
+WORK = r"F:\Projects\Study\github\DeviceNote\tool\log-uploader\_st_root"
 OUT = os.path.join(WORK, "_result.json")
 COUT = OUT + ".index"
 

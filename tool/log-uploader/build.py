@@ -3,7 +3,7 @@
 
 用法：
     python build.py            # 全量编译
-    python build.py GbWatcher  # 关键字过滤
+    python build.py LogUploader  # 关键字过滤
 """
 import os
 import shutil
@@ -32,7 +32,7 @@ REFS = [
 # (临时英文名, 最终名, 主文件, 附加源文件)
 # ⚠️ 临时名必须与最终名不同：NTFS 大小写不敏感，同名会 SameFileError
 TARGETS = [
-    ("_tmp_GbWatcher.exe", "GbWatcher.exe", "GbWatcher.cs", []),
+    ("_tmp_LogUploader.exe", "LogUploader.exe", "LogUploader.cs", []),
 ]
 
 
