@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsPromiseDao">
+
+    <sql id="cols">
+        promise_date, prod_sets, stop_sets, hazard_lv1, hazard_lv2, hazard_lv3, hazard_lv4,
+        start_sets, stop_dev_sets, trial_sets, supervision_process, repair_sets,
+        fire_special, fire_lv1, fire_lv2, confined, blind, work_height, lifting, temp_power,
+        digging, road_close, repair_work,
+        has_contractor_work, in_trial, in_startstop, in_pilot, has_major_hazard, company_promise, creator
+    </sql>
+
+    <select id="queryByDate" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPromise">
+        select <include refid="cols"/> from cbs.t_promise where promise_date = #{date}
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPromise">
+        insert into cbs.t_promise (<include refid="cols"/>)
+        values (#{p.promise_date}, #{p.prod_sets}, #{p.stop_sets}, #{p.hazard_lv1}, #{p.hazard_lv2},
+            #{p.hazard_lv3}, #{p.hazard_lv4}, #{p.start_sets}, #{p.stop_dev_sets}, #{p.trial_sets},
+            #{p.supervision_process}, #{p.repair_sets}, #{p.fire_special}, #{p.fire_lv1}, #{p.fire_lv2},
+            #{p.confined}, #{p.blind}, #{p.work_height}, #{p.lifting}, #{p.temp_power}, #{p.digging},
+            #{p.road_close}, #{p.repair_work}, #{p.has_contractor_work}, #{p.in_trial}, #{p.in_startstop},
+            #{p.in_pilot}, #{p.has_major_hazard}, #{p.company_promise}, #{p.creator})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPromise">
+        update cbs.t_promise
+        <set>
+            prod_sets = #{p.prod_sets}, stop_sets = #{p.stop_sets},
+            hazard_lv1 = #{p.hazard_lv1}, hazard_lv2 = #{p.hazard_lv2},
+            hazard_lv3 = #{p.hazard_lv3}, hazard_lv4 = #{p.hazard_lv4},
+            start_sets = #{p.start_sets}, stop_dev_sets = #{p.stop_dev_sets},
+            trial_sets = #{p.trial_sets}, supervision_process = #{p.supervision_process},
+            repair_sets = #{p.repair_sets},
+            fire_special = #{p.fire_special}, fire_lv1 = #{p.fire_lv1}, fire_lv2 = #{p.fire_lv2},
+            confined = #{p.confined}, blind = #{p.blind}, work_height = #{p.work_height},
+            lifting = #{p.lifting}, temp_power = #{p.temp_power}, digging = #{p.digging},
+            road_close = #{p.road_close}, repair_work = #{p.repair_work},
+            has_contractor_work = #{p.has_contractor_work}, in_trial = #{p.in_trial},
+            in_startstop = #{p.in_startstop}, in_pilot = #{p.in_pilot},
+            has_major_hazard = #{p.has_major_hazard}, company_promise = #{p.company_promise},
+        </set>
+        where promise_date = #{p.promise_date}
+    </update>
+</mapper>

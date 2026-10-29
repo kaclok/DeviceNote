@@ -1,0 +1,72 @@
+import {createApp} from 'vue'
+import App from './App.vue'
+
+import ElementPlus from 'element-plus'
+import zhCn from "element-plus/es/locale/lang/zh-cn";
+import 'dayjs/locale/zh-cn';
+import VConsole from 'vconsole';
+// 模块级全局样式：下拉类控件字号等（面板 teleport 到 body，scoped 样式命中不到）
+import "./styles/cbs.css";
+
+// import直接引用一个文件时，会执行一遍这个文件，而不获取任何文件对象, 比如：import './lib/init.js';
+import {RegisterDirective} from "@/framework/directives/DirectiveList.js";
+import {Switch} from "@/framework/services/LocaleService.js";
+
+import "@/framework/services/net/Init.js";
+import {changeAuthFailureHandler} from "@/framework/services/net/AxiosInst.js";
+import {clearAccount} from "@/framework/composable/use/useCache.ts";
+import {router} from "./router/Index.js";
+
+// 注册鉴权失败处理(RT过期/未登录/AT被篡改)：清登录态并跳登录页
+changeAuthFailureHandler((needLogout) => {
+    clearAccount();
+    if (router.currentRoute.value.name !== 'login') {
+        const cur = router.currentRoute.value.fullPath
+        router.push({name: 'login', query: {redirect: cur}});
+    }
+});
+
+// 旧的 lazy chunk 加载失败时，自动刷新一次拿新版本
+window.addEventListener('vite:preloadError', () => {
+    if (sessionStorage.getItem('__reloaded__')) return  // 防止死循环
+    sessionStorage.setItem('__reloaded__', '1')
+    window.location.reload()
+})
+
+// 创建实例
+const app = createApp(App)
+
+if (__DEV__) {
+    // 开发环境引入手机浏览器的开发者工具
+    const vc = new VConsole();
+}
+
+app.config.errorHandler = (error, instance, info) => {
+    console.error(error, instance, info);
+};
+app.config.warnHandler = (msg, instance, trace) => {
+    console.warn(msg, instance, trace);
+};
+app.config.performance = true;
+
+async function setupAll(app) {
+    await Switch(app, import.meta.env.VITE_LOCALE);
+
+    app.use(ElementPlus, {
+        locale: zhCn,
+    })
+
+    // 自定义指令
+    RegisterDirective(app);
+    // 路由
+    app.use(router);
+
+    // mount在最后
+    app.mount('#app');
+}
+
+setupAll(app).then(r => {
+    //
+}).catch(e => {
+    //
+});

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsEnterpriseDao">
+
+    <select id="get" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsEnterprise">
+        select id, ent_name, uscc, legal_person, legal_phone, legal_idcard, chem_reg_code, found_date,
+               industry_type, supervisor, staff_count, region_code, address, fixed_assets, total_area,
+               register_address, product_address, county, park_name, prod_start_date,
+               industry_detail, sub_units, economy_type, run_status, supervise_level, capacity, ent_scale,
+               ent_position, two_key_one_major, license_no, license_begin, license_end,
+               main_person, main_person_idcard, safety_org, safety_org_phone, safety_org_leader,
+               safety_org_leader_phone, duty_phone, full_safety_count, part_safety_count, special_work_count,
+               safety_std_level, std_cert_expire,
+               has_major_hazard, risk_identified, hazard_filed, has_danger_process, monitor_system,
+               has_supervision_process, server_addr, mqtt_topic, plant_map_id
+        from cbs.t_enterprise
+        where id = 1
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsEnterprise">
+        insert into cbs.t_enterprise (id, ent_name, uscc, legal_person, legal_phone, legal_idcard,
+            chem_reg_code, found_date, industry_type, supervisor, staff_count, region_code, address,
+            fixed_assets, total_area, register_address, product_address, county, park_name, prod_start_date,
+            industry_detail, sub_units, economy_type, run_status, supervise_level, capacity, ent_scale,
+            ent_position, two_key_one_major, license_no, license_begin, license_end,
+            main_person, main_person_idcard, safety_org, safety_org_phone, safety_org_leader,
+            safety_org_leader_phone, duty_phone, full_safety_count, part_safety_count, special_work_count,
+            safety_std_level, std_cert_expire,
+            has_major_hazard, risk_identified, hazard_filed, has_danger_process, monitor_system,
+            has_supervision_process, server_addr, mqtt_topic, plant_map_id)
+        values (1, #{e.ent_name}, #{e.uscc}, #{e.legal_person}, #{e.legal_phone}, #{e.legal_idcard},
+            #{e.chem_reg_code}, #{e.found_date}, #{e.industry_type}, #{e.supervisor}, #{e.staff_count},
+            #{e.region_code}, #{e.address}, #{e.fixed_assets}, #{e.total_area}, #{e.register_address},
+            #{e.product_address}, #{e.county}, #{e.park_name}, #{e.prod_start_date},
+            #{e.industry_detail}, #{e.sub_units}, #{e.economy_type}, #{e.run_status}, #{e.supervise_level},
+            #{e.capacity}, #{e.ent_scale}, #{e.ent_position}, #{e.two_key_one_major},
+            #{e.license_no}, #{e.license_begin}, #{e.license_end},
+            #{e.main_person}, #{e.main_person_idcard}, #{e.safety_org}, #{e.safety_org_phone},
+            #{e.safety_org_leader}, #{e.safety_org_leader_phone}, #{e.duty_phone}, #{e.full_safety_count},
+            #{e.part_safety_count}, #{e.special_work_count}, #{e.safety_std_level}, #{e.std_cert_expire},
+            #{e.has_major_hazard}, #{e.risk_identified}, #{e.hazard_filed}, #{e.has_danger_process},
+            #{e.monitor_system}, #{e.has_supervision_process}, #{e.server_addr}, #{e.mqtt_topic},
+            #{e.plant_map_id})
+    </insert>
+
+    <update id="update">
+        update cbs.t_enterprise
+        <set>
+            ent_name = #{e.ent_name}, uscc = #{e.uscc}, legal_person = #{e.legal_person},
+            legal_phone = #{e.legal_phone}, legal_idcard = #{e.legal_idcard},
+            chem_reg_code = #{e.chem_reg_code}, found_date = #{e.found_date},
+            industry_type = #{e.industry_type}, supervisor = #{e.supervisor}, staff_count = #{e.staff_count},
+            region_code = #{e.region_code}, address = #{e.address}, fixed_assets = #{e.fixed_assets},
+            total_area = #{e.total_area}, register_address = #{e.register_address},
+            product_address = #{e.product_address}, county = #{e.county}, park_name = #{e.park_name},
+            prod_start_date = #{e.prod_start_date},
+            industry_detail = #{e.industry_detail}, sub_units = #{e.sub_units},
+            economy_type = #{e.economy_type}, run_status = #{e.run_status},
+            supervise_level = #{e.supervise_level}, capacity = #{e.capacity}, ent_scale = #{e.ent_scale},
+            ent_position = #{e.ent_position}, two_key_one_major = #{e.two_key_one_major},
+            license_no = #{e.license_no}, license_begin = #{e.license_begin}, license_end = #{e.license_end},
+            main_person = #{e.main_person}, main_person_idcard = #{e.main_person_idcard},
+            safety_org = #{e.safety_org}, safety_org_phone = #{e.safety_org_phone},
+            safety_org_leader = #{e.safety_org_leader}, safety_org_leader_phone = #{e.safety_org_leader_phone},
+            duty_phone = #{e.duty_phone}, full_safety_count = #{e.full_safety_count},
+            part_safety_count = #{e.part_safety_count}, special_work_count = #{e.special_work_count},
+            safety_std_level = #{e.safety_std_level}, std_cert_expire = #{e.std_cert_expire},
+            has_major_hazard = #{e.has_major_hazard}, risk_identified = #{e.risk_identified},
+            hazard_filed = #{e.hazard_filed}, has_danger_process = #{e.has_danger_process},
+            monitor_system = #{e.monitor_system}, has_supervision_process = #{e.has_supervision_process},
+            server_addr = #{e.server_addr}, mqtt_topic = #{e.mqtt_topic}, plant_map_id = #{e.plant_map_id},
+            update_time = now(), update_by = #{me},
+        </set>
+        where id = 1
+    </update>
+</mapper>

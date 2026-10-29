@@ -14,6 +14,7 @@ const mpaInput = {
     sbrhjy: resolve(__dirname, './pages/smlj/sbrhjy/index.html'),
     cggy: resolve(__dirname, './pages/smlj/cggy/index.html'),
     cghtz: resolve(__dirname, './pages/smlj/cghtz/index.html'),
+    cbs: resolve(__dirname, './pages/smlj/cbs/index.html'),
     carop: resolve(__dirname, './pages/smlj/carop/index.html'),
     plantmap: resolve(__dirname, './pages/smlj/plantmap/index.html'),
     filetest: resolve(__dirname, './pages/smlj/filetest/index.html'),
@@ -26,6 +27,7 @@ const mpaInput = {
 const mpaRewrites = [
     {from: /\/cggy/, to: '/pages/smlj/cggy/index.html'},
     {from: /\/cghtz/, to: '/pages/smlj/cghtz/index.html'},
+    {from: /\/cbs/, to: '/pages/smlj/cbs/index.html'},
     {from: /\/carop/, to: '/pages/smlj/carop/index.html'},
     {from: /\/plantmap/, to: '/pages/smlj/plantmap/index.html'},
     {from: /\/filetest/, to: '/pages/smlj/filetest/index.html'},

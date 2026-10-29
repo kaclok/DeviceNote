@@ -1,0 +1,42 @@
+{
+    "defaultPwd": "123456",
+    "dataScope": {
+        "levels": [
+            {"id": 1, "name": "SELF", "desc": "本人"},
+            {"id": 2, "name": "DEPT", "desc": "本部门"},
+            {"id": 3, "name": "COMPANY", "desc": "本公司"},
+            {"id": 4, "name": "ALL", "desc": "全集团"}
+        ]
+    },
+    "userTypes": [
+        {"id": 1, "desc": "内部员工"},
+        {"id": 2, "desc": "承包商人员"}
+    ],
+    "permDefs": [
+        "cbs:org",
+        "cbs:contractor",
+        "cbs:audit",
+        "cbs:project",
+        "cbs:promise",
+        "cbs:baseinfo"
+    ],
+    "approveStatus": [
+        {"id": 0, "desc": "待审核", "type": "warning"},
+        {"id": 1, "desc": "已通过", "type": "success"},
+        {"id": 2, "desc": "已驳回", "type": "danger"}
+    ],
+    "ctypeOptions": [
+        "施工检修",
+        "设备维保",
+        "物料运输",
+        "技术服务",
+        "劳务分包",
+        "其他"
+    ],
+    "projStatus": [
+        {"id": 0, "desc": "未开始", "type": "info"},
+        {"id": 1, "desc": "进行中", "type": "primary"},
+        {"id": 2, "desc": "已结束", "type": "success"}
+    ],
+    "yesNoNa": ["是", "否", "不涉及"]
+}

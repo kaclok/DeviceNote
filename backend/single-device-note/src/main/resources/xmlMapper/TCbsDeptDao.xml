@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsDeptDao">
+
+    <!-- 数组列（direct_children/recursive_children）必须走 ArrayTypeHandler 的 resultMap -->
+    <resultMap id="CbsDeptResultMap" type="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDept">
+        <id property="dept_code" column="dept_code"/>
+        <result property="dept_name" column="dept_name"/>
+        <result property="parent_dept_code" column="parent_dept_code"/>
+        <result property="is_company" column="is_company"/>
+        <result property="level" column="level"/>
+        <result property="node_type" column="node_type"/>
+        <result property="direct_children" column="direct_children" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+        <result property="recursive_children" column="recursive_children" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+        <result property="is_using" column="is_using"/>
+    </resultMap>
+
+    <select id="queryById" resultMap="CbsDeptResultMap">
+        select * from cbs.t_dept
+        where dept_code = #{deptCode}
+    </select>
+
+    <select id="queryAll" resultMap="CbsDeptResultMap">
+        select * from cbs.t_dept where is_using = true
+    </select>
+
+    <select id="querySubDepts" resultType="java.lang.String">
+        select dept_code from cbs.t_dept where parent_dept_code = #{deptCode} and is_using = true
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDept">
+        insert into cbs.t_dept (dept_code, dept_name, parent_dept_code, is_company, is_using)
+        values (#{d.dept_code}, #{d.dept_name}, #{d.parent_dept_code}, #{d.is_company}, #{d.is_using})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDept">
+        update cbs.t_dept
+        <set>
+            dept_name = #{d.dept_name},
+            parent_dept_code = #{d.parent_dept_code},
+            is_company = #{d.is_company},
+        </set>
+        where dept_code = #{d.dept_code}
+    </update>
+
+    <!-- 软删：is_using=false 后所有读取链路（queryAll/querySubDepts/范围展开）自动屏蔽 -->
+    <update id="remove">
+        update cbs.t_dept set is_using = false where dept_code = #{deptCode}
+    </update>
+
+    <!-- 辅助列回写：nullif 落 NULL，叶子节点不得留 '{}'（树表脚本口径） -->
+    <update id="updateDirect">
+        update cbs.t_dept
+        set direct_children = nullif(#{subs, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}, '{}')
+        where dept_code = #{deptCode} and is_using = true
+    </update>
+
+    <update id="updateRecursive">
+        update cbs.t_dept
+        set recursive_children = nullif(#{subs, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}, '{}')
+        where dept_code = #{deptCode} and is_using = true
+    </update>
+</mapper>

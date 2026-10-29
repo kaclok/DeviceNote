@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsUserDao">
+
+    <!-- cbs 独立账号（cbs.t_user）。pwd 仅登录/重置链路使用，实体上 @JsonIgnore 挡响应体泄露 -->
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsUser">
+        select account, username, pwd, role_code, dept_code, user_type, contractor_id, is_using
+        from cbs.t_user
+        where account = #{account}
+    </select>
+
+    <!-- 人员管理列表：kw 模糊 account/username；userType 空=全部（1内部/2承包商） -->
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsUser">
+        select account, username, role_code, dept_code, user_type, contractor_id, is_using
+        from cbs.t_user
+        <where>
+            <if test="kw != null and kw != ''">
+                and (account like concat('%', #{kw}, '%') or username like concat('%', #{kw}, '%'))
+            </if>
+            <if test="userType != null">
+                and user_type = #{userType}
+            </if>
+            <if test="filterUsing">
+                and is_using = true
+            </if>
+        </where>
+        order by account asc
+    </select>
+
+    <select id="exist" resultType="java.lang.Integer">
+        select count(*) from cbs.t_user where account = #{account}
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsUser">
+        insert into cbs.t_user (account, username, pwd, role_code, dept_code, user_type, contractor_id, is_using)
+        values (#{u.account}, #{u.username}, #{u.pwd}, #{u.role_code}, #{u.dept_code},
+                #{u.user_type}, #{u.contractor_id}, #{u.is_using})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsUser">
+        update cbs.t_user
+        <set>
+            username = #{u.username},
+            role_code = #{u.role_code},
+            dept_code = #{u.dept_code},
+            user_type = #{u.user_type},
+            contractor_id = #{u.contractor_id},
+        </set>
+        where account = #{u.account}
+    </update>
+
+    <update id="resetPwd">
+        update cbs.t_user set pwd = #{pwd} where account = #{account}
+    </update>
+
+    <update id="toggleStatus">
+        update cbs.t_user set is_using = #{is_using} where account = #{account}
+    </update>
+
+    <select id="countByDept" resultType="int">
+        select count(*) from cbs.t_user where dept_code = #{deptCode} and is_using = true
+    </select>
+</mapper>

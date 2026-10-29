@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorDao">
+
+    <sql id="cols">
+        contractor_id, name, uscc, ctype, legal_person, legal_phone, safety_person, safety_phone,
+        register_address, register_capital, deposit, login_account, approve_status, reject_reason,
+        creator, open_status
+    </sql>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
+        select <include refid="cols"/> from cbs.t_contractor where contractor_id = #{id}
+    </select>
+
+    <!-- 列表只出启用行（软删行不回显） -->
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
+        select <include refid="cols"/> from cbs.t_contractor
+        <where>
+            open_status = true
+            <if test="kw != null and kw != ''">
+                and (name like concat('%', #{kw}, '%') or uscc like concat('%', #{kw}, '%'))
+            </if>
+            <if test="status != null">
+                and approve_status = #{status}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <!-- 启用行内 uscc 查重；编辑态排除自身（excludeId 空串时不排除） -->
+    <select id="countUsccDup" resultType="int">
+        select count(*) from cbs.t_contractor
+        where open_status = true and uscc = #{uscc}
+          and contractor_id &lt;&gt; coalesce(#{excludeId}, '')
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
+        insert into cbs.t_contractor (contractor_id, name, uscc, ctype, legal_person, legal_phone,
+            safety_person, safety_phone, register_address, register_capital, deposit, login_account,
+            approve_status, creator, open_status)
+        values (#{c.contractor_id}, #{c.name}, #{c.uscc}, #{c.ctype}, #{c.legal_person}, #{c.legal_phone},
+            #{c.safety_person}, #{c.safety_phone}, #{c.register_address}, #{c.register_capital}, #{c.deposit},
+            #{c.login_account}, #{c.approve_status}, #{c.creator}, #{c.open_status})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
+        update cbs.t_contractor
+        <set>
+            name = #{c.name},
+            uscc = #{c.uscc},
+            ctype = #{c.ctype},
+            legal_person = #{c.legal_person},
+            legal_phone = #{c.legal_phone},
+            safety_person = #{c.safety_person},
+            safety_phone = #{c.safety_phone},
+            register_address = #{c.register_address},
+            register_capital = #{c.register_capital},
+            deposit = #{c.deposit},
+            login_account = #{c.login_account},
+        </set>
+        where contractor_id = #{c.contractor_id}
+    </update>
+
+    <update id="audit">
+        update cbs.t_contractor
+        set approve_status = #{status},
+            reject_reason = #{reason}
+        where contractor_id = #{id}
+    </update>
+
+    <update id="remove">
+        update cbs.t_contractor set open_status = false where contractor_id = #{id}
+    </update>
+</mapper>

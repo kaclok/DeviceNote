@@ -70,10 +70,10 @@ public class RegistryOf implements WebMvcConfigurer {
         /*var i = registry.addInterceptor(signInterceptor);
         i.addPathPatterns("/train/**");*/
 
-        // 1、 处理token校验问题
+        // 1、 处理token校验问题（cghtz 与 cbs 两个账号域，TokenInterceptor 内按 JWT realm 隔离）
         var i = registry.addInterceptor(tokenInterceptor);
-        i.addPathPatterns("/cghtz/**");
-        i.excludePathPatterns("/cghtz/account/login", "/x/getRefreshToken", "/x/getAccessToken", "/x/refreshAccessToken", "/swagger-ui/*");
+        i.addPathPatterns("/cghtz/**", "/cbs/**");
+        i.excludePathPatterns("/cghtz/account/login", "/cbs/login", "/x/getRefreshToken", "/x/getAccessToken", "/x/refreshAccessToken", "/swagger-ui/*");
 
         // 2、处理参数校验问题
         var si = registry.addInterceptor(signInterceptor);

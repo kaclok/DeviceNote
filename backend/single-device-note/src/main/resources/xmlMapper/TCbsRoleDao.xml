@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsRoleDao">
+
+    <!-- perms 是 PG varchar[]，必须走 ArrayTypeHandler，不能用 resultType 自动映射 -->
+    <resultMap id="CbsRoleResultMap" type="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsRole">
+        <id property="role_code" column="role_code"/>
+        <result property="role_name" column="role_name"/>
+        <result property="data_scope" column="data_scope"/>
+        <result property="perms" column="perms" typeHandler="org.apache.ibatis.type.ArrayTypeHandler"/>
+        <result property="is_using" column="is_using"/>
+    </resultMap>
+
+    <select id="query" resultMap="CbsRoleResultMap">
+        select role_code, role_name, data_scope, perms, is_using
+        from cbs.t_role
+        where role_code = #{roleCode}
+    </select>
+
+    <select id="queryAll" resultMap="CbsRoleResultMap">
+        select role_code, role_name, data_scope, perms, is_using
+        from cbs.t_role
+        order by role_code asc
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsRole">
+        insert into cbs.t_role (role_code, role_name, data_scope, perms, is_using)
+        values (#{r.role_code}, #{r.role_name}, #{r.data_scope},
+                #{r.perms, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}, #{r.is_using})
+    </insert>
+
+    <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsRole">
+        update cbs.t_role
+        set role_name = #{r.role_name},
+            data_scope = #{r.data_scope},
+            perms = #{r.perms, typeHandler=org.apache.ibatis.type.ArrayTypeHandler}
+        where role_code = #{r.role_code}
+    </update>
+
+    <update id="toggleStatus">
+        update cbs.t_role set is_using = #{is_using} where role_code = #{roleCode}
+    </update>
+
+    <select id="countByRole" resultType="int">
+        select count(*) from cbs.t_user where role_code = #{roleCode} and is_using = true
+    </select>
+</mapper>

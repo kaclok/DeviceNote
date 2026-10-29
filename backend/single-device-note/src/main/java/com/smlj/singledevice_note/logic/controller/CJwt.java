@@ -49,7 +49,8 @@ public class CJwt {
             return Result.fail(ResultCode.RC10001);
         }
 
-        // RT有效：只取出 account 重新签发 AT，其余字段一律丢弃（这正是"快照不再续命"的关键）
+        // RT有效：只取出 account / realm 重新签发 AT，其余字段一律丢弃（这正是"快照不再续命"的关键）。
+        // realm 必须透传：cbs 域 token 刷新后仍是 cbs 域，否则 TokenInterceptor 的域隔离会把它拒掉。
         var claims = JwtUtil.parseToken(jwt);
         Object account = claims == null ? null : claims.get(JwtUtil.ACCOUNT_CLAIM);
         if (account == null || !StringUtils.hasText(account.toString())) {
@@ -57,7 +58,13 @@ public class CJwt {
             // 不能猜一个字段出来继续用，直接判失效，让用户重新登录换一张新 RT。
             return Result.fail(ResultCode.RC10001);
         }
-        JwtUtil.setAccessTokenHeader(response, Map.<String, Object>of(JwtUtil.ACCOUNT_CLAIM, account.toString()));
+        Map<String, Object> newClaims = new java.util.HashMap<>();
+        newClaims.put(JwtUtil.ACCOUNT_CLAIM, account.toString());
+        Object realm = claims.get(JwtUtil.REALM_CLAIM);
+        if (realm != null) {
+            newClaims.put(JwtUtil.REALM_CLAIM, realm.toString());
+        }
+        JwtUtil.setAccessTokenHeader(response, newClaims);
         return Result.success();
     }
 }

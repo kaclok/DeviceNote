@@ -9,6 +9,9 @@ import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.core.utils.JwtUtil;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTRole;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCGHTUser;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsRole;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsUser;
+import com.smlj.singledevice_note.logic.service.CurCbsUserService;
 import com.smlj.singledevice_note.logic.service.CurUserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,6 +40,8 @@ public class TokenInterceptor implements HandlerInterceptor {
      * 都必须走它，不要再去读 JWT 里的快照。
      */
     private final CurUserService curUserService;
+    /** cbs 域（独立账号表 cbs.t_user）的实时用户解析，与 curUserService 按 JWT realm 双向隔离 */
+    private final CurCbsUserService curCbsUserService;
 
     @Override
     public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, @Nullable Exception ex) throws Exception {
@@ -113,6 +118,23 @@ public class TokenInterceptor implements HandlerInterceptor {
                 return false;
             }
 
+            // ---- 2. 账号域隔离（realm）：cbs 独立账号表与 cghtz 双向不可跨界 ----
+            //   cbs token（登录时签入 realm=cbs，/x/refreshAccessToken 会透传）只能走 /cbs/**；
+            //   cghtz 旧 token 无 realm，进不了 /cbs/**。域不对 ⇒ 直接判 token 失效（RC10005），
+            //   不向调用方暴露"账号是否存在"。
+            String path = request.getServletPath();
+            boolean cbsRealm = path != null && path.startsWith("/cbs/");
+            Object realmClaim = claims.get(JwtUtil.REALM_CLAIM);
+            String realm = realmClaim == null ? null : realmClaim.toString();
+            if (cbsRealm && !JwtUtil.REALM_CBS.equals(realm)) {
+                response.getWriter().write(Result.fail(ResultCode.RC10005).toJson());
+                return false;
+            }
+            if (!cbsRealm && JwtUtil.REALM_CBS.equals(realm)) {
+                response.getWriter().write(Result.fail(ResultCode.RC10005).toJson());
+                return false;
+            }
+
             // token 里只有 account（见 JwtUtil.ACCOUNT_CLAIM），用户信息与权限一律按 account 现查 t_user。
             // 这一条就是"admin 改了我的信息、本地 token 不及时"的解药：改姓名/角色/权限/数据范围后
             // 最长 TTL 内生效，不需要用户重新登录；账号被停用或删除则下一个请求就被拒。
@@ -124,29 +146,50 @@ public class TokenInterceptor implements HandlerInterceptor {
                 return false;
             }
 
-            TCGHTUser user = curUserService.byAccount(account.toString());
             // fail-closed：解析不出用户（账号不存在 / 已停用）视为登录态失效。
             // 用 RC10005 而不是 RC10301：对前端这与"token 校验不正确"是同一类处理
             // （清登录态 + 跳登录页），同时不向拿着旧 token 的人暴露"该账号是否存在"。
-            if (user == null) {
-                response.getWriter().write(Result.fail(ResultCode.RC10005).toJson());
-                return false;
-            }
-            request.setAttribute("Acc", user);
-
-            // 注意：这里 setAttribute 的 user 与 token 无关，是本次请求现查的实时账号行。
-            // 业务层通过 @Acc 拿到的 username / role_code / data_scope 因此都是实时的 ——
-            // 不再有"列表按 token 快照分档、expandScope 按库分档"这种口径分裂。
-            String userRoleCode = user.getRole_code();
+            String userRoleCode;
+            DataScope scope;
             Set<String> userPerms = new HashSet<>();
-            TCGHTRole role = user.getRole();
-            if (role != null && role.getPerms() != null) {
-                for (String p : role.getPerms()) {
-                    if (p != null) userPerms.add(p);
+            if (cbsRealm) {
+                TCbsUser cbsUser = curCbsUserService.byAccount(account.toString());
+                if (cbsUser == null) {
+                    response.getWriter().write(Result.fail(ResultCode.RC10005).toJson());
+                    return false;
                 }
+                request.setAttribute("Acc", cbsUser);
+                userRoleCode = cbsUser.getRole_code();
+                TCbsRole cbsRole = cbsUser.getRole();
+                if (cbsRole != null && cbsRole.getPerms() != null) {
+                    for (String p : cbsRole.getPerms()) {
+                        if (p != null) userPerms.add(p);
+                    }
+                }
+                // cbs 档位在角色上（与 dept_user 模型同款）：账号行无 data_scope 列
+                scope = DataScope.of(cbsRole == null ? null : cbsRole.getData_scope());
+            } else {
+                TCGHTUser user = curUserService.byAccount(account.toString());
+                if (user == null) {
+                    response.getWriter().write(Result.fail(ResultCode.RC10005).toJson());
+                    return false;
+                }
+                request.setAttribute("Acc", user);
+
+                // 注意：这里 setAttribute 的 user 与 token 无关，是本次请求现查的实时账号行。
+                // 业务层通过 @Acc 拿到的 username / role_code / data_scope 因此都是实时的 ——
+                // 不再有"列表按 token 快照分档、expandScope 按库分档"这种口径分裂。
+                userRoleCode = user.getRole_code();
+                TCGHTRole role = user.getRole();
+                if (role != null && role.getPerms() != null) {
+                    for (String p : role.getPerms()) {
+                        if (p != null) userPerms.add(p);
+                    }
+                }
+                scope = DataScope.of(user.getData_scope());
             }
 
-            // 校验 @RequireRole
+            // 校验 @RequireRole（cghtz / cbs 两域共用同一套判据，只有用户来源不同）
             if (method.isAnnotationPresent(RequireRole.class)) {
                 RequireRole ann = method.getAnnotation(RequireRole.class);
                 String[] requiredRoles = ann.value();
@@ -188,7 +231,7 @@ public class TokenInterceptor implements HandlerInterceptor {
                 // fail-closed：DataScope.of 对空值 / 未知编号一律回 NONE，而 NONE 不满足任何真实档位，
                 // 于是"档位取不到"与"档位不足"走同一条拒绝路径，不需要单独判空。
                 DataScope minScope = ann.minScope();
-                if (minScope != DataScope.NONE && !DataScope.of(user.getData_scope()).atLeast(minScope)) {
+                if (minScope != DataScope.NONE && !scope.atLeast(minScope)) {
                     response.getWriter().write(Result.fail(ResultCode.RC10307).toJson());
                     return false;
                 }

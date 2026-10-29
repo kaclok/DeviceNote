@@ -36,6 +36,13 @@ public class JwtUtil {
      * 只放 account 之后这条泄露路径自然消失。
      */
     public static final String ACCOUNT_CLAIM = "account";
+    /**
+     * 账号体系域：cbs 模块独立账号表（cbs.t_user），签发时带 realm=cbs，
+     * TokenInterceptor 按路径域双向隔离（cbs token 进不了 /cghtz/**，反之亦然）；
+     * cghtz 旧 token 无此 claim。/x/refreshAccessToken 刷新时会原样透传该 claim。
+     */
+    public static final String REALM_CLAIM = "realm";
+    public static final String REALM_CBS = "cbs";
     // 动态延长token过期时间
     // https://mp.weixin.qq.com/s/juSk00SEKhYKb2IkG1NhSQ
     // https://mp.weixin.qq.com/s/fnmGRvE8JFPR5ZG6RfWbIg
