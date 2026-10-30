@@ -22,4 +22,7 @@ public interface TCbsSuperviseProcessDao {
     int update(@Param("p") TCbsSuperviseProcess p);
 
     int remove(@Param("id") String id);
+
+    /** 批量软删（ids 已在控制层去空去重） */
+    int removeBatch(@Param("ids") List<String> ids);
 }

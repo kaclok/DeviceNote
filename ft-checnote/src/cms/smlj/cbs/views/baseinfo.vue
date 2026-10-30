@@ -10,14 +10,15 @@ import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 const sys = Singleton.getInstance(SysX)
 
 /* ============ 路由驱动单页（一个菜单 = 一个功能，不再用 el-tabs 聚合） ============ */
-const TABS = ['ent', 'intro', 'ts', 'chem', 'proc', 'cert']
+const TABS = ['ent', 'intro', 'ts', 'chem', 'proc', 'cert', 'certemp']
 const TITLES = {
     ent: '企业基本信息',
     intro: '企业简介',
     ts: '安全"三同时"',
     chem: '许可的危险化学品',
     proc: '重点监管的危险化工工艺',
-    cert: '证照预警',
+    cert: '企业证书',
+    certemp: '企业人员证书',
 }
 const props = defineProps({tab: String})
 const activeTab = ref(TABS.includes(props?.tab) ? props.tab : 'ent')
@@ -217,11 +218,12 @@ function saveIntro() {
 }
 
 /* ============ 通用子表逻辑（三同时/许可危化品/重点监管工艺/证照） ============ */
-function makeCrud({url, key, idField, nameField, pagerKey}) {
+function makeCrud({url, key, idField, nameField, pagerKey, extra = () => ({})}) {
     // 每页独立分页配置（gd.json#pager.<pagerKey>）
     const pager = pagerOf(pagerKey)
     const loading = ref(false)
     const rows = ref([])
+    const selected = ref([])
     const keyword = ref('')
     const pageNo = ref(1)
     const pageSize = ref(pager.pageSize)
@@ -235,7 +237,7 @@ function makeCrud({url, key, idField, nameField, pagerKey}) {
         AC.abort()
         AC = new AbortController()
         loading.value = true
-        const paras = {pageNo: pageNo.value, pageSize: pageSize.value}
+        const paras = {pageNo: pageNo.value, pageSize: pageSize.value, ...extra()}
         const kw = keyword.value.trim()
         if (kw) paras.kw = kw
         sys.biz(`${url}/list`, paras, AC.signal, () => {}, (r, data) => {
@@ -301,9 +303,32 @@ function makeCrud({url, key, idField, nameField, pagerKey}) {
         }).catch(() => {})
     }
 
+    /** 勾选批量删：ids 交后端 deleteBatch（软删口径同一处理，去空去重在后端） */
+    function removeBatch() {
+        const ids = selected.value.map(r => r[idField]).filter(Boolean)
+        if (!ids.length) {
+            ElMessage.warning('请先勾选要删除的记录')
+            return
+        }
+        ElMessageBox.confirm(`确定删除选中的 ${ids.length} 条记录吗？`, '提示', {type: 'warning'}).then(() => {
+            loading.value = true
+            sys.biz(`${url}/deleteBatch`, {ids}, AC.signal, () => {}, (r, data) => {
+                loading.value = false
+                if (r) {
+                    ElMessage.success(`已删除 ${ids.length} 条`)
+                    selected.value = []
+                    load()
+                } else {
+                    notifyError(data, '批量删除失败')
+                }
+            })
+        }).catch(() => {})
+    }
+
     return {
-        pager, loading, rows, keyword, pageNo, pageSize, total,
+        pager, loading, rows, selected, keyword, pageNo, pageSize, total,
         dialogVisible, saving, formRef, form, load, search, openDialog, save, remove,
+        onSel: list => (selected.value = list || []), removeBatch,
     }
 }
 
@@ -315,21 +340,45 @@ const tsRules = {project_name: [{required: true, message: '请输入项目名称
 /* 许可危化品 */
 const chem = makeCrud({url: 'cbs/chem', key: 'chemId', idField: 'chem_id', nameField: 'chem_name', pagerKey: 'baseinfo.chem'})
 const CHEM_BLANK = {
-    chem_name: '', is_key: false, storage: '', yearly: '', state: '',
-    fire_class: '', catalog_no: '', cas_no: '', longitude: '',
+    chem_name: '', is_key: false, is_poison: false, is_major_hazard: false,
+    storage: '', yearly: '', state: '', fire_class: '', catalog_no: '', cas_no: '',
+    hazard_class: '', storage_place: '', critical_qty: '', actual_qty: '', longitude: '', remark: '',
 }
 const chemRules = {chem_name: [{required: true, message: '请输入化学品名称', trigger: 'blur'}]}
 
 /* 重点监管工艺 */
 const proc = makeCrud({url: 'cbs/proc', key: 'procId', idField: 'proc_id', nameField: 'proc_name', pagerKey: 'baseinfo.proc'})
-const PROC_BLANK = {proc_name: '', auto_in_use: false}
+const PROC_BLANK = {
+    proc_name: '', proc_type: '', chem_involved: '', device_name: '',
+    auto_in_use: false, esd_in_use: false, sis_in_use: false, hazop_done: false,
+    risk_level: '', remark: '',
+}
 const procRules = {proc_name: [{required: true, message: '请输入工艺名称', trigger: 'blur'}]}
 
-/* 证照预警 */
-const cert = makeCrud({url: 'cbs/cert', key: 'certId', idField: 'cert_id', nameField: 'cert_name', pagerKey: 'baseinfo.cert'})
-const CERT_BLANK = {cert_name: '', cert_no: '', issue_org: '', issue_date: '', expire_date: '', warn_days: 30}
+/* 证照预警：企业证书（cert_type=1）/ 企业人员证书（cert_type=2）两类各自一页、各自分页 */
+const cert = makeCrud({
+    url: 'cbs/cert', key: 'certId', idField: 'cert_id', nameField: 'cert_name',
+    pagerKey: 'baseinfo.certEnt', extra: () => ({certType: 1}),
+})
+const CERT_BLANK = {
+    cert_type: 1, cert_name: '', cert_no: '', issue_org: '', issue_date: '', expire_date: '', warn_days: 30,
+}
 const certRules = {
     cert_name: [{required: true, message: '请输入证照名称', trigger: 'blur'}],
+    warn_days: [{required: true, message: '请输入预警天数', trigger: 'blur'}],
+}
+
+const certEmp = makeCrud({
+    url: 'cbs/cert', key: 'certId', idField: 'cert_id', nameField: 'holder_name',
+    pagerKey: 'baseinfo.certEmp', extra: () => ({certType: 2}),
+})
+const CERT_EMP_BLANK = {
+    cert_type: 2, cert_name: '', holder_name: '', holder_idcard: '', cert_scope: '',
+    cert_no: '', issue_org: '', issue_date: '', expire_date: '', warn_days: 30,
+}
+const certEmpRules = {
+    cert_name: [{required: true, message: '请输入证书名称', trigger: 'blur'}],
+    holder_name: [{required: true, message: '请输入持证人', trigger: 'blur'}],
     warn_days: [{required: true, message: '请输入预警天数', trigger: 'blur'}],
 }
 
@@ -355,6 +404,7 @@ function ensureTab(t) {
     if (t === 'chem') chem.load()
     if (t === 'proc') proc.load()
     if (t === 'cert') cert.load()
+    if (t === 'certemp') certEmp.load()
 }
 
 watch(activeTab, ensureTab, {immediate: true})
@@ -465,8 +515,12 @@ onUnmounted(() => AC.abort())
                 <el-input v-model="chem.keyword.value" placeholder="搜索化学品名称" clearable
                           style="width:220px" :prefix-icon="Search"/>
                 <el-button type="primary" @click="chem.openDialog(false, null, CHEM_BLANK)">新增化学品</el-button>
+                <el-button type="danger" plain :disabled="chem.selected.value.length === 0"
+                           @click="chem.removeBatch()">批量删除</el-button>
             </div>
-            <el-table :data="chem.rows.value" v-loading="chem.loading.value" border stripe>
+            <el-table :data="chem.rows.value" v-loading="chem.loading.value" border stripe
+                      @selection-change="chem.onSel">
+                <el-table-column type="selection" width="46" align="center" fixed="left"/>
                 <el-table-column prop="chem_name" label="化学品名称" min-width="150"/>
                 <el-table-column label="重点监管" width="90" align="center">
                     <template #default="{row}">
@@ -475,12 +529,27 @@ onUnmounted(() => AC.abort())
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="storage" label="储存量" width="120"/>
+                <el-table-column label="剧毒" width="80" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.is_poison ? 'danger' : 'info'" effect="light" size="small">
+                            {{ row.is_poison ? '是' : '否' }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="重大危险源" width="100" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.is_major_hazard ? 'warning' : 'info'" effect="light" size="small">
+                            {{ row.is_major_hazard ? '是' : '否' }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="storage" label="储存量" width="110"/>
                 <el-table-column prop="yearly" label="年使用/产量" width="130"/>
                 <el-table-column prop="state" label="物料状态" width="90"/>
                 <el-table-column prop="fire_class" label="火灾类别" width="90"/>
-                <el-table-column prop="catalog_no" label="目录序号" width="90"/>
-                <el-table-column prop="cas_no" label="CAS号" width="130"/>
+                <el-table-column prop="cas_no" label="CAS号" width="120"/>
+                <el-table-column prop="storage_place" label="储存场所" min-width="130" show-overflow-tooltip/>
+                <el-table-column prop="hazard_class" label="危险性类别" min-width="150" show-overflow-tooltip/>
                 <el-table-column label="操作" width="130" align="center" fixed="right">
                     <template #default="{row}">
                         <el-link type="primary" @click="chem.openDialog(true, row, CHEM_BLANK)">编辑</el-link>
@@ -500,16 +569,45 @@ onUnmounted(() => AC.abort())
                 <el-input v-model="proc.keyword.value" placeholder="搜索工艺名称" clearable
                           style="width:220px" :prefix-icon="Search"/>
                 <el-button type="primary" @click="proc.openDialog(false, null, PROC_BLANK)">新增工艺</el-button>
+                <el-button type="danger" plain :disabled="proc.selected.value.length === 0"
+                           @click="proc.removeBatch()">批量删除</el-button>
             </div>
-            <el-table :data="proc.rows.value" v-loading="proc.loading.value" border stripe>
-                <el-table-column prop="proc_name" label="工艺名称" min-width="220"/>
-                <el-table-column label="自动化/紧急停车系统投用" width="200" align="center">
+            <el-table :data="proc.rows.value" v-loading="proc.loading.value" border stripe
+                      @selection-change="proc.onSel">
+                <el-table-column type="selection" width="46" align="center" fixed="left"/>
+                <el-table-column prop="proc_name" label="工艺名称" min-width="200"/>
+                <el-table-column prop="proc_type" label="反应类型" width="110"/>
+                <el-table-column prop="device_name" label="装置/车间" min-width="140" show-overflow-tooltip/>
+                <el-table-column prop="chem_involved" label="涉及危险化学品" min-width="170" show-overflow-tooltip/>
+                <el-table-column label="自动化" width="90" align="center">
                     <template #default="{row}">
                         <el-tag :type="row.auto_in_use ? 'success' : 'warning'" effect="light" size="small">
                             {{ row.auto_in_use ? '已投用' : '未投用' }}
                         </el-tag>
                     </template>
                 </el-table-column>
+                <el-table-column label="紧急停车" width="95" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.esd_in_use ? 'success' : 'warning'" effect="light" size="small">
+                            {{ row.esd_in_use ? '已投用' : '未投用' }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="SIS" width="90" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.sis_in_use ? 'success' : 'warning'" effect="light" size="small">
+                            {{ row.sis_in_use ? '已投用' : '未投用' }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="HAZOP" width="85" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.hazop_done ? 'success' : 'info'" effect="light" size="small">
+                            {{ row.hazop_done ? '已开展' : '未开展' }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="risk_level" label="危险度" width="85" align="center"/>
                 <el-table-column label="操作" width="130" align="center" fixed="right">
                     <template #default="{row}">
                         <el-link type="primary" @click="proc.openDialog(true, row, PROC_BLANK)">编辑</el-link>
@@ -523,12 +621,12 @@ onUnmounted(() => AC.abort())
                            :total="proc.total.value" v-model:current-page="proc.pageNo.value"
                            v-model:page-size="proc.pageSize.value" :page-sizes="proc.pager.pageSizes"/>        </div>
 
-        <!-- ==================== 证照预警 ==================== -->
+        <!-- ==================== 证照预警 · 企业证书 ==================== -->
         <div v-if="activeTab === 'cert'" class="card">
             <div class="toolbar">
                 <el-input v-model="cert.keyword.value" placeholder="搜索证照名称/编号" clearable
                           style="width:220px" :prefix-icon="Search"/>
-                <el-button type="primary" @click="cert.openDialog(false, null, CERT_BLANK)">新增证照</el-button>
+                <el-button type="primary" @click="cert.openDialog(false, null, CERT_BLANK)">新增企业证书</el-button>
             </div>
             <el-table :data="cert.rows.value" v-loading="cert.loading.value" border stripe>
                 <el-table-column prop="cert_name" label="证照名称" min-width="180"/>
@@ -555,7 +653,46 @@ onUnmounted(() => AC.abort())
 
             <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
                            :total="cert.total.value" v-model:current-page="cert.pageNo.value"
-                           v-model:page-size="cert.pageSize.value" :page-sizes="cert.pager.pageSizes"/>        </div>
+                           v-model:page-size="cert.pageSize.value" :page-sizes="cert.pager.pageSizes"/>
+        </div>
+
+        <!-- ==================== 证照预警 · 企业人员证书 ==================== -->
+        <div v-if="activeTab === 'certemp'" class="card">
+            <div class="toolbar">
+                <el-input v-model="certEmp.keyword.value" placeholder="搜索证书/持证人/编号" clearable
+                          style="width:240px" :prefix-icon="Search"/>
+                <el-button type="primary" @click="certEmp.openDialog(false, null, CERT_EMP_BLANK)">新增人员证书
+                </el-button>
+            </div>
+            <el-table :data="certEmp.rows.value" v-loading="certEmp.loading.value" border stripe>
+                <el-table-column prop="holder_name" label="持证人" width="95"/>
+                <el-table-column prop="cert_name" label="证书名称" min-width="150" show-overflow-tooltip/>
+                <el-table-column prop="cert_scope" label="准操项目/作业类别" min-width="140" show-overflow-tooltip/>
+                <el-table-column prop="cert_no" label="证书编号" min-width="140" show-overflow-tooltip/>
+                <el-table-column prop="issue_org" label="发证机关" min-width="110" show-overflow-tooltip/>
+                <el-table-column prop="issue_date" label="发证日期" width="105"/>
+                <el-table-column prop="expire_date" label="到期日期" width="105"/>
+                <el-table-column prop="warn_days" label="提前预警(天)" width="112" align="center"/>
+                <el-table-column label="预警状态" width="120" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="certStatus(row).type" effect="light">
+                            {{ certStatus(row).desc }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="130" align="center" fixed="right">
+                    <template #default="{row}">
+                        <el-link type="primary" @click="certEmp.openDialog(true, row, CERT_EMP_BLANK)">编辑</el-link>
+                        <el-link type="danger" style="margin-left:10px" @click="certEmp.remove(row)">删除</el-link>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-empty v-if="!certEmp.loading.value && certEmp.rows.value.length === 0" description="暂无人员证书"/>
+
+            <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                           :total="certEmp.total.value" v-model:current-page="certEmp.pageNo.value"
+                           v-model:page-size="certEmp.pageSize.value" :page-sizes="certEmp.pager.pageSizes"/>
+        </div>
 
         <!-- 三同时编辑弹窗 -->
         <el-dialog v-model="ts.dialogVisible.value" :title="ts.form.value.ts_id ? '编辑三同时项目' : '新增三同时项目'"
@@ -587,8 +724,9 @@ onUnmounted(() => AC.abort())
 
         <!-- 许可危化品编辑弹窗 -->
         <el-dialog v-model="chem.dialogVisible.value" :title="chem.form.value.chem_id ? '编辑化学品' : '新增化学品'"
-                   width="600px" destroy-on-close>
-            <el-form :ref="el => (chem.formRef.value = el)" :model="chem.form.value" :rules="chemRules" label-width="140px">
+                   width="880px" destroy-on-close>
+            <el-form :ref="el => (chem.formRef.value = el)" :model="chem.form.value" :rules="chemRules"
+                     label-width="170px">
                 <el-row :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="化学品名称" prop="chem_name">
@@ -596,8 +734,34 @@ onUnmounted(() => AC.abort())
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="重点监管危化品">
-                            <el-switch v-model="chem.form.value.is_key"/>
+                        <el-form-item label="CAS号">
+                            <el-input v-model="chem.form.value.cas_no"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="危化品目录序号">
+                            <el-input v-model="chem.form.value.catalog_no"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="危险性类别">
+                            <el-input v-model="chem.form.value.hazard_class" placeholder="如 易燃液体 类别2"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="物料状态">
+                            <el-select v-model="chem.form.value.state" clearable placeholder="请选择"
+                                       style="width:100%">
+                                <el-option v-for="o in gd.chemStates" :key="o" :value="o" :label="o"/>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="火灾危险类别">
+                            <el-select v-model="chem.form.value.fire_class" clearable placeholder="请选择"
+                                       style="width:100%">
+                                <el-option v-for="o in gd.fireClasses" :key="o" :value="o" :label="o"/>
+                            </el-select>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
@@ -611,28 +775,43 @@ onUnmounted(() => AC.abort())
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="物料状态">
-                            <el-input v-model="chem.form.value.state"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="火灾危险类别">
-                            <el-input v-model="chem.form.value.fire_class"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="危化品目录序号">
-                            <el-input v-model="chem.form.value.catalog_no"/>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item label="CAS号">
-                            <el-input v-model="chem.form.value.cas_no"/>
+                        <el-form-item label="储存场所">
+                            <el-input v-model="chem.form.value.storage_place" placeholder="罐区/仓库名称"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item label="经纬度">
                             <el-input v-model="chem.form.value.longitude"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="重大危险源临界量(吨)">
+                            <el-input v-model="chem.form.value.critical_qty"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="实际存在量(吨)">
+                            <el-input v-model="chem.form.value.actual_qty"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="重点监管危化品">
+                            <el-switch v-model="chem.form.value.is_key"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="剧毒化学品">
+                            <el-switch v-model="chem.form.value.is_poison"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="构成重大危险源">
+                            <el-switch v-model="chem.form.value.is_major_hazard"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                        <el-form-item label="备注">
+                            <el-input v-model="chem.form.value.remark" type="textarea" :rows="2"/>
                         </el-form-item>
                     </el-col>
                 </el-row>
@@ -645,15 +824,73 @@ onUnmounted(() => AC.abort())
 
         <!-- 重点监管工艺编辑弹窗 -->
         <el-dialog v-model="proc.dialogVisible.value" :title="proc.form.value.proc_id ? '编辑工艺' : '新增工艺'"
-                   width="460px" destroy-on-close>
-            <el-form :ref="el => (proc.formRef.value = el)" :model="proc.form.value" :rules="procRules" label-width="120px">
-                <el-form-item label="工艺名称" prop="proc_name">
-                    <el-input v-model="proc.form.value.proc_name"/>
-                </el-form-item>
-                <el-form-item label="自动化投用">
-                    <el-switch v-model="proc.form.value.auto_in_use"/>
-                    <div class="form-tip">自动化控制系统、紧急停车系统是否投入使用</div>
-                </el-form-item>
+                   width="760px" destroy-on-close>
+            <el-form :ref="el => (proc.formRef.value = el)" :model="proc.form.value" :rules="procRules"
+                     label-width="170px">
+                <el-row :gutter="16">
+                    <el-col :span="12">
+                        <el-form-item label="工艺名称" prop="proc_name">
+                            <el-select v-model="proc.form.value.proc_name" filterable allow-create clearable
+                                       default-first-option placeholder="选择或输入工艺名称" style="width:100%">
+                                <el-option v-for="o in gd.hazardProcs" :key="o" :value="o" :label="o"/>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="反应类型">
+                            <el-select v-model="proc.form.value.proc_type" filterable clearable
+                                       placeholder="请选择" style="width:100%">
+                                <el-option v-for="o in gd.procTypes" :key="o" :value="o" :label="o"/>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="工艺装置/所在车间">
+                            <el-input v-model="proc.form.value.device_name"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="反应工艺危险度等级">
+                            <el-select v-model="proc.form.value.risk_level" clearable placeholder="请选择"
+                                       style="width:100%">
+                                <el-option v-for="o in gd.riskLevels" :key="o" :value="o" :label="o"/>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                        <el-form-item label="涉及危险化学品">
+                            <el-input v-model="proc.form.value.chem_involved" placeholder="多个以、分隔"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="自动化控制系统">
+                            <el-switch v-model="proc.form.value.auto_in_use" active-text="已投用"
+                                       inactive-text="未投用"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="紧急停车系统">
+                            <el-switch v-model="proc.form.value.esd_in_use" active-text="已投用"
+                                       inactive-text="未投用"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="安全仪表系统(SIS)">
+                            <el-switch v-model="proc.form.value.sis_in_use" active-text="已投用"
+                                       inactive-text="未投用"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="已开展HAZOP分析">
+                            <el-switch v-model="proc.form.value.hazop_done" active-text="是" inactive-text="否"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                        <el-form-item label="备注">
+                            <el-input v-model="proc.form.value.remark" type="textarea" :rows="2"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
             </el-form>
             <template #footer>
                 <el-button @click="proc.dialogVisible.value = false">取消</el-button>
@@ -661,8 +898,8 @@ onUnmounted(() => AC.abort())
             </template>
         </el-dialog>
 
-        <!-- 证照编辑弹窗 -->
-        <el-dialog v-model="cert.dialogVisible.value" :title="cert.form.value.cert_id ? '编辑证照' : '新增证照'"
+        <!-- 企业证书编辑弹窗 -->
+        <el-dialog v-model="cert.dialogVisible.value" :title="cert.form.value.cert_id ? '编辑企业证书' : '新增企业证书'"
                    width="520px" destroy-on-close>
             <el-form :ref="el => (cert.formRef.value = el)" :model="cert.form.value" :rules="certRules" label-width="110px">
                 <el-form-item label="证照名称" prop="cert_name">
@@ -689,6 +926,69 @@ onUnmounted(() => AC.abort())
             <template #footer>
                 <el-button @click="cert.dialogVisible.value = false">取消</el-button>
                 <el-button type="primary" :loading="cert.saving.value" @click="cert.save">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 企业人员证书编辑弹窗 -->
+        <el-dialog v-model="certEmp.dialogVisible.value"
+                   :title="certEmp.form.value.cert_id ? '编辑人员证书' : '新增人员证书'"
+                   width="640px" destroy-on-close>
+            <el-form :ref="el => (certEmp.formRef.value = el)" :model="certEmp.form.value" :rules="certEmpRules"
+                     label-width="130px">
+                <el-row :gutter="16">
+                    <el-col :span="12">
+                        <el-form-item label="持证人" prop="holder_name">
+                            <el-input v-model="certEmp.form.value.holder_name"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="身份证号">
+                            <el-input v-model="certEmp.form.value.holder_idcard"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="证书名称" prop="cert_name">
+                            <el-input v-model="certEmp.form.value.cert_name" placeholder="如 特种作业操作证"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="准操项目/作业类别">
+                            <el-input v-model="certEmp.form.value.cert_scope"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="证书编号">
+                            <el-input v-model="certEmp.form.value.cert_no"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="发证机关">
+                            <el-input v-model="certEmp.form.value.issue_org"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="发证日期">
+                            <el-date-picker v-model="certEmp.form.value.issue_date" type="date"
+                                            value-format="YYYY-MM-DD" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="到期日期">
+                            <el-date-picker v-model="certEmp.form.value.expire_date" type="date"
+                                            value-format="YYYY-MM-DD" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="提前预警(天)" prop="warn_days">
+                            <el-input-number v-model="certEmp.form.value.warn_days" :min="1" :precision="0"
+                                             :controls="false" style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+            </el-form>
+            <template #footer>
+                <el-button @click="certEmp.dialogVisible.value = false">取消</el-button>
+                <el-button type="primary" :loading="certEmp.saving.value" @click="certEmp.save">保存</el-button>
             </template>
         </el-dialog>
 

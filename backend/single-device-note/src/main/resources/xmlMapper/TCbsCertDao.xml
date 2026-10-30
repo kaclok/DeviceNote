@@ -3,19 +3,25 @@
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsCertDao">
 
     <sql id="cols">
-        cert_id, cert_name, cert_no, issue_org, issue_date, expire_date, warn_days, dept_code, creator, open_status
+        cert_id, cert_type, cert_name, cert_no, issue_org, issue_date, expire_date, warn_days,
+        holder_name, holder_idcard, cert_scope, dept_code, creator, open_status
     </sql>
 
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsCert">
         select <include refid="cols"/> from cbs.t_cert where cert_id = #{id}
     </select>
 
-        <sql id="cond">
-        <where>
-            open_status = true
-            <if test="kw != null and kw != ''">
-                and (cert_name like concat('%', #{kw}, '%') or cert_no like concat('%', #{kw}, '%'))
-            </if>
+    <sql id="cond">
+        <where>
+            open_status = true
+            <!-- certType：1=企业证书 2=企业人员证书，两类各自一页、各自分页 -->
+            <if test="certType != null">
+                and cert_type = #{certType}
+            </if>
+            <if test="kw != null and kw != ''">
+                and (cert_name like concat('%', #{kw}, '%') or cert_no like concat('%', #{kw}, '%')
+                     or holder_name like concat('%', #{kw}, '%'))
+            </if>
         </where>
     </sql>
 
@@ -34,17 +40,20 @@
     </select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsCert">
-        insert into cbs.t_cert (cert_id, cert_name, cert_no, issue_org, issue_date, expire_date,
-            warn_days, dept_code, creator, open_status)
-        values (#{c.cert_id}, #{c.cert_name}, #{c.cert_no}, #{c.issue_org}, #{c.issue_date},
-            #{c.expire_date}, #{c.warn_days}, #{c.dept_code}, #{c.creator}, #{c.open_status})
+        insert into cbs.t_cert (cert_id, cert_type, cert_name, cert_no, issue_org, issue_date, expire_date,
+            warn_days, holder_name, holder_idcard, cert_scope, dept_code, creator, open_status)
+        values (#{c.cert_id}, #{c.cert_type}, #{c.cert_name}, #{c.cert_no}, #{c.issue_org}, #{c.issue_date},
+            #{c.expire_date}, #{c.warn_days}, #{c.holder_name}, #{c.holder_idcard}, #{c.cert_scope},
+            #{c.dept_code}, #{c.creator}, #{c.open_status})
     </insert>
 
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsCert">
         update cbs.t_cert
         <set>
-            cert_name = #{c.cert_name}, cert_no = #{c.cert_no}, issue_org = #{c.issue_org},
-            issue_date = #{c.issue_date}, expire_date = #{c.expire_date}, warn_days = #{c.warn_days},
+            cert_type = #{c.cert_type}, cert_name = #{c.cert_name}, cert_no = #{c.cert_no},
+            issue_org = #{c.issue_org}, issue_date = #{c.issue_date}, expire_date = #{c.expire_date},
+            warn_days = #{c.warn_days}, holder_name = #{c.holder_name},
+            holder_idcard = #{c.holder_idcard}, cert_scope = #{c.cert_scope},
             dept_code = #{c.dept_code},
         </set>
         where cert_id = #{c.cert_id}

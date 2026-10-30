@@ -13,10 +13,10 @@ public interface TCbsCertDao {
 
     /** kw 模糊 cert_name/cert_no；按到期日升序（最近到期在前） */
     /** 分页查询（kw 模糊匹配，见 XML cond 片段） */
-    List<TCbsCert> queryPage(@Param("kw") String kw,
+    List<TCbsCert> queryPage(@Param("kw") String kw, @Param("certType") Integer certType,
                             @Param("offset") int offset, @Param("limit") int limit);
 
-    long countAll(@Param("kw") String kw);
+    long countAll(@Param("kw") String kw, @Param("certType") Integer certType);
 
     int insert(@Param("c") TCbsCert c);
 

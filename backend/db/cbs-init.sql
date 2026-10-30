@@ -377,3 +377,54 @@ CREATE TABLE IF NOT EXISTS cbs.t_dict (
     CONSTRAINT t_dict_pkey PRIMARY KEY (item_id)
 );
 CREATE INDEX IF NOT EXISTS t_dict_type ON cbs.t_dict (dict_type, sort_no);
+
+-- =====================================================================
+-- 三期补齐（2026-10-30）：证照分「企业证书 / 企业人员证书」/ 许可危化品补列 / 重点监管工艺补列
+-- 枚举类列一律数值类型 + 列注释全枚举（docs/数据库设计规范.md 铁律）
+-- 说明：全部 ADD COLUMN IF NOT EXISTS，可在已有库上重复执行
+-- =====================================================================
+
+-- 证照预警：cert_type 区分两类，两类各自一页、各自分页；人员证书另存持证人三列
+ALTER TABLE cbs.t_cert ADD COLUMN IF NOT EXISTS cert_type smallint NOT NULL DEFAULT 1;
+COMMENT ON COLUMN cbs.t_cert.cert_type IS '证照类别：1=企业证书 2=企业人员证书';
+ALTER TABLE cbs.t_cert ADD COLUMN IF NOT EXISTS holder_name varchar;
+COMMENT ON COLUMN cbs.t_cert.holder_name IS '持证人姓名（仅人员证书）';
+ALTER TABLE cbs.t_cert ADD COLUMN IF NOT EXISTS holder_idcard varchar;
+COMMENT ON COLUMN cbs.t_cert.holder_idcard IS '持证人身份证号（仅人员证书）';
+ALTER TABLE cbs.t_cert ADD COLUMN IF NOT EXISTS cert_scope varchar;
+COMMENT ON COLUMN cbs.t_cert.cert_scope IS '准操项目/作业类别（仅人员证书）';
+CREATE INDEX IF NOT EXISTS t_cert_type ON cbs.t_cert (cert_type, expire_date);
+
+-- 许可的危险化学品：补危险性类别 / 剧毒 / 重大危险源 / 储存场所 / 量口径 / 备注
+ALTER TABLE cbs.t_license_chem ADD COLUMN IF NOT EXISTS hazard_class varchar;
+COMMENT ON COLUMN cbs.t_license_chem.hazard_class IS '危险性类别（按危化品目录口径，如「易燃液体 类别2」）';
+ALTER TABLE cbs.t_license_chem ADD COLUMN IF NOT EXISTS is_poison bool NOT NULL DEFAULT false;
+COMMENT ON COLUMN cbs.t_license_chem.is_poison IS '是否剧毒化学品：true=是 false=否';
+ALTER TABLE cbs.t_license_chem ADD COLUMN IF NOT EXISTS is_major_hazard bool NOT NULL DEFAULT false;
+COMMENT ON COLUMN cbs.t_license_chem.is_major_hazard IS '是否构成危险化学品重大危险源：true=是 false=否';
+ALTER TABLE cbs.t_license_chem ADD COLUMN IF NOT EXISTS storage_place varchar;
+COMMENT ON COLUMN cbs.t_license_chem.storage_place IS '储存场所（罐区/仓库名称）';
+ALTER TABLE cbs.t_license_chem ADD COLUMN IF NOT EXISTS critical_qty varchar;
+COMMENT ON COLUMN cbs.t_license_chem.critical_qty IS '重大危险源临界量（吨，文本口径）';
+ALTER TABLE cbs.t_license_chem ADD COLUMN IF NOT EXISTS actual_qty varchar;
+COMMENT ON COLUMN cbs.t_license_chem.actual_qty IS '实际存在量（吨，文本口径）';
+ALTER TABLE cbs.t_license_chem ADD COLUMN IF NOT EXISTS remark varchar;
+COMMENT ON COLUMN cbs.t_license_chem.remark IS '备注';
+
+-- 重点监管的危险化工工艺：补反应类型 / 涉及危化品 / 装置 / 三套系统投用 / HAZOP / 危险度
+ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS proc_type varchar;
+COMMENT ON COLUMN cbs.t_supervise_process.proc_type IS '反应类型（光气化/氯化/硝化/磺化…，见 gd.json#procTypes）';
+ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS chem_involved varchar;
+COMMENT ON COLUMN cbs.t_supervise_process.chem_involved IS '涉及危险化学品（多个以、分隔）';
+ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS device_name varchar;
+COMMENT ON COLUMN cbs.t_supervise_process.device_name IS '工艺装置/所在车间';
+ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS esd_in_use bool NOT NULL DEFAULT false;
+COMMENT ON COLUMN cbs.t_supervise_process.esd_in_use IS '紧急停车系统是否投用：true=是 false=否';
+ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS sis_in_use bool NOT NULL DEFAULT false;
+COMMENT ON COLUMN cbs.t_supervise_process.sis_in_use IS '安全仪表系统是否投用：true=是 false=否';
+ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS hazop_done bool NOT NULL DEFAULT false;
+COMMENT ON COLUMN cbs.t_supervise_process.hazop_done IS '是否已开展 HAZOP 分析：true=是 false=否';
+ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS risk_level varchar;
+COMMENT ON COLUMN cbs.t_supervise_process.risk_level IS '反应工艺危险度等级（1级~5级，见 gd.json#riskLevels）';
+ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS remark varchar;
+COMMENT ON COLUMN cbs.t_supervise_process.remark IS '备注';

@@ -14,6 +14,7 @@ const sys = Singleton.getInstance(SysX)
 const MODES = {
     unit: {
         title: '承包商单位管理',
+        statusLabel: '审批状态',
         tabs: [
             {key: 'pass', label: '审批通过', status: 1},
             {key: 'wait', label: '待审批', status: 0},
@@ -24,6 +25,7 @@ const MODES = {
     },
     audit: {
         title: '承包商审核',
+        statusLabel: '合作状态',
         tabs: [
             {key: 'coop', label: '合作中', status: 1},
             {key: 'ever', label: '曾合作', status: 2},
@@ -248,16 +250,16 @@ onUnmounted(() => {
                 <el-select v-model="ctypeFilter" placeholder="承包商类型" clearable style="width:170px">
                     <el-option v-for="t in ctypeOptions" :key="t" :value="t" :label="t"/>
                 </el-select>
+                <!-- 分类过滤用下拉，页内不再放 tab -->
+                <el-select v-model="tabKey" :placeholder="cfg.statusLabel" style="width:150px">
+                    <el-option v-for="t in cfg.tabs" :key="t.key" :value="t.key" :label="t.label"/>
+                </el-select>
                 <el-button type="primary" @click="loadRows">查询</el-button>
                 <el-button @click="keyword = ''; ctypeFilter = ''; pageNo = 1">重置</el-button>
                 <el-button v-if="cfg.canCreate" type="primary" plain class="add-btn"
                            @click="openDialog(false)">新增
                 </el-button>
             </div>
-
-            <el-tabs v-model="tabKey" class="cat-tabs">
-                <el-tab-pane v-for="t in cfg.tabs" :key="t.key" :label="t.label" :name="t.key"/>
-            </el-tabs>
 
             <el-table :data="rows" v-loading="loading" border stripe>
                 <el-table-column type="index" label="序号" width="60" align="center"/>
@@ -409,20 +411,10 @@ onUnmounted(() => {
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 6px;
+        margin-bottom: 14px;
 
         .add-btn {
             margin-left: auto;
-        }
-    }
-
-    .cat-tabs {
-        :deep(.el-tabs__header) {
-            margin-bottom: 12px;
-        }
-
-        :deep(.el-tabs__item) {
-            font-size: 13px;
         }
     }
 

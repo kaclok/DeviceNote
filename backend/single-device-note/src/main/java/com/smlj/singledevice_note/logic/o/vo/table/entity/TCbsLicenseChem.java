@@ -26,6 +26,19 @@ public class TCbsLicenseChem implements Serializable {
     private String catalog_no;
     private String cas_no;
     private String longitude;
+    /** 危险性类别（按危化品目录口径） */
+    private String hazard_class;
+    /** 是否剧毒化学品 */
+    private Boolean is_poison;
+    /** 是否构成危险化学品重大危险源 */
+    private Boolean is_major_hazard;
+    /** 储存场所（罐区/仓库） */
+    private String storage_place;
+    /** 重大危险源临界量（吨，文本口径） */
+    private String critical_qty;
+    /** 实际存在量（吨，文本口径） */
+    private String actual_qty;
+    private String remark;
     private String creator;
     private Boolean open_status;
 }

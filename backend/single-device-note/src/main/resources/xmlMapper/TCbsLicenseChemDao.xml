@@ -4,6 +4,7 @@
 
     <sql id="cols">
         chem_id, chem_name, is_key, storage, yearly, state, fire_class, catalog_no, cas_no, longitude,
+        hazard_class, is_poison, is_major_hazard, storage_place, critical_qty, actual_qty, remark,
         creator, open_status
     </sql>
 
@@ -11,12 +12,12 @@
         select <include refid="cols"/> from cbs.t_license_chem where chem_id = #{id}
     </select>
 
-        <sql id="cond">
-        <where>
-            open_status = true
-            <if test="kw != null and kw != ''">
-                and chem_name like concat('%', #{kw}, '%')
-            </if>
+    <sql id="cond">
+        <where>
+            open_status = true
+            <if test="kw != null and kw != ''">
+                and chem_name like concat('%', #{kw}, '%')
+            </if>
         </where>
     </sql>
 
@@ -36,9 +37,12 @@
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsLicenseChem">
         insert into cbs.t_license_chem (chem_id, chem_name, is_key, storage, yearly, state, fire_class,
-            catalog_no, cas_no, longitude, creator, open_status)
+            catalog_no, cas_no, longitude, hazard_class, is_poison, is_major_hazard, storage_place,
+            critical_qty, actual_qty, remark, creator, open_status)
         values (#{c.chem_id}, #{c.chem_name}, #{c.is_key}, #{c.storage}, #{c.yearly}, #{c.state},
-            #{c.fire_class}, #{c.catalog_no}, #{c.cas_no}, #{c.longitude}, #{c.creator}, #{c.open_status})
+            #{c.fire_class}, #{c.catalog_no}, #{c.cas_no}, #{c.longitude}, #{c.hazard_class}, #{c.is_poison},
+            #{c.is_major_hazard}, #{c.storage_place}, #{c.critical_qty}, #{c.actual_qty}, #{c.remark},
+            #{c.creator}, #{c.open_status})
     </insert>
 
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsLicenseChem">
@@ -46,12 +50,21 @@
         <set>
             chem_name = #{c.chem_name}, is_key = #{c.is_key}, storage = #{c.storage}, yearly = #{c.yearly},
             state = #{c.state}, fire_class = #{c.fire_class}, catalog_no = #{c.catalog_no},
-            cas_no = #{c.cas_no}, longitude = #{c.longitude},
+            cas_no = #{c.cas_no}, longitude = #{c.longitude}, hazard_class = #{c.hazard_class},
+            is_poison = #{c.is_poison}, is_major_hazard = #{c.is_major_hazard},
+            storage_place = #{c.storage_place}, critical_qty = #{c.critical_qty},
+            actual_qty = #{c.actual_qty}, remark = #{c.remark},
         </set>
         where chem_id = #{c.chem_id}
     </update>
 
     <update id="remove">
         update cbs.t_license_chem set open_status = false where chem_id = #{id}
+    </update>
+
+    <update id="removeBatch">
+        update cbs.t_license_chem set open_status = false
+        where chem_id in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
     </update>
 </mapper>

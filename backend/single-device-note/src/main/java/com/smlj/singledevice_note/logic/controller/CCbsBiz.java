@@ -82,6 +82,9 @@ public class CCbsBiz {
     private final TCbsProjectAcceptDao acceptDao;
     private final TCbsDictDao dictDao;
 
+    /** 批量操作单次上限（与分页上限 200 对齐） */
+    private static final int BATCH_MAX = 200;
+
     /** 类型字典合法键（fail-closed，清单第21~23项） */
     private static final java.util.Set<String> DICT_TYPES =
             java.util.Set.of("contractor_type", "penalty_type", "project_type");
@@ -648,8 +651,10 @@ public class CCbsBiz {
     public Result<?> certList(@RequestBody(required = false) Map<String, Object> q) {
         int no = pageNo(q), size = pageSize(q);
         String kw = str(q, "kw");
-        long total = certDao.countAll(kw);
-        return Result.success(pageOf(certDao.queryPage(kw, offset(no, size), size), total, no, size));
+        // certType：1=企业证书 2=企业人员证书；两类各自一页，缺省不过滤
+        Integer certType = intVal(q, "certType");
+        long total = certDao.countAll(kw, certType);
+        return Result.success(pageOf(certDao.queryPage(kw, certType, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:baseinfo")
@@ -661,6 +666,12 @@ public class CCbsBiz {
         }
         if (c.getWarn_days() == null) {
             c.setWarn_days(30);
+        }
+        if (c.getCert_type() == null) {
+            c.setCert_type(1);
+        }
+        if (c.getCert_type() == 2 && !StringUtils.hasText(c.getHolder_name())) {
+            return Result.fail(ResultCode.RC10101, "人员证书必须填写持证人");
         }
         if (!StringUtils.hasText(c.getCert_id())) {
             c.setCert_id(newId());
@@ -741,6 +752,12 @@ public class CCbsBiz {
         if (c.getIs_key() == null) {
             c.setIs_key(false);
         }
+        if (c.getIs_poison() == null) {
+            c.setIs_poison(false);
+        }
+        if (c.getIs_major_hazard() == null) {
+            c.setIs_major_hazard(false);
+        }
         if (!StringUtils.hasText(c.getChem_id())) {
             c.setChem_id(newId());
             c.setCreator(me.getAccount());
@@ -759,6 +776,13 @@ public class CCbsBiz {
     @PostMapping("/chem/delete")
     public Result<?> chemDelete(@RequestBody Map<String, Object> b) {
         return deleteSoft(str(b, "chemId"), "化学品不存在", chemDao::query, id -> chemDao.remove(id));
+    }
+
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/chem/deleteBatch")
+    public Result<?> chemDeleteBatch(@RequestBody Map<String, Object> b) {
+        return deleteBatch(b, chemDao::removeBatch);
     }
 
     // ---------------- 基础信息：重点监管的危险化工工艺 ----------------
@@ -782,6 +806,15 @@ public class CCbsBiz {
         if (p.getAuto_in_use() == null) {
             p.setAuto_in_use(false);
         }
+        if (p.getEsd_in_use() == null) {
+            p.setEsd_in_use(false);
+        }
+        if (p.getSis_in_use() == null) {
+            p.setSis_in_use(false);
+        }
+        if (p.getHazop_done() == null) {
+            p.setHazop_done(false);
+        }
         if (!StringUtils.hasText(p.getProc_id())) {
             p.setProc_id(newId());
             p.setCreator(me.getAccount());
@@ -802,6 +835,13 @@ public class CCbsBiz {
         return deleteSoft(str(b, "procId"), "工艺不存在", procDao::query, id -> procDao.remove(id));
     }
 
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/proc/deleteBatch")
+    public Result<?> procDeleteBatch(@RequestBody Map<String, Object> b) {
+        return deleteBatch(b, procDao::removeBatch);
+    }
+
     // ---------------- 私有工具 ----------------
 
     private static LocalDate parseDate(String s) {
@@ -813,6 +853,26 @@ public class CCbsBiz {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** 批量软删：ids 去空去重，单次上限 BATCH_MAX（与分页上限一致），一条不剩即拒。 */
+    private Result<?> deleteBatch(Map<String, Object> b, java.util.function.Consumer<List<String>> remover) {
+        Object raw = b == null ? null : b.get("ids");
+        if (!(raw instanceof List<?> list)) {
+            return Result.fail(ResultCode.RC10101, "请选择要删除的记录");
+        }
+        List<String> ids = list.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(String::valueOf)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .limit(BATCH_MAX)
+                .toList();
+        if (ids.isEmpty()) {
+            return Result.fail(ResultCode.RC10101, "请选择要删除的记录");
+        }
+        remover.accept(ids);
+        return Result.success();
     }
 
     /** 通用软删：id 缺失或记录不存在即拒。 */

@@ -3,19 +3,20 @@
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsSuperviseProcessDao">
 
     <sql id="cols">
-        proc_id, proc_name, auto_in_use, creator, open_status
+        proc_id, proc_name, proc_type, chem_involved, device_name, auto_in_use, esd_in_use,
+        sis_in_use, hazop_done, risk_level, remark, creator, open_status
     </sql>
 
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSuperviseProcess">
         select <include refid="cols"/> from cbs.t_supervise_process where proc_id = #{id}
     </select>
 
-        <sql id="cond">
-        <where>
-            open_status = true
-            <if test="kw != null and kw != ''">
-                and proc_name like concat('%', #{kw}, '%')
-            </if>
+    <sql id="cond">
+        <where>
+            open_status = true
+            <if test="kw != null and kw != ''">
+                and proc_name like concat('%', #{kw}, '%')
+            </if>
         </where>
     </sql>
 
@@ -34,19 +35,31 @@
     </select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSuperviseProcess">
-        insert into cbs.t_supervise_process (proc_id, proc_name, auto_in_use, creator, open_status)
-        values (#{p.proc_id}, #{p.proc_name}, #{p.auto_in_use}, #{p.creator}, #{p.open_status})
+        insert into cbs.t_supervise_process (proc_id, proc_name, proc_type, chem_involved, device_name,
+            auto_in_use, esd_in_use, sis_in_use, hazop_done, risk_level, remark, creator, open_status)
+        values (#{p.proc_id}, #{p.proc_name}, #{p.proc_type}, #{p.chem_involved}, #{p.device_name},
+            #{p.auto_in_use}, #{p.esd_in_use}, #{p.sis_in_use}, #{p.hazop_done}, #{p.risk_level},
+            #{p.remark}, #{p.creator}, #{p.open_status})
     </insert>
 
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSuperviseProcess">
         update cbs.t_supervise_process
         <set>
-            proc_name = #{p.proc_name}, auto_in_use = #{p.auto_in_use},
+            proc_name = #{p.proc_name}, proc_type = #{p.proc_type}, chem_involved = #{p.chem_involved},
+            device_name = #{p.device_name}, auto_in_use = #{p.auto_in_use},
+            esd_in_use = #{p.esd_in_use}, sis_in_use = #{p.sis_in_use},
+            hazop_done = #{p.hazop_done}, risk_level = #{p.risk_level}, remark = #{p.remark},
         </set>
         where proc_id = #{p.proc_id}
     </update>
 
     <update id="remove">
         update cbs.t_supervise_process set open_status = false where proc_id = #{id}
+    </update>
+
+    <update id="removeBatch">
+        update cbs.t_supervise_process set open_status = false
+        where proc_id in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
     </update>
 </mapper>

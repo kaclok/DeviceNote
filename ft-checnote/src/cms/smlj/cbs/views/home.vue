@@ -38,7 +38,12 @@ const MENU_TREE = [
             {path: '/home/baseinfo/ts', title: '安全"三同时"', perm: 'cbs:baseinfo'},
             {path: '/home/baseinfo/chem', title: '许可的危险化学品', perm: 'cbs:baseinfo'},
             {path: '/home/baseinfo/proc', title: '重点监管的危险化工工艺', perm: 'cbs:baseinfo'},
-            {path: '/home/baseinfo/cert', title: '证照预警', perm: 'cbs:baseinfo'},
+            {
+                title: '证照预警', children: [
+                    {path: '/home/baseinfo/cert', title: '企业证书', perm: 'cbs:baseinfo'},
+                    {path: '/home/baseinfo/certemp', title: '企业人员证书', perm: 'cbs:baseinfo'},
+                ]
+            },
             {path: '/home/org/role', title: '角色管理', perm: 'cbs:org'},
             {path: '/home/org/dept', title: '部门管理', perm: 'cbs:org'},
             {path: '/home/org/post', title: '岗位管理', perm: 'cbs:org'},
