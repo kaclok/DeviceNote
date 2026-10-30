@@ -18,6 +18,9 @@ public class TCbsPromise implements Serializable {
 
     private LocalDate promise_date;
     // ---- 生产装置 ----
+    /** 生产装置套数 */
+    private Integer total_sets;
+    /** 运行套数 */
     private Integer prod_sets;
     private Integer stop_sets;
     // ---- 隐患分级 ----

@@ -3,7 +3,7 @@
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsPromiseDao">
 
     <sql id="cols">
-        promise_date, prod_sets, stop_sets, hazard_lv1, hazard_lv2, hazard_lv3, hazard_lv4,
+        promise_date, total_sets, prod_sets, stop_sets, hazard_lv1, hazard_lv2, hazard_lv3, hazard_lv4,
         start_sets, stop_dev_sets, trial_sets, supervision_process, repair_sets,
         fire_special, fire_lv1, fire_lv2, confined, blind, work_height, lifting, temp_power,
         digging, road_close, repair_work,
@@ -16,7 +16,7 @@
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPromise">
         insert into cbs.t_promise (<include refid="cols"/>)
-        values (#{p.promise_date}, #{p.prod_sets}, #{p.stop_sets}, #{p.hazard_lv1}, #{p.hazard_lv2},
+        values (#{p.promise_date}, #{p.total_sets}, #{p.prod_sets}, #{p.stop_sets}, #{p.hazard_lv1}, #{p.hazard_lv2},
             #{p.hazard_lv3}, #{p.hazard_lv4}, #{p.start_sets}, #{p.stop_dev_sets}, #{p.trial_sets},
             #{p.supervision_process}, #{p.repair_sets}, #{p.fire_special}, #{p.fire_lv1}, #{p.fire_lv2},
             #{p.confined}, #{p.blind}, #{p.work_height}, #{p.lifting}, #{p.temp_power}, #{p.digging},
@@ -27,7 +27,7 @@
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPromise">
         update cbs.t_promise
         <set>
-            prod_sets = #{p.prod_sets}, stop_sets = #{p.stop_sets},
+            total_sets = #{p.total_sets}, prod_sets = #{p.prod_sets}, stop_sets = #{p.stop_sets},
             hazard_lv1 = #{p.hazard_lv1}, hazard_lv2 = #{p.hazard_lv2},
             hazard_lv3 = #{p.hazard_lv3}, hazard_lv4 = #{p.hazard_lv4},
             start_sets = #{p.start_sets}, stop_dev_sets = #{p.stop_dev_sets},

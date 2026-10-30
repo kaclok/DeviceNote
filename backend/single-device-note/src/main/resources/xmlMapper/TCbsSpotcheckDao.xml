@@ -3,74 +3,98 @@
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsSpotcheckDao">
 
     <sql id="cols">
-        s.check_id, s.work_type, s.check_date, s.checker, s.contractor_id, s.spot_content,
-        s.result, s.problem_desc, s.rectify_status, s.creator, s.open_status
+        s.check_id, s.work_type, s.place, s.begin_time, s.end_time, s.is_contractor_operate,
+        s.unit_name, s.operation_person, s.operation_phone, s.content, s.status, s.report_date,
+        s.reporter, s.creator, s.open_status
+    </sql>
+
+    <!-- 列表/计数/导出共用筛选条件（报备人员 / 作业票类型 / 报备状态 / 报备日期区间 / 作业时间区间） -->
+    <sql id="cond">
+        s.open_status = true
+        <if test="reporter != null and reporter != ''">
+            and s.reporter like concat('%', #{reporter}, '%')
+        </if>
+        <if test="workType != null">
+            and s.work_type = #{workType}
+        </if>
+        <if test="status != null">
+            and s.status = #{status}
+        </if>
+        <if test="reportStart != null and reportStart != ''">
+            and s.report_date &gt;= cast(#{reportStart} as date)
+        </if>
+        <if test="reportEnd != null and reportEnd != ''">
+            and s.report_date &lt;= cast(#{reportEnd} as date)
+        </if>
+        <if test="beginStart != null and beginStart != ''">
+            and s.begin_time &gt;= cast(#{beginStart} as timestamp)
+        </if>
+        <if test="beginEnd != null and beginEnd != ''">
+            and s.end_time &lt;= cast(#{beginEnd} as timestamp)
+        </if>
     </sql>
 
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
-        select <include refid="cols"/>, c.name as contractor_name
-        from cbs.t_spotcheck s left join cbs.t_contractor c on c.contractor_id = s.contractor_id
+        select <include refid="cols"/>
+        from cbs.t_spotcheck s
         where s.check_id = #{id}
     </select>
 
     <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
-        select <include refid="cols"/>, c.name as contractor_name
-        from cbs.t_spotcheck s left join cbs.t_contractor c on c.contractor_id = s.contractor_id
+        select <include refid="cols"/>
+        from cbs.t_spotcheck s
         <where>
-            s.open_status = true
-            <if test="kw != null and kw != ''">
-                and (s.spot_content like concat('%', #{kw}, '%') or s.checker like concat('%', #{kw}, '%'))
-            </if>
-            <if test="contractorId != null and contractorId != ''">
-                and s.contractor_id = #{contractorId}
-            </if>
-            <if test="workType != null">
-                and s.work_type = #{workType}
-            </if>
+            <include refid="cond"/>
         </where>
-        order by s.check_date desc nulls last, s.create_time desc
+        order by s.report_date desc nulls last, s.begin_time desc nulls last, s.create_time desc
         limit #{limit} offset #{offset}
     </select>
 
     <select id="countAll" resultType="long">
         select count(*)
-        from cbs.t_spotcheck s left join cbs.t_contractor c on c.contractor_id = s.contractor_id
+        from cbs.t_spotcheck s
         <where>
-            s.open_status = true
-            <if test="kw != null and kw != ''">
-                and (s.spot_content like concat('%', #{kw}, '%') or s.checker like concat('%', #{kw}, '%'))
-            </if>
-            <if test="contractorId != null and contractorId != ''">
-                and s.contractor_id = #{contractorId}
-            </if>
-            <if test="workType != null">
-                and s.work_type = #{workType}
-            </if>
-        </where></select>
+            <include refid="cond"/>
+        </where>
+    </select>
+
+    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
+        select <include refid="cols"/>
+        from cbs.t_spotcheck s
+        <where>
+            <include refid="cond"/>
+        </where>
+        order by s.report_date desc nulls last, s.begin_time desc nulls last, s.create_time desc
+    </select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
-        insert into cbs.t_spotcheck (check_id, work_type, check_date, checker, contractor_id, spot_content,
-            result, problem_desc, rectify_status, creator, open_status)
-        values (#{p.check_id}, #{p.work_type}, #{p.check_date}, #{p.checker}, #{p.contractor_id}, #{p.spot_content},
-            #{p.result}, #{p.problem_desc}, #{p.rectify_status}, #{p.creator}, #{p.open_status})
+        insert into cbs.t_spotcheck (check_id, work_type, place, begin_time, end_time, is_contractor_operate,
+            unit_name, operation_person, operation_phone, content, status, report_date, reporter,
+            creator, open_status)
+        values (#{p.check_id}, #{p.work_type}, #{p.place}, #{p.begin_time}, #{p.end_time}, #{p.is_contractor_operate},
+            #{p.unit_name}, #{p.operation_person}, #{p.operation_phone}, #{p.content}, #{p.status}, #{p.report_date},
+            #{p.reporter}, #{p.creator}, #{p.open_status})
     </insert>
 
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
         update cbs.t_spotcheck
         <set>
             work_type = #{p.work_type},
-            check_date = #{p.check_date},
-            checker = #{p.checker},
-            contractor_id = #{p.contractor_id},
-            spot_content = #{p.spot_content},
-            result = #{p.result},
-            problem_desc = #{p.problem_desc},
-            rectify_status = #{p.rectify_status},
+            place = #{p.place},
+            begin_time = #{p.begin_time},
+            end_time = #{p.end_time},
+            is_contractor_operate = #{p.is_contractor_operate},
+            unit_name = #{p.unit_name},
+            operation_person = #{p.operation_person},
+            operation_phone = #{p.operation_phone},
+            content = #{p.content},
+            status = #{p.status},
+            report_date = #{p.report_date},
         </set>
         where check_id = #{p.check_id}
     </update>
 
-    <update id="remove">
-        update cbs.t_spotcheck set open_status = false where check_id = #{id}
+    <update id="invalidate">
+        update cbs.t_spotcheck set status = 3 where check_id = #{id}
     </update>
 </mapper>

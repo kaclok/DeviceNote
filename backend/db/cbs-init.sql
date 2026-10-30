@@ -97,12 +97,13 @@ CREATE INDEX IF NOT EXISTS t_project_dept       ON cbs.t_project (dept_code);
 -- 安全承诺日报：一天一行，promise_date 即业务主键；字段口径见 PRD 附录 C
 CREATE TABLE IF NOT EXISTS cbs.t_promise (
     promise_date        date         NOT NULL,
+    total_sets          int2         NOT NULL DEFAULT 0,       -- 生产装置套数
     prod_sets           int2         NOT NULL DEFAULT 0,       -- 运行套数
     stop_sets           int2         NOT NULL DEFAULT 0,       -- 停产套数
-    hazard_lv1          int2         NOT NULL DEFAULT 0,
-    hazard_lv2          int2         NOT NULL DEFAULT 0,
-    hazard_lv3          int2         NOT NULL DEFAULT 0,
-    hazard_lv4          int2         NOT NULL DEFAULT 0,
+    hazard_lv1          int2         NOT NULL DEFAULT 0,       -- 一级重大危险源（处）
+    hazard_lv2          int2         NOT NULL DEFAULT 0,       -- 二级重大危险源（处）
+    hazard_lv3          int2         NOT NULL DEFAULT 0,       -- 三级重大危险源（处）
+    hazard_lv4          int2         NOT NULL DEFAULT 0,       -- 四级重大危险源（处）
     start_sets          int2         NOT NULL DEFAULT 0,       -- 开车装置数
     stop_dev_sets       int2         NOT NULL DEFAULT 0,       -- 停车装置数
     trial_sets          int2         NOT NULL DEFAULT 0,       -- 试生产装置数
@@ -297,23 +298,28 @@ CREATE TABLE IF NOT EXISTS cbs.t_post (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS t_post_code ON cbs.t_post (post_code) WHERE open_status;
 
--- 在线抽查（特殊作业报备；挂 cbs:spotcheck 权限；数据待从原系统迁移）
+-- 特殊作业报备（原「在线抽查」，挂 cbs:spotcheck 权限；字段口径见目标站 OnlineCpotCheck）
 CREATE TABLE IF NOT EXISTS cbs.t_spotcheck (
-    check_id            varchar      NOT NULL,
-    work_type           int2         NOT NULL,                 -- 1=动火 2=受限空间 3=盲板抽堵 4=高处作业 5=吊装 6=临时用电 7=动土 8=断路
-    check_date          date,
-    checker             varchar,                               -- 抽查人
-    contractor_id       varchar,                               -- 被抽查承包商（可空=厂内自查）
-    spot_content        varchar,                               -- 抽查内容
-    result              int2         NOT NULL DEFAULT 1,       -- 1=合格 0=不合格
-    problem_desc        varchar,                               -- 问题描述（不合格时）
-    rectify_status      int2         NOT NULL DEFAULT 0,       -- 0=无需整改 1=待整改 2=已整改
-    creator             varchar,
-    create_time         timestamp    NOT NULL DEFAULT now(),
-    open_status         bool         NOT NULL DEFAULT true,
+    check_id                varchar      NOT NULL,
+    work_type               int2         NOT NULL,             -- 作业票类型 1=特级动火 2=一级动火 3=二级动火 4=受限空间 5=盲板抽堵 6~9=一~四级高处 10~12=一~三级起重吊装 13=临时用电 14=动土 15=断路
+    place                   varchar(200),                      -- 作业地点
+    begin_time              timestamp,                         -- 作业开始时间
+    end_time                timestamp,                         -- 作业结束时间
+    is_contractor_operate   bool         NOT NULL DEFAULT false, -- 是否承包商作业
+    unit_name               varchar(200),                      -- 施工单位/人员
+    operation_person        varchar(50),                       -- 项目负责人
+    operation_phone         varchar(50),                       -- 联系方式
+    content                 varchar(1000),                     -- 作业内容
+    status                  int2         NOT NULL DEFAULT 1,   -- 报备状态 1=进行中 2=已完成 3=作废 4=已归档
+    report_date             date,                              -- 报备日期
+    reporter                varchar(50),                       -- 报备人员（姓名）
+    creator                 varchar,
+    create_time             timestamp    NOT NULL DEFAULT now(),
+    open_status             bool         NOT NULL DEFAULT true,
     CONSTRAINT t_spotcheck_pkey PRIMARY KEY (check_id)
 );
-CREATE INDEX IF NOT EXISTS t_spotcheck_date ON cbs.t_spotcheck (check_date);
+CREATE INDEX IF NOT EXISTS t_spotcheck_report_date ON cbs.t_spotcheck (report_date);
+CREATE INDEX IF NOT EXISTS t_spotcheck_begin_time  ON cbs.t_spotcheck (begin_time);
 
 -- 入场管理（清单第18项：不做关联培训/关联考试/进出场管理/设备管理，按钮不展示）
 CREATE TABLE IF NOT EXISTS cbs.t_project_enter (

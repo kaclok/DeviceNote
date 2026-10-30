@@ -9,59 +9,56 @@ import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const sys = Singleton.getInstance(SysX)
 
-/* 表单字段分区（口径同原系统安全承诺页；数字项默认 0，状态项默认 false） */
-const NUM_GROUPS = [
-    {title: '生产装置', items: [
-        {key: 'prod_sets', label: '运行套数'},
-        {key: 'stop_sets', label: '停产套数'},
-    ]},
-    {title: '隐患数量（按等级）', items: [
-        {key: 'hazard_lv1', label: '一级隐患'},
-        {key: 'hazard_lv2', label: '二级隐患'},
-        {key: 'hazard_lv3', label: '三级隐患'},
-        {key: 'hazard_lv4', label: '四级隐患'},
-    ]},
-    {title: '装置动态', items: [
-        {key: 'start_sets', label: '开车装置数'},
-        {key: 'stop_dev_sets', label: '停车装置数'},
-        {key: 'trial_sets', label: '试生产装置数'},
-        {key: 'supervision_process', label: '重点监管危险工艺'},
-        {key: 'repair_sets', label: '检维修套数'},
-    ]},
-    {title: '特殊作业（今日数量）', items: [
-        {key: 'fire_special', label: '特级动火'},
-        {key: 'fire_lv1', label: '一级动火'},
-        {key: 'fire_lv2', label: '二级动火'},
-        {key: 'confined', label: '受限空间作业'},
-        {key: 'blind', label: '盲板抽堵作业'},
-        {key: 'work_height', label: '高处作业'},
-        {key: 'lifting', label: '吊装作业'},
-        {key: 'temp_power', label: '临时用电作业'},
-        {key: 'digging', label: '动土作业'},
-        {key: 'road_close', label: '断路作业'},
-        {key: 'repair_work', label: '检维修作业'},
-    ]},
+/*
+ * 填报字段口径照目标站「安全承诺」弹窗：一张扁平表单，每行 3 项（span=8），
+ * 顺序与标签、单位都与目标站一致，不做分组。数字项默认 0，是否项默认「否」。
+ */
+const NUM_FIELDS = [
+    {key: 'total_sets', label: '生产装置套数', unit: '套'},
+    {key: 'prod_sets', label: '运行套数', unit: '套'},
+    {key: 'stop_sets', label: '停产套数', unit: '套'},
+    {key: 'hazard_lv1', label: '一级重大危险源', unit: '处'},
+    {key: 'hazard_lv2', label: '二级重大危险源', unit: '处'},
+    {key: 'hazard_lv3', label: '三级重大危险源', unit: '处'},
+    {key: 'hazard_lv4', label: '四级重大危险源', unit: '处'},
+    {key: 'start_sets', label: '开车装置数', unit: '处'},
+    {key: 'stop_dev_sets', label: '停车装置数', unit: '处'},
+    {key: 'trial_sets', label: '试生产装置数', unit: '处'},
+    {key: 'supervision_process', label: '重点监管危险工艺', unit: '种'},
+    {key: 'repair_sets', label: '检维修套数', unit: '套'},
+    {key: 'fire_special', label: '特级动火作业', unit: '处'},
+    {key: 'fire_lv1', label: '一级动火作业', unit: '处'},
+    {key: 'fire_lv2', label: '二级动火作业', unit: '处'},
+    {key: 'confined', label: '进入受限空间作业', unit: '处'},
+    {key: 'blind', label: '盲板抽堵作业', unit: '处'},
+    {key: 'work_height', label: '高处作业', unit: '处'},
+    {key: 'lifting', label: '吊装作业', unit: '处'},
+    {key: 'temp_power', label: '临时用电作业', unit: '处'},
+    {key: 'digging', label: '动土作业', unit: '处'},
+    {key: 'road_close', label: '断路作业', unit: '处'},
+    {key: 'repair_work', label: '检维修作业', unit: '处'},
 ]
-const BOOL_ITEMS = [
-    {key: 'has_contractor_work', label: '今日是否有承包商作业'},
+
+const BOOL_FIELDS = [
+    {key: 'has_contractor_work', label: '是否有承包商作业'},
     {key: 'in_trial', label: '是否处于试生产期'},
     {key: 'in_startstop', label: '是否处于开停车状态'},
-    {key: 'in_pilot', label: '是否处于中(扩)试'},
-    {key: 'has_major_hazard', label: '是否存在重大隐患'},
+    {key: 'in_pilot', label: '是否开展中(扩)试'},
+    {key: 'has_major_hazard', label: '有无重大隐患'},
 ]
 
 function blankForm(date) {
     const f = {promise_date: date, company_promise: ''}
-    NUM_GROUPS.forEach(g => g.items.forEach(it => {
+    NUM_FIELDS.forEach(it => {
         f[it.key] = 0
-    }))
-    BOOL_ITEMS.forEach(it => {
+    })
+    BOOL_FIELDS.forEach(it => {
         f[it.key] = false
     })
     return f
 }
 
-/* ============ 列表 + 分页（对齐目标站「安全承诺」列表：日期 / 是否承诺 / 操作） ============ */
+/* ============ 列表 + 分页（日期 / 是否承诺 / 操作） ============ */
 const loading = ref(false)
 const rows = ref([])
 const dateFilter = ref('')
@@ -96,7 +93,7 @@ function search() {
     loadRows()
 }
 
-/* ============ 详情 / 填报 ============ */
+/* ============ 承诺填报 ============ */
 const detailVisible = ref(false)
 const form = ref(blankForm(''))
 const formLoading = ref(false)
@@ -122,6 +119,9 @@ function openDetail(row) {
 function savePromise() {
     saving.value = true
     const f = {...form.value}
+    NUM_FIELDS.forEach(it => {
+        f[it.key] = Number(f[it.key] || 0)
+    })
     if (!f.company_promise) f.company_promise = null
     sys.biz('cbs/promise/save', f, AC.signal, () => {}, (r, data) => {
         saving.value = false
@@ -164,7 +164,7 @@ onUnmounted(() => AC.abort())
                 </el-table-column>
                 <el-table-column label="操作" width="120" align="center">
                     <template #default="{row}">
-                        <el-link type="primary" @click="openDetail(row)">详情承诺</el-link>
+                        <el-link type="primary" @click="openDetail(row)">承诺</el-link>
                     </template>
                 </el-table-column>
             </el-table>
@@ -175,32 +175,35 @@ onUnmounted(() => AC.abort())
                            :page-sizes="PAGER.pageSizes"/>
         </div>
 
-        <!-- 详情填报弹窗 -->
-        <el-dialog v-model="detailVisible" :title="`安全承诺 — ${curDate}`" width="900px" destroy-on-close>
+        <!-- 承诺填报（照目标站：一张扁平表单，每行 3 项，不切块） -->
+        <el-dialog v-model="detailVisible" :title="`安全承诺填报${curDate ? '（' + curDate + '）' : ''}`"
+                   width="1200px" top="6vh" destroy-on-close>
             <div v-loading="formLoading">
-                <template v-for="g in NUM_GROUPS" :key="g.title">
-                    <el-divider content-position="left">{{ g.title }}</el-divider>
-                    <div class="num-grid">
-                        <div v-for="it in g.items" :key="it.key" class="num-item">
-                            <span class="num-label">{{ it.label }}</span>
-                            <el-input-number v-model="form[it.key]" :min="0" :precision="0" :controls="false"
-                                             class="num-input"/>
-                            <span class="num-unit">个</span>
-                        </div>
-                    </div>
-                </template>
-
-                <el-divider content-position="left">其他状态</el-divider>
-                <div class="bool-grid">
-                    <div v-for="it in BOOL_ITEMS" :key="it.key" class="bool-item">
-                        <span>{{ it.label }}</span>
-                        <el-switch v-model="form[it.key]"/>
-                    </div>
-                </div>
-
-                <el-divider content-position="left">企业安全承诺</el-divider>
-                <el-input v-model="form.company_promise" type="textarea" :rows="5"
-                          placeholder="填写当日企业安全承诺内容"/>
+                <el-form :model="form" label-width="150px" label-position="right" class="promise-form">
+                    <el-row :gutter="20">
+                        <el-col v-for="f in NUM_FIELDS" :key="f.key" :span="8">
+                            <el-form-item :label="f.label">
+                                <el-input v-model="form[f.key]" type="number" min="0" :placeholder="`请输入${f.label}`">
+                                    <template #append>{{ f.unit }}</template>
+                                </el-input>
+                            </el-form-item>
+                        </el-col>
+                        <el-col v-for="f in BOOL_FIELDS" :key="f.key" :span="8">
+                            <el-form-item :label="f.label">
+                                <el-radio-group v-model="form[f.key]">
+                                    <el-radio :value="true">是</el-radio>
+                                    <el-radio :value="false">否</el-radio>
+                                </el-radio-group>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="24">
+                            <el-form-item label="公司承诺">
+                                <el-input v-model="form.company_promise" type="textarea" :rows="5"
+                                          placeholder="请输入公司承诺"/>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </el-form>
             </div>
             <template #footer>
                 <el-button @click="detailVisible = false">关闭</el-button>
@@ -244,47 +247,16 @@ onUnmounted(() => AC.abort())
         justify-content: flex-end;
     }
 
-    .num-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px 24px;
+    .promise-form {
+        padding: 4px 8px 0;
 
-        .num-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-
-            .num-label {
-                flex: 1;
-                font-size: 13px;
-                color: #475569;
-            }
-
-            .num-input {
-                width: 90px;
-            }
-
-            .num-unit {
-                font-size: 12px;
-                color: #94a3b8;
-            }
+        :deep(.el-form-item) {
+            margin-bottom: 16px;
         }
-    }
 
-    .bool-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px 24px;
-
-        .bool-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 13px;
-            color: #475569;
-            padding: 6px 12px;
-            background: #f8fafc;
-            border-radius: 8px;
+        :deep(.el-input-group__append) {
+            padding: 0 12px;
+            color: #64748b;
         }
     }
 }

@@ -11,16 +11,31 @@ public interface TCbsSpotcheckDao {
 
     TCbsSpotcheck query(@Param("id") String id);
 
-    /** kw 模糊 spot_content/checker；contractorId 空=全部；workType 空=全部 */
-    List<TCbsSpotcheck> queryPage(@Param("kw") String kw, @Param("contractorId") String contractorId,
-                                  @Param("workType") Integer workType,
+    /**
+     * 列表分页。筛选口径与目标站在线抽查一致：
+     * 报备人员 / 作业票类型 / 报备状态 / 报备日期区间 / 作业时间区间。
+     */
+    List<TCbsSpotcheck> queryPage(@Param("reporter") String reporter, @Param("workType") Integer workType,
+                                  @Param("status") Integer status,
+                                  @Param("reportStart") String reportStart, @Param("reportEnd") String reportEnd,
+                                  @Param("beginStart") String beginStart, @Param("beginEnd") String beginEnd,
                                   @Param("offset") int offset, @Param("limit") int limit);
 
-    long countAll(@Param("kw") String kw, @Param("contractorId") String contractorId,
-                  @Param("workType") Integer workType);
+    long countAll(@Param("reporter") String reporter, @Param("workType") Integer workType,
+                  @Param("status") Integer status,
+                  @Param("reportStart") String reportStart, @Param("reportEnd") String reportEnd,
+                  @Param("beginStart") String beginStart, @Param("beginEnd") String beginEnd);
+
+    /** 导出：与列表同条件、不分页（行数上限由控制器控制） */
+    List<TCbsSpotcheck> queryAll(@Param("reporter") String reporter, @Param("workType") Integer workType,
+                                 @Param("status") Integer status,
+                                 @Param("reportStart") String reportStart, @Param("reportEnd") String reportEnd,
+                                 @Param("beginStart") String beginStart, @Param("beginEnd") String beginEnd);
+
     int insert(@Param("p") TCbsSpotcheck p);
 
     int update(@Param("p") TCbsSpotcheck p);
 
-    int remove(@Param("id") String id);
+    /** 作废：status = 3 */
+    int invalidate(@Param("id") String id);
 }

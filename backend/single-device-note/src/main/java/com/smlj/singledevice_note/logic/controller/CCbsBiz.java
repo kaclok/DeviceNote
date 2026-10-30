@@ -49,6 +49,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -456,67 +457,212 @@ public class CCbsBiz {
         return Result.success();
     }
 
-    // ---------------- 在线抽查（特殊作业报备，挂 cbs:spotcheck） ----------------
+    // ---------------- 特殊作业报备（原「在线抽查」，挂 cbs:spotcheck） ----------------
 
+    /** 报备列表：报备人员 / 作业票类型 / 报备状态 / 报备日期区间 / 作业时间区间 */
     @RequirePermission("cbs:spotcheck")
     @PostMapping("/spotcheck/list")
     public Result<?> spotcheckList(@RequestBody(required = false) Map<String, Object> q) {
         int no = pageNo(q), size = pageSize(q);
-        String kw = str(q, "kw"), contractorId = str(q, "contractorId");
-        Integer workType = intVal(q, "workType");
-        long total = spotcheckDao.countAll(kw, contractorId, workType);
-        return Result.success(pageOf(spotcheckDao.queryPage(kw, contractorId, workType, offset(no, size), size), total, no, size));
+        String reporter = str(q, "reporter");
+        Integer workType = intVal(q, "workType"), status = intVal(q, "status");
+        String rs = str(q, "reportStart"), re = str(q, "reportEnd");
+        String bs = str(q, "beginStart"), be = str(q, "beginEnd");
+        long total = spotcheckDao.countAll(reporter, workType, status, rs, re, bs, be);
+        return Result.success(pageOf(spotcheckDao.queryPage(reporter, workType, status, rs, re, bs, be,
+                offset(no, size), size), total, no, size));
+    }
+
+    /** 导出：与列表同条件取全量（最多 5000 行，Excel 由前端生成） */
+    @RequirePermission("cbs:spotcheck")
+    @PostMapping("/spotcheck/export")
+    public Result<?> spotcheckExport(@RequestBody(required = false) Map<String, Object> q) {
+        final int exportMax = 5000;
+        List<TCbsSpotcheck> all = spotcheckDao.queryAll(str(q, "reporter"), intVal(q, "workType"),
+                intVal(q, "status"), str(q, "reportStart"), str(q, "reportEnd"),
+                str(q, "beginStart"), str(q, "beginEnd"));
+        return Result.success(all.size() > exportMax ? all.subList(0, exportMax) : all);
     }
 
     @RequirePermission("cbs:spotcheck")
     @Transactional
     @PostMapping("/spotcheck/save")
     public Result<?> spotcheckSave(@RequestBody TCbsSpotcheck s, @Acc TCbsUser me) {
-        if (s.getWork_type() == null || s.getWork_type() < 1 || s.getWork_type() > 8) {
-            return Result.fail(ResultCode.RC10101, "特殊作业类型不合法");
-        }
-        if (!StringUtils.hasText(s.getSpot_content())) {
-            return Result.fail(ResultCode.RC10101, "抽查内容不能为空");
-        }
-        if (s.getResult() == null) {
-            s.setResult(1);
-        }
-        if (s.getResult() == 0 && s.getRectify_status() == null) {
-            s.setRectify_status(1);
-        }
-        if (s.getRectify_status() == null) {
-            s.setRectify_status(0);
-        }
-        if (StringUtils.hasText(s.getContractor_id()) && contractorDao.query(s.getContractor_id()) == null) {
-            return Result.fail(ResultCode.RC10101, "被抽查承包商不存在");
+        String err = checkSpotcheck(s);
+        if (err != null) {
+            return Result.fail(ResultCode.RC10101, err);
         }
         if (!StringUtils.hasText(s.getCheck_id())) {
             s.setCheck_id(newId());
             s.setCreator(me.getAccount());
             s.setOpen_status(true);
+            s.setReporter(me.getUsername());
+            if (s.getStatus() == null) {
+                s.setStatus(1);
+            }
+            if (s.getReport_date() == null) {
+                s.setReport_date(LocalDate.now());
+            }
             spotcheckDao.insert(s);
         } else {
             TCbsSpotcheck old = spotcheckDao.query(s.getCheck_id());
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "抽查记录不存在");
+                return Result.fail(ResultCode.RC10103, "报备记录不存在");
             }
-            s.setCreator(old.getCreator());
-            s.setOpen_status(old.getOpen_status());
+            if (s.getStatus() == null) {
+                s.setStatus(old.getStatus());
+            }
             spotcheckDao.update(s);
         }
         return Result.success();
     }
 
+    /** 作废：已完成 / 已作废的报备不可再作废（与目标站一致） */
     @RequirePermission("cbs:spotcheck")
     @Transactional
-    @PostMapping("/spotcheck/delete")
-    public Result<?> spotcheckDelete(@RequestBody Map<String, Object> b) {
+    @PostMapping("/spotcheck/invalidate")
+    public Result<?> spotcheckInvalidate(@RequestBody Map<String, Object> b) {
         String id = str(b, "checkId");
-        if (!StringUtils.hasText(id) || spotcheckDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "抽查记录不存在");
+        TCbsSpotcheck old = StringUtils.hasText(id) ? spotcheckDao.query(id) : null;
+        if (old == null) {
+            return Result.fail(ResultCode.RC10101, "报备记录不存在");
         }
-        spotcheckDao.remove(id);
+        if (old.getStatus() != null && (old.getStatus() == 2 || old.getStatus() == 3)) {
+            return Result.fail(ResultCode.RC10101, "已完成或已作废的报备不可作废");
+        }
+        spotcheckDao.invalidate(id);
         return Result.success();
+    }
+
+    /**
+     * 批量报备：前端解析 Excel 后按行提交，逐行校验——合格行入库、不合格行带行号原因返回。
+     * 单次上限 500 行（与分页上限同源思路，防止一次塞几万行）。
+     */
+    @RequirePermission("cbs:spotcheck")
+    @Transactional
+    @PostMapping("/spotcheck/importBatch")
+    public Result<?> spotcheckImport(@RequestBody(required = false) Map<String, Object> b, @Acc TCbsUser me) {
+        final int importMax = 500;
+        Object raw = b == null ? null : b.get("rows");
+        if (!(raw instanceof List<?> list) || list.isEmpty()) {
+            return Result.fail(ResultCode.RC10101, "导入内容为空");
+        }
+        if (list.size() > importMax) {
+            return Result.fail(ResultCode.RC10101, "单次最多导入 " + importMax + " 行");
+        }
+        int inserted = 0;
+        List<Map<String, Object>> failed = new java.util.ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            int rowNo = i + 2; // 第 1 行是表头
+            if (!(list.get(i) instanceof Map<?, ?>)) {
+                failed.add(Map.<String, Object>of("row", rowNo, "msg", "行格式错误"));
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            TCbsSpotcheck s = spotFromRow((Map<String, Object>) list.get(i));
+            String err = checkSpotcheck(s);
+            if (err != null) {
+                failed.add(Map.<String, Object>of("row", rowNo, "msg", err));
+                continue;
+            }
+            s.setCheck_id(newId());
+            s.setCreator(me.getAccount());
+            s.setReporter(me.getUsername());
+            s.setOpen_status(true);
+            if (s.getStatus() == null) {
+                s.setStatus(1);
+            }
+            if (s.getReport_date() == null) {
+                s.setReport_date(LocalDate.now());
+            }
+            spotcheckDao.insert(s);
+            inserted++;
+        }
+        return Result.success(Map.<String, Object>of("inserted", inserted, "failed", failed));
+    }
+
+    /** 报备表单校验：返回 null 表示通过，否则为提示语（前后端同一套口径，后端为准） */
+    private static String checkSpotcheck(TCbsSpotcheck s) {
+        if (s.getWork_type() == null || s.getWork_type() < 1 || s.getWork_type() > 15) {
+            return "作业票类型不合法";
+        }
+        if (!StringUtils.hasText(s.getPlace())) {
+            return "作业地点不能为空";
+        }
+        if (!StringUtils.hasText(s.getContent())) {
+            return "作业内容不能为空";
+        }
+        if (s.getBegin_time() == null || s.getEnd_time() == null) {
+            return "作业时间不能为空";
+        }
+        if (!s.getEnd_time().isAfter(s.getBegin_time())) {
+            return "作业结束时间必须晚于开始时间";
+        }
+        if (!StringUtils.hasText(s.getUnit_name())) {
+            return "施工单位/人员不能为空";
+        }
+        if (!StringUtils.hasText(s.getOperation_person())) {
+            return "项目负责人不能为空";
+        }
+        if (!StringUtils.hasText(s.getOperation_phone())) {
+            return "联系方式不能为空";
+        }
+        if (!s.getOperation_phone().matches("^1[3-9]\\d{9}$")) {
+            return "联系方式格式不正确";
+        }
+        if (s.getStatus() != null && (s.getStatus() < 1 || s.getStatus() > 4)) {
+            return "报备状态不合法";
+        }
+        return null;
+    }
+
+    /** 导入行 → 实体（前端已把中文枚举翻译成 id，这里只做类型兜底） */
+    private static TCbsSpotcheck spotFromRow(Map<String, Object> m) {
+        TCbsSpotcheck s = new TCbsSpotcheck();
+        s.setWork_type(intVal(m, "work_type"));
+        s.setPlace(str(m, "place"));
+        s.setBegin_time(parseTime(str(m, "begin_time")));
+        s.setEnd_time(parseTime(str(m, "end_time")));
+        s.setIs_contractor_operate(boolVal(m, "is_contractor_operate"));
+        s.setUnit_name(str(m, "unit_name"));
+        s.setOperation_person(str(m, "operation_person"));
+        s.setOperation_phone(str(m, "operation_phone"));
+        s.setContent(str(m, "content"));
+        s.setStatus(intVal(m, "status"));
+        s.setReport_date(parseDate(str(m, "report_date")));
+        return s;
+    }
+
+    private static Boolean boolVal(Map<String, Object> m, String key) {
+        Object v = m == null ? null : m.get(key);
+        if (v instanceof Boolean b) {
+            return b;
+        }
+        if (v instanceof Number n) {
+            return n.intValue() != 0;
+        }
+        if (v == null) {
+            return false;
+        }
+        String t = String.valueOf(v).trim();
+        return "是".equals(t) || "true".equalsIgnoreCase(t) || "1".equals(t) || "Y".equalsIgnoreCase(t);
+    }
+
+    /** 解析 "yyyy-MM-dd HH:mm[:ss]" 或 ISO "yyyy-MM-ddTHH:mm[:ss]" */
+    private static LocalDateTime parseTime(String s) {
+        if (!StringUtils.hasText(s)) {
+            return null;
+        }
+        String t = s.trim().replace(' ', 'T');
+        try {
+            return LocalDateTime.parse(t.length() == 16 ? t + ":00" : t);
+        } catch (Exception e) {
+            try {
+                return LocalDate.parse(s.trim()).atStartOfDay();
+            } catch (Exception ignore) {
+                return null;
+            }
+        }
     }
 
     // ---------------- 类型字典（挂 cbs:baseinfo，清单第21~23项） ----------------
