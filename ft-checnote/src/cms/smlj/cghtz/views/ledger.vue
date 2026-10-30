@@ -275,11 +275,17 @@ const fstate = ref({})
 const frange = ref({})
 const fwarn = ref({})
 
+/** 区间筛的输入形态按列类型决定：数值列（float/int）给数字框，其余（日期等）给日期框 */
+function rangeIsNumber(f) {
+    const t = columnOf(tb.value, f.field)?.type
+    return t === 'float' || t === 'int'
+}
+
 /** 按当前模板的筛选定义重建状态：换模板/换表后必须重建，否则会残留上一张表的字段 */
 function resetFilterState() {
     const st = {}, rg = {}, wn = {}
     filterDefs.value.forEach(f => {
-        if (f.type === 'range') rg[f.field] = {begin: '', end: ''}
+        if (f.type === 'range') rg[f.field] = rangeIsNumber(f) ? {begin: null, end: null} : {begin: '', end: ''}
         else if (f.type === 'warn') wn[f.field] = false
         else st[f.field] = f.type === 'select' ? null : ''
     })
@@ -317,8 +323,8 @@ function buildParams() {
         }
         if (f.type === 'range') {
             const r = frange.value[f.field] || {}
-            if (r.begin) p[`f_${f.field}_gte`] = r.begin
-            if (r.end) p[`f_${f.field}_lte`] = r.end
+            if (r.begin !== '' && r.begin != null) p[`f_${f.field}_gte`] = r.begin
+            if (r.end !== '' && r.end != null) p[`f_${f.field}_lte`] = r.end
             return
         }
         const v = fstate.value[f.field]
@@ -692,13 +698,17 @@ function applyQueryDept() {
                                                    :label="o.label" :value="o.v"/>
                                     </el-select>
                                     <template v-else-if="f.type === 'range'">
-                                        <el-date-picker v-model="frange[f.field].begin" type="date" placeholder="开始"
+                                        <el-date-picker v-if="!rangeIsNumber(f)" v-model="frange[f.field].begin" type="date" placeholder="开始"
                                                         value-format="YYYY-MM-DD" :style="{width: (f.width || 130) + 'px'}"
                                                         @change="applyFilters"/>
+                                        <el-input-number v-else v-model="frange[f.field].begin" :controls="false" placeholder="最小"
+                                                        :style="{width: (f.width || 110) + 'px'}" @change="applyFilters"/>
                                         <span class="range-sep">至</span>
-                                        <el-date-picker v-model="frange[f.field].end" type="date" placeholder="结束"
+                                        <el-date-picker v-if="!rangeIsNumber(f)" v-model="frange[f.field].end" type="date" placeholder="结束"
                                                         value-format="YYYY-MM-DD" :style="{width: (f.width || 130) + 'px'}"
                                                         @change="applyFilters"/>
+                                        <el-input-number v-else v-model="frange[f.field].end" :controls="false" placeholder="最大"
+                                                        :style="{width: (f.width || 110) + 'px'}" @change="applyFilters"/>
                                     </template>
                                     <el-tooltip v-else-if="f.type === 'warn'" :content="f.tip || ''" placement="top">
                                         <el-checkbox v-model="fwarn[f.field]" @change="applyFilters">{{ f.text || f.label }}</el-checkbox>

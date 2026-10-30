@@ -671,6 +671,13 @@
 					"width": 110
 				},
 				{
+					"field": "remain_money",
+					"label": "余款余额",
+					"type": "range",
+					"op": "range",
+					"width": 110
+				},
+				{
 					"field": "date_sign",
 					"label": "签订日期",
 					"type": "range",
