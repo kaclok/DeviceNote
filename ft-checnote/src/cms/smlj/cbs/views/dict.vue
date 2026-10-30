@@ -3,6 +3,7 @@ import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
 import {pagerOf} from "../system/Pager.js"
+import {invalidateDict} from "../system/DictX.js"
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Search} from "@element-plus/icons-vue";
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
@@ -92,6 +93,7 @@ function saveForm() {
             if (r) {
                 ElMessage.success('保存成功')
                 dialogVisible.value = false
+                invalidateDict(activeType.value)   // 业务页下拉的缓存一并失效
                 loadRows()
             } else {
                 notifyError(data, '保存失败')
@@ -107,6 +109,7 @@ function removeRow(row) {
             loading.value = false
             if (r) {
                 ElMessage.success('删除成功')
+                invalidateDict(activeType.value)
                 loadRows()
             } else {
                 notifyError(data, '删除失败')

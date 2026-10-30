@@ -13,14 +13,14 @@
     </select>
 
         <sql id="cond">
-        <where>
-            open_status = true
-            <if test="dictType != null and dictType != ''">
-                and dict_type = #{dictType}
-            </if>
-            <if test="onlyUsing">
-                and is_using = true
-            </if>
+        <where>
+            open_status = true
+            <if test="dictType != null and dictType != ''">
+                and dict_type = #{dictType}
+            </if>
+            <if test="onlyUsing">
+                and is_using = true
+            </if>
         </where>
     </sql>
 
@@ -36,6 +36,14 @@
         select count(*)
         from cbs.t_dict
         <include refid="cond"/>
+    </select>
+
+    <!-- 下拉选项：只取启用项、按排序号，全量不分页（同一字典类型量级很小） -->
+    <select id="queryOptions" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict">
+        select <include refid="cols"/>
+        from cbs.t_dict
+        where open_status = true and is_using = true and dict_type = #{dictType}
+        order by sort_no, create_time
     </select>
 
     <select id="countName" resultType="int">

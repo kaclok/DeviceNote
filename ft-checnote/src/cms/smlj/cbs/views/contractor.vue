@@ -6,6 +6,7 @@ import {pagerOf} from "../system/Pager.js"
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Search} from "@element-plus/icons-vue";
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
+import {useDictNames} from "../system/DictX.js"
 
 const sys = Singleton.getInstance(SysX)
 
@@ -104,21 +105,8 @@ function statusMeta(s) {
     return gd.approveStatus.find(x => x.id === Number(s)) || {desc: s, type: 'info'}
 }
 
-/* 承包商类型：后端字典（contractor_type）优先，gd.json 兜底（字典未维护时仍可选） */
-const ctypeDict = ref([])
-
-function loadCtypeDict() {
-    // 下拉要全量：字典接口已分页，按上限取一页（≤200）
-    sys.biz('cbs/dict/list', {dictType: 'contractor_type', onlyUsing: true, pageNo: 1, pageSize: 200},
-        AC.signal, () => {}, (r, data) => {
-            if (r) ctypeDict.value = (data.data?.rows || []).map(d => d.item_name)
-        })
-}
-
-const ctypeOptions = computed(() => {
-    const names = ctypeDict.value.filter(Boolean)
-    return names.length ? names : gd.ctypeOptions
-})
+/* 承包商类型：字典项可在「基础设置 › 承包商类型」自行增减 ⇒ 选项一律现查后端，gd.json 不存选项 */
+const ctypeOptions = useDictNames('contractor_type')
 
 /* ============ 新增/编辑 ============ */
 const dialogVisible = ref(false)
@@ -227,10 +215,7 @@ function removeRow(row) {
 }
 
 /* ============ 生命周期 ============ */
-onMounted(() => {
-    loadRows()
-    loadCtypeDict()
-})
+onMounted(loadRows)
 onUnmounted(() => {
     AC.abort()
     clearTimeout(kwTimer)

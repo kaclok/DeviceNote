@@ -534,6 +534,28 @@ public class CCbsBiz {
         return Result.success(pageOf(dictDao.queryPage(type, onlyUsing, offset(no, size), size), total, no, size));
     }
 
+    /**
+     * 字典下拉选项（承包商类型 / 承包商处罚类型 / 项目类型）。
+     * <p>
+     * 与 /dict/list 的区别：不分页、只取启用项，专供业务表单的下拉使用。
+     * 这几类字典由用户在「基础设置」里自行增减，所以选项必须现查，前端不得写死。
+     * <p>
+     * 权限：只读基础数据，任何已登录的 cbs 账号都可能要用（承包商页 cbs:contractor、
+     * 项目页 cbs:project 的筛选与表单都要取），故不加 @RequirePermission；
+     * 字典本身的增删改仍由 /dict/save、/dict/delete 上的 cbs:baseinfo 把守。
+     */
+    @PostMapping("/dict/options")
+    public Result<?> dictOptions(@RequestBody(required = false) Map<String, Object> b) {
+        String type = str(b, "dictType");
+        if (!StringUtils.hasText(type) || !DICT_TYPES.contains(type)) {
+            return Result.fail(ResultCode.RC10101, "dict_type 不合法");
+        }
+        List<Map<String, Object>> items = dictDao.queryOptions(type).stream()
+                .map(d -> Map.<String, Object>of("id", d.getItem_id(), "name", d.getItem_name()))
+                .toList();
+        return Result.success(items);
+    }
+
     @RequirePermission("cbs:baseinfo")
     @Transactional
     @PostMapping("/dict/save")

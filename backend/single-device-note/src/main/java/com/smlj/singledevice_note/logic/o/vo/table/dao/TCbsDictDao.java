@@ -17,6 +17,9 @@ public interface TCbsDictDao {
 
     long countAll(@Param("dictType") String dictType, @Param("onlyUsing") boolean onlyUsing);
 
+    /** 下拉选项：某类字典的全部启用项（不分页） */
+    List<TCbsDict> queryOptions(@Param("dictType") String dictType);
+
     /** 同一 dict_type 下 item_name 是否重复（含排除自身） */
     int countName(@Param("dictType") String dictType, @Param("name") String name, @Param("excludeId") String excludeId);
 
