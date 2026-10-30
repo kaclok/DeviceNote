@@ -2,7 +2,7 @@
 import {useRoute, useRouter} from 'vue-router';
 import {clearAccount, ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts";
 import {ElMessageBox} from "element-plus";
-import {Files, Setting, OfficeBuilding, EditPen, Search, SwitchButton, User} from "@element-plus/icons-vue";
+import {Back, Files, Setting, OfficeBuilding, EditPen, Search, SwitchButton, User} from "@element-plus/icons-vue";
 import {clearDictCache} from "@/cms/smlj/cbs/system/SysX.js";
 
 const router = useRouter();
@@ -93,19 +93,42 @@ function pruneMenu(nodes) {
     return out
 }
 
-const MENU = computed(() => pruneMenu(MENU_TREE))
+/** 当前所属的顶级模块（总览页为空）：顶栏标题与侧边菜单裁剪的唯一来源 */
+const currentModule = computed(() => {
+    const p = route.path
+    if (p.startsWith('/home/baseinfo') || p.startsWith('/home/org')) return '基础设置'
+    if (p.startsWith('/home/contractor') || p.startsWith('/home/project') || p.startsWith('/home/dict')) return '承包商'
+    if (p.startsWith('/home/promise')) return '安全承诺'
+    if (p.startsWith('/home/spotcheck')) return '特殊作业报备'
+    return ''
+})
 
-/** 当前路由所在的各级分组，用于首次进入时自动展开 */
+/**
+ * 侧边菜单只渲染「当前模块」：进入某模块后，其他模块的入口一律不出现
+ * （模块间切换走总览宫格，模块内只看自己的子页）。
+ * 分组模块摊平一层——父标题顶栏已经写了，没必要再占一行。
+ */
+const MENU = computed(() => {
+    const tree = pruneMenu(MENU_TREE)
+    const title = currentModule.value
+    if (!title) return tree
+    const node = tree.find(g => g.title === title)
+    return node ? (node.children || [node]) : tree
+})
+
+/** 当前路由所在各级分组的 index 链，用于首次渲染时自动展开 */
 const defaultOpeneds = computed(() => {
     const open = []
-    const hitLeaf = (n, p) => n.path === p || (n.children || []).some(c => hitLeaf(c, p))
-    for (const g of MENU.value) {
-        if (!g.children || !hitLeaf(g, route.path)) continue
-        open.push(g.title)
-        for (const c of g.children) {
-            if (c.children && hitLeaf(c, route.path)) open.push(g.title + '/' + c.title)
+    const hit = n => n.path === route.path || (n.children || []).some(hit)
+    const walk = (nodes, prefix) => {
+        for (const n of nodes) {
+            if (!n.children || !hit(n)) continue
+            const idx = prefix ? `${prefix}/${n.title}` : n.title
+            open.push(idx)
+            walk(n.children, idx)
         }
     }
+    walk(MENU.value, '')
     return open
 })
 
@@ -116,14 +139,7 @@ const isDashboard = computed(() => route.path === '/home')
 const activeMenu = computed(() => route.path)
 
 // 顶栏标题：当前所在模块
-const moduleTitle = computed(() => {
-    const p = route.path
-    if (p.startsWith('/home/baseinfo') || p.startsWith('/home/org')) return '基础设置'
-    if (p.startsWith('/home/contractor') || p.startsWith('/home/project') || p.startsWith('/home/dict')) return '承包商'
-    if (p.startsWith('/home/promise')) return '安全承诺'
-    if (p.startsWith('/home/spotcheck')) return '特殊作业报备'
-    return '总览'
-})
+const moduleTitle = computed(() => currentModule.value || '总览')
 
 function logout() {
     ElMessageBox.confirm('确定退出登录吗？', '提示', {type: 'warning'}).then(() => {
@@ -170,7 +186,8 @@ function logout() {
                 <div class="sidebar-logo" @click="router.push('/home')">
                     <span class="logo-text">智慧安全管控平台</span>
                 </div>
-                <el-menu :default-active="activeMenu" :default-openeds="defaultOpeneds" router unique-opened
+                <el-menu :key="currentModule" :default-active="activeMenu" :default-openeds="defaultOpeneds"
+                         router unique-opened
                          class="side-menu">
                     <template v-for="g in MENU" :key="g.title">
                         <!-- 单项 -->
@@ -206,7 +223,12 @@ function logout() {
 
             <div class="main-area">
                 <div class="topbar">
-                    <span class="topbar-title">{{ moduleTitle }}</span>
+                    <div class="topbar-left">
+                        <span class="back-home" @click="router.push('/home')">
+                            <el-icon><Back/></el-icon>返回总览
+                        </span>
+                        <span class="topbar-title">{{ moduleTitle }}</span>
+                    </div>
                     <div class="right-menu">
                         <span class="welcome">欢迎您，{{ account?.username || account?.account || '' }}</span>
                         <span class="logout-link" @click="logout">
@@ -446,6 +468,30 @@ function logout() {
                 background: #ffffff;
                 border-bottom: 1px solid #e4e8f0;
                 padding: 0 22px;
+
+                .topbar-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                    height: 100%;
+                }
+
+                .back-home {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 5px 10px;
+                    border-radius: 4px;
+                    color: #5a6a85;
+                    font-size: 13px;
+                    cursor: pointer;
+                    transition: all .15s;
+
+                    &:hover {
+                        color: #17c0ad;
+                        background: #eefbf8;
+                    }
+                }
 
                 .topbar-title {
                     color: #17c0ad;
