@@ -19,6 +19,8 @@ public class TCbsEnterprise implements Serializable {
     private Integer id;
     // ---- 基本信息 ----
     private String ent_name;
+    /** 企业简介（富文本，单行表 text 列） */
+    private String ent_intro;
     private String uscc;
     private String legal_person;
     private String legal_phone;

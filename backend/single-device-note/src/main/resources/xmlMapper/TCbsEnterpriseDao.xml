@@ -12,7 +12,8 @@
                safety_org_leader_phone, duty_phone, full_safety_count, part_safety_count, special_work_count,
                safety_std_level, std_cert_expire,
                has_major_hazard, risk_identified, hazard_filed, has_danger_process, monitor_system,
-               has_supervision_process, server_addr, mqtt_topic, plant_map_id
+               has_supervision_process, server_addr, mqtt_topic, plant_map_id,
+               ent_intro
         from cbs.t_enterprise
         where id = 1
     </select>
@@ -27,7 +28,8 @@
             safety_org_leader_phone, duty_phone, full_safety_count, part_safety_count, special_work_count,
             safety_std_level, std_cert_expire,
             has_major_hazard, risk_identified, hazard_filed, has_danger_process, monitor_system,
-            has_supervision_process, server_addr, mqtt_topic, plant_map_id)
+            has_supervision_process, server_addr, mqtt_topic, plant_map_id,
+            ent_intro)
         values (1, #{e.ent_name}, #{e.uscc}, #{e.legal_person}, #{e.legal_phone}, #{e.legal_idcard},
             #{e.chem_reg_code}, #{e.found_date}, #{e.industry_type}, #{e.supervisor}, #{e.staff_count},
             #{e.region_code}, #{e.address}, #{e.fixed_assets}, #{e.total_area}, #{e.register_address},
@@ -40,7 +42,7 @@
             #{e.part_safety_count}, #{e.special_work_count}, #{e.safety_std_level}, #{e.std_cert_expire},
             #{e.has_major_hazard}, #{e.risk_identified}, #{e.hazard_filed}, #{e.has_danger_process},
             #{e.monitor_system}, #{e.has_supervision_process}, #{e.server_addr}, #{e.mqtt_topic},
-            #{e.plant_map_id})
+            #{e.plant_map_id}, #{e.ent_intro})
     </insert>
 
     <update id="update">
@@ -69,6 +71,7 @@
             hazard_filed = #{e.hazard_filed}, has_danger_process = #{e.has_danger_process},
             monitor_system = #{e.monitor_system}, has_supervision_process = #{e.has_supervision_process},
             server_addr = #{e.server_addr}, mqtt_topic = #{e.mqtt_topic}, plant_map_id = #{e.plant_map_id},
+            <if test="e.ent_intro != null">ent_intro = #{e.ent_intro},</if>
             update_time = now(), update_by = #{me},
         </set>
         where id = 1
