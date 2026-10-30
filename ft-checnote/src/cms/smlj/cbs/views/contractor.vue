@@ -2,42 +2,101 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
+import {pagerOf} from "../system/Pager.js"
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Search} from "@element-plus/icons-vue";
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const sys = Singleton.getInstance(SysX)
 
-/* ============ 列表 ============ */
+/* ============ 两种页面：承包商单位管理 / 承包商审核 ============
+ * 一个菜单 = 一个页面，页内 tab 只是分类（对齐目标站），不再是多套功能挤在一起。 */
+const MODES = {
+    unit: {
+        title: '承包商单位管理',
+        tabs: [
+            {key: 'pass', label: '审批通过', status: 1},
+            {key: 'wait', label: '待审批', status: 0},
+            {key: 'reject', label: '未通过', status: 2},
+            {key: 'recycle', label: '回收站', status: -1},
+        ],
+        canCreate: true,
+    },
+    audit: {
+        title: '承包商审核',
+        tabs: [
+            {key: 'coop', label: '合作中', status: 1},
+            {key: 'ever', label: '曾合作', status: 2},
+            {key: 'black', label: '黑名单', status: -2},
+        ],
+        canCreate: false,
+    },
+}
+
+const props = defineProps({tab: String})
+const mode = ref(MODES[props?.tab] ? props.tab : 'unit')
+watch(() => props.tab, t => {
+    if (MODES[t] && t !== mode.value) {
+        mode.value = t
+        tabKey.value = MODES[t].tabs[0].key
+        keyword.value = ''
+        pageNo.value = 1
+        pageSize.value = pager.value.pageSize
+        loadRows()
+    }
+})
+const cfg = computed(() => MODES[mode.value])
+const tabKey = ref(cfg.value.tabs[0].key)
+
+/* ============ 列表 + 分页 ============ */
 const loading = ref(false)
 const rows = ref([])
 const keyword = ref('')
-const statusFilter = ref('')
+const ctypeFilter = ref('')
+// 每页独立分页配置：contractor.unit / contractor.audit
+const pager = computed(() => pagerOf('contractor.' + mode.value))
+const pageNo = ref(1)
+const pageSize = ref(pager.value.pageSize)
+const total = ref(0)
 let kwTimer = null
 
 let AC = new AbortController()
+
+/** 分类 → 后端过滤参数。回收站 = 已软删行，后端用 status=-1 约定 */
+const curStatus = computed(() => (cfg.value.tabs.find(t => t.key === tabKey.value) || {}).status)
 
 function loadRows() {
     AC.abort()
     AC = new AbortController()
     loading.value = true
-    const paras = {}
+    const paras = {pageNo: pageNo.value, pageSize: pageSize.value}
     const kw = keyword.value.trim()
     if (kw) paras.kw = kw
-    if (statusFilter.value !== '') paras.status = statusFilter.value
+    if (curStatus.value !== undefined && curStatus.value !== null) paras.status = curStatus.value
+    if (ctypeFilter.value) paras.ctype = ctypeFilter.value
     sys.biz('cbs/contractor/list', paras, AC.signal, () => {}, (r, data) => {
         loading.value = false
-        if (r) rows.value = data.data || []
-        else notifyError(data, '承包商列表加载失败')
+        if (r) {
+            rows.value = data.data?.rows || []
+            total.value = data.data?.total || 0
+        } else {
+            notifyError(data, '承包商列表加载失败')
+        }
     })
 }
 
-// 输入防抖：停顿 300ms 才发请求
 watch(keyword, () => {
     clearTimeout(kwTimer)
-    kwTimer = setTimeout(loadRows, 300)
+    kwTimer = setTimeout(() => {
+        pageNo.value = 1
+        loadRows()
+    }, 300)
 })
-watch(statusFilter, loadRows)
+watch([ctypeFilter, tabKey], () => {
+    pageNo.value = 1
+    loadRows()
+})
+watch([pageNo, pageSize], loadRows)
 
 function statusMeta(s) {
     return gd.approveStatus.find(x => x.id === Number(s)) || {desc: s, type: 'info'}
@@ -47,9 +106,11 @@ function statusMeta(s) {
 const ctypeDict = ref([])
 
 function loadCtypeDict() {
-    sys.biz('cbs/dict/list', {dictType: 'contractor_type', onlyUsing: true}, AC.signal, () => {}, (r, data) => {
-        if (r) ctypeDict.value = (data.data || []).map(d => d.item_name)
-    })
+    // 下拉要全量：字典接口已分页，按上限取一页（≤200）
+    sys.biz('cbs/dict/list', {dictType: 'contractor_type', onlyUsing: true, pageNo: 1, pageSize: 200},
+        AC.signal, () => {}, (r, data) => {
+            if (r) ctypeDict.value = (data.data?.rows || []).map(d => d.item_name)
+        })
 }
 
 const ctypeOptions = computed(() => {
@@ -64,6 +125,12 @@ const formRef = ref()
 const form = ref({})
 const rules = {
     name: [{required: true, message: '请输入承包商名称', trigger: 'blur'}],
+    uscc: [{required: true, message: '请输入统一社会信用代码', trigger: 'blur'}],
+    ctype: [{required: true, message: '请选择承包商类型', trigger: 'change'}],
+    legal_person: [{required: true, message: '请输入法定代表人', trigger: 'blur'}],
+    legal_phone: [{required: true, message: '请输入法定代表人联系电话', trigger: 'blur'}],
+    safety_person: [{required: true, message: '请输入安全负责人', trigger: 'blur'}],
+    safety_phone: [{required: true, message: '请输入安全负责人电话', trigger: 'blur'}],
 }
 
 function openDialog(edit, row) {
@@ -170,50 +237,64 @@ onUnmounted(() => {
 
 <template>
     <div class="contractor-page">
+        <div class="page-head">
+            <h2>{{ cfg.title }}</h2>
+        </div>
+
         <div class="card">
             <div class="toolbar">
-                <el-input v-model="keyword" placeholder="搜索名称/信用代码" clearable
-                          style="width:220px" :prefix-icon="Search"/>
-                <el-select v-model="statusFilter" placeholder="审核状态" clearable style="width:130px">
-                    <el-option v-for="s in gd.approveStatus" :key="s.id" :value="s.id" :label="s.desc"/>
+                <el-input v-model="keyword" placeholder="承包商名称" clearable
+                          style="width:200px" :prefix-icon="Search"/>
+                <el-select v-model="ctypeFilter" placeholder="承包商类型" clearable style="width:170px">
+                    <el-option v-for="t in ctypeOptions" :key="t" :value="t" :label="t"/>
                 </el-select>
-                <el-button type="primary" @click="openDialog(false)">新增承包商</el-button>
+                <el-button type="primary" @click="loadRows">查询</el-button>
+                <el-button @click="keyword = ''; ctypeFilter = ''; pageNo = 1">重置</el-button>
+                <el-button v-if="cfg.canCreate" type="primary" plain class="add-btn"
+                           @click="openDialog(false)">新增
+                </el-button>
             </div>
 
+            <el-tabs v-model="tabKey" class="cat-tabs">
+                <el-tab-pane v-for="t in cfg.tabs" :key="t.key" :label="t.label" :name="t.key"/>
+            </el-tabs>
+
             <el-table :data="rows" v-loading="loading" border stripe>
-                <el-table-column prop="name" label="承包商名称" min-width="180"/>
-                <el-table-column prop="uscc" label="统一社会信用代码" min-width="190" show-overflow-tooltip/>
-                <el-table-column prop="ctype" label="类型" width="100"/>
+                <el-table-column type="index" label="序号" width="60" align="center"/>
+                <el-table-column prop="name" label="承包商名称" min-width="190"/>
+                <el-table-column prop="uscc" label="统一社会信用代码" min-width="180" show-overflow-tooltip/>
+                <el-table-column prop="ctype" label="承包商类型" width="130"/>
                 <el-table-column prop="legal_person" label="法定代表人" width="110"/>
-                <el-table-column prop="legal_phone" label="法人电话" width="120"/>
                 <el-table-column prop="safety_person" label="安全负责人" width="110"/>
-                <el-table-column prop="deposit" label="保证金(元)" width="110" align="right"/>
-                <el-table-column label="审核状态" width="100" align="center">
+                <el-table-column prop="safety_phone" label="安全负责人电话" width="140"/>
+                <el-table-column v-if="mode === 'unit'" label="审批状态" width="100" align="center">
                     <template #default="{row}">
                         <el-tag :type="statusMeta(row.approve_status).type" effect="light">
                             {{ statusMeta(row.approve_status).desc }}
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="驳回原因" min-width="140" show-overflow-tooltip>
-                    <template #default="{row}">{{ row.reject_reason || '—' }}</template>
-                </el-table-column>
-                <el-table-column label="操作" width="170" align="center" fixed="right">
+                <el-table-column label="操作" width="200" align="center" fixed="right">
                     <template #default="{row}">
-                        <el-link type="primary" @click="openDialog(true, row)">编辑</el-link>
+                        <el-link type="primary" @click="openDialog(true, row)">查看</el-link>
                         <el-link v-if="row.approve_status === 0" type="warning" style="margin-left:10px"
                                  @click="openAudit(row)">审核</el-link>
-                        <el-link type="danger" style="margin-left:10px" @click="removeRow(row)">删除</el-link>
+                        <el-link v-if="mode === 'unit'" type="danger" style="margin-left:10px"
+                                 @click="removeRow(row)">删除</el-link>
                     </template>
                 </el-table-column>
             </el-table>
             <el-empty v-if="!loading && rows.length === 0" description="暂无承包商"/>
+
+            <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                           :total="total" v-model:current-page="pageNo" v-model:page-size="pageSize"
+                           :page-sizes="pager.pageSizes"/>
         </div>
 
         <!-- 新增/编辑弹窗 -->
         <el-dialog v-model="dialogVisible" :title="form._edit ? '编辑承包商' : '新增承包商'"
-                   width="640px" destroy-on-close>
-            <el-form ref="formRef" :model="form" :rules="rules" label-width="130px">
+                   width="680px" destroy-on-close>
+            <el-form ref="formRef" :model="form" :rules="rules" label-width="150px">
                 <el-row :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="承包商名称" prop="name">
@@ -221,12 +302,12 @@ onUnmounted(() => {
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="信用代码">
-                            <el-input v-model="form.uscc" placeholder="统一社会信用代码"/>
+                        <el-form-item label="统一社会信用代码" prop="uscc">
+                            <el-input v-model="form.uscc"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="承包商类型">
+                        <el-form-item label="承包商类型" prop="ctype">
                             <el-select v-model="form.ctype" placeholder="请选择类型" clearable style="width:100%">
                                 <el-option v-for="t in ctypeOptions" :key="t" :value="t" :label="t"/>
                             </el-select>
@@ -238,22 +319,22 @@ onUnmounted(() => {
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="法定代表人">
+                        <el-form-item label="法定代表人" prop="legal_person">
                             <el-input v-model="form.legal_person"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="法人电话">
+                        <el-form-item label="法定代表人联系电话" prop="legal_phone">
                             <el-input v-model="form.legal_phone"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="安全负责人">
+                        <el-form-item label="安全负责人" prop="safety_person">
                             <el-input v-model="form.safety_person"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                        <el-form-item label="安全负责人电话">
+                        <el-form-item label="安全负责人电话" prop="safety_phone">
                             <el-input v-model="form.safety_phone"/>
                         </el-form-item>
                     </el-col>
@@ -304,6 +385,19 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .contractor-page {
+    .page-head {
+        margin: 4px 0 18px;
+        text-align: center;
+
+        h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: 2px;
+        }
+    }
+
     .card {
         background: #ffffff;
         border-radius: 10px;
@@ -315,7 +409,26 @@ onUnmounted(() => {
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 14px;
+        margin-bottom: 6px;
+
+        .add-btn {
+            margin-left: auto;
+        }
+    }
+
+    .cat-tabs {
+        :deep(.el-tabs__header) {
+            margin-bottom: 12px;
+        }
+
+        :deep(.el-tabs__item) {
+            font-size: 13px;
+        }
+    }
+
+    .pager {
+        margin-top: 14px;
+        justify-content: flex-end;
     }
 }
 </style>

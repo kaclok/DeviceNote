@@ -12,8 +12,14 @@ public interface TCbsContractorDao {
     TCbsContractor query(@Param("id") String id);
 
     /** kw 模糊 name/uscc；status 空=全部（0待审/1通过/2驳回） */
-    List<TCbsContractor> queryAll(@Param("kw") String kw, @Param("status") Integer status);
+    List<TCbsContractor> queryPage(@Param("kw") String kw, @Param("status") Integer status,
+                                   @Param("ctype") String ctype,
+                                   @Param("offset") int offset, @Param("limit") int limit);
 
+    long countAll(@Param("kw") String kw, @Param("status") Integer status, @Param("ctype") String ctype);
+
+    /** 下拉专用：只出启用行 */
+    List<TCbsContractor> queryOptions();
     /** 启用行内 uscc 查重（excludeId 编辑态排除自身） */
     int countUsccDup(@Param("uscc") String uscc, @Param("excludeId") String excludeId);
 

@@ -12,19 +12,30 @@
         where item_id = #{id}
     </select>
 
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict">
+        <sql id="cond">
+        <where>
+            open_status = true
+            <if test="dictType != null and dictType != ''">
+                and dict_type = #{dictType}
+            </if>
+            <if test="onlyUsing">
+                and is_using = true
+            </if>
+        </where>
+    </sql>
+
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict">
         select <include refid="cols"/>
         from cbs.t_dict
-        <where>
-            open_status = true
-            <if test="dictType != null and dictType != ''">
-                and dict_type = #{dictType}
-            </if>
-            <if test="onlyUsing">
-                and is_using = true
-            </if>
-        </where>
+        <include refid="cond"/>
         order by sort_no, create_time
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_dict
+        <include refid="cond"/>
     </select>
 
     <select id="countName" resultType="int">

@@ -13,7 +13,7 @@
         where p.prep_id = #{id}
     </select>
 
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectPrep">
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectPrep">
         select <include refid="cols"/>, pr.proj_name
         from cbs.t_project_prep p left join cbs.t_project pr on pr.project_id = p.project_id
         <where>
@@ -23,7 +23,18 @@
             </if>
         </where>
         order by p.create_time desc
+        limit #{limit} offset #{offset}
     </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_project_prep p left join cbs.t_project pr on pr.project_id = p.project_id
+        <where>
+            p.open_status = true
+            <if test="projectId != null and projectId != ''">
+                and p.project_id = #{projectId}
+            </if>
+        </where></select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectPrep">
         insert into cbs.t_project_prep (prep_id, project_id, prep_date, content, status, checker,

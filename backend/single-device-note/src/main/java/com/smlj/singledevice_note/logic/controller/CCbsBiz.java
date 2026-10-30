@@ -39,11 +39,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
+
+import static com.smlj.singledevice_note.logic.util.CbsPage.offset;
+import static com.smlj.singledevice_note.logic.util.CbsPage.pageNo;
+import static com.smlj.singledevice_note.logic.util.CbsPage.pageOf;
+import static com.smlj.singledevice_note.logic.util.CbsPage.pageSize;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -84,6 +90,9 @@ public class CCbsBiz {
         return UUID.randomUUID().toString().replace("-", "");
     }
 
+    // 分页口径统一走 CbsPage（见 import static）
+
+
     private static String str(Map<String, Object> m, String key) {
         Object v = m == null ? null : m.get(key);
         return v == null ? null : String.valueOf(v);
@@ -99,7 +108,18 @@ public class CCbsBiz {
     @RequirePermission("cbs:contractor")
     @PostMapping("/contractor/list")
     public Result<?> contractorList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(contractorDao.queryAll(str(q, "kw"), intVal(q, "status")));
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw"), ctype = str(q, "ctype");
+        Integer status = intVal(q, "status");
+        long total = contractorDao.countAll(kw, status, ctype);
+        return Result.success(pageOf(contractorDao.queryPage(kw, status, ctype, offset(no, size), size), total, no, size));
+    }
+
+    /** 下拉专用（不分页，只出启用且审批通过的单位） */
+    @RequirePermission("cbs:contractor")
+    @PostMapping("/contractor/options")
+    public Result<?> contractorOptions() {
+        return Result.success(contractorDao.queryOptions());
     }
 
     @RequirePermission("cbs:contractor")
@@ -175,7 +195,18 @@ public class CCbsBiz {
     @RequirePermission("cbs:project")
     @PostMapping("/project/list")
     public Result<?> projectList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(projectDao.queryAll(str(q, "kw"), str(q, "contractorId")));
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw"), contractorId = str(q, "contractorId");
+        Integer status = intVal(q, "projStatus");
+        long total = projectDao.countAll(kw, contractorId, status);
+        return Result.success(pageOf(projectDao.queryPage(kw, contractorId, status, offset(no, size), size), total, no, size));
+    }
+
+    /** 下拉专用（不分页） */
+    @RequirePermission("cbs:project")
+    @PostMapping("/project/options")
+    public Result<?> projectOptions() {
+        return Result.success(projectDao.queryOptions());
     }
 
     @RequirePermission("cbs:project")
@@ -228,7 +259,10 @@ public class CCbsBiz {
     @RequirePermission("cbs:project")
     @PostMapping("/project/enter/list")
     public Result<?> enterList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(enterDao.queryAll(str(q, "projectId")));
+        int no = pageNo(q), size = pageSize(q);
+        String projectId = str(q, "projectId");
+        long total = enterDao.countAll(projectId);
+        return Result.success(pageOf(enterDao.queryPage(projectId, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:project")
@@ -270,7 +304,10 @@ public class CCbsBiz {
     @RequirePermission("cbs:project")
     @PostMapping("/project/prep/list")
     public Result<?> prepList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(prepDao.queryAll(str(q, "projectId")));
+        int no = pageNo(q), size = pageSize(q);
+        String projectId = str(q, "projectId");
+        long total = prepDao.countAll(projectId);
+        return Result.success(pageOf(prepDao.queryPage(projectId, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:project")
@@ -318,7 +355,10 @@ public class CCbsBiz {
     @RequirePermission("cbs:project")
     @PostMapping("/project/accept/list")
     public Result<?> acceptList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(acceptDao.queryAll(str(q, "projectId")));
+        int no = pageNo(q), size = pageSize(q);
+        String projectId = str(q, "projectId");
+        long total = acceptDao.countAll(projectId);
+        return Result.success(pageOf(acceptDao.queryPage(projectId, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:project")
@@ -365,7 +405,10 @@ public class CCbsBiz {
     @RequirePermission("cbs:org")
     @PostMapping("/post/list")
     public Result<?> postList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(postDao.queryAll(str(q, "kw")));
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw");
+        long total = postDao.countAll(kw);
+        return Result.success(pageOf(postDao.queryPage(kw, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:org")
@@ -415,7 +458,11 @@ public class CCbsBiz {
     @RequirePermission("cbs:spotcheck")
     @PostMapping("/spotcheck/list")
     public Result<?> spotcheckList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(spotcheckDao.queryAll(str(q, "kw"), str(q, "contractorId"), intVal(q, "workType")));
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw"), contractorId = str(q, "contractorId");
+        Integer workType = intVal(q, "workType");
+        long total = spotcheckDao.countAll(kw, contractorId, workType);
+        return Result.success(pageOf(spotcheckDao.queryPage(kw, contractorId, workType, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:spotcheck")
@@ -479,7 +526,9 @@ public class CCbsBiz {
             return Result.fail(ResultCode.RC10101, "dict_type 不合法");
         }
         boolean onlyUsing = Boolean.parseBoolean(String.valueOf(q == null ? null : q.get("onlyUsing")));
-        return Result.success(dictDao.queryAll(type, onlyUsing));
+        int no = pageNo(q), size = pageSize(q);
+        long total = dictDao.countAll(type, onlyUsing);
+        return Result.success(pageOf(dictDao.queryPage(type, onlyUsing, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:baseinfo")
@@ -531,6 +580,16 @@ public class CCbsBiz {
     }
 
     // ---------------- 安全承诺日报 ----------------
+
+    /** 承诺列表：按日期倒序分页，一天一行（目标站「安全承诺」列表页） */
+    @RequirePermission("cbs:promise")
+    @PostMapping("/promise/list")
+    public Result<?> promiseList(@RequestBody(required = false) Map<String, Object> q) {
+        int no = pageNo(q), size = pageSize(q);
+        String date = str(q, "date");
+        long total = promiseDao.countAll(date);
+        return Result.success(pageOf(promiseDao.queryPage(date, offset(no, size), size), total, no, size));
+    }
 
     @RequirePermission("cbs:promise")
     @PostMapping("/promise/get")
@@ -587,7 +646,10 @@ public class CCbsBiz {
     @RequirePermission("cbs:baseinfo")
     @PostMapping("/cert/list")
     public Result<?> certList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(certDao.queryAll(str(q, "kw")));
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw");
+        long total = certDao.countAll(kw);
+        return Result.success(pageOf(certDao.queryPage(kw, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:baseinfo")
@@ -625,7 +687,10 @@ public class CCbsBiz {
     @RequirePermission("cbs:baseinfo")
     @PostMapping("/ts/list")
     public Result<?> tsList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(threeSameDao.queryAll(str(q, "kw")));
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw");
+        long total = threeSameDao.countAll(kw);
+        return Result.success(pageOf(threeSameDao.queryPage(kw, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:baseinfo")
@@ -660,7 +725,10 @@ public class CCbsBiz {
     @RequirePermission("cbs:baseinfo")
     @PostMapping("/chem/list")
     public Result<?> chemList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(chemDao.queryAll(str(q, "kw")));
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw");
+        long total = chemDao.countAll(kw);
+        return Result.success(pageOf(chemDao.queryPage(kw, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:baseinfo")
@@ -698,7 +766,10 @@ public class CCbsBiz {
     @RequirePermission("cbs:baseinfo")
     @PostMapping("/proc/list")
     public Result<?> procList(@RequestBody(required = false) Map<String, Object> q) {
-        return Result.success(procDao.queryAll(str(q, "kw")));
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw");
+        long total = procDao.countAll(kw);
+        return Result.success(pageOf(procDao.queryPage(kw, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:baseinfo")

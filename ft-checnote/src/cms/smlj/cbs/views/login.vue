@@ -57,7 +57,7 @@ function loginAction() {
         <div class="login-card">
             <div class="login-header">
                 <div class="logo">🏗️</div>
-                <div class="title">承包商安全管理系统</div>
+                <div class="title">智慧安全生产管控平台</div>
                 <div class="subtitle">陕西金泰化学神木氯碱有限公司</div>
             </div>
 

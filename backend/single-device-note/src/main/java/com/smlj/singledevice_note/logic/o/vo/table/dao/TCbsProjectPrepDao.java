@@ -12,8 +12,10 @@ public interface TCbsProjectPrepDao {
     TCbsProjectPrep query(@Param("id") String id);
 
     /** projectId 空=全部；联 t_project 带出 proj_name */
-    List<TCbsProjectPrep> queryAll(@Param("projectId") String projectId);
+    List<TCbsProjectPrep> queryPage(@Param("projectId") String projectId,
+                                    @Param("offset") int offset, @Param("limit") int limit);
 
+    long countAll(@Param("projectId") String projectId);
     int insert(@Param("p") TCbsProjectPrep p);
 
     int update(@Param("p") TCbsProjectPrep p);

@@ -2,18 +2,23 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
+import {pagerOf} from "../system/Pager.js"
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Search} from "@element-plus/icons-vue";
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const sys = Singleton.getInstance(SysX)
 
-/* ============ 列表 ============ */
+/* ============ 列表 + 分页 ============ */
 const loading = ref(false)
 const rows = ref([])
 const keyword = ref('')
 const contractorFilter = ref('')
 const workTypeFilter = ref('')
+const PAGER = pagerOf('spotcheck')
+const pageNo = ref(1)
+const pageSize = ref(PAGER.pageSize)
+const total = ref(0)
 let kwTimer = null
 
 let AC = new AbortController()
@@ -22,29 +27,40 @@ function loadRows() {
     AC.abort()
     AC = new AbortController()
     loading.value = true
-    const paras = {}
+    const paras = {pageNo: pageNo.value, pageSize: pageSize.value}
     const kw = keyword.value.trim()
     if (kw) paras.kw = kw
     if (contractorFilter.value) paras.contractorId = contractorFilter.value
     if (workTypeFilter.value !== '') paras.workType = workTypeFilter.value
     sys.biz('cbs/spotcheck/list', paras, AC.signal, () => {}, (r, data) => {
         loading.value = false
-        if (r) rows.value = data.data || []
-        else notifyError(data, '抽查记录加载失败')
+        if (r) {
+            rows.value = data.data?.rows || []
+            total.value = data.data?.total || 0
+        } else {
+            notifyError(data, '抽查记录加载失败')
+        }
     })
 }
 
 watch(keyword, () => {
     clearTimeout(kwTimer)
-    kwTimer = setTimeout(loadRows, 300)
+    kwTimer = setTimeout(() => {
+        pageNo.value = 1
+        loadRows()
+    }, 300)
 })
-watch([contractorFilter, workTypeFilter], loadRows)
+watch([contractorFilter, workTypeFilter], () => {
+    pageNo.value = 1
+    loadRows()
+})
+watch([pageNo, pageSize], loadRows)
 
 /* 承包商下拉 */
 const contractorOptions = ref([])
 
 function loadContractors() {
-    sys.biz('cbs/contractor/list', {}, AC.signal, () => {}, (r, data) => {
+    sys.biz('cbs/contractor/options', {}, AC.signal, () => {}, (r, data) => {
         if (r) contractorOptions.value = (data.data || []).map(c => ({value: c.contractor_id, label: c.name}))
     })
 }
@@ -145,18 +161,23 @@ onUnmounted(() => {
 
 <template>
     <div class="spotcheck-page">
+        <div class="page-head">
+            <h2>特殊作业报备</h2>
+        </div>
         <div class="card">
             <div class="toolbar">
-                <el-input v-model="keyword" placeholder="搜索抽查内容/抽查人" clearable
-                          style="width:220px" :prefix-icon="Search"/>
-                <el-select v-model="workTypeFilter" placeholder="特殊作业类型" clearable style="width:150px">
+                <el-input v-model="keyword" placeholder="报备人员" clearable
+                          style="width:180px" :prefix-icon="Search"/>
+                <el-select v-model="workTypeFilter" placeholder="作业票类型" clearable style="width:150px">
                     <el-option v-for="t in gd.workTypes" :key="t.id" :value="t.id" :label="t.desc"/>
                 </el-select>
-                <el-select v-model="contractorFilter" placeholder="被抽查承包商" clearable filterable
-                           style="width:190px">
+                <el-select v-model="contractorFilter" placeholder="施工单位" clearable filterable
+                           style="width:180px">
                     <el-option v-for="c in contractorOptions" :key="c.value" :value="c.value" :label="c.label"/>
                 </el-select>
-                <el-button type="primary" @click="openDialog(false)">新增抽查</el-button>
+                <el-button type="primary" @click="pageNo = 1; loadRows()">查询</el-button>
+                <el-button @click="keyword = ''; workTypeFilter = ''; contractorFilter = ''; pageNo = 1">重置</el-button>
+                <el-button type="primary" plain class="add-btn" @click="openDialog(false)">新增</el-button>
             </div>
 
             <el-table :data="rows" v-loading="loading" border stripe>
@@ -203,6 +224,10 @@ onUnmounted(() => {
                 </el-table-column>
             </el-table>
             <el-empty v-if="!loading && rows.length === 0" description="暂无抽查记录"/>
+
+            <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                           :total="total" v-model:current-page="pageNo" v-model:page-size="pageSize"
+                           :page-sizes="PAGER.pageSizes"/>
         </div>
 
         <!-- 新增/编辑弹窗 -->
@@ -256,6 +281,19 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .spotcheck-page {
+    .page-head {
+        margin: 4px 0 18px;
+        text-align: center;
+
+        h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: 2px;
+        }
+    }
+
     .card {
         background: #ffffff;
         border-radius: 10px;
@@ -268,6 +306,15 @@ onUnmounted(() => {
         align-items: center;
         gap: 12px;
         margin-bottom: 14px;
+
+        .add-btn {
+            margin-left: auto;
+        }
+    }
+
+    .pager {
+        margin-top: 14px;
+        justify-content: flex-end;
     }
 
     .dim {

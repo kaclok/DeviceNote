@@ -11,9 +11,14 @@ public interface TCbsUserDao {
 
     TCbsUser query(@Param("account") String account);
 
-    List<TCbsUser> queryAll(@Param("kw") String kw,
-                            @Param("userType") Integer userType,
-                            @Param("filterUsing") boolean filterUsing);
+    List<TCbsUser> queryPage(@Param("kw") String kw,
+                             @Param("userType") Integer userType,
+                             @Param("filterUsing") boolean filterUsing,
+                             @Param("offset") int offset, @Param("limit") int limit);
+
+    long countAll(@Param("kw") String kw,
+                  @Param("userType") Integer userType,
+                  @Param("filterUsing") boolean filterUsing);
 
     Integer exist(@Param("account") String account);
 

@@ -12,7 +12,11 @@ public interface TCbsPostDao {
     TCbsPost query(@Param("id") String id);
 
     /** kw 模糊 post_name/post_code */
-    List<TCbsPost> queryAll(@Param("kw") String kw);
+    /** 分页查询（kw 模糊匹配，见 XML cond 片段） */
+    List<TCbsPost> queryPage(@Param("kw") String kw,
+                            @Param("offset") int offset, @Param("limit") int limit);
+
+    long countAll(@Param("kw") String kw);
 
     /** post_code 在启用行内是否已被占用（含排除自身） */
     int countCode(@Param("code") String code, @Param("excludeId") String excludeId);

@@ -13,7 +13,7 @@
         where s.check_id = #{id}
     </select>
 
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
         select <include refid="cols"/>, c.name as contractor_name
         from cbs.t_spotcheck s left join cbs.t_contractor c on c.contractor_id = s.contractor_id
         <where>
@@ -29,7 +29,24 @@
             </if>
         </where>
         order by s.check_date desc nulls last, s.create_time desc
+        limit #{limit} offset #{offset}
     </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_spotcheck s left join cbs.t_contractor c on c.contractor_id = s.contractor_id
+        <where>
+            s.open_status = true
+            <if test="kw != null and kw != ''">
+                and (s.spot_content like concat('%', #{kw}, '%') or s.checker like concat('%', #{kw}, '%'))
+            </if>
+            <if test="contractorId != null and contractorId != ''">
+                and s.contractor_id = #{contractorId}
+            </if>
+            <if test="workType != null">
+                and s.work_type = #{workType}
+            </if>
+        </where></select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsSpotcheck">
         insert into cbs.t_spotcheck (check_id, work_type, check_date, checker, contractor_id, spot_content,

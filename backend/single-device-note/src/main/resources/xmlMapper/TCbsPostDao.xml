@@ -12,16 +12,27 @@
         where post_id = #{id}
     </select>
 
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPost">
+        <sql id="cond">
+        <where>
+            open_status = true
+            <if test="kw != null and kw != ''">
+                and (post_name like concat('%', #{kw}, '%') or post_code like concat('%', #{kw}, '%'))
+            </if>
+        </where>
+    </sql>
+
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPost">
         select <include refid="cols"/>
         from cbs.t_post
-        <where>
-            open_status = true
-            <if test="kw != null and kw != ''">
-                and (post_name like concat('%', #{kw}, '%') or post_code like concat('%', #{kw}, '%'))
-            </if>
-        </where>
+        <include refid="cond"/>
         order by create_time desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_post
+        <include refid="cond"/>
     </select>
 
     <select id="countCode" resultType="int">

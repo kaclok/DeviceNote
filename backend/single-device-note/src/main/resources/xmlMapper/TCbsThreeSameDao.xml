@@ -10,15 +10,27 @@
         select <include refid="cols"/> from cbs.t_three_same where ts_id = #{id}
     </select>
 
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsThreeSame">
-        select <include refid="cols"/> from cbs.t_three_same
-        <where>
-            open_status = true
-            <if test="kw != null and kw != ''">
-                and project_name like concat('%', #{kw}, '%')
-            </if>
+        <sql id="cond">
+        <where>
+            open_status = true
+            <if test="kw != null and kw != ''">
+                and project_name like concat('%', #{kw}, '%')
+            </if>
         </where>
+    </sql>
+
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsThreeSame">
+        select <include refid="cols"/>
+        from cbs.t_three_same
+        <include refid="cond"/>
         order by create_time desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_three_same
+        <include refid="cond"/>
     </select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsThreeSame">

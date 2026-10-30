@@ -23,6 +23,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import static com.smlj.singledevice_note.logic.util.CbsPage.offset;
+import static com.smlj.singledevice_note.logic.util.CbsPage.pageNo;
+import static com.smlj.singledevice_note.logic.util.CbsPage.pageOf;
+import static com.smlj.singledevice_note.logic.util.CbsPage.pageSize;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -149,18 +154,20 @@ public class CCbsUser {
     // ---------------- 人员 ----------------
 
     /**
-     * 人员列表：kw 模糊 account/username；userType 1=内部 2=承包商 空=全部。
-     * 账号行是低频字典，直接全量（cghtz 服务端分页是几万账号量级的预案，cbs 一期量级小）。
+     * 人员列表：kw 模糊 account/username；userType 1=内部 2=承包商 空=全部；服务端分页。
      */
     @RequirePermission("cbs:org")
     @PostMapping("/user/list")
     public Result<?> userList(@RequestParam(name = "kw", required = false) String kw,
-                              @RequestParam(name = "userType", required = false) Integer userType) {
-        var ls = userDao.queryAll(kw, userType, false);
+                              @RequestParam(name = "userType", required = false) Integer userType,
+                              @RequestParam(name = "pageNo", required = false) Integer no,
+                              @RequestParam(name = "pageSize", required = false) Integer size) {
+        int pn = pageNo(no), ps = pageSize(size);
+        var ls = userDao.queryPage(kw, userType, false, offset(pn, ps), ps);
         for (var u : ls) {
             u.setRole(roleDao.query(u.getRole_code()));
         }
-        return Result.success(ls);
+        return Result.success(pageOf(ls, userDao.countAll(kw, userType, false), pn, ps));
     }
 
     @RequirePermission(value = "cbs:org", minScope = com.smlj.singledevice_note.core.o.to.DataScope.DEPT)

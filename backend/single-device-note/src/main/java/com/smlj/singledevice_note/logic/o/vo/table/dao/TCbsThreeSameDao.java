@@ -11,7 +11,11 @@ public interface TCbsThreeSameDao {
 
     TCbsThreeSame query(@Param("id") String id);
 
-    List<TCbsThreeSame> queryAll(@Param("kw") String kw);
+    /** 分页查询（kw 模糊匹配，见 XML cond 片段） */
+    List<TCbsThreeSame> queryPage(@Param("kw") String kw,
+                            @Param("offset") int offset, @Param("limit") int limit);
+
+    long countAll(@Param("kw") String kw);
 
     int insert(@Param("t") TCbsThreeSame t);
 

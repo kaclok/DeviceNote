@@ -2,106 +2,189 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
+import {pagerOf} from "../system/Pager.js"
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Search} from "@element-plus/icons-vue";
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const sys = Singleton.getInstance(SysX)
 
-const activeTab = ref('ent')
+/* ============ 路由驱动单页（一个菜单 = 一个功能，不再用 el-tabs 聚合） ============ */
+const TABS = ['ent', 'intro', 'ts', 'chem', 'proc', 'cert']
+const TITLES = {
+    ent: '企业基本信息',
+    intro: '企业简介',
+    ts: '安全"三同时"',
+    chem: '许可的危险化学品',
+    proc: '重点监管的危险化工工艺',
+    cert: '证照预警',
+}
+const props = defineProps({tab: String})
+const activeTab = ref(TABS.includes(props?.tab) ? props.tab : 'ent')
+const pageTitle = computed(() => TITLES[activeTab.value] || '')
+watch(() => props.tab, t => {
+    if (TABS.includes(t) && t !== activeTab.value) activeTab.value = t
+})
 let AC = new AbortController()
 
-/* ============ Tab1 企业信息 ============ */
+/* ============ 企业基本信息：两大块，字段名与目标站一致（不简写） ============ */
+// kind: input / number / date / select / bool(布尔是-否) / yesno(字符串是-否) / textarea / cascader / upload
+const ENT_BLOCKS = [
+    {
+        title: '企业基本信息', items: [
+            {key: 'ent_name', label: '企业名称', required: true},
+            {key: 'uscc', label: '统一社会信用代码', required: true},
+            {key: 'legal_person', label: '法定代表人', required: true},
+            {key: 'legal_phone', label: '法定代表人联系电话', required: true},
+            {key: 'legal_idcard', label: '法定代表人身份证号', required: true},
+            {key: 'chem_reg_code', label: '危险化学品登记信息管理系统企业编码'},
+            {key: 'found_date', label: '成立时间', kind: 'date', required: true},
+            {key: 'industry_type', label: '行业分类', kind: 'select', options: gd.entIndustry},
+            {key: 'supervisor', label: '主管部门', required: true},
+            {key: 'staff_count', label: '职工总数', kind: 'number', required: true},
+            {key: 'region_code', label: '行政区划', kind: 'cascader', required: true},
+            {key: 'address', label: '单位地址', required: true},
+            {key: 'fixed_assets', label: '固定资产（万元）', kind: 'number', required: true},
+            {key: 'total_area', label: '总建筑面积（㎡）', kind: 'number'},
+            {key: 'industry_detail', label: '企业所属行业及类型', kind: 'select', options: gd.entIndustry, disabled: true, required: true, tip: '随行业分类联动'},
+            {key: 'sub_units', label: '下级单位'},
+            {key: 'economy_type', label: '经济类型', kind: 'select', options: gd.economyTypes, required: true},
+            {key: 'run_status', label: '企业经营状态', kind: 'select', options: gd.entRunStatus, required: true},
+            {key: 'supervise_level', label: '监管层级', kind: 'select', options: gd.superviseLevels, required: true},
+            {key: 'main_person', label: '企业主要负责人', required: true},
+            {key: 'main_person_idcard', label: '主要负责人身份证号', required: true},
+            {key: 'safety_org', label: '安全管理机构', required: true},
+            {key: 'safety_org_phone', label: '安全管理机构电话', required: true},
+            {key: 'safety_org_leader', label: '安全管理机构负责人', required: true},
+            {key: 'safety_org_leader_phone', label: '安全管理机构负责人手机', required: true},
+            {key: 'duty_phone', label: '值班电话', required: true},
+            {key: 'full_safety_count', label: '专职安全管理人员数', kind: 'number', required: true},
+            {key: 'part_safety_count', label: '兼职安全管理人员数', kind: 'number', required: true},
+            {key: 'has_major_hazard', label: '是否有危化品重大危险源', kind: 'bool', required: true},
+            {key: 'risk_identified', label: '是否进行风险辨识', kind: 'bool', required: true},
+            {key: 'hazard_filed', label: '危化品重大危险源是否备案', kind: 'yesno', required: true},
+            {key: 'has_danger_process', label: '涉及危险工艺', kind: 'textarea', wide: true},
+            {key: 'capacity', label: '企业生产能力', kind: 'textarea', wide: true},
+            {key: 'ent_scale', label: '企业规模', kind: 'select', options: gd.entScales, required: true},
+            {key: 'ent_position', label: '企业定位'},
+            {key: 'two_key_one_major', label: '是否涉及两重点一重大作业', kind: 'yesno', required: true},
+            {key: 'server_addr', label: '企业端服务器地址', required: true},
+            {key: 'mqtt_topic', label: 'mqtt_topic'},
+            {key: 'attach', label: '附件', kind: 'upload', wide: true},
+            {key: 'plant_map_id', label: '厂区四色图', kind: 'upload', required: true},
+        ]
+    },
+    {
+        title: '危险化学品生产登记信息', items: [
+            {key: 'license_no', label: '许可证编号'},
+            {key: 'license_begin', label: '许可证有效开始时间', kind: 'date'},
+            {key: 'license_end', label: '许可证有效截至时间', kind: 'date'},
+            {key: 'park_name', label: '化工园区名称'},
+            {key: 'prod_start_date', label: '投产时间', kind: 'date'},
+            {key: 'county', label: '所属县（市、区）'},
+            {key: 'register_address', label: '注册地址'},
+            {key: 'product_address', label: '生产地址'},
+            {key: 'full_safety_count', label: '专职安全管理人员数', kind: 'number', readonly: true, noRule: true},
+            {key: 'special_work_count', label: '特种作业人员数', kind: 'number'},
+            {key: 'safety_std_level', label: '安全标准级别', kind: 'select', options: gd.safetyStdLevels},
+            {key: 'std_cert_expire', label: '安全生产标准化证书有效期截止时间', kind: 'date'},
+            {key: 'monitor_system', label: '是否接入危险化学品监测预警系统', kind: 'bool', required: true},
+            {key: 'has_supervision_process', label: '是否有重点监管的危险化工工艺', kind: 'bool', required: true},
+        ]
+    },
+]
+
+const ENT_ALL = ENT_BLOCKS.flatMap(b => b.items)
+
+/** 空表单：所有键先铺一遍，保证 el-form 的 prop 始终存在 */
+function blankEnt() {
+    const f = {}
+    ENT_ALL.forEach(it => {
+        if (it.kind === 'bool') f[it.key] = null
+        else if (it.kind === 'number') f[it.key] = null
+        else f[it.key] = null
+    })
+    return f
+}
+
+/** 必填规则由字段表派生，避免两处维护；noRule 项（同 key 只读复现）不参与校验 */
+const ENT_RULES = ENT_ALL.filter(it => it.required && !it.noRule).reduce((acc, it) => {
+    const action = it.kind === 'upload' ? '请上传'
+        : ['select', 'date', 'cascader', 'bool', 'yesno'].includes(it.kind) ? '请选择' : '请输入'
+    acc[it.key] = [{required: true, message: `${action}${it.label}`, trigger: it.kind === 'input' || it.kind === 'textarea' ? 'blur' : 'change'}]
+    return acc
+}, {})
+
 const entLoading = ref(false)
 const entSaving = ref(false)
 const entFormRef = ref()
-const entForm = ref({})
-
-// 企业信息表单分区（字段名 = cbs.t_enterprise 列）
-const ENT_GROUPS = [
-    {title: '基本信息', items: [
-        {key: 'ent_name', label: '企业名称'},
-        {key: 'uscc', label: '统一社会信用代码'},
-        {key: 'legal_person', label: '法定代表人'},
-        {key: 'legal_phone', label: '法人电话'},
-        {key: 'legal_idcard', label: '法人身份证号'},
-        {key: 'chem_reg_code', label: '危化品登记系统编码'},
-        {key: 'found_date', label: '成立时间', type: 'date'},
-        {key: 'industry_type', label: '行业分类'},
-        {key: 'supervisor', label: '主管部门'},
-        {key: 'staff_count', label: '职工人数', type: 'number'},
-        {key: 'region_code', label: '行政区划'},
-        {key: 'county', label: '所属县(市、区)'},
-        {key: 'address', label: '单位地址', wide: true},
-        {key: 'register_address', label: '注册地址', wide: true},
-        {key: 'product_address', label: '生产地址', wide: true},
-        {key: 'park_name', label: '化工园区名称'},
-        {key: 'fixed_assets', label: '固定资产(万元)', type: 'number'},
-        {key: 'total_area', label: '总建筑面积(㎡)', type: 'number'},
-        {key: 'prod_start_date', label: '投产时间', type: 'date'},
-    ]},
-    {title: '经营与规模', items: [
-        {key: 'industry_detail', label: '所属行业及类型', wide: true},
-        {key: 'sub_units', label: '下级单位', wide: true},
-        {key: 'economy_type', label: '经济类型'},
-        {key: 'run_status', label: '企业经营状态'},
-        {key: 'supervise_level', label: '监管层级'},
-        {key: 'capacity', label: '企业生产能力'},
-        {key: 'ent_scale', label: '企业规模'},
-        {key: 'ent_position', label: '企业定位'},
-        {key: 'two_key_one_major', label: '两重点一重大作业', type: 'select'},
-        {key: 'license_no', label: '许可证编号'},
-        {key: 'license_begin', label: '许可开始日期', type: 'date'},
-        {key: 'license_end', label: '许可截止日期', type: 'date'},
-    ]},
-    {title: '安全管理', items: [
-        {key: 'main_person', label: '企业主要负责人'},
-        {key: 'main_person_idcard', label: '负责人身份证号'},
-        {key: 'safety_org', label: '安全管理机构'},
-        {key: 'safety_org_phone', label: '安全机构电话'},
-        {key: 'safety_org_leader', label: '安全机构负责人'},
-        {key: 'safety_org_leader_phone', label: '负责人电话'},
-        {key: 'duty_phone', label: '值班电话'},
-        {key: 'full_safety_count', label: '专职安全员数', type: 'number'},
-        {key: 'part_safety_count', label: '兼职安全员数', type: 'number'},
-        {key: 'special_work_count', label: '特种作业人员数', type: 'number'},
-        {key: 'safety_std_level', label: '安全标准级别'},
-        {key: 'std_cert_expire', label: '标准化证书到期', type: 'date'},
-    ]},
-    {title: '危化与风险', items: [
-        {key: 'has_major_hazard', label: '有危化品重大危险源', type: 'switch'},
-        {key: 'risk_identified', label: '已进行风险辨识', type: 'switch'},
-        {key: 'hazard_filed', label: '重大危险源备案', type: 'select'},
-        {key: 'has_danger_process', label: '涉及危险工艺', type: 'select'},
-        {key: 'monitor_system', label: '接入监测预警系统', type: 'switch'},
-        {key: 'has_supervision_process', label: '有重点监管化工工艺', type: 'switch'},
-    ]},
-    {title: '系统接入', items: [
-        {key: 'server_addr', label: '企业端服务器地址', wide: true},
-        {key: 'mqtt_topic', label: 'MQTT Topic'},
-        {key: 'plant_map_id', label: '厂区四色图(file引用)'},
-    ]},
-]
+const entForm = ref(blankEnt())
+const regionArr = ref([])
+// 附件/四色图：后端暂无文件服务，只记文件名（不参与 ent/save，避免写坏列）
+const attachName = ref('')
+const mapName = ref('')
 
 function loadEnt() {
     entLoading.value = true
     sys.biz('cbs/ent/get', {}, AC.signal, () => {}, (r, data) => {
         entLoading.value = false
-        if (r) entForm.value = data.data || {}
-        else notifyError(data, '企业信息加载失败')
+        if (!r) {
+            notifyError(data, '企业信息加载失败')
+            return
+        }
+        // jackson NON_EMPTY 会吞空值：以 blankEnt 打底再覆盖，保证每个键都在
+        const row = {...blankEnt(), ...(data.data || {})}
+        // 行业分类 → 企业所属行业及类型 联动回填；历史脏值（不在枚举内）按行业分类归一
+        if (!row.industry_detail || !gd.entIndustry.includes(row.industry_detail)) {
+            row.industry_detail = row.industry_type || null
+        }
+        entForm.value = row
+        regionArr.value = row.region_code ? String(row.region_code).split('/') : []
+        attachName.value = ''
+        mapName.value = row.plant_map_id || ''
     })
+}
+
+/** 附件/四色图：文件服务未接入，只记文件名（四色图落到 plant_map_id 以便必填校验） */
+function onFileChange(key, file) {
+    if (key === 'attach') {
+        attachName.value = file.name
+    } else {
+        mapName.value = file.name
+        entForm.value[key] = file.name
+    }
+}
+
+function onRegionChange(v) {
+    regionArr.value = v || []
+    entForm.value.region_code = regionArr.value.join('/') || null
+    // 目标站规则：行业分类 → 企业所属行业及类型 自动带出
+    entForm.value.industry_detail = entForm.value.industry_type || null
+}
+
+function onIndustryChange() {
+    entForm.value.industry_detail = entForm.value.industry_type || null
 }
 
 function saveEnt() {
-    entSaving.value = true
-    sys.biz('cbs/ent/save', entForm.value, AC.signal, () => {}, (r, data) => {
-        entSaving.value = false
-        if (r) ElMessage.success('保存成功')
-        else notifyError(data, '保存失败')
+    entFormRef.value.validate(valid => {
+        if (!valid) {
+            ElMessage.warning('请先补全带 * 的必填项')
+            return
+        }
+        entSaving.value = true
+        // 提交副本，剔除纯前端字段（附件无对应列）
+        const payload = {...entForm.value}
+        delete payload.attach
+        sys.biz('cbs/ent/save', payload, AC.signal, () => {}, (r, data) => {
+            entSaving.value = false
+            if (r) ElMessage.success('保存成功')
+            else notifyError(data, '保存失败')
+        })
     })
 }
 
-/* ============ Tab2 企业简介 ============ */
+/* ============ 企业简介 ============ */
 const introLoading = ref(false)
 const introSaving = ref(false)
 const introText = ref('')
@@ -134,10 +217,15 @@ function saveIntro() {
 }
 
 /* ============ 通用子表逻辑（三同时/许可危化品/重点监管工艺/证照） ============ */
-function makeCrud({url, key, idField, nameField}) {
+function makeCrud({url, key, idField, nameField, pagerKey}) {
+    // 每页独立分页配置（gd.json#pager.<pagerKey>）
+    const pager = pagerOf(pagerKey)
     const loading = ref(false)
     const rows = ref([])
     const keyword = ref('')
+    const pageNo = ref(1)
+    const pageSize = ref(pager.pageSize)
+    const total = ref(0)
     const dialogVisible = ref(false)
     const saving = ref(false)
     const formRef = ref()
@@ -147,15 +235,34 @@ function makeCrud({url, key, idField, nameField}) {
         AC.abort()
         AC = new AbortController()
         loading.value = true
-        const paras = {}
+        const paras = {pageNo: pageNo.value, pageSize: pageSize.value}
         const kw = keyword.value.trim()
         if (kw) paras.kw = kw
         sys.biz(`${url}/list`, paras, AC.signal, () => {}, (r, data) => {
             loading.value = false
-            if (r) rows.value = data.data || []
-            else notifyError(data, '列表加载失败')
+            if (r) {
+                rows.value = data.data?.rows || []
+                total.value = data.data?.total || 0
+            } else {
+                notifyError(data, '列表加载失败')
+            }
         })
     }
+
+    /** 回第一页重查（搜索/重置用） */
+    function search() {
+        pageNo.value = 1
+        load()
+    }
+
+    watch([pageNo, pageSize], load)
+
+    // 关键字防抖：停顿 300ms 才回第一页重查
+    let kwTimer = null
+    watch(keyword, () => {
+        clearTimeout(kwTimer)
+        kwTimer = setTimeout(search, 300)
+    })
 
     function openDialog(edit, row, blank) {
         form.value = edit ? {...row} : {...blank}
@@ -194,16 +301,19 @@ function makeCrud({url, key, idField, nameField}) {
         }).catch(() => {})
     }
 
-    return {loading, rows, keyword, dialogVisible, saving, formRef, form, load, openDialog, save, remove}
+    return {
+        pager, loading, rows, keyword, pageNo, pageSize, total,
+        dialogVisible, saving, formRef, form, load, search, openDialog, save, remove,
+    }
 }
 
 /* 三同时 */
-const ts = makeCrud({url: 'cbs/ts', key: 'tsId', idField: 'ts_id', nameField: 'project_name'})
+const ts = makeCrud({url: 'cbs/ts', key: 'tsId', idField: 'ts_id', nameField: 'project_name', pagerKey: 'baseinfo.ts'})
 const TS_BLANK = {project_name: '', project_type: '', approval_date: '', reply_date: '', progress: ''}
 const tsRules = {project_name: [{required: true, message: '请输入项目名称', trigger: 'blur'}]}
 
 /* 许可危化品 */
-const chem = makeCrud({url: 'cbs/chem', key: 'chemId', idField: 'chem_id', nameField: 'chem_name'})
+const chem = makeCrud({url: 'cbs/chem', key: 'chemId', idField: 'chem_id', nameField: 'chem_name', pagerKey: 'baseinfo.chem'})
 const CHEM_BLANK = {
     chem_name: '', is_key: false, storage: '', yearly: '', state: '',
     fire_class: '', catalog_no: '', cas_no: '', longitude: '',
@@ -211,12 +321,12 @@ const CHEM_BLANK = {
 const chemRules = {chem_name: [{required: true, message: '请输入化学品名称', trigger: 'blur'}]}
 
 /* 重点监管工艺 */
-const proc = makeCrud({url: 'cbs/proc', key: 'procId', idField: 'proc_id', nameField: 'proc_name'})
+const proc = makeCrud({url: 'cbs/proc', key: 'procId', idField: 'proc_id', nameField: 'proc_name', pagerKey: 'baseinfo.proc'})
 const PROC_BLANK = {proc_name: '', auto_in_use: false}
 const procRules = {proc_name: [{required: true, message: '请输入工艺名称', trigger: 'blur'}]}
 
 /* 证照预警 */
-const cert = makeCrud({url: 'cbs/cert', key: 'certId', idField: 'cert_id', nameField: 'cert_name'})
+const cert = makeCrud({url: 'cbs/cert', key: 'certId', idField: 'cert_id', nameField: 'cert_name', pagerKey: 'baseinfo.cert'})
 const CERT_BLANK = {cert_name: '', cert_no: '', issue_org: '', issue_date: '', expire_date: '', warn_days: 30}
 const certRules = {
     cert_name: [{required: true, message: '请输入证照名称', trigger: 'blur'}],
@@ -232,288 +342,220 @@ function certStatus(row) {
     return {desc: `剩余 ${days} 天`, type: 'success'}
 }
 
-/* ============ Tab7 类型字典（承包商类型/处罚类型/项目类型） ============ */
-const dictLoading = ref(false)
-const dictRows = ref([])
-const dictType = ref('contractor_type')
-const dictDialogVisible = ref(false)
-const dictSaving = ref(false)
-const dictFormRef = ref()
-const dictForm = ref({})
-const DICT_BLANK = {item_id: '', dict_type: 'contractor_type', item_name: '', sort_no: 0, is_using: true}
 
-function loadDicts() {
-    AC.abort()
-    AC = new AbortController()
-    dictLoading.value = true
-    sys.biz('cbs/dict/list', {dictType: dictType.value}, AC.signal, () => {}, (r, data) => {
-        dictLoading.value = false
-        if (r) dictRows.value = data.data || []
-        else notifyError(data, '字典加载失败')
-    })
-}
+/* ============ 区块懒加载 ============ */
+const tabLoaded = ref({})
 
-watch(dictType, loadDicts)
-
-function openDictDialog(edit, row) {
-    dictForm.value = edit
-        ? {
-            item_id: row.item_id, dict_type: row.dict_type, item_name: row.item_name,
-            sort_no: row.sort_no ?? 0, is_using: row.is_using !== false,
-        }
-        : {...DICT_BLANK, dict_type: dictType.value}
-    dictDialogVisible.value = true
-}
-
-function saveDict() {
-    dictFormRef.value.validate(valid => {
-        if (!valid) return
-        dictSaving.value = true
-        sys.biz('cbs/dict/save', dictForm.value, AC.signal, () => {}, (r, data) => {
-            dictSaving.value = false
-            if (r) {
-                ElMessage.success('保存成功')
-                dictDialogVisible.value = false
-                loadDicts()
-            } else {
-                notifyError(data, '保存失败')
-            }
-        })
-    })
-}
-
-function removeDict(row) {
-    ElMessageBox.confirm(`确定删除字典项「${row.item_name}」吗？`, '提示', {type: 'warning'}).then(() => {
-        dictLoading.value = true
-        sys.biz('cbs/dict/delete', {itemId: row.item_id}, AC.signal, () => {}, (r, data) => {
-            dictLoading.value = false
-            if (r) {
-                ElMessage.success('删除成功')
-                loadDicts()
-            } else {
-                notifyError(data, '删除失败')
-            }
-        })
-    }).catch(() => {})
-}
-
-/* ============ Tab 懒加载 + 生命周期 ============ */
-const tabLoaded = ref({ent: false})
-
-watch(activeTab, t => {
-    if (tabLoaded.value[t]) return
+function ensureTab(t) {
+    if (!TABS.includes(t) || tabLoaded.value[t]) return
     tabLoaded.value[t] = true
+    if (t === 'ent') loadEnt()
     if (t === 'intro') loadIntro()
     if (t === 'ts') ts.load()
     if (t === 'chem') chem.load()
     if (t === 'proc') proc.load()
     if (t === 'cert') cert.load()
-    if (t === 'dict') loadDicts()
-})
+}
 
-onMounted(loadEnt)
+watch(activeTab, ensureTab, {immediate: true})
 onUnmounted(() => AC.abort())
 </script>
 
 <template>
     <div class="baseinfo-page">
-        <el-tabs v-model="activeTab">
-            <!-- ==================== 企业信息 ==================== -->
-            <el-tab-pane label="企业信息" name="ent">
-                <div class="card" v-loading="entLoading">
-                    <template v-for="g in ENT_GROUPS" :key="g.title">
-                        <el-divider content-position="left">{{ g.title }}</el-divider>
-                        <el-form ref="entFormRef" :model="entForm" label-width="160px">
-                            <el-row :gutter="16">
-                                <el-col v-for="it in g.items" :key="it.key" :span="it.wide ? 24 : 8">
-                                    <el-form-item :label="it.label">
-                                        <el-input-number v-if="it.type === 'number'"
-                                                         v-model="entForm[it.key]" :controls="false"
-                                                         style="width:100%"/>
-                                        <el-date-picker v-else-if="it.type === 'date'"
-                                                        v-model="entForm[it.key]" type="date"
-                                                        value-format="YYYY-MM-DD" style="width:100%"/>
-                                        <el-select v-else-if="it.type === 'select'"
-                                                   v-model="entForm[it.key]" clearable style="width:100%">
-                                            <el-option v-for="o in gd.yesNoNa" :key="o" :value="o" :label="o"/>
-                                        </el-select>
-                                        <el-switch v-else-if="it.type === 'switch'" v-model="entForm[it.key]"/>
-                                        <el-input v-else v-model="entForm[it.key]"/>
-                                    </el-form-item>
-                                </el-col>
-                            </el-row>
-                        </el-form>
+        <div class="page-head">
+            <h2>{{ pageTitle }}</h2>
+        </div>
+
+        <!-- ==================== 企业基本信息（两大块） ==================== -->
+        <div v-if="activeTab === 'ent'" class="card" v-loading="entLoading">
+            <el-form ref="entFormRef" :model="entForm" :rules="ENT_RULES" label-width="200px"
+                     label-position="right" class="ent-form">
+                <template v-for="b in ENT_BLOCKS" :key="b.title">
+                    <div class="block-title">{{ b.title }}</div>
+                    <el-row :gutter="24">
+                        <el-col v-for="it in b.items" :key="b.title + it.key" :span="it.wide ? 24 : 12">
+                            <el-form-item :label="it.label" :prop="it.noRule ? undefined : it.key">
+                                <!-- 下拉 -->
+                                <el-select v-if="it.kind === 'select'" v-model="entForm[it.key]" clearable
+                                           :disabled="!!it.disabled" style="width:100%"
+                                           @change="it.key === 'industry_type' && onIndustryChange()">
+                                    <el-option v-for="o in it.options" :key="o" :value="o" :label="o"/>
+                                </el-select>
+                                <!-- 日期 -->
+                                <el-date-picker v-else-if="it.kind === 'date'" v-model="entForm[it.key]"
+                                                type="date" value-format="YYYY-MM-DD" style="width:100%"/>
+                                <!-- 数字 -->
+                                <el-input-number v-else-if="it.kind === 'number'" v-model="entForm[it.key]"
+                                                 :controls="false" :disabled="!!it.readonly" style="width:100%"/>
+                                <!-- 布尔是非 -->
+                                <el-radio-group v-else-if="it.kind === 'bool'" v-model="entForm[it.key]">
+                                    <el-radio :value="true">是</el-radio>
+                                    <el-radio :value="false">否</el-radio>
+                                </el-radio-group>
+                                <!-- 字符串是非 -->
+                                <el-radio-group v-else-if="it.kind === 'yesno'" v-model="entForm[it.key]">
+                                    <el-radio v-for="o in gd.yesNo" :key="o" :value="o">{{ o }}</el-radio>
+                                </el-radio-group>
+                                <!-- 行政区划 -->
+                                <el-cascader v-else-if="it.kind === 'cascader'" :model-value="regionArr"
+                                             :options="gd.regions" clearable style="width:100%"
+                                             @update:model-value="onRegionChange"/>
+                                <!-- 多行文本 -->
+                                <el-input v-else-if="it.kind === 'textarea'" v-model="entForm[it.key]"
+                                          type="textarea" :rows="2"/>
+                                <!-- 附件（文件服务未接入，仅本地记录文件名） -->
+                                <el-upload v-else-if="it.kind === 'upload'" :auto-upload="false" :limit="1"
+                                           :show-file-list="false"
+                                           :on-change="f => onFileChange(it.key, f)">
+                                    <el-button>选择文件</el-button>
+                                    <span class="file-name">{{ it.key === 'attach' ? attachName : mapName }}</span>
+                                    <div class="form-tip">文件服务未接入，选择后仅记录文件名</div>
+                                </el-upload>
+                                <!-- 普通输入 -->
+                                <el-input v-else v-model="entForm[it.key]"/>
+                                <div v-if="it.tip" class="form-tip">{{ it.tip }}</div>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </template>
+            </el-form>
+            <div class="form-footer">
+                <el-button type="primary" :loading="entSaving" @click="saveEnt">保存</el-button>
+            </div>
+        </div>
+
+        <!-- ==================== 企业简介 ==================== -->
+        <div v-if="activeTab === 'intro'" class="card" v-loading="introLoading">
+            <el-input v-model="introText" type="textarea" :rows="14" placeholder="填写企业简介内容"/>
+            <div class="form-footer">
+                <el-button type="primary" :loading="introSaving" @click="saveIntro">保存简介</el-button>
+            </div>
+        </div>
+
+        <!-- ==================== 安全三同时 ==================== -->
+        <div v-if="activeTab === 'ts'" class="card">
+            <div class="toolbar">
+                <el-input v-model="ts.keyword.value" placeholder="搜索项目名称" clearable
+                          style="width:220px" :prefix-icon="Search"/>
+                <el-button type="primary" @click="ts.openDialog(false, null, TS_BLANK)">新增项目</el-button>
+            </div>
+            <el-table :data="ts.rows.value" v-loading="ts.loading.value" border stripe>
+                <el-table-column prop="project_name" label="项目名称" min-width="200"/>
+                <el-table-column prop="project_type" label="项目类型" width="140"/>
+                <el-table-column prop="approval_date" label="立项时间" width="120"/>
+                <el-table-column prop="reply_date" label="批复时间" width="120"/>
+                <el-table-column prop="progress" label="项目进展" min-width="180" show-overflow-tooltip/>
+                <el-table-column label="操作" width="130" align="center" fixed="right">
+                    <template #default="{row}">
+                        <el-link type="primary" @click="ts.openDialog(true, row, TS_BLANK)">编辑</el-link>
+                        <el-link type="danger" style="margin-left:10px" @click="ts.remove(row)">删除</el-link>
                     </template>
-                    <div class="form-footer">
-                        <el-button type="primary" :loading="entSaving" @click="saveEnt">保存企业信息</el-button>
-                    </div>
-                </div>
-            </el-tab-pane>
+                </el-table-column>
+            </el-table>
+            <el-empty v-if="!ts.loading.value && ts.rows.value.length === 0" description="暂无三同时项目"/>
 
-            <!-- ==================== 企业简介 ==================== -->
-            <el-tab-pane label="企业简介" name="intro">
-                <div class="card" v-loading="introLoading">
-                    <el-input v-model="introText" type="textarea" :rows="14"
-                              placeholder="填写企业简介内容"/>
-                    <div class="form-footer">
-                        <el-button type="primary" :loading="introSaving" @click="saveIntro">保存简介</el-button>
-                    </div>
-                </div>
-            </el-tab-pane>
+            <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                           :total="ts.total.value" v-model:current-page="ts.pageNo.value"
+                           v-model:page-size="ts.pageSize.value" :page-sizes="ts.pager.pageSizes"/>        </div>
 
-            <!-- ==================== 安全三同时 ==================== -->
-            <el-tab-pane label="安全三同时" name="ts">
-                <div class="card">
-                    <div class="toolbar">
-                        <el-input v-model="ts.keyword.value" placeholder="搜索项目名称" clearable
-                                  style="width:220px" :prefix-icon="Search"/>
-                        <el-button type="primary" @click="ts.openDialog(false, null, TS_BLANK)">新增项目</el-button>
-                    </div>
-                    <el-table :data="ts.rows.value" v-loading="ts.loading.value" border stripe>
-                        <el-table-column prop="project_name" label="项目名称" min-width="200"/>
-                        <el-table-column prop="project_type" label="项目类型" width="140"/>
-                        <el-table-column prop="approval_date" label="立项时间" width="120"/>
-                        <el-table-column prop="reply_date" label="批复时间" width="120"/>
-                        <el-table-column prop="progress" label="项目进展" min-width="180" show-overflow-tooltip/>
-                        <el-table-column label="操作" width="130" align="center" fixed="right">
-                            <template #default="{row}">
-                                <el-link type="primary" @click="ts.openDialog(true, row, TS_BLANK)">编辑</el-link>
-                                <el-link type="danger" style="margin-left:10px" @click="ts.remove(row)">删除</el-link>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!ts.loading.value && ts.rows.value.length === 0" description="暂无三同时项目"/>
-                </div>
-            </el-tab-pane>
+        <!-- ==================== 许可的危险化学品 ==================== -->
+        <div v-if="activeTab === 'chem'" class="card">
+            <div class="toolbar">
+                <el-input v-model="chem.keyword.value" placeholder="搜索化学品名称" clearable
+                          style="width:220px" :prefix-icon="Search"/>
+                <el-button type="primary" @click="chem.openDialog(false, null, CHEM_BLANK)">新增化学品</el-button>
+            </div>
+            <el-table :data="chem.rows.value" v-loading="chem.loading.value" border stripe>
+                <el-table-column prop="chem_name" label="化学品名称" min-width="150"/>
+                <el-table-column label="重点监管" width="90" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.is_key ? 'danger' : 'info'" effect="light" size="small">
+                            {{ row.is_key ? '是' : '否' }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="storage" label="储存量" width="120"/>
+                <el-table-column prop="yearly" label="年使用/产量" width="130"/>
+                <el-table-column prop="state" label="物料状态" width="90"/>
+                <el-table-column prop="fire_class" label="火灾类别" width="90"/>
+                <el-table-column prop="catalog_no" label="目录序号" width="90"/>
+                <el-table-column prop="cas_no" label="CAS号" width="130"/>
+                <el-table-column label="操作" width="130" align="center" fixed="right">
+                    <template #default="{row}">
+                        <el-link type="primary" @click="chem.openDialog(true, row, CHEM_BLANK)">编辑</el-link>
+                        <el-link type="danger" style="margin-left:10px" @click="chem.remove(row)">删除</el-link>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-empty v-if="!chem.loading.value && chem.rows.value.length === 0" description="暂无数据"/>
 
-            <!-- ==================== 许可的危险化学品 ==================== -->
-            <el-tab-pane label="许可危化品" name="chem">
-                <div class="card">
-                    <div class="toolbar">
-                        <el-input v-model="chem.keyword.value" placeholder="搜索化学品名称" clearable
-                                  style="width:220px" :prefix-icon="Search"/>
-                        <el-button type="primary" @click="chem.openDialog(false, null, CHEM_BLANK)">新增化学品
-                        </el-button>
-                    </div>
-                    <el-table :data="chem.rows.value" v-loading="chem.loading.value" border stripe>
-                        <el-table-column prop="chem_name" label="化学品名称" min-width="150"/>
-                        <el-table-column label="重点监管" width="90" align="center">
-                            <template #default="{row}">
-                                <el-tag :type="row.is_key ? 'danger' : 'info'" effect="light" size="small">
-                                    {{ row.is_key ? '是' : '否' }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="storage" label="储存量" width="120"/>
-                        <el-table-column prop="yearly" label="年使用/产量" width="130"/>
-                        <el-table-column prop="state" label="物料状态" width="90"/>
-                        <el-table-column prop="fire_class" label="火灾类别" width="90"/>
-                        <el-table-column prop="catalog_no" label="目录序号" width="90"/>
-                        <el-table-column prop="cas_no" label="CAS号" width="130"/>
-                        <el-table-column label="操作" width="130" align="center" fixed="right">
-                            <template #default="{row}">
-                                <el-link type="primary" @click="chem.openDialog(true, row, CHEM_BLANK)">编辑</el-link>
-                                <el-link type="danger" style="margin-left:10px" @click="chem.remove(row)">删除</el-link>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!chem.loading.value && chem.rows.value.length === 0" description="暂无数据"/>
-                </div>
-            </el-tab-pane>
+            <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                           :total="chem.total.value" v-model:current-page="chem.pageNo.value"
+                           v-model:page-size="chem.pageSize.value" :page-sizes="chem.pager.pageSizes"/>        </div>
 
-            <!-- ==================== 重点监管的危险化工工艺 ==================== -->
-            <el-tab-pane label="重点监管工艺" name="proc">
-                <div class="card">
-                    <div class="toolbar">
-                        <el-input v-model="proc.keyword.value" placeholder="搜索工艺名称" clearable
-                                  style="width:220px" :prefix-icon="Search"/>
-                        <el-button type="primary" @click="proc.openDialog(false, null, PROC_BLANK)">新增工艺</el-button>
-                    </div>
-                    <el-table :data="proc.rows.value" v-loading="proc.loading.value" border stripe>
-                        <el-table-column prop="proc_name" label="工艺名称" min-width="220"/>
-                        <el-table-column label="自动化/紧急停车系统投用" width="200" align="center">
-                            <template #default="{row}">
-                                <el-tag :type="row.auto_in_use ? 'success' : 'warning'" effect="light" size="small">
-                                    {{ row.auto_in_use ? '已投用' : '未投用' }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="130" align="center" fixed="right">
-                            <template #default="{row}">
-                                <el-link type="primary" @click="proc.openDialog(true, row, PROC_BLANK)">编辑</el-link>
-                                <el-link type="danger" style="margin-left:10px" @click="proc.remove(row)">删除</el-link>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!proc.loading.value && proc.rows.value.length === 0" description="暂无数据"/>
-                </div>
-            </el-tab-pane>
+        <!-- ==================== 重点监管的危险化工工艺 ==================== -->
+        <div v-if="activeTab === 'proc'" class="card">
+            <div class="toolbar">
+                <el-input v-model="proc.keyword.value" placeholder="搜索工艺名称" clearable
+                          style="width:220px" :prefix-icon="Search"/>
+                <el-button type="primary" @click="proc.openDialog(false, null, PROC_BLANK)">新增工艺</el-button>
+            </div>
+            <el-table :data="proc.rows.value" v-loading="proc.loading.value" border stripe>
+                <el-table-column prop="proc_name" label="工艺名称" min-width="220"/>
+                <el-table-column label="自动化/紧急停车系统投用" width="200" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.auto_in_use ? 'success' : 'warning'" effect="light" size="small">
+                            {{ row.auto_in_use ? '已投用' : '未投用' }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="130" align="center" fixed="right">
+                    <template #default="{row}">
+                        <el-link type="primary" @click="proc.openDialog(true, row, PROC_BLANK)">编辑</el-link>
+                        <el-link type="danger" style="margin-left:10px" @click="proc.remove(row)">删除</el-link>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-empty v-if="!proc.loading.value && proc.rows.value.length === 0" description="暂无数据"/>
 
-            <!-- ==================== 证照预警 ==================== -->
-            <el-tab-pane label="证照预警" name="cert">
-                <div class="card">
-                    <div class="toolbar">
-                        <el-input v-model="cert.keyword.value" placeholder="搜索证照名称/编号" clearable
-                                  style="width:220px" :prefix-icon="Search"/>
-                        <el-button type="primary" @click="cert.openDialog(false, null, CERT_BLANK)">新增证照</el-button>
-                    </div>
-                    <el-table :data="cert.rows.value" v-loading="cert.loading.value" border stripe>
-                        <el-table-column prop="cert_name" label="证照名称" min-width="180"/>
-                        <el-table-column prop="cert_no" label="证照编号" min-width="150" show-overflow-tooltip/>
-                        <el-table-column prop="issue_org" label="发证机关" min-width="140"/>
-                        <el-table-column prop="issue_date" label="发证日期" width="110"/>
-                        <el-table-column prop="expire_date" label="到期日期" width="110"/>
-                        <el-table-column prop="warn_days" label="提前预警(天)" width="110" align="center"/>
-                        <el-table-column label="预警状态" width="130" align="center">
-                            <template #default="{row}">
-                                <el-tag :type="certStatus(row).type" effect="light">
-                                    {{ certStatus(row).desc }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="130" align="center" fixed="right">
-                            <template #default="{row}">
-                                <el-link type="primary" @click="cert.openDialog(true, row, CERT_BLANK)">编辑</el-link>
-                                <el-link type="danger" style="margin-left:10px" @click="cert.remove(row)">删除</el-link>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!cert.loading.value && cert.rows.value.length === 0" description="暂无证照"/>
-                </div>
-            </el-tab-pane>
+            <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                           :total="proc.total.value" v-model:current-page="proc.pageNo.value"
+                           v-model:page-size="proc.pageSize.value" :page-sizes="proc.pager.pageSizes"/>        </div>
 
-            <!-- ==================== 类型字典 ==================== -->
-            <el-tab-pane label="类型字典" name="dict">
-                <div class="card">
-                    <div class="toolbar">
-                        <el-radio-group v-model="dictType">
-                            <el-radio-button v-for="t in gd.dictTypes" :key="t.id" :value="t.id">
-                                {{ t.desc }}
-                            </el-radio-button>
-                        </el-radio-group>
-                        <el-button type="primary" @click="openDictDialog(false)">新增字典项</el-button>
-                    </div>
-                    <el-table :data="dictRows" v-loading="dictLoading" border stripe>
-                        <el-table-column prop="item_name" label="名称" min-width="200"/>
-                        <el-table-column prop="sort_no" label="排序" width="90" align="center"/>
-                        <el-table-column label="状态" width="100" align="center">
-                            <template #default="{row}">
-                                <el-tag :type="row.is_using ? 'success' : 'info'" effect="light" size="small">
-                                    {{ row.is_using ? '启用' : '停用' }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="130" align="center" fixed="right">
-                            <template #default="{row}">
-                                <el-link type="primary" @click="openDictDialog(true, row)">编辑</el-link>
-                                <el-link type="danger" style="margin-left:10px" @click="removeDict(row)">删除</el-link>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!dictLoading && dictRows.length === 0" description="暂无字典项"/>
-                </div>
-            </el-tab-pane>
-        </el-tabs>
+        <!-- ==================== 证照预警 ==================== -->
+        <div v-if="activeTab === 'cert'" class="card">
+            <div class="toolbar">
+                <el-input v-model="cert.keyword.value" placeholder="搜索证照名称/编号" clearable
+                          style="width:220px" :prefix-icon="Search"/>
+                <el-button type="primary" @click="cert.openDialog(false, null, CERT_BLANK)">新增证照</el-button>
+            </div>
+            <el-table :data="cert.rows.value" v-loading="cert.loading.value" border stripe>
+                <el-table-column prop="cert_name" label="证照名称" min-width="180"/>
+                <el-table-column prop="cert_no" label="证照编号" min-width="150" show-overflow-tooltip/>
+                <el-table-column prop="issue_org" label="发证机关" min-width="140"/>
+                <el-table-column prop="issue_date" label="发证日期" width="110"/>
+                <el-table-column prop="expire_date" label="到期日期" width="110"/>
+                <el-table-column prop="warn_days" label="提前预警(天)" width="110" align="center"/>
+                <el-table-column label="预警状态" width="130" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="certStatus(row).type" effect="light">
+                            {{ certStatus(row).desc }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="130" align="center" fixed="right">
+                    <template #default="{row}">
+                        <el-link type="primary" @click="cert.openDialog(true, row, CERT_BLANK)">编辑</el-link>
+                        <el-link type="danger" style="margin-left:10px" @click="cert.remove(row)">删除</el-link>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-empty v-if="!cert.loading.value && cert.rows.value.length === 0" description="暂无证照"/>
+
+            <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                           :total="cert.total.value" v-model:current-page="cert.pageNo.value"
+                           v-model:page-size="cert.pageSize.value" :page-sizes="cert.pager.pageSizes"/>        </div>
 
         <!-- 三同时编辑弹窗 -->
         <el-dialog v-model="ts.dialogVisible.value" :title="ts.form.value.ts_id ? '编辑三同时项目' : '新增三同时项目'"
@@ -650,42 +692,55 @@ onUnmounted(() => AC.abort())
             </template>
         </el-dialog>
 
-        <!-- 类型字典编辑弹窗 -->
-        <el-dialog v-model="dictDialogVisible" :title="dictForm.item_id ? '编辑字典项' : '新增字典项'"
-                   width="460px" destroy-on-close>
-            <el-form ref="dictFormRef" :model="dictForm" label-width="90px"
-                     :rules="{item_name: [{required: true, message: '请输入名称', trigger: 'blur'}]}">
-                <el-form-item label="所属类型">
-                    <el-select v-model="dictForm.dict_type" style="width:100%">
-                        <el-option v-for="t in gd.dictTypes" :key="t.id" :value="t.id" :label="t.desc"/>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="名称" prop="item_name">
-                    <el-input v-model="dictForm.item_name" placeholder="字典项名称"/>
-                </el-form-item>
-                <el-form-item label="排序">
-                    <el-input-number v-model="dictForm.sort_no" :min="0" :precision="0" :controls="false"/>
-                    <span class="form-tip" style="margin-left:8px">数值越小越靠前</span>
-                </el-form-item>
-                <el-form-item label="状态">
-                    <el-switch v-model="dictForm.is_using" active-text="启用"/>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="dictDialogVisible = false">取消</el-button>
-                <el-button type="primary" :loading="dictSaving" @click="saveDict">保存</el-button>
-            </template>
-        </el-dialog>
     </div>
 </template>
 
 <style lang="scss" scoped>
 .baseinfo-page {
+    .page-head {
+        margin: 4px 0 18px;
+        text-align: center;
+
+        h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: 2px;
+        }
+    }
+
     .card {
         background: #ffffff;
         border-radius: 10px;
         padding: 16px 20px 20px;
         border: 1px solid #e2e8f0;
+    }
+
+    .block-title {
+        margin: 6px 0 18px;
+        padding-left: 10px;
+        border-left: 3px solid #17c0ad;
+        font-size: 15px;
+        font-weight: 600;
+        color: #1e293b;
+        line-height: 1.2;
+
+        &:not(:first-child) {
+            margin-top: 26px;
+        }
+    }
+
+    .ent-form {
+        :deep(.el-form-item__label) {
+            white-space: normal;
+            line-height: 1.4;
+            word-break: break-all;
+        }
+
+        :deep(.el-form-item) {
+            margin-bottom: 18px;
+        }
     }
 
     .toolbar {
@@ -695,16 +750,27 @@ onUnmounted(() => AC.abort())
         margin-bottom: 14px;
     }
 
+    .pager {
+        margin-top: 14px;
+        justify-content: flex-end;
+    }
+
     .form-footer {
-        margin-top: 8px;
-        text-align: right;
+        margin-top: 18px;
+        text-align: center;
     }
 
     .form-tip {
         font-size: 11px;
         color: #94a3b8;
         line-height: 1.5;
-        margin-top: 4px;
+        margin-top: 2px;
+    }
+
+    .file-name {
+        margin-left: 10px;
+        font-size: 12px;
+        color: #64748b;
     }
 }
 </style>

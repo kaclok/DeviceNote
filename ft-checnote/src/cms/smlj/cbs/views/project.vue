@@ -2,19 +2,45 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
+import {pagerOf} from "../system/Pager.js"
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Search} from "@element-plus/icons-vue";
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const sys = Singleton.getInstance(SysX)
 
-const activeTab = ref('proj')
+/* ============ 五个菜单 = 五个页面（同一份项目列表，行内操作不同） ============ */
+const PAGE_TITLE = {
+    proj: '项目管理',
+    state: '项目状态',
+    enter: '入场管理',
+    prep: '开工准备',
+    accept: '项目验收',
+}
+const KEYS = Object.keys(PAGE_TITLE)
+const props = defineProps({tab: String})
+const activeTab = ref(KEYS.includes(props?.tab) ? props.tab : 'proj')
+watch(() => props.tab, t => {
+    if (!KEYS.includes(t) || t === activeTab.value) return
+    activeTab.value = t
+    // 每个菜单是独立页面，分页参数各用各的
+    pageNo.value = 1
+    pageSize.value = pager.value.pageSize
+    loadRows()
+})
+const pageTitle = computed(() => PAGE_TITLE[activeTab.value])
 
-/* ============ 项目列表（Tab1 项目管理） ============ */
+/* ============ 项目列表 + 分页 ============ */
 const loading = ref(false)
 const rows = ref([])
 const keyword = ref('')
 const contractorFilter = ref('')
+const statusFilter = ref('')
+// 每页独立分页配置：project.proj / state / enter / prep / accept
+const pager = computed(() => pagerOf('project.' + activeTab.value))
+const pageNo = ref(1)
+const pageSize = ref(pager.value.pageSize)
+const total = ref(0)
 let kwTimer = null
 
 let AC = new AbortController()
@@ -23,38 +49,55 @@ function loadRows() {
     AC.abort()
     AC = new AbortController()
     loading.value = true
-    const paras = {}
+    const paras = {pageNo: pageNo.value, pageSize: pageSize.value}
     const kw = keyword.value.trim()
     if (kw) paras.kw = kw
     if (contractorFilter.value) paras.contractorId = contractorFilter.value
+    if (statusFilter.value !== '') paras.projStatus = statusFilter.value
     sys.biz('cbs/project/list', paras, AC.signal, () => {}, (r, data) => {
         loading.value = false
-        if (r) rows.value = data.data || []
-        else notifyError(data, '项目列表加载失败')
+        if (r) {
+            rows.value = data.data?.rows || []
+            total.value = data.data?.total || 0
+        } else {
+            notifyError(data, '项目列表加载失败')
+        }
     })
 }
 
 watch(keyword, () => {
     clearTimeout(kwTimer)
-    kwTimer = setTimeout(loadRows, 300)
+    kwTimer = setTimeout(() => {
+        pageNo.value = 1
+        loadRows()
+    }, 300)
 })
-watch(contractorFilter, loadRows)
+watch([contractorFilter, statusFilter], () => {
+    pageNo.value = 1
+    loadRows()
+})
+watch([pageNo, pageSize], loadRows)
 
-/* 承包商下拉（列表 + 筛选共用） */
+/* 承包商下拉（筛选 + 表单共用，走 options 接口，不受列表分页影响） */
 const contractorOptions = ref([])
 
 function loadContractors() {
-    sys.biz('cbs/contractor/list', {}, AC.signal, () => {}, (r, data) => {
+    sys.biz('cbs/contractor/options', {}, AC.signal, () => {}, (r, data) => {
         if (r) contractorOptions.value = (data.data || []).map(c => ({value: c.contractor_id, label: c.name}))
     })
 }
 
 function contractorName(id) {
-    return contractorOptions.value.find(c => c.value === id)?.label || id
+    return contractorOptions.value.find(c => c.value === id)?.label || id || '—'
 }
 
 function statusMeta(s) {
-    return gd.projStatus.find(x => x.id === Number(s)) || {desc: s, type: 'info'}
+    return gd.projStatus.find(x => x.id === Number(s)) || {desc: s ?? '—', type: 'info'}
+}
+
+/* 所属单位：t_project.dept_code（组织树解析待 cbs:org 字典导出后接入，先原样显示） */
+function deptName(code) {
+    return code || '—'
 }
 
 /* ============ 新增/编辑项目 ============ */
@@ -117,145 +160,176 @@ function removeRow(row) {
     }).catch(() => {})
 }
 
-/* ============ 子档通用工厂：入场管理 / 开工准备 / 项目验收 ============
- * 三块结构一致（项目筛选 + 表格 + 弹窗），状态与增删改逻辑在此收敛。
- * 返回含 ref 的普通对象，调用侧用 reactive() 包裹（模板里嵌套 ref 才会自动解包）。
- * 工厂内部方法一律走原始对象 s（s.xxx.value），与 reactive 包装互不干扰。 */
-function makeSub(cfg) {
-    const s = {
-        loading: ref(false),
-        rows: ref([]),
-        projectFilter: ref(''),
-        dialogVisible: ref(false),
-        saving: ref(false),
-        formRef: ref(),
-        form: ref({}),
-        rules: cfg.rules,
-        _loaded: false,
-    }
-    s.load = () => {
-        AC.abort()
-        AC = new AbortController()
-        s.loading.value = true
-        const paras = {}
-        if (s.projectFilter.value) paras.projectId = s.projectFilter.value
-        sys.biz(`cbs/project/${cfg.url}/list`, paras, AC.signal, () => {}, (r, data) => {
-            s.loading.value = false
-            if (r) s.rows.value = data.data || []
-            else notifyError(data, `${cfg.title}加载失败`)
-        })
-    }
-    s.open = (edit, row) => {
-        s.form.value = cfg.toForm(row, edit, s)
-        s.dialogVisible.value = true
-    }
-    s.save = () => {
-        s.formRef.value.validate(valid => {
-            if (!valid) return
-            s.saving.value = true
-            const f = cfg.fromForm(s.form.value)
-            sys.biz(`cbs/project/${cfg.url}/save`, f, AC.signal, () => {}, (r, data) => {
-                s.saving.value = false
-                if (r) {
-                    ElMessage.success('保存成功')
-                    s.dialogVisible.value = false
-                    s.load()
-                } else {
-                    notifyError(data, '保存失败')
-                }
-            })
-        })
-    }
-    s.remove = row => {
-        ElMessageBox.confirm(`确定删除这条${cfg.title}记录吗？`, '提示', {type: 'warning'}).then(() => {
-            s.loading.value = true
-            sys.biz(`cbs/project/${cfg.url}/delete`, {[cfg.idField]: row[cfg.idField]}, AC.signal, () => {}, (r, data) => {
-                s.loading.value = false
-                if (r) {
-                    ElMessage.success('删除成功')
-                    s.load()
-                } else {
-                    notifyError(data, '删除失败')
-                }
-            })
-        }).catch(() => {})
-    }
-    return s
+/* ============ 项目状态：只改状态，整行其它字段原样回传（后端 update 全列覆盖） ============ */
+const stateVisible = ref(false)
+const stateSaving = ref(false)
+const stateRow = ref({})
+const stateValue = ref(0)
+
+function openState(row) {
+    stateRow.value = row
+    stateValue.value = row.proj_status ?? 0
+    stateVisible.value = true
 }
 
-const _reqProject = {project_id: [{required: true, message: '请选择关联项目', trigger: 'change'}]}
-
-/* 入场管理（清单第18项范围：不做关联培训/考试/进出场/设备管理） */
-const enter = reactive(makeSub({
-    title: '入场', url: 'enter', idField: 'enterId',
-    rules: _reqProject,
-    toForm: (row, edit, s) => edit
-        ? {enter_id: row.enter_id, project_id: row.project_id, enter_date: row.enter_date || '',
-           person_count: row.person_count ?? '', leader: row.leader || '', leader_phone: row.leader_phone || '',
-           remark: row.remark || '', _edit: true}
-        : {enter_id: '', project_id: s.projectFilter.value || '', enter_date: '', person_count: '',
-           leader: '', leader_phone: '', remark: '', _edit: false},
-    fromForm: f => {
-        const o = {...f}
-        delete o._edit
-        if (!o.enter_date) o.enter_date = null
-        if (o.person_count === '' || o.person_count == null) o.person_count = null
-        return o
-    },
-}))
-
-/* 开工准备 */
-const prep = reactive(makeSub({
-    title: '开工准备', url: 'prep', idField: 'prepId',
-    rules: {..._reqProject, content: [{required: true, message: '请输入准备事项', trigger: 'blur'}]},
-    toForm: (row, edit, s) => edit
-        ? {prep_id: row.prep_id, project_id: row.project_id, prep_date: row.prep_date || '',
-           content: row.content || '', status: row.status ?? 0, checker: row.checker || '',
-           remark: row.remark || '', _edit: true}
-        : {prep_id: '', project_id: s.projectFilter.value || '', prep_date: '', content: '',
-           status: 0, checker: '', remark: '', _edit: false},
-    fromForm: f => {
-        const o = {...f}
-        delete o._edit
-        if (!o.prep_date) o.prep_date = null
-        return o
-    },
-}))
-
-/* 项目验收 */
-const accept = reactive(makeSub({
-    title: '验收', url: 'accept', idField: 'acceptId',
-    rules: _reqProject,
-    toForm: (row, edit, s) => edit
-        ? {accept_id: row.accept_id, project_id: row.project_id, accept_date: row.accept_date || '',
-           acceptor: row.acceptor || '', result: row.result ?? 1, opinion: row.opinion || '',
-           remark: row.remark || '', _edit: true}
-        : {accept_id: '', project_id: s.projectFilter.value || '', accept_date: '',
-           acceptor: '', result: 1, opinion: '', remark: '', _edit: false},
-    fromForm: f => {
-        const o = {...f}
-        delete o._edit
-        if (!o.accept_date) o.accept_date = null
-        return o
-    },
-}))
-
-/* 子项目下拉：三块共用（项目列表已随 Tab1 拉好） */
-const projOptions = computed(() => rows.value.map(p => ({value: p.project_id, label: p.proj_name})))
-
-/* 首次切到子 Tab 时懒加载 */
-watch(activeTab, t => {
-    if (t === 'enter' && !enter._loaded) { enter.load(); enter._loaded = true }
-    if (t === 'prep' && !prep._loaded) { prep.load(); prep._loaded = true }
-    if (t === 'accept' && !accept._loaded) { accept.load(); accept._loaded = true }
-})
-
-function prepStatusMeta(s) {
-    return gd.prepStatus.find(x => x.id === Number(s)) || {desc: s, type: 'info'}
+function saveState() {
+    const r = stateRow.value
+    stateSaving.value = true
+    const payload = {
+        project_id: r.project_id,
+        contractor_id: r.contractor_id,
+        proj_name: r.proj_name,
+        proj_content: r.proj_content || null,
+        begin_date: r.begin_date || null,
+        end_date: r.end_date || null,
+        proj_status: stateValue.value,
+        dept_code: r.dept_code || null,
+    }
+    sys.biz('cbs/project/save', payload, AC.signal, () => {}, (r2, data) => {
+        stateSaving.value = false
+        if (r2) {
+            ElMessage.success('状态已更新')
+            stateVisible.value = false
+            loadRows()
+        } else {
+            notifyError(data, '更新失败')
+        }
+    })
 }
 
-function acceptResultMeta(s) {
-    return gd.acceptResult.find(x => x.id === Number(s)) || {desc: s, type: 'info'}
+/* ============ 子档（入场/开工准备/验收）：一个弹窗内 列表 + 内联表单 ============
+ * 三块结构一致，字段差异用 SUB_CFG 描述，避免三份重复实现。 */
+const SUB_CFG = {
+    enter: {
+        url: 'enter', title: '入场记录', idField: 'enter_id', idParam: 'enterId',
+        cols: [
+            {prop: 'enter_date', label: '入场日期', width: 120},
+            {prop: 'person_count', label: '入场人数', width: 100},
+            {prop: 'leader', label: '入场负责人', width: 120},
+            {prop: 'leader_phone', label: '联系电话', width: 140},
+            {prop: 'remark', label: '备注', min: 160},
+        ],
+        fields: [
+            {key: 'enter_date', label: '入场日期', kind: 'date'},
+            {key: 'person_count', label: '入场人数', kind: 'number'},
+            {key: 'leader', label: '入场负责人'},
+            {key: 'leader_phone', label: '联系电话'},
+            {key: 'remark', label: '备注', kind: 'textarea'},
+        ],
+        blank: {enter_date: '', person_count: null, leader: '', leader_phone: '', remark: ''},
+        rules: {enter_date: [{required: true, message: '请选择入场日期', trigger: 'change'}]},
+    },
+    prep: {
+        url: 'prep', title: '开工准备', idField: 'prep_id', idParam: 'prepId',
+        cols: [
+            {prop: 'prep_date', label: '日期', width: 120},
+            {prop: 'content', label: '准备事项', min: 220},
+            {prop: 'checker', label: '确认人', width: 110},
+            {prop: 'remark', label: '备注', min: 140},
+        ],
+        fields: [
+            {key: 'prep_date', label: '日期', kind: 'date'},
+            {key: 'content', label: '准备事项', kind: 'textarea'},
+            {key: 'checker', label: '确认人'},
+            {key: 'remark', label: '备注', kind: 'textarea'},
+        ],
+        blank: {prep_date: '', content: '', checker: '', remark: ''},
+        rules: {content: [{required: true, message: '请输入准备事项', trigger: 'blur'}]},
+    },
+    accept: {
+        url: 'accept', title: '验收记录', idField: 'accept_id', idParam: 'acceptId',
+        cols: [
+            {prop: 'accept_date', label: '验收日期', width: 120},
+            {prop: 'acceptor', label: '验收人', width: 110},
+            {prop: 'opinion', label: '验收意见', min: 200},
+            {prop: 'remark', label: '备注', min: 140},
+        ],
+        fields: [
+            {key: 'accept_date', label: '验收日期', kind: 'date'},
+            {key: 'acceptor', label: '验收人'},
+            {key: 'opinion', label: '验收意见', kind: 'textarea'},
+            {key: 'remark', label: '备注', kind: 'textarea'},
+        ],
+        blank: {accept_date: '', acceptor: '', opinion: '', remark: ''},
+        rules: {accept_date: [{required: true, message: '请选择验收日期', trigger: 'change'}]},
+    },
+}
+
+const subVisible = ref(false)
+const subProject = ref({})
+const subCfg = computed(() => SUB_CFG[activeTab.value] || null)
+const subRows = ref([])
+const subLoading = ref(false)
+const subFormRef = ref()
+const subForm = ref({})
+const subSaving = ref(false)
+
+function openSub(row) {
+    subProject.value = row
+    subForm.value = {...subCfg.value.blank}
+    subVisible.value = true
+    loadSubRows()
+}
+
+function loadSubRows() {
+    const c = subCfg.value
+    if (!c) return
+    subLoading.value = true
+    sys.biz(`cbs/project/${c.url}/list`, {projectId: subProject.value.project_id, pageNo: 1, pageSize: 100},
+        AC.signal, () => {}, (r, data) => {
+            subLoading.value = false
+            if (r) subRows.value = data.data?.rows || []
+            else notifyError(data, `${c.title}加载失败`)
+        })
+}
+
+function editSub(row) {
+    const c = subCfg.value
+    const f = {...c.blank}
+    c.fields.forEach(x => {
+        f[x.key] = row[x.key] ?? f[x.key]
+    })
+    f[c.idField] = row[c.idField]
+    subForm.value = f
+}
+
+function saveSub() {
+    subFormRef.value.validate(valid => {
+        if (!valid) return
+        const c = subCfg.value
+        subSaving.value = true
+        const f = {project_id: subProject.value.project_id, ...subForm.value}
+        c.fields.forEach(x => {
+            if (x.kind === 'date' && !f[x.key]) f[x.key] = null
+            if (x.kind === 'number' && (f[x.key] === '' || f[x.key] == null)) f[x.key] = null
+        })
+        sys.biz(`cbs/project/${c.url}/save`, f, AC.signal, () => {}, (r, data) => {
+            subSaving.value = false
+            if (r) {
+                ElMessage.success('保存成功')
+                subForm.value = {...c.blank}
+                loadSubRows()
+            } else {
+                notifyError(data, '保存失败')
+            }
+        })
+    })
+}
+
+function removeSub(row) {
+    const c = subCfg.value
+    ElMessageBox.confirm(`确定删除这条${c.title}吗？`, '提示', {type: 'warning'}).then(() => {
+        subLoading.value = true
+        sys.biz(`cbs/project/${c.url}/delete`, {[c.idParam]: row[c.idField]}, AC.signal, () => {}, (r, data) => {
+            subLoading.value = false
+            if (r) {
+                ElMessage.success('删除成功')
+                loadSubRows()
+            } else {
+                notifyError(data, '删除失败')
+            }
+        })
+    }).catch(() => {})
 }
 
 /* ============ 生命周期 ============ */
@@ -271,212 +345,99 @@ onUnmounted(() => {
 
 <template>
     <div class="project-page">
-        <el-tabs v-model="activeTab">
-            <!-- ==================== 项目管理 ==================== -->
-            <el-tab-pane label="项目管理" name="proj">
-                <div class="card">
-                    <div class="toolbar">
-                        <el-input v-model="keyword" placeholder="搜索项目名称" clearable
-                                  style="width:220px" :prefix-icon="Search"/>
-                        <el-select v-model="contractorFilter" placeholder="承包商单位" clearable filterable
-                                   style="width:200px">
-                            <el-option v-for="c in contractorOptions" :key="c.value" :value="c.value" :label="c.label"/>
-                        </el-select>
-                        <el-button type="primary" @click="openDialog(false)">新增项目</el-button>
-                    </div>
+        <div class="page-head">
+            <h2>{{ pageTitle }}</h2>
+        </div>
 
-                    <el-table :data="rows" v-loading="loading" border stripe>
-                        <el-table-column prop="proj_name" label="项目名称" min-width="180"/>
-                        <el-table-column label="承包商单位" min-width="170">
-                            <template #default="{row}">{{ row.contractor_name || contractorName(row.contractor_id) }}</template>
-                        </el-table-column>
-                        <el-table-column label="项目周期" width="220">
-                            <template #default="{row}">
-                                <span v-if="row.begin_date || row.end_date">
-                                    {{ row.begin_date || '—' }} ~ {{ row.end_date || '—' }}
-                                </span>
-                                <span v-else class="dim">—</span>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="状态" width="100" align="center">
-                            <template #default="{row}">
-                                <el-tag :type="statusMeta(row.proj_status).type" effect="light">
-                                    {{ statusMeta(row.proj_status).desc }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="proj_content" label="项目内容" min-width="200" show-overflow-tooltip/>
-                        <el-table-column label="操作" width="130" align="center" fixed="right">
-                            <template #default="{row}">
-                                <el-link type="primary" @click="openDialog(true, row)">编辑</el-link>
-                                <el-link type="danger" style="margin-left:10px" @click="removeRow(row)">删除</el-link>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!loading && rows.length === 0" description="暂无项目"/>
-                </div>
-            </el-tab-pane>
+        <div class="card">
+            <div class="toolbar">
+                <el-input v-model="keyword" placeholder="项目名称" clearable
+                          style="width:200px" :prefix-icon="Search"/>
+                <el-select v-model="contractorFilter" placeholder="承包商" clearable filterable
+                           style="width:200px">
+                    <el-option v-for="c in contractorOptions" :key="c.value" :value="c.value" :label="c.label"/>
+                </el-select>
+                <el-select v-model="statusFilter" placeholder="项目状态" clearable style="width:130px">
+                    <el-option v-for="s in gd.projStatus" :key="s.id" :value="s.id" :label="s.desc"/>
+                </el-select>
+                <el-button type="primary" @click="pageNo = 1; loadRows()">查询</el-button>
+                <el-button @click="keyword = ''; contractorFilter = ''; statusFilter = ''; pageNo = 1">重置</el-button>
+                <el-button v-if="activeTab === 'proj'" type="primary" plain class="add-btn"
+                           @click="openDialog(false)">新增
+                </el-button>
+            </div>
 
-            <!-- ==================== 入场管理 ==================== -->
-            <el-tab-pane label="入场管理" name="enter">
-                <div class="card">
-                    <div class="toolbar">
-                        <el-select v-model="enter.projectFilter" placeholder="按项目筛选" clearable filterable
-                                   style="width:240px" @change="enter.load()">
-                            <el-option v-for="p in projOptions" :key="p.value" :value="p.value" :label="p.label"/>
-                        </el-select>
-                        <el-button type="primary" @click="enter.open(false)">新增入场</el-button>
-                    </div>
-                    <el-table :data="enter.rows" v-loading="enter.loading" border stripe>
-                        <el-table-column label="项目名称" min-width="170">
-                            <template #default="{row}">{{ row.proj_name || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="enter_date" label="入场日期" width="120" align="center">
-                            <template #default="{row}">{{ row.enter_date || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="person_count" label="入场人数" width="100" align="center">
-                            <template #default="{row}">{{ row.person_count ?? '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="leader" label="入场负责人" width="120">
-                            <template #default="{row}">{{ row.leader || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="leader_phone" label="联系电话" width="140">
-                            <template #default="{row}">{{ row.leader_phone || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip>
-                            <template #default="{row}">
-                                <span v-if="row.remark">{{ row.remark }}</span>
-                                <span v-else class="dim">—</span>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="130" align="center" fixed="right">
-                            <template #default="{row}">
-                                <el-link type="primary" @click="enter.open(true, row)">编辑</el-link>
-                                <el-link type="danger" style="margin-left:10px" @click="enter.remove(row)">删除</el-link>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!enter.loading && enter.rows.length === 0" description="暂无入场记录"/>
-                </div>
-            </el-tab-pane>
+            <el-table :data="rows" v-loading="loading" border stripe>
+                <el-table-column prop="proj_name" label="项目名称" min-width="180"/>
+                <el-table-column label="所属单位" width="140">
+                    <template #default="{row}">{{ deptName(row.dept_code) }}</template>
+                </el-table-column>
+                <el-table-column label="承包商" min-width="170">
+                    <template #default="{row}">{{ row.contractor_name || contractorName(row.contractor_id) }}</template>
+                </el-table-column>
+                <el-table-column label="项目周期" width="210">
+                    <template #default="{row}">
+                        <span v-if="row.begin_date || row.end_date">
+                            {{ row.begin_date || '—' }} ~ {{ row.end_date || '—' }}
+                        </span>
+                        <span v-else class="dim">—</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="项目状态" width="100" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="statusMeta(row.proj_status).type" effect="light">
+                            {{ statusMeta(row.proj_status).desc }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="190" align="center" fixed="right">
+                    <template #default="{row}">
+                        <template v-if="activeTab === 'proj'">
+                            <el-link type="primary" @click="openDialog(true, row)">编辑</el-link>
+                            <el-link type="danger" style="margin-left:10px" @click="removeRow(row)">删除</el-link>
+                        </template>
+                        <el-link v-else-if="activeTab === 'state'" type="primary" @click="openState(row)">
+                            变更状态
+                        </el-link>
+                        <el-link v-else type="primary" @click="openSub(row)">
+                            {{ subCfg.title }}
+                        </el-link>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-empty v-if="!loading && rows.length === 0" description="暂无项目"/>
 
-            <!-- ==================== 开工准备 ==================== -->
-            <el-tab-pane label="开工准备" name="prep">
-                <div class="card">
-                    <div class="toolbar">
-                        <el-select v-model="prep.projectFilter" placeholder="按项目筛选" clearable filterable
-                                   style="width:240px" @change="prep.load()">
-                            <el-option v-for="p in projOptions" :key="p.value" :value="p.value" :label="p.label"/>
-                        </el-select>
-                        <el-button type="primary" @click="prep.open(false)">新增准备事项</el-button>
-                    </div>
-                    <el-table :data="prep.rows" v-loading="prep.loading" border stripe>
-                        <el-table-column label="项目名称" min-width="170">
-                            <template #default="{row}">{{ row.proj_name || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="prep_date" label="日期" width="120" align="center">
-                            <template #default="{row}">{{ row.prep_date || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="content" label="准备事项" min-width="220" show-overflow-tooltip/>
-                        <el-table-column label="状态" width="100" align="center">
-                            <template #default="{row}">
-                                <el-tag :type="prepStatusMeta(row.status).type" effect="light" size="small">
-                                    {{ prepStatusMeta(row.status).desc }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="checker" label="确认人" width="110">
-                            <template #default="{row}">{{ row.checker || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip>
-                            <template #default="{row}">
-                                <span v-if="row.remark">{{ row.remark }}</span>
-                                <span v-else class="dim">—</span>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="130" align="center" fixed="right">
-                            <template #default="{row}">
-                                <el-link type="primary" @click="prep.open(true, row)">编辑</el-link>
-                                <el-link type="danger" style="margin-left:10px" @click="prep.remove(row)">删除</el-link>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!prep.loading && prep.rows.length === 0" description="暂无开工准备记录"/>
-                </div>
-            </el-tab-pane>
+            <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                           :total="total" v-model:current-page="pageNo" v-model:page-size="pageSize"
+                           :page-sizes="pager.pageSizes"/>
+        </div>
 
-            <!-- ==================== 项目验收 ==================== -->
-            <el-tab-pane label="项目验收" name="accept">
-                <div class="card">
-                    <div class="toolbar">
-                        <el-select v-model="accept.projectFilter" placeholder="按项目筛选" clearable filterable
-                                   style="width:240px" @change="accept.load()">
-                            <el-option v-for="p in projOptions" :key="p.value" :value="p.value" :label="p.label"/>
-                        </el-select>
-                        <el-button type="primary" @click="accept.open(false)">新增验收</el-button>
-                    </div>
-                    <el-table :data="accept.rows" v-loading="accept.loading" border stripe>
-                        <el-table-column label="项目名称" min-width="170">
-                            <template #default="{row}">{{ row.proj_name || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="accept_date" label="验收日期" width="120" align="center">
-                            <template #default="{row}">{{ row.accept_date || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column prop="acceptor" label="验收人" width="110">
-                            <template #default="{row}">{{ row.acceptor || '—' }}</template>
-                        </el-table-column>
-                        <el-table-column label="结果" width="100" align="center">
-                            <template #default="{row}">
-                                <el-tag :type="acceptResultMeta(row.result).type" effect="light" size="small">
-                                    {{ acceptResultMeta(row.result).desc }}
-                                </el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="opinion" label="验收意见" min-width="200" show-overflow-tooltip>
-                            <template #default="{row}">
-                                <span v-if="row.opinion">{{ row.opinion }}</span>
-                                <span v-else class="dim">—</span>
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="130" align="center" fixed="right">
-                            <template #default="{row}">
-                                <el-link type="primary" @click="accept.open(true, row)">编辑</el-link>
-                                <el-link type="danger" style="margin-left:10px" @click="accept.remove(row)">删除</el-link>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!accept.loading && accept.rows.length === 0" description="暂无验收记录"/>
-                </div>
-            </el-tab-pane>
-        </el-tabs>
-
-        <!-- 新增/编辑项目弹窗 -->
-        <el-dialog v-model="dialogVisible" :title="form._edit ? '编辑项目' : '新增项目'"
-                   width="560px" destroy-on-close>
+        <!-- 新增/编辑项目 -->
+        <el-dialog v-model="dialogVisible" :title="form._edit ? '编辑项目' : '新增项目'" width="620px" destroy-on-close>
             <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-                <el-form-item label="承包商单位" prop="contractor_id">
-                    <el-select v-model="form.contractor_id" placeholder="请选择承包商单位" filterable
-                               style="width:100%">
+                <el-form-item label="项目名称" prop="proj_name">
+                    <el-input v-model="form.proj_name"/>
+                </el-form-item>
+                <el-form-item label="承包商" prop="contractor_id">
+                    <el-select v-model="form.contractor_id" filterable style="width:100%" placeholder="请选择承包商">
                         <el-option v-for="c in contractorOptions" :key="c.value" :value="c.value" :label="c.label"/>
                     </el-select>
                 </el-form-item>
-                <el-form-item label="项目名称" prop="proj_name">
-                    <el-input v-model="form.proj_name" placeholder="请输入项目名称"/>
-                </el-form-item>
-                <el-form-item label="项目周期">
+                <el-form-item label="开始日期">
                     <el-date-picker v-model="form.begin_date" type="date" value-format="YYYY-MM-DD"
-                                    placeholder="开始日期" style="width:calc(50% - 8px)"/>
-                    <span class="range-sep">~</span>
+                                    style="width:100%"/>
+                </el-form-item>
+                <el-form-item label="结束日期">
                     <el-date-picker v-model="form.end_date" type="date" value-format="YYYY-MM-DD"
-                                    placeholder="结束日期" style="width:calc(50% - 8px)"/>
+                                    style="width:100%"/>
                 </el-form-item>
                 <el-form-item label="项目状态">
-                    <el-select v-model="form.proj_status" style="width:100%">
-                        <el-option v-for="s in gd.projStatus" :key="s.id" :value="s.id" :label="s.desc"/>
-                    </el-select>
+                    <el-radio-group v-model="form.proj_status">
+                        <el-radio v-for="s in gd.projStatus" :key="s.id" :value="s.id">{{ s.desc }}</el-radio>
+                    </el-radio-group>
                 </el-form-item>
                 <el-form-item label="项目内容">
-                    <el-input v-model="form.proj_content" type="textarea" :rows="3" placeholder="项目内容概述"/>
+                    <el-input v-model="form.proj_content" type="textarea" :rows="3"/>
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -485,101 +446,57 @@ onUnmounted(() => {
             </template>
         </el-dialog>
 
-        <!-- 入场编辑弹窗 -->
-        <el-dialog v-model="enter.dialogVisible" :title="enter.form._edit ? '编辑入场记录' : '新增入场记录'"
-                   width="520px" destroy-on-close>
-            <el-form :ref="el => (enter.formRef = el)" :model="enter.form" :rules="enter.rules" label-width="100px">
-                <el-form-item label="关联项目" prop="project_id">
-                    <el-select v-model="enter.form.project_id" placeholder="请选择项目" filterable style="width:100%">
-                        <el-option v-for="p in projOptions" :key="p.value" :value="p.value" :label="p.label"/>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="入场日期">
-                    <el-date-picker v-model="enter.form.enter_date" type="date" value-format="YYYY-MM-DD"
-                                    placeholder="选择日期" style="width:100%"/>
-                </el-form-item>
-                <el-form-item label="入场人数">
-                    <el-input-number v-model="enter.form.person_count" :min="0" :max="99999" style="width:100%"/>
-                </el-form-item>
-                <el-form-item label="入场负责人">
-                    <el-input v-model="enter.form.leader" placeholder="姓名"/>
-                </el-form-item>
-                <el-form-item label="联系电话">
-                    <el-input v-model="enter.form.leader_phone" placeholder="手机号"/>
-                </el-form-item>
-                <el-form-item label="备注">
-                    <el-input v-model="enter.form.remark" type="textarea" :rows="2" placeholder="选填"/>
-                </el-form-item>
-            </el-form>
+        <!-- 变更项目状态 -->
+        <el-dialog v-model="stateVisible" :title="`变更状态 — ${stateRow.proj_name || ''}`"
+                   width="420px" destroy-on-close>
+            <el-radio-group v-model="stateValue">
+                <el-radio v-for="s in gd.projStatus" :key="s.id" :value="s.id">{{ s.desc }}</el-radio>
+            </el-radio-group>
             <template #footer>
-                <el-button @click="enter.dialogVisible = false">取消</el-button>
-                <el-button type="primary" :loading="enter.saving" @click="enter.save()">保存</el-button>
+                <el-button @click="stateVisible = false">取消</el-button>
+                <el-button type="primary" :loading="stateSaving" @click="saveState">确定</el-button>
             </template>
         </el-dialog>
 
-        <!-- 开工准备编辑弹窗 -->
-        <el-dialog v-model="prep.dialogVisible" :title="prep.form._edit ? '编辑开工准备' : '新增开工准备'"
-                   width="520px" destroy-on-close>
-            <el-form :ref="el => (prep.formRef = el)" :model="prep.form" :rules="prep.rules" label-width="100px">
-                <el-form-item label="关联项目" prop="project_id">
-                    <el-select v-model="prep.form.project_id" placeholder="请选择项目" filterable style="width:100%">
-                        <el-option v-for="p in projOptions" :key="p.value" :value="p.value" :label="p.label"/>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="日期">
-                    <el-date-picker v-model="prep.form.prep_date" type="date" value-format="YYYY-MM-DD"
-                                    placeholder="选择日期" style="width:100%"/>
-                </el-form-item>
-                <el-form-item label="准备事项" prop="content">
-                    <el-input v-model="prep.form.content" type="textarea" :rows="3"
-                              placeholder="如：作业票办理、安全技术交底、现场隔离等"/>
-                </el-form-item>
-                <el-form-item label="状态">
-                    <el-radio-group v-model="prep.form.status">
-                        <el-radio v-for="s in gd.prepStatus" :key="s.id" :value="s.id">{{ s.desc }}</el-radio>
-                    </el-radio-group>
-                </el-form-item>
-                <el-form-item label="确认人">
-                    <el-input v-model="prep.form.checker" placeholder="姓名"/>
-                </el-form-item>
-                <el-form-item label="备注">
-                    <el-input v-model="prep.form.remark" type="textarea" :rows="2" placeholder="选填"/>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="prep.dialogVisible = false">取消</el-button>
-                <el-button type="primary" :loading="prep.saving" @click="prep.save()">保存</el-button>
-            </template>
-        </el-dialog>
+        <!-- 子档：入场 / 开工准备 / 验收 -->
+        <el-dialog v-model="subVisible" :title="`${subCfg?.title} — ${subProject.proj_name || ''}`"
+                   width="900px" destroy-on-close>
+            <el-table :data="subRows" v-loading="subLoading" size="small" border>
+                <el-table-column v-for="c in subCfg.cols" :key="c.prop" :prop="c.prop" :label="c.label"
+                                 :width="c.width" :min-width="c.min" show-overflow-tooltip>
+                    <template #default="{row}">
+                        <span v-if="row[c.prop] != null && row[c.prop] !== ''">{{ row[c.prop] }}</span>
+                        <span v-else class="dim">—</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="120" align="center">
+                    <template #default="{row}">
+                        <el-link type="primary" @click="editSub(row)">编辑</el-link>
+                        <el-link type="danger" style="margin-left:10px" @click="removeSub(row)">删除</el-link>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-empty v-if="!subLoading && subRows.length === 0" :description="`暂无${subCfg?.title || ''}`"/>
 
-        <!-- 验收编辑弹窗 -->
-        <el-dialog v-model="accept.dialogVisible" :title="accept.form._edit ? '编辑验收记录' : '新增验收记录'"
-                   width="520px" destroy-on-close>
-            <el-form :ref="el => (accept.formRef = el)" :model="accept.form" :rules="accept.rules" label-width="100px">
-                <el-form-item label="关联项目" prop="project_id">
-                    <el-select v-model="accept.form.project_id" placeholder="请选择项目" filterable style="width:100%">
-                        <el-option v-for="p in projOptions" :key="p.value" :value="p.value" :label="p.label"/>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="验收日期">
-                    <el-date-picker v-model="accept.form.accept_date" type="date" value-format="YYYY-MM-DD"
-                                    placeholder="选择日期" style="width:100%"/>
-                </el-form-item>
-                <el-form-item label="验收人">
-                    <el-input v-model="accept.form.acceptor" placeholder="姓名"/>
-                </el-form-item>
-                <el-form-item label="结果">
-                    <el-radio-group v-model="accept.form.result">
-                        <el-radio v-for="r in gd.acceptResult" :key="r.id" :value="r.id">{{ r.desc }}</el-radio>
-                    </el-radio-group>
-                </el-form-item>
-                <el-form-item label="验收意见">
-                    <el-input v-model="accept.form.opinion" type="textarea" :rows="3" placeholder="选填"/>
-                </el-form-item>
+            <el-divider content-position="left">{{ subForm[subCfg?.idField] ? '编辑记录' : '新增记录' }}</el-divider>
+            <el-form ref="subFormRef" :model="subForm" :rules="subCfg?.rules" label-width="110px">
+                <el-row :gutter="16">
+                    <el-col v-for="f in (subCfg?.fields || [])" :key="f.key" :span="f.kind === 'textarea' ? 24 : 12">
+                        <el-form-item :label="f.label" :prop="f.key">
+                            <el-date-picker v-if="f.kind === 'date'" v-model="subForm[f.key]" type="date"
+                                            value-format="YYYY-MM-DD" style="width:100%"/>
+                            <el-input-number v-else-if="f.kind === 'number'" v-model="subForm[f.key]"
+                                             :min="0" :precision="0" :controls="false" style="width:100%"/>
+                            <el-input v-else-if="f.kind === 'textarea'" v-model="subForm[f.key]"
+                                      type="textarea" :rows="2"/>
+                            <el-input v-else v-model="subForm[f.key]"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
             </el-form>
             <template #footer>
-                <el-button @click="accept.dialogVisible = false">取消</el-button>
-                <el-button type="primary" :loading="accept.saving" @click="accept.save()">保存</el-button>
+                <el-button @click="subVisible = false">关闭</el-button>
+                <el-button type="primary" :loading="subSaving" @click="saveSub">保存</el-button>
             </template>
         </el-dialog>
     </div>
@@ -587,6 +504,19 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .project-page {
+    .page-head {
+        margin: 4px 0 18px;
+        text-align: center;
+
+        h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: 2px;
+        }
+    }
+
     .card {
         background: #ffffff;
         border-radius: 10px;
@@ -599,11 +529,15 @@ onUnmounted(() => {
         align-items: center;
         gap: 12px;
         margin-bottom: 14px;
+
+        .add-btn {
+            margin-left: auto;
+        }
     }
 
-    .range-sep {
-        margin: 0 8px;
-        color: #94a3b8;
+    .pager {
+        margin-top: 14px;
+        justify-content: flex-end;
     }
 
     .dim {

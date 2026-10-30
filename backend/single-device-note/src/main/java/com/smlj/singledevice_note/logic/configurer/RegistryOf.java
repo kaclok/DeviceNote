@@ -34,6 +34,19 @@ import java.util.List;
 public class RegistryOf implements WebMvcConfigurer {
     private final TokenInterceptor tokenInterceptor;
     private final SignInterceptor signInterceptor;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    // 用 Spring Boot 自动配置的 ObjectMapper（应用 yml 的 NON_EMPTY、ISO 日期等配置）替换
+    // 默认 JSON 转换器里的裸 mapper。不替换的话 write-dates-as-timestamps 走 jackson 原生默认(true)，
+    // LocalDate 会被序列化成 [2018,4,11] 数组，前端日期组件无法识别。
+    @Override
+    public void extendMessageConverters(@NonNull List<HttpMessageConverter<?>> converters) {
+        for (int i = 0; i < converters.size(); i++) {
+            if (converters.get(i) instanceof org.springframework.http.converter.json.MappingJackson2HttpMessageConverter) {
+                converters.set(i, new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(objectMapper));
+            }
+        }
+    }
 
     // 侧重于处理接口参数
     // Formatter 优先于 Converter

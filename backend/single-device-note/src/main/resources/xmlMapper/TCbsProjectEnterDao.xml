@@ -13,7 +13,7 @@
         where e.enter_id = #{id}
     </select>
 
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectEnter">
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectEnter">
         select <include refid="cols"/>, p.proj_name
         from cbs.t_project_enter e left join cbs.t_project p on p.project_id = e.project_id
         <where>
@@ -23,7 +23,18 @@
             </if>
         </where>
         order by e.create_time desc
+        limit #{limit} offset #{offset}
     </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_project_enter e left join cbs.t_project p on p.project_id = e.project_id
+        <where>
+            e.open_status = true
+            <if test="projectId != null and projectId != ''">
+                and e.project_id = #{projectId}
+            </if>
+        </where></select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectEnter">
         insert into cbs.t_project_enter (enter_id, project_id, enter_date, person_count, leader, leader_phone,

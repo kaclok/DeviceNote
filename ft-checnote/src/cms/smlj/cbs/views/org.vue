@@ -2,6 +2,7 @@
 import {SysX} from "../system/SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
+import {pagerOf} from "../system/Pager.js"
 import {ECacheType, useSessionCache} from "@/framework/composable/use/useCache.ts";
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Search} from "@element-plus/icons-vue";
@@ -11,6 +12,16 @@ const sys = Singleton.getInstance(SysX)
 const {wsCache} = useSessionCache()
 
 const activeTab = ref('dept')
+
+// 菜单直达 tab：/home/org/:tab
+const ORG_TABS = ['dept', 'role', 'user', 'post']
+const ORG_TITLES = {dept: '部门管理', role: '角色管理', user: '人员管理', post: '岗位管理'}
+const pageTitle = computed(() => ORG_TITLES[activeTab.value] || '')
+const props = defineProps({tab: String})
+watch(() => props.tab, t => {
+    if (ORG_TABS.includes(t) && t !== activeTab.value) activeTab.value = t
+})
+if (ORG_TABS.includes(props?.tab)) activeTab.value = props.tab
 
 /* ============ 公共：部门平铺数据 → 树 ============ */
 const deptRows = ref([])
@@ -37,6 +48,15 @@ const deptTree = computed(() => {
     return roots
 })
 
+/* 部门是树：不能按行切，按「根部门」分页，整棵子树跟随（数据量小，全量在内存） */
+const deptPager = pagerOf('org.dept')
+const deptPageNo = ref(1)
+const deptPageSize = ref(deptPager.pageSize)
+const deptTotal = computed(() => deptTree.value.length)
+const pagedDeptTree = computed(() => {
+    const start = (deptPageNo.value - 1) * deptPageSize.value
+    return deptTree.value.slice(start, start + deptPageSize.value)
+})
 const deptMap = computed(() => new Map(deptRows.value.map(d => [d.dept_code, d])))
 function deptName(code) {
     return deptMap.value.get(code)?.dept_name || code
@@ -146,6 +166,16 @@ const roleLoading = ref(false)
 const roleList = ref([])
 let AC_role = new AbortController()
 
+/* 角色是小字典（下拉也要用全量），页面按页切，不再额外开分页接口 */
+const rolePager = pagerOf('org.role')
+const rolePageNo = ref(1)
+const rolePageSize = ref(rolePager.pageSize)
+const roleTotal = computed(() => roleList.value.length)
+const pagedRoleList = computed(() => {
+    const start = (rolePageNo.value - 1) * rolePageSize.value
+    return roleList.value.slice(start, start + rolePageSize.value)
+})
+
 const roleDialogVisible = ref(false)
 const roleSaving = ref(false)
 const roleFormRef = ref()
@@ -214,6 +244,10 @@ const userLoading = ref(false)
 const userList = ref([])
 const userKeyword = ref('')
 const userTypeFilter = ref('')
+const userPager = pagerOf('org.user')
+const userPageNo = ref(1)
+const userPageSize = ref(userPager.pageSize)
+const userTotal = ref(0)
 let kwTimer = null
 
 let AC_user = new AbortController()
@@ -222,23 +256,34 @@ function loadUsers() {
     AC_user.abort()
     AC_user = new AbortController()
     userLoading.value = true
-    const paras = {}
+    const paras = {pageNo: userPageNo.value, pageSize: userPageSize.value}
     const kw = userKeyword.value.trim()
     if (kw) paras.kw = kw
     if (userTypeFilter.value !== '') paras.userType = userTypeFilter.value
     sys.getUserList(paras, AC_user.signal, () => {}, (r, data) => {
         userLoading.value = false
-        if (r) userList.value = data.data || []
-        else notifyError(data, '人员列表加载失败')
+        if (r) {
+            userList.value = data.data?.rows || []
+            userTotal.value = data.data?.total || 0
+        } else {
+            notifyError(data, '人员列表加载失败')
+        }
     })
 }
 
 // 输入防抖：停顿 300ms 才发请求
 watch(userKeyword, () => {
     clearTimeout(kwTimer)
-    kwTimer = setTimeout(loadUsers, 300)
+    kwTimer = setTimeout(() => {
+        userPageNo.value = 1
+        loadUsers()
+    }, 300)
 })
-watch(userTypeFilter, loadUsers)
+watch(userTypeFilter, () => {
+    userPageNo.value = 1
+    loadUsers()
+})
+watch([userPageNo, userPageSize], loadUsers)
 
 const userDialogVisible = ref(false)
 const userSaving = ref(false)
@@ -333,7 +378,7 @@ function toggleUserRow(row) {
 const contractorOptions = ref([])
 
 function loadContractorOptions() {
-    sys.biz('cbs/contractor/list', {status: 1}, AC_user.signal, () => {}, (r, data) => {
+    sys.biz('cbs/contractor/options', {}, AC_user.signal, () => {}, (r, data) => {
         if (r) contractorOptions.value = (data.data || []).map(c => ({value: c.contractor_id, label: c.name}))
     })
 }
@@ -342,6 +387,10 @@ function loadContractorOptions() {
 const postLoading = ref(false)
 const postList = ref([])
 const postKeyword = ref('')
+const postPager = pagerOf('org.post')
+const postPageNo = ref(1)
+const postPageSize = ref(postPager.pageSize)
+const postTotal = ref(0)
 let kwPostTimer = null
 
 let AC_post = new AbortController()
@@ -350,20 +399,28 @@ function loadPosts() {
     AC_post.abort()
     AC_post = new AbortController()
     postLoading.value = true
-    const paras = {}
+    const paras = {pageNo: postPageNo.value, pageSize: postPageSize.value}
     const kw = postKeyword.value.trim()
     if (kw) paras.kw = kw
     sys.biz('cbs/post/list', paras, AC_post.signal, () => {}, (r, data) => {
         postLoading.value = false
-        if (r) postList.value = data.data || []
-        else notifyError(data, '岗位列表加载失败')
+        if (r) {
+            postList.value = data.data?.rows || []
+            postTotal.value = data.data?.total || 0
+        } else {
+            notifyError(data, '岗位列表加载失败')
+        }
     })
 }
 
 watch(postKeyword, () => {
     clearTimeout(kwPostTimer)
-    kwPostTimer = setTimeout(loadPosts, 300)
+    kwPostTimer = setTimeout(() => {
+        postPageNo.value = 1
+        loadPosts()
+    }, 300)
 })
+watch([postPageNo, postPageSize], loadPosts)
 
 const postDialogVisible = ref(false)
 const postSaving = ref(false)
@@ -436,9 +493,12 @@ onUnmounted(() => {
 
 <template>
     <div class="org-page">
-        <el-tabs v-model="activeTab">
+        <div class="page-head">
+            <h2>{{ pageTitle }}</h2>
+        </div>
+
             <!-- ==================== 部门管理 ==================== -->
-            <el-tab-pane label="部门管理" name="dept">
+            <div v-if="activeTab === 'dept'" class="pane">
                 <div class="card tree-card" v-loading="deptLoading">
                     <div class="toolbar">
                         <el-input v-model="deptKeyword" placeholder="搜索部门名称/编码" clearable
@@ -448,7 +508,7 @@ onUnmounted(() => {
                             新增子部门
                         </el-button>
                     </div>
-                    <el-tree ref="treeRef" :data="deptTree" node-key="dept_code" default-expand-all
+                    <el-tree ref="treeRef" :data="pagedDeptTree" node-key="dept_code" default-expand-all
                              :filter-node-method="filterDeptNode" :expand-on-click-node="false"
                              :props="{label: 'dept_name'}" highlight-current>
                         <template #default="{data}">
@@ -465,16 +525,19 @@ onUnmounted(() => {
                         </template>
                     </el-tree>
                     <el-empty v-if="!deptLoading && deptRows.length === 0" description="暂无部门，先新增根部门"/>
+                    <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                                   :total="deptTotal" v-model:current-page="deptPageNo"
+                                   v-model:page-size="deptPageSize" :page-sizes="deptPager.pageSizes"/>
                 </div>
-            </el-tab-pane>
+            </div>
 
             <!-- ==================== 角色管理 ==================== -->
-            <el-tab-pane label="角色管理" name="role">
+            <div v-if="activeTab === 'role'" class="pane">
                 <div class="card">
                     <div class="toolbar">
                         <el-button type="primary" @click="openRoleDialog(false)">新增角色</el-button>
                     </div>
-                    <el-table :data="roleList" v-loading="roleLoading" border stripe>
+                    <el-table :data="pagedRoleList" v-loading="roleLoading" border stripe>
                         <el-table-column prop="role_code" label="角色编码" width="140"/>
                         <el-table-column prop="role_name" label="角色名称" min-width="140"/>
                         <el-table-column label="数据范围" width="110" align="center">
@@ -508,11 +571,14 @@ onUnmounted(() => {
                             </template>
                         </el-table-column>
                     </el-table>
+                    <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                                   :total="roleTotal" v-model:current-page="rolePageNo"
+                                   v-model:page-size="rolePageSize" :page-sizes="rolePager.pageSizes"/>
                 </div>
-            </el-tab-pane>
+            </div>
 
             <!-- ==================== 人员管理 ==================== -->
-            <el-tab-pane label="人员管理" name="user">
+            <div v-if="activeTab === 'user'" class="pane">
                 <div class="card">
                     <div class="toolbar">
                         <el-input v-model="userKeyword" placeholder="搜索账号/姓名" clearable
@@ -550,10 +616,14 @@ onUnmounted(() => {
                             </template>
                         </el-table-column>
                     </el-table>
+                    <el-empty v-if="!userLoading && userList.length === 0" description="暂无人员"/>
+                    <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                                   :total="userTotal" v-model:current-page="userPageNo"
+                                   v-model:page-size="userPageSize" :page-sizes="userPager.pageSizes"/>
                 </div>
-            </el-tab-pane>
+            </div>
             <!-- ==================== 岗位管理 ==================== -->
-            <el-tab-pane label="岗位管理" name="post">
+            <div v-if="activeTab === 'post'" class="pane">
                 <div class="card">
                     <div class="toolbar">
                         <el-input v-model="postKeyword" placeholder="搜索岗位名称/编码" clearable
@@ -584,9 +654,11 @@ onUnmounted(() => {
                         </el-table-column>
                     </el-table>
                     <el-empty v-if="!postLoading && postList.length === 0" description="暂无岗位"/>
+                    <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
+                                   :total="postTotal" v-model:current-page="postPageNo"
+                                   v-model:page-size="postPageSize" :page-sizes="postPager.pageSizes"/>
                 </div>
-            </el-tab-pane>
-        </el-tabs>
+            </div>
 
         <!-- 部门编辑弹窗 -->
         <el-dialog v-model="deptDialogVisible" :title="deptForm._edit ? '编辑部门' : (deptForm.parent_dept_code ? `新增子部门（上级：${deptName(deptForm.parent_dept_code)}）` : '新增根部门')"
@@ -709,6 +781,19 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .org-page {
+    .page-head {
+        margin: 4px 0 18px;
+        text-align: center;
+
+        h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            letter-spacing: 2px;
+        }
+    }
+
     .card {
         background: #ffffff;
         border-radius: 10px;
@@ -721,6 +806,11 @@ onUnmounted(() => {
         align-items: center;
         gap: 12px;
         margin-bottom: 14px;
+    }
+
+    .pager {
+        margin-top: 14px;
+        justify-content: flex-end;
     }
 
     .tree-card {

@@ -2,15 +2,37 @@
     "defaultPwd": "123456",
     "dataScope": {
         "levels": [
-            {"id": 1, "name": "SELF", "desc": "本人"},
-            {"id": 2, "name": "DEPT", "desc": "本部门"},
-            {"id": 3, "name": "COMPANY", "desc": "本公司"},
-            {"id": 4, "name": "ALL", "desc": "全集团"}
+            {
+                "id": 1,
+                "name": "SELF",
+                "desc": "本人"
+            },
+            {
+                "id": 2,
+                "name": "DEPT",
+                "desc": "本部门"
+            },
+            {
+                "id": 3,
+                "name": "COMPANY",
+                "desc": "本公司"
+            },
+            {
+                "id": 4,
+                "name": "ALL",
+                "desc": "全集团"
+            }
         ]
     },
     "userTypes": [
-        {"id": 1, "desc": "内部员工"},
-        {"id": 2, "desc": "承包商人员"}
+        {
+            "id": 1,
+            "desc": "内部员工"
+        },
+        {
+            "id": 2,
+            "desc": "承包商人员"
+        }
     ],
     "permDefs": [
         "cbs:org",
@@ -22,54 +44,511 @@
         "cbs:spotcheck"
     ],
     "approveStatus": [
-        {"id": 0, "desc": "待审核", "type": "warning"},
-        {"id": 1, "desc": "已通过", "type": "success"},
-        {"id": 2, "desc": "已驳回", "type": "danger"}
+        {
+            "id": 0,
+            "desc": "待审核",
+            "type": "warning"
+        },
+        {
+            "id": 1,
+            "desc": "已通过",
+            "type": "success"
+        },
+        {
+            "id": 2,
+            "desc": "已驳回",
+            "type": "danger"
+        }
     ],
-    "ctypeOptions": [
-        "施工检修",
-        "设备维保",
-        "物料运输",
-        "技术服务",
-        "劳务分包",
+    "yesNo": [
+        "是",
+        "否"
+    ],
+    "yesNoNa": [
+        "是",
+        "否",
+        "不涉及"
+    ],
+    "entIndustry": [
+        "危险化学品生产",
+        "危险化学品存储"
+    ],
+    "economyTypes": [
+        "国有",
+        "集体",
+        "私营",
+        "个体",
+        "联营",
+        "股份",
+        "外资",
+        "港澳台资",
         "其他"
     ],
+    "entRunStatus": [
+        "正常状态",
+        "异常状态",
+        "注销状态"
+    ],
+    "superviseLevels": [
+        "省级",
+        "市级",
+        "区县级"
+    ],
+    "entScales": [
+        "微型",
+        "小型",
+        "中型",
+        "大型"
+    ],
+    "safetyStdLevels": [
+        "一级",
+        "二级",
+        "三级",
+        "四级"
+    ],
+    "regions": [
+        {
+            "value": "陕西省",
+            "label": "陕西省",
+            "children": [
+                {
+                    "value": "榆林市",
+                    "label": "榆林市",
+                    "children": [
+                        {
+                            "value": "榆阳区",
+                            "label": "榆阳区"
+                        },
+                        {
+                            "value": "横山区",
+                            "label": "横山区"
+                        },
+                        {
+                            "value": "神木县",
+                            "label": "神木县"
+                        },
+                        {
+                            "value": "府谷县",
+                            "label": "府谷县"
+                        },
+                        {
+                            "value": "靖边县",
+                            "label": "靖边县"
+                        },
+                        {
+                            "value": "定边县",
+                            "label": "定边县"
+                        },
+                        {
+                            "value": "绥德县",
+                            "label": "绥德县"
+                        },
+                        {
+                            "value": "米脂县",
+                            "label": "米脂县"
+                        },
+                        {
+                            "value": "佳县",
+                            "label": "佳县"
+                        },
+                        {
+                            "value": "吴堡县",
+                            "label": "吴堡县"
+                        },
+                        {
+                            "value": "清涧县",
+                            "label": "清涧县"
+                        },
+                        {
+                            "value": "子洲县",
+                            "label": "子洲县"
+                        }
+                    ]
+                },
+                {
+                    "value": "西安市",
+                    "label": "西安市",
+                    "children": [
+                        {
+                            "value": "新城区",
+                            "label": "新城区"
+                        },
+                        {
+                            "value": "碑林区",
+                            "label": "碑林区"
+                        },
+                        {
+                            "value": "莲湖区",
+                            "label": "莲湖区"
+                        },
+                        {
+                            "value": "雁塔区",
+                            "label": "雁塔区"
+                        },
+                        {
+                            "value": "未央区",
+                            "label": "未央区"
+                        },
+                        {
+                            "value": "长安区",
+                            "label": "长安区"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "ctypeOptions": [
+        "土木建筑",
+        "技术改造",
+        "检修维修",
+        "安装调试",
+        "防腐保温",
+        "装修装饰",
+        "设备安装",
+        "检测校验",
+        "其他",
+        "PVC包装及相关业务"
+    ],
+    "jobTicketTypes": [
+        "特级动火作业",
+        "一级动火作业",
+        "二级动火作业",
+        "受限空间作业",
+        "盲板抽堵作业",
+        "一级高处作业",
+        "二级高处作业",
+        "三级高处作业",
+        "四级高处作业",
+        "一级起重吊装作业",
+        "二级起重吊装作业",
+        "三级起重吊装作业",
+        "临时用电作业",
+        "动土作业",
+        "断路作业"
+    ],
+    "reportStatus": [
+        "进行中",
+        "已完成",
+        "作废",
+        "已归档"
+    ],
     "projStatus": [
-        {"id": 0, "desc": "未开始", "type": "info"},
-        {"id": 1, "desc": "进行中", "type": "primary"},
-        {"id": 2, "desc": "已结束", "type": "success"}
+        {
+            "id": 0,
+            "desc": "未开始",
+            "type": "info"
+        },
+        {
+            "id": 1,
+            "desc": "进行中",
+            "type": "primary"
+        },
+        {
+            "id": 2,
+            "desc": "已结束",
+            "type": "success"
+        }
     ],
     "workTypes": [
-        {"id": 1, "desc": "动火"},
-        {"id": 2, "desc": "受限空间"},
-        {"id": 3, "desc": "盲板抽堵"},
-        {"id": 4, "desc": "高处作业"},
-        {"id": 5, "desc": "吊装"},
-        {"id": 6, "desc": "临时用电"},
-        {"id": 7, "desc": "动土"},
-        {"id": 8, "desc": "断路"}
+        {
+            "id": 1,
+            "desc": "动火"
+        },
+        {
+            "id": 2,
+            "desc": "受限空间"
+        },
+        {
+            "id": 3,
+            "desc": "盲板抽堵"
+        },
+        {
+            "id": 4,
+            "desc": "高处作业"
+        },
+        {
+            "id": 5,
+            "desc": "吊装"
+        },
+        {
+            "id": 6,
+            "desc": "临时用电"
+        },
+        {
+            "id": 7,
+            "desc": "动土"
+        },
+        {
+            "id": 8,
+            "desc": "断路"
+        }
     ],
     "checkResult": [
-        {"id": 1, "desc": "合格", "type": "success"},
-        {"id": 0, "desc": "不合格", "type": "danger"}
+        {
+            "id": 1,
+            "desc": "合格",
+            "type": "success"
+        },
+        {
+            "id": 0,
+            "desc": "不合格",
+            "type": "danger"
+        }
     ],
     "rectifyStatus": [
-        {"id": 0, "desc": "无需整改", "type": "info"},
-        {"id": 1, "desc": "待整改", "type": "warning"},
-        {"id": 2, "desc": "已整改", "type": "success"}
+        {
+            "id": 0,
+            "desc": "无需整改",
+            "type": "info"
+        },
+        {
+            "id": 1,
+            "desc": "待整改",
+            "type": "warning"
+        },
+        {
+            "id": 2,
+            "desc": "已整改",
+            "type": "success"
+        }
     ],
     "prepStatus": [
-        {"id": 0, "desc": "未完成", "type": "warning"},
-        {"id": 1, "desc": "已完成", "type": "success"}
+        {
+            "id": 0,
+            "desc": "未完成",
+            "type": "warning"
+        },
+        {
+            "id": 1,
+            "desc": "已完成",
+            "type": "success"
+        }
     ],
     "acceptResult": [
-        {"id": 1, "desc": "通过", "type": "success"},
-        {"id": 0, "desc": "未通过", "type": "danger"}
+        {
+            "id": 1,
+            "desc": "通过",
+            "type": "success"
+        },
+        {
+            "id": 0,
+            "desc": "未通过",
+            "type": "danger"
+        }
     ],
     "dictTypes": [
-        {"id": "contractor_type", "desc": "承包商类型"},
-        {"id": "penalty_type", "desc": "承包商处罚类型"},
-        {"id": "project_type", "desc": "项目类型"}
+        {
+            "id": "contractor_type",
+            "desc": "承包商类型"
+        },
+        {
+            "id": "penalty_type",
+            "desc": "承包商处罚类型"
+        },
+        {
+            "id": "project_type",
+            "desc": "项目类型"
+        }
     ],
-    "yesNoNa": ["是", "否", "不涉及"]
+    "pager": {
+        "spotcheck": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "promise": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "baseinfo.ent": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "baseinfo.intro": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "baseinfo.ts": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "baseinfo.chem": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "baseinfo.proc": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "baseinfo.cert": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "org.role": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "org.dept": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "org.post": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "org.user": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "contractor.unit": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "contractor.audit": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "project.proj": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "project.state": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "project.enter": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "project.prep": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "project.accept": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "dict.contractor_type": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "dict.penalty_type": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "dict.project_type": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        }
+    }
 }

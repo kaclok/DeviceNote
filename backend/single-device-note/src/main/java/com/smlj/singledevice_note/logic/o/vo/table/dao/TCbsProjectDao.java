@@ -12,8 +12,15 @@ public interface TCbsProjectDao {
     TCbsProject query(@Param("id") String id);
 
     /** kw 模糊 proj_name；contractorId 空=全部；联 t_contractor 带出 contractor_name */
-    List<TCbsProject> queryAll(@Param("kw") String kw, @Param("contractorId") String contractorId);
+    List<TCbsProject> queryPage(@Param("kw") String kw, @Param("contractorId") String contractorId,
+                                @Param("projStatus") Integer projStatus,
+                                @Param("offset") int offset, @Param("limit") int limit);
 
+    long countAll(@Param("kw") String kw, @Param("contractorId") String contractorId,
+                  @Param("projStatus") Integer projStatus);
+
+    /** 下拉专用 */
+    List<TCbsProject> queryOptions();
     /** 承包商删除前的守卫：在挂项目数 */
     int countByContractor(@Param("contractorId") String contractorId);
 

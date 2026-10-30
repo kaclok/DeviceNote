@@ -13,7 +13,7 @@
         where p.project_id = #{id}
     </select>
 
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProject">
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProject">
         select <include refid="cols"/>, c.name as contractor_name
         from cbs.t_project p left join cbs.t_contractor c on c.contractor_id = p.contractor_id
         <where>
@@ -24,12 +24,38 @@
             <if test="contractorId != null and contractorId != ''">
                 and p.contractor_id = #{contractorId}
             </if>
+            <if test="projStatus != null">
+                and p.proj_status = #{projStatus}
+            </if>
         </where>
         order by p.create_time desc
+        limit #{limit} offset #{offset}
     </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_project p left join cbs.t_contractor c on c.contractor_id = p.contractor_id
+        <where>
+            p.open_status = true
+            <if test="kw != null and kw != ''">
+                and p.proj_name like concat('%', #{kw}, '%')
+            </if>
+            <if test="contractorId != null and contractorId != ''">
+                and p.contractor_id = #{contractorId}
+            </if>
+            <if test="projStatus != null">
+                and p.proj_status = #{projStatus}
+            </if>
+        </where></select>
 
     <select id="countByContractor" resultType="int">
         select count(*) from cbs.t_project where contractor_id = #{contractorId} and open_status = true
+    </select>
+
+    <!-- 下拉专用：不分页 -->
+    <select id="queryOptions" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProject">
+        select project_id, proj_name from cbs.t_project
+        where open_status = true order by create_time desc
     </select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProject">

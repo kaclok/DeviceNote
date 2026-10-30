@@ -13,25 +13,61 @@
     </select>
 
     <!-- 列表只出启用行（软删行不回显） -->
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
         select <include refid="cols"/> from cbs.t_contractor
         <where>
-            open_status = true
+            <!-- 分类口径：status=-1 回收站(已软删) / -2 黑名单(暂无数据源) / 空=仅启用行 -->
+            <choose>
+                <when test="status != null and status == -1">open_status = false</when>
+                <when test="status != null and status == -2">1 = 0</when>
+                <otherwise>open_status = true</otherwise>
+            </choose>
             <if test="kw != null and kw != ''">
                 and (name like concat('%', #{kw}, '%') or uscc like concat('%', #{kw}, '%'))
             </if>
-            <if test="status != null">
+            <if test="ctype != null and ctype != ''">
+                and ctype = #{ctype}
+            </if>
+            <if test="status != null and status >= 0">
                 and approve_status = #{status}
             </if>
         </where>
         order by create_time desc
+        limit #{limit} offset #{offset}
     </select>
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_contractor
+        <where>
+            <!-- 分类口径：status=-1 回收站(已软删) / -2 黑名单(暂无数据源) / 空=仅启用行 -->
+            <choose>
+                <when test="status != null and status == -1">open_status = false</when>
+                <when test="status != null and status == -2">1 = 0</when>
+                <otherwise>open_status = true</otherwise>
+            </choose>
+            <if test="kw != null and kw != ''">
+                and (name like concat('%', #{kw}, '%') or uscc like concat('%', #{kw}, '%'))
+            </if>
+            <if test="ctype != null and ctype != ''">
+                and ctype = #{ctype}
+            </if>
+            <if test="status != null and status >= 0">
+                and approve_status = #{status}
+            </if>
+        </where></select>
 
     <!-- 启用行内 uscc 查重；编辑态排除自身（excludeId 空串时不排除） -->
     <select id="countUsccDup" resultType="int">
         select count(*) from cbs.t_contractor
         where open_status = true and uscc = #{uscc}
           and contractor_id &lt;&gt; coalesce(#{excludeId}, '')
+    </select>
+
+    <!-- 下拉专用：启用且审批通过的单位 -->
+    <select id="queryOptions" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
+        select contractor_id, name from cbs.t_contractor
+        where open_status = true and approve_status = 1
+        order by create_time desc
     </select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">

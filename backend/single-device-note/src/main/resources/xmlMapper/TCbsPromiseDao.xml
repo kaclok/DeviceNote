@@ -43,4 +43,27 @@
         </set>
         where promise_date = #{p.promise_date}
     </update>
+
+    <!-- 承诺列表：按日期倒序分页（date 非空则精确过滤某一天） -->
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPromise">
+        select promise_date, company_promise, creator
+        from cbs.t_promise
+        <where>
+            <if test="date != null and date != ''">
+                and promise_date = cast(#{date} as date)
+            </if>
+        </where>
+        order by promise_date desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        select count(*) from cbs.t_promise
+        <where>
+            <if test="date != null and date != ''">
+                and promise_date = cast(#{date} as date)
+            </if>
+        </where>
+    </select>
+
 </mapper>

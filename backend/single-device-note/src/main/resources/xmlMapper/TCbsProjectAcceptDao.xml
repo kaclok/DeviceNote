@@ -13,7 +13,7 @@
         where a.accept_id = #{id}
     </select>
 
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectAccept">
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectAccept">
         select <include refid="cols"/>, p.proj_name
         from cbs.t_project_accept a left join cbs.t_project p on p.project_id = a.project_id
         <where>
@@ -23,7 +23,18 @@
             </if>
         </where>
         order by a.create_time desc
+        limit #{limit} offset #{offset}
     </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_project_accept a left join cbs.t_project p on p.project_id = a.project_id
+        <where>
+            a.open_status = true
+            <if test="projectId != null and projectId != ''">
+                and a.project_id = #{projectId}
+            </if>
+        </where></select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProjectAccept">
         insert into cbs.t_project_accept (accept_id, project_id, accept_date, acceptor, result, opinion,

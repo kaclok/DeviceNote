@@ -12,9 +12,12 @@ public interface TCbsSpotcheckDao {
     TCbsSpotcheck query(@Param("id") String id);
 
     /** kw 模糊 spot_content/checker；contractorId 空=全部；workType 空=全部 */
-    List<TCbsSpotcheck> queryAll(@Param("kw") String kw, @Param("contractorId") String contractorId,
-                                 @Param("workType") Integer workType);
+    List<TCbsSpotcheck> queryPage(@Param("kw") String kw, @Param("contractorId") String contractorId,
+                                  @Param("workType") Integer workType,
+                                  @Param("offset") int offset, @Param("limit") int limit);
 
+    long countAll(@Param("kw") String kw, @Param("contractorId") String contractorId,
+                  @Param("workType") Integer workType);
     int insert(@Param("p") TCbsSpotcheck p);
 
     int update(@Param("p") TCbsSpotcheck p);

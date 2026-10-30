@@ -10,15 +10,27 @@
         select <include refid="cols"/> from cbs.t_cert where cert_id = #{id}
     </select>
 
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsCert">
-        select <include refid="cols"/> from cbs.t_cert
-        <where>
-            open_status = true
-            <if test="kw != null and kw != ''">
-                and (cert_name like concat('%', #{kw}, '%') or cert_no like concat('%', #{kw}, '%'))
-            </if>
+        <sql id="cond">
+        <where>
+            open_status = true
+            <if test="kw != null and kw != ''">
+                and (cert_name like concat('%', #{kw}, '%') or cert_no like concat('%', #{kw}, '%'))
+            </if>
         </where>
+    </sql>
+
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsCert">
+        select <include refid="cols"/>
+        from cbs.t_cert
+        <include refid="cond"/>
         order by expire_date asc nulls last
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_cert
+        <include refid="cond"/>
     </select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsCert">

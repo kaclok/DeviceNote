@@ -11,21 +11,32 @@
     </select>
 
     <!-- 人员管理列表：kw 模糊 account/username；userType 空=全部（1内部/2承包商） -->
-    <select id="queryAll" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsUser">
+        <sql id="cond">
+        <where>
+            <if test="kw != null and kw != ''">
+                and (account like concat('%', #{kw}, '%') or username like concat('%', #{kw}, '%'))
+            </if>
+            <if test="userType != null">
+                and user_type = #{userType}
+            </if>
+            <if test="filterUsing">
+                and is_using = true
+            </if>
+        </where>
+    </sql>
+
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsUser">
         select account, username, role_code, dept_code, user_type, contractor_id, is_using
         from cbs.t_user
-        <where>
-            <if test="kw != null and kw != ''">
-                and (account like concat('%', #{kw}, '%') or username like concat('%', #{kw}, '%'))
-            </if>
-            <if test="userType != null">
-                and user_type = #{userType}
-            </if>
-            <if test="filterUsing">
-                and is_using = true
-            </if>
-        </where>
+        <include refid="cond"/>
         order by account asc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_user
+        <include refid="cond"/>
     </select>
 
     <select id="exist" resultType="java.lang.Integer">
