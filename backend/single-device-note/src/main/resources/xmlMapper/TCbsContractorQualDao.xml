@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorQualDao">
+
+    <sql id="cols">
+        qual_id, type_id, qual_name, qual_level, creator, open_status
+    </sql>
+
+    <select id="listByType" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorQual">
+        select <include refid="cols"/>
+        from cbs.t_contractor_qual
+        where type_id = #{typeId} and open_status = true
+        order by create_time
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorQual">
+        insert into cbs.t_contractor_qual (qual_id, type_id, qual_name, qual_level, creator, open_status)
+        values (#{p.qual_id}, #{p.type_id}, #{p.qual_name}, #{p.qual_level}, #{p.creator}, #{p.open_status})
+    </insert>
+
+    <update id="delete">
+        update cbs.t_contractor_qual set open_status = false where qual_id = #{id}
+    </update>
+</mapper>

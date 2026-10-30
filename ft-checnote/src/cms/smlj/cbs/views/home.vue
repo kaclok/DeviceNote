@@ -69,11 +69,13 @@ const MENU_TREE = [
             },
             {
                 title: '基础设置', children: [
-                    {path: '/home/dict/contractor_type', title: '承包商类型', perm: 'cbs:baseinfo'},
-                    {path: '/home/dict/penalty_type', title: '承包商处罚类型', perm: 'cbs:baseinfo'},
-                    {path: '/home/dict/project_type', title: '项目类型', perm: 'cbs:baseinfo'},
-                ]
-            },
+                        {path: '/home/dict/contractor_type', title: '承包商类型', perm: 'cbs:baseinfo'},
+                        {path: '/home/dict/penalty_type', title: '承包商处罚类型', perm: 'cbs:baseinfo'},
+                        {path: '/home/dict/project_type', title: '项目类型', perm: 'cbs:baseinfo'},
+                        {path: '/home/meta/prep', title: '开工准备条件', perm: 'cbs:baseinfo'},
+                        {path: '/home/meta/doc', title: '资料清单', perm: 'cbs:baseinfo'},
+                    ]
+                },
         ]
     },
     {title: '安全承诺', icon: EditPen, path: '/home/promise', perm: 'cbs:promise'},

@@ -603,6 +603,24 @@
                 50,
                 100
             ]
+        },
+        "meta.prep": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "meta.doc": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
         }
     }
 }

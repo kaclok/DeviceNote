@@ -38,4 +38,7 @@ public interface TCbsSpotcheckDao {
 
     /** 作废：status = 3 */
     int invalidate(@Param("id") String id);
+
+    /** 物理删除（列表「删除」按钮，每行都有） */
+    int delete(@Param("id") String id);
 }

@@ -20,6 +20,9 @@ const _homeRouter = {
         // 承包商 / 基础设置 / 承包商类型|承包商处罚类型|项目类型 —— 一页只放一个类型
         {path: 'dict/:type', name: 'home_dict', component: () => import('../views/dict.vue'), props: true, meta: {title: '承包商基础设置', perms: ['cbs:baseinfo']}},
         {path: 'dict', redirect: '/home/dict/contractor_type'},
+        // 开工准备条件 / 资料清单（复刻目标站，通用基础数据页）
+        {path: 'meta/:meta', name: 'home_meta', component: () => import('../views/meta.vue'), props: true, meta: {title: '基础设置', perms: ['cbs:baseinfo']}},
+        {path: 'meta', redirect: '/home/meta/prep'},
     ],
 }
 

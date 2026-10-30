@@ -97,4 +97,8 @@
     <update id="invalidate">
         update cbs.t_spotcheck set status = 3 where check_id = #{id}
     </update>
+
+    <delete id="delete">
+        delete from cbs.t_spotcheck where check_id = #{id}
+    </delete>
 </mapper>

@@ -186,16 +186,16 @@ function saveForm() {
     })
 }
 
-function invalidateRow(row) {
-    ElMessageBox.confirm(`确定作废「${ticketDesc(row.work_type)}」这条报备吗？`, '提示', {type: 'warning'}).then(() => {
+function removeRow(row) {
+    ElMessageBox.confirm(`确定删除「${ticketDesc(row.work_type)}」这条报备吗？删除后不可恢复。`, '提示', {type: 'warning'}).then(() => {
         loading.value = true
-        sys.biz('cbs/spotcheck/invalidate', {checkId: row.check_id}, AC.signal, () => {}, (r, data) => {
+        sys.biz('cbs/spotcheck/delete', {checkId: row.check_id}, AC.signal, () => {}, (r, data) => {
             loading.value = false
             if (r) {
-                ElMessage.success('已作废')
+                ElMessage.success('已删除')
                 loadRows()
             } else {
-                notifyError(data, '作废失败')
+                notifyError(data, '删除失败')
             }
         })
     }).catch(() => {})
@@ -420,13 +420,10 @@ onUnmounted(() => {
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" width="110" align="center" fixed="right">
+                <el-table-column label="操作" width="130" align="center" fixed="right">
                     <template #default="{row}">
-                        <template v-if="row.status !== 2 && row.status !== 3">
-                            <el-link type="primary" @click="openDialog(row)">编辑</el-link>
-                            <el-link type="danger" style="margin-left:10px" @click="invalidateRow(row)">作废</el-link>
-                        </template>
-                        <span v-else class="dim">—</span>
+                        <el-link type="primary" @click="openDialog(row)">编辑</el-link>
+                        <el-link type="danger" style="margin-left:10px" @click="removeRow(row)">删除</el-link>
                     </template>
                 </el-table-column>
             </el-table>

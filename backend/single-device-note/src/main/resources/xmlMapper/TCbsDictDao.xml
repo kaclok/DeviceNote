@@ -14,7 +14,8 @@
 
         <sql id="cond">
         <where>
-            open_status = true
+            <if test="recycled != null and recycled">open_status = false</if>
+            <if test="recycled == null or !recycled">open_status = true</if>
             <if test="dictType != null and dictType != ''">
                 and dict_type = #{dictType}
             </if>
@@ -28,7 +29,7 @@
         select <include refid="cols"/>
         from cbs.t_dict
         <include refid="cond"/>
-        order by sort_no, create_time
+        order by create_time desc
         limit #{limit} offset #{offset}
     </select>
 
@@ -73,4 +74,12 @@
     <update id="remove">
         update cbs.t_dict set open_status = false where item_id = #{id}
     </update>
+
+    <update id="restore">
+        update cbs.t_dict set open_status = true where item_id = #{id}
+    </update>
+
+    <delete id="purge">
+        delete from cbs.t_dict where item_id = #{id}
+    </delete>
 </mapper>

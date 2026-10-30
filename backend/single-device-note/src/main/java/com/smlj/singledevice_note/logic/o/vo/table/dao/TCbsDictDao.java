@@ -11,11 +11,13 @@ public interface TCbsDictDao {
 
     TCbsDict query(@Param("id") String id);
 
-    /** dictType 空=全部类型；onlyUsing=true 只取启用项（下拉场景） */
+    /** dictType 空=全部类型；onlyUsing=true 只取启用项（下拉场景）；recycled=true 取回收站(open_status=false) */
     List<TCbsDict> queryPage(@Param("dictType") String dictType, @Param("onlyUsing") boolean onlyUsing,
+                             @Param("recycled") Boolean recycled,
                              @Param("offset") int offset, @Param("limit") int limit);
 
-    long countAll(@Param("dictType") String dictType, @Param("onlyUsing") boolean onlyUsing);
+    long countAll(@Param("dictType") String dictType, @Param("onlyUsing") boolean onlyUsing,
+                  @Param("recycled") Boolean recycled);
 
     /** 下拉选项：某类字典的全部启用项（不分页） */
     List<TCbsDict> queryOptions(@Param("dictType") String dictType);
@@ -28,4 +30,10 @@ public interface TCbsDictDao {
     int update(@Param("p") TCbsDict p);
 
     int remove(@Param("id") String id);
+
+    /** 回收站恢复：open_status 置回 true */
+    int restore(@Param("id") String id);
+
+    /** 彻底删除：物理删除 */
+    int purge(@Param("id") String id);
 }

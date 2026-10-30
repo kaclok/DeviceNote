@@ -6,7 +6,9 @@ import com.smlj.singledevice_note.core.o.to.Result;
 import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsCertDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorQualDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsDictDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsMetaDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsEnterpriseDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsLicenseChemDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsPostDao;
@@ -20,7 +22,9 @@ import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsSuperviseProcessDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsThreeSameDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsCert;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorQual;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsMeta;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsEnterprise;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsLicenseChem;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPost;
@@ -82,6 +86,12 @@ public class CCbsBiz {
     private final TCbsProjectPrepDao prepDao;
     private final TCbsProjectAcceptDao acceptDao;
     private final TCbsDictDao dictDao;
+    private final TCbsContractorQualDao cqualDao;
+    private final TCbsMetaDao metaDao;
+
+    /** 通用基础数据表白名单（开工准备条件 / 资料清单），fail-closed */
+    private static final java.util.Set<String> META_TABLES =
+            java.util.Set.of("t_prep_condition", "t_doc_list");
 
     /** 批量操作单次上限（与分页上限 200 对齐） */
     private static final int BATCH_MAX = 200;
@@ -534,6 +544,19 @@ public class CCbsBiz {
         return Result.success();
     }
 
+    /** 删除：列表每行都有「删除」按钮，物理删除（含已作废/已完成的报备） */
+    @RequirePermission("cbs:spotcheck")
+    @Transactional
+    @PostMapping("/spotcheck/delete")
+    public Result<?> spotcheckDelete(@RequestBody Map<String, Object> b) {
+        String id = str(b, "checkId");
+        if (!StringUtils.hasText(id) || spotcheckDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "报备记录不存在");
+        }
+        spotcheckDao.delete(id);
+        return Result.success();
+    }
+
     /**
      * 批量报备：前端解析 Excel 后按行提交，逐行校验——合格行入库、不合格行带行号原因返回。
      * 单次上限 500 行（与分页上限同源思路，防止一次塞几万行）。
@@ -675,9 +698,10 @@ public class CCbsBiz {
             return Result.fail(ResultCode.RC10101, "dict_type 不合法");
         }
         boolean onlyUsing = Boolean.parseBoolean(String.valueOf(q == null ? null : q.get("onlyUsing")));
+        Boolean recycled = q == null ? null : (Boolean) q.get("recycled");
         int no = pageNo(q), size = pageSize(q);
-        long total = dictDao.countAll(type, onlyUsing);
-        return Result.success(pageOf(dictDao.queryPage(type, onlyUsing, offset(no, size), size), total, no, size));
+        long total = dictDao.countAll(type, onlyUsing, recycled);
+        return Result.success(pageOf(dictDao.queryPage(type, onlyUsing, recycled, offset(no, size), size), total, no, size));
     }
 
     /**
@@ -747,6 +771,140 @@ public class CCbsBiz {
             return Result.fail(ResultCode.RC10101, "字典项不存在");
         }
         dictDao.remove(id);
+        return Result.success();
+    }
+
+    /** 回收站 → 恢复（open_status 置回 true） */
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/dict/restore")
+    public Result<?> dictRestore(@RequestBody Map<String, Object> b) {
+        String id = str(b, "itemId");
+        if (!StringUtils.hasText(id) || dictDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "字典项不存在");
+        }
+        dictDao.restore(id);
+        return Result.success();
+    }
+
+    /** 回收站 → 彻底删除（物理删除，不可恢复） */
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/dict/purge")
+    public Result<?> dictPurge(@RequestBody Map<String, Object> b) {
+        String id = str(b, "itemId");
+        if (!StringUtils.hasText(id) || dictDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "字典项不存在");
+        }
+        dictDao.purge(id);
+        return Result.success();
+    }
+
+    // ---------------- 承包商类型所需资质（资质管理） ----------------
+
+    @RequirePermission("cbs:baseinfo")
+    @PostMapping("/cqual/list")
+    public Result<?> cqualList(@RequestBody Map<String, Object> b) {
+        String typeId = str(b, "typeId");
+        if (!StringUtils.hasText(typeId)) {
+            return Result.fail(ResultCode.RC10101, "typeId 不能为空");
+        }
+        return Result.success(cqualDao.listByType(typeId));
+    }
+
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/cqual/save")
+    public Result<?> cqualSave(@RequestBody TCbsContractorQual q, @Acc TCbsUser me) {
+        if (!StringUtils.hasText(q.getType_id())) {
+            return Result.fail(ResultCode.RC10101, "所属承包商类型不能为空");
+        }
+        if (!StringUtils.hasText(q.getQual_name())) {
+            return Result.fail(ResultCode.RC10101, "资质名称不能为空");
+        }
+        q.setQual_id(newId());
+        q.setCreator(me.getAccount());
+        q.setOpen_status(true);
+        cqualDao.insert(q);
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/cqual/delete")
+    public Result<?> cqualDelete(@RequestBody Map<String, Object> b) {
+        String id = str(b, "qualId");
+        if (!StringUtils.hasText(id)) {
+            return Result.fail(ResultCode.RC10101, "qualId 不能为空");
+        }
+        cqualDao.delete(id);
+        return Result.success();
+    }
+
+    // ---------------- 通用基础数据（开工准备条件 / 资料清单） ----------------
+
+    @RequirePermission("cbs:baseinfo")
+    @PostMapping("/meta/list")
+    public Result<?> metaList(@RequestBody Map<String, Object> q) {
+        String table = str(q, "table");
+        if (!META_TABLES.contains(table)) {
+            return Result.fail(ResultCode.RC10101, "table 不合法");
+        }
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw");
+        long total = metaDao.countAll(table, kw);
+        return Result.success(pageOf(metaDao.queryPage(table, kw, offset(no, size), size), total, no, size));
+    }
+
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/meta/save")
+   public Result<?> metaSave(@RequestBody Map<String, Object> b, @Acc TCbsUser me) {
+        String table = str(b, "table");
+        if (!META_TABLES.contains(table)) {
+            return Result.fail(ResultCode.RC10101, "table 不合法");
+        }
+        String id = str(b, "id");
+        String name = str(b, "name");
+        if (!StringUtils.hasText(name)) {
+            return Result.fail(ResultCode.RC10101, "名称不能为空");
+        }
+        String remark = str(b, "remark");
+        if (StringUtils.hasText(id)) {
+            TCbsMeta old = metaDao.query(table, id);
+            if (old == null) {
+                return Result.fail(ResultCode.RC10103, "记录不存在");
+            }
+            TCbsMeta m = new TCbsMeta();
+            m.setId(id);
+            m.setName(name);
+            m.setRemark(remark);
+            metaDao.update(table, m);
+        } else {
+            TCbsMeta m = new TCbsMeta();
+            m.setId(newId());
+            m.setName(name);
+            m.setRemark(remark);
+            m.setCreator(me.getAccount());
+            m.setOpen_status(true);
+            metaDao.insert(table, m);
+        }
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/meta/delete")
+    public Result<?> metaDelete(@RequestBody Map<String, Object> b) {
+        String table = str(b, "table");
+        String id = str(b, "id");
+        if (!META_TABLES.contains(table)) {
+            return Result.fail(ResultCode.RC10101, "table 不合法");
+        }
+        if (!StringUtils.hasText(id)) {
+            return Result.fail(ResultCode.RC10101, "id 不能为空");
+        }
+        metaDao.remove(table, id);
         return Result.success();
     }
 

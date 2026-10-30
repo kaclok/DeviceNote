@@ -434,3 +434,43 @@ ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS risk_level varchar;
 COMMENT ON COLUMN cbs.t_supervise_process.risk_level IS '反应工艺危险度等级（1级~5级，见 gd.json#riskLevels）';
 ALTER TABLE cbs.t_supervise_process ADD COLUMN IF NOT EXISTS remark varchar;
 COMMENT ON COLUMN cbs.t_supervise_process.remark IS '备注';
+
+-- =====================================================================
+-- 四期补齐（2026-10-30）：资质管理 / 开工准备条件 / 资料清单
+-- 说明：全部 CREATE TABLE IF NOT EXISTS，可在已有库上重复执行
+-- =====================================================================
+
+-- 承包商类型所需资质（资质管理，挂在 contractor_type 字典项 item_id 下）
+CREATE TABLE IF NOT EXISTS cbs.t_contractor_qual (
+    qual_id     varchar      NOT NULL,
+    type_id     varchar      NOT NULL,                 -- -> t_dict.item_id (dict_type=contractor_type)
+    qual_name   varchar      NOT NULL,
+    qual_level  varchar,                               -- 等级/类别（如 一级 / 甲级），可空
+    creator     varchar,
+    create_time timestamp    NOT NULL DEFAULT now(),
+    open_status bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_contractor_qual_pkey PRIMARY KEY (qual_id)
+);
+CREATE INDEX IF NOT EXISTS t_contractor_qual_type ON cbs.t_contractor_qual (type_id);
+
+-- 开工准备条件（复刻目标站，简单清单：名称 + 说明）
+CREATE TABLE IF NOT EXISTS cbs.t_prep_condition (
+    id          varchar      NOT NULL,
+    name        varchar      NOT NULL,
+    remark      varchar,
+    creator     varchar,
+    create_time timestamp    NOT NULL DEFAULT now(),
+    open_status bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_prep_condition_pkey PRIMARY KEY (id)
+);
+
+-- 资料清单（复刻目标站，简单清单：名称 + 说明）
+CREATE TABLE IF NOT EXISTS cbs.t_doc_list (
+    id          varchar      NOT NULL,
+    name        varchar      NOT NULL,
+    remark      varchar,
+    creator     varchar,
+    create_time timestamp    NOT NULL DEFAULT now(),
+    open_status bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_doc_list_pkey PRIMARY KEY (id)
+);
