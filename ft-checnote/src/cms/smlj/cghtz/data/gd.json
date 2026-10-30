@@ -672,7 +672,7 @@
 				},
 				{
 					"field": "remain_money",
-					"label": "余款余额",
+					"label": "余款金额",
 					"type": "range",
 					"op": "range",
 					"width": 110
