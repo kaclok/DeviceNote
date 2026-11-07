@@ -440,18 +440,23 @@ COMMENT ON COLUMN cbs.t_supervise_process.remark IS '备注';
 -- 说明：全部 CREATE TABLE IF NOT EXISTS，可在已有库上重复执行
 -- =====================================================================
 
--- 承包商类型所需资质（资质管理，挂在 contractor_type 字典项 item_id 下）
+-- 承包商类型所需资质 / 审核所需文件（同一张表，qual_type 区分 1=资质管理 2=审核所需文件；挂在 contractor_type 字典项 item_id 下）
 CREATE TABLE IF NOT EXISTS cbs.t_contractor_qual (
     qual_id     varchar      NOT NULL,
     type_id     varchar      NOT NULL,                 -- -> t_dict.item_id (dict_type=contractor_type)
     qual_name   varchar      NOT NULL,
-    qual_level  varchar,                               -- 等级/类别（如 一级 / 甲级），可空
+    qual_level  varchar,                               -- 等级/类别（如 一级 / 甲级），可空；仅 qual_type=1 使用
+    qual_type   smallint     NOT NULL DEFAULT 1,       -- 记录分类：1=资质管理 2=审核所需文件
+    validity    int          NOT NULL DEFAULT 0,       -- 有效期(月)，0=长期有效；qual_type=2 使用
+    remind      int,                                   -- 临期提醒(天)；qual_type=2 使用
+    is_using    bool         NOT NULL DEFAULT true,    -- 启用状态：true=启用 false=停用
     creator     varchar,
     create_time timestamp    NOT NULL DEFAULT now(),
     open_status bool         NOT NULL DEFAULT true,
     CONSTRAINT t_contractor_qual_pkey PRIMARY KEY (qual_id)
 );
-CREATE INDEX IF NOT EXISTS t_contractor_qual_type ON cbs.t_contractor_qual (type_id);
+DROP INDEX IF EXISTS cbs.t_contractor_qual_type;
+CREATE INDEX IF NOT EXISTS t_contractor_qual_type ON cbs.t_contractor_qual (type_id, qual_type, open_status);
 
 -- 开工准备条件（按项目类型维护：名称 + 说明；type_id 关联 t_dict.item_id）
 CREATE TABLE IF NOT EXISTS cbs.t_prep_condition (

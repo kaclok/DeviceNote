@@ -24,7 +24,7 @@ const recycled = ref(false)
 const isProjectType = computed(() => activeType.value === 'project_type')
 
 /* 操作列宽度按入口数量动态给，避免 4 个链接被挤换行 */
-const opWidth = computed(() => (recycle.value ? 220 : (isProjectType.value ? 300 : 120)))
+const opWidth = computed(() => (recycle.value ? 330 : (isProjectType.value ? 300 : 120)))
 
 // 每页独立分页配置：dict.<类型>
 const pager = computed(() => pagerOf('dict.' + activeType.value))
@@ -175,62 +175,106 @@ function purgeRow(row) {
     }).catch(() => {})
 }
 
-/* ============ 资质管理（仅承包商类型，按类型维护所需资质） ============ */
+/* ============ 资质管理 / 审核所需文件（仅承包商类型；同一弹窗，qualType 区分） ============
+ * 仿目标站 contractorType：两个入口共用一个弹窗、一张表，1=资质管理 2=审核所需文件 */
+const QUAL_QUAL = 1
+const QUAL_FILE = 2
 const qualVisible = ref(false)
 const qualLoading = ref(false)
+const qualType = ref(QUAL_QUAL)
 const qualTypeId = ref('')
 const qualTypeName = ref('')
 const qualRows = ref([])
-const qualForm = ref({qual_name: '', qual_level: ''})
 const QUAL_MAX = 200
+const emptyQualForm = () => ({qual_id: '', qual_name: '', qual_level: '', validity: 0, remind: null, is_using: true})
+const qualForm = ref(emptyQualForm())
+const qualIsFile = computed(() => qualType.value === QUAL_FILE)
+const qualNameLabel = computed(() => (qualIsFile.value ? '文件名称' : '资质名称'))
+const qualTitle = computed(() => `${qualIsFile.value ? '审核所需文件' : '资质管理'} — ${qualTypeName.value}`)
+const qualEditing = computed(() => !!qualForm.value.qual_id)
 
-function openQual(row) {
+function openQual(row, type) {
+    qualType.value = type
     qualTypeId.value = row.item_id
     qualTypeName.value = row.item_name
-    qualForm.value = {qual_name: '', qual_level: ''}
+    qualForm.value = emptyQualForm()
     qualVisible.value = true
     loadQual()
 }
 
 function loadQual() {
     qualLoading.value = true
-    sys.biz('cbs/cqual/list', {typeId: qualTypeId.value}, AC.signal, () => {}, (r, data) => {
+    sys.biz('cbs/cqual/list', {typeId: qualTypeId.value, qualType: qualType.value}, AC.signal, () => {}, (r, data) => {
         qualLoading.value = false
         if (r) qualRows.value = data.data || []
-        else notifyError(data, '资质加载失败')
+        else notifyError(data, '加载失败')
     })
 }
 
+function editQual(row) {
+    qualForm.value = {
+        qual_id: row.qual_id,
+        qual_name: row.qual_name || '',
+        qual_level: row.qual_level || '',
+        validity: row.validity ?? 0,
+        remind: row.remind,
+        is_using: row.is_using !== false,
+    }
+}
+
+function resetQualForm() {
+    qualForm.value = emptyQualForm()
+}
+
 function saveQual() {
-    const name = qualForm.value.qual_name.trim()
+    const f = qualForm.value
+    const name = (f.qual_name || '').trim()
     if (!name) {
-        ElMessage.warning('请输入资质名称')
+        ElMessage.warning(qualIsFile.value ? '请输入文件名称' : '请输入资质名称')
         return
     }
-    if (qualRows.value.length >= QUAL_MAX) {
-        ElMessage.warning(`单类型资质最多 ${QUAL_MAX} 条`)
+    if (!f.qual_id && qualRows.value.length >= QUAL_MAX) {
+        ElMessage.warning(`单类型最多 ${QUAL_MAX} 条`)
         return
     }
-    sys.biz('cbs/cqual/save', {
+    const payload = {
         type_id: qualTypeId.value,
+        qual_type: qualType.value,
         qual_name: name,
-        qual_level: qualForm.value.qual_level.trim(),
-    }, AC.signal, () => {}, (r, data) => {
+        qual_level: qualIsFile.value ? '' : (f.qual_level || '').trim(),
+        validity: qualIsFile.value ? (f.validity ?? 0) : 0,
+        remind: qualIsFile.value ? f.remind : null,
+        is_using: f.is_using !== false,
+    }
+    if (f.qual_id) payload.qual_id = f.qual_id
+    sys.biz('cbs/cqual/save', payload, AC.signal, () => {}, (r, data) => {
         if (r) {
-            ElMessage.success('已添加')
-            qualForm.value = {qual_name: '', qual_level: ''}
+            ElMessage.success(f.qual_id ? '已保存' : '已添加')
+            qualForm.value = emptyQualForm()
             loadQual()
-        } else notifyError(data, '添加失败')
+        } else notifyError(data, '保存失败')
+    })
+}
+
+function toggleQual(row) {
+    sys.biz('cbs/cqual/toggle', {qualId: row.qual_id, isUsing: !row.is_using}, AC.signal, () => {}, (r, data) => {
+        if (r) {
+            ElMessage.success(row.is_using ? '已停用' : '已启用')
+            loadQual()
+        } else notifyError(data, '操作失败')
     })
 }
 
 function removeQual(row) {
-    sys.biz('cbs/cqual/delete', {qualId: row.qual_id}, AC.signal, () => {}, (r, data) => {
-        if (r) {
-            ElMessage.success('已删除')
-            loadQual()
-        } else notifyError(data, '删除失败')
-    })
+    ElMessageBox.confirm(`确定删除「${row.qual_name}」吗？`, '提示', {type: 'warning'}).then(() => {
+        sys.biz('cbs/cqual/delete', {qualId: row.qual_id}, AC.signal, () => {}, (r, data) => {
+            if (r) {
+                ElMessage.success('已删除')
+                if (qualForm.value.qual_id === row.qual_id) qualForm.value = emptyQualForm()
+                loadQual()
+            } else notifyError(data, '删除失败')
+        })
+    }).catch(() => {})
 }
 
 /* ============ 开工准备条件 / 资料清单（按项目类型维护） ============ */
@@ -346,7 +390,9 @@ onUnmounted(() => {
                         <template v-else>
                             <el-link type="primary" @click="openDialog(true, row)">编辑</el-link>
                             <el-link v-if="recycle" type="success" style="margin-left:10px"
-                                     @click="openQual(row)">资质管理</el-link>
+                                     @click="openQual(row, 1)">资质管理</el-link>
+                            <el-link v-if="recycle" type="success" style="margin-left:10px"
+                                     @click="openQual(row, 2)">审核所需文件</el-link>
                             <template v-if="isProjectType">
                                 <el-link type="success" style="margin-left:10px"
                                          @click="openMeta('prep', row)">开工准备条件</el-link>
@@ -383,31 +429,63 @@ onUnmounted(() => {
             </template>
         </el-dialog>
 
-        <!-- 资质管理弹窗（按承包商类型维护所需资质） -->
-        <el-dialog v-model="qualVisible" :title="`资质管理 — ${qualTypeName}`" width="640px" top="6vh" destroy-on-close>
+        <!-- 资质管理 / 审核所需文件弹窗（同一套数据，qualType 区分；由承包商类型行内入口打开） -->
+        <el-dialog v-model="qualVisible" :title="qualTitle" width="760px" top="6vh" destroy-on-close>
             <div v-loading="qualLoading">
                 <el-form :inline="true" class="qual-form">
-                    <el-form-item label="资质名称" required>
-                        <el-input v-model="qualForm.qual_name" placeholder="如：建筑施工总承包资质" style="width:240px"/>
+                    <el-form-item :label="qualNameLabel" required>
+                        <el-input v-model="qualForm.qual_name" :placeholder="`请输入${qualNameLabel}`"
+                                  style="width:190px"/>
                     </el-form-item>
-                    <el-form-item label="等级/类别">
-                        <el-input v-model="qualForm.qual_level" placeholder="如：一级 / 甲级" style="width:160px"/>
+                    <el-form-item v-if="!qualIsFile" label="等级/类别">
+                        <el-input v-model="qualForm.qual_level" placeholder="如：一级 / 甲级" style="width:140px"/>
+                    </el-form-item>
+                    <el-form-item v-if="qualIsFile" label="有效期(月)">
+                        <el-input-number v-model="qualForm.validity" :min="0" :controls="false"
+                                         placeholder="0=长期有效" style="width:120px"/>
+                    </el-form-item>
+                    <el-form-item v-if="qualIsFile" label="临期提醒(天)">
+                        <el-input-number v-model="qualForm.remind" :min="0" :controls="false"
+                                         placeholder="如 30" style="width:110px"/>
+                    </el-form-item>
+                    <el-form-item label="状态">
+                        <el-switch v-model="qualForm.is_using" active-text="启用"/>
                     </el-form-item>
                     <el-form-item>
-                        <el-button type="primary" @click="saveQual">添加</el-button>
+                        <el-button type="primary" @click="saveQual">{{ qualEditing ? '保存修改' : '添加' }}</el-button>
+                        <el-button v-if="qualEditing" @click="resetQualForm">取消</el-button>
                     </el-form-item>
                 </el-form>
                 <el-table :data="qualRows" border stripe size="small" max-height="360">
                     <el-table-column type="index" label="序号" width="60" align="center"/>
-                    <el-table-column prop="qual_name" label="资质名称" min-width="220"/>
-                    <el-table-column prop="qual_level" label="等级/类别" width="140"/>
-                    <el-table-column label="操作" width="90" align="center">
+                    <el-table-column prop="qual_name" :label="qualNameLabel" min-width="190"/>
+                    <el-table-column v-if="!qualIsFile" prop="qual_level" label="等级/类别" width="130" align="center">
+                        <template #default="{row}">{{ row.qual_level || '—' }}</template>
+                    </el-table-column>
+                    <el-table-column v-if="qualIsFile" label="有效期(月)" width="110" align="center">
+                        <template #default="{row}">{{ row.validity ? `${row.validity} 个月` : '长期有效' }}</template>
+                    </el-table-column>
+                    <el-table-column v-if="qualIsFile" label="临期提醒(天)" width="120" align="center">
+                        <template #default="{row}">{{ row.remind ?? '—' }}</template>
+                    </el-table-column>
+                    <el-table-column label="状态" width="90" align="center">
                         <template #default="{row}">
-                            <el-link type="danger" @click="removeQual(row)">删除</el-link>
+                            <el-tag :type="row.is_using ? 'success' : 'info'" effect="light" size="small">
+                                {{ row.is_using ? '启用' : '停用' }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="150" align="center">
+                        <template #default="{row}">
+                            <el-link type="primary" @click="editQual(row)">编辑</el-link>
+                            <el-link :type="row.is_using ? 'warning' : 'success'" style="margin-left:10px"
+                                     @click="toggleQual(row)">{{ row.is_using ? '停用' : '启用' }}</el-link>
+                            <el-link type="danger" style="margin-left:10px" @click="removeQual(row)">删除</el-link>
                         </template>
                     </el-table-column>
                 </el-table>
-                <el-empty v-if="!qualLoading && qualRows.length === 0" description="暂无资质，请在上方添加"/>
+                <el-empty v-if="!qualLoading && qualRows.length === 0"
+                          :description="`暂无${qualIsFile ? '审核所需文件' : '资质'}，请在上方添加`"/>
             </div>
         </el-dialog>
         <!-- 开工准备条件 / 资料清单弹窗（按项目类型维护，行内入口打开） -->

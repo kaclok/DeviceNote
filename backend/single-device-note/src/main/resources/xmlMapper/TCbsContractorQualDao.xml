@@ -3,20 +3,37 @@
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorQualDao">
 
     <sql id="cols">
-        qual_id, type_id, qual_name, qual_level, creator, open_status
+        qual_id, type_id, qual_name, qual_level, qual_type, validity, remind, is_using, creator, open_status
     </sql>
 
     <select id="listByType" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorQual">
         select <include refid="cols"/>
         from cbs.t_contractor_qual
-        where type_id = #{typeId} and open_status = true
-        order by create_time
+        where type_id = #{typeId} and qual_type = #{qualType} and open_status = true
+        order by is_using desc, create_time
     </select>
 
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorQual">
-        insert into cbs.t_contractor_qual (qual_id, type_id, qual_name, qual_level, creator, open_status)
-        values (#{p.qual_id}, #{p.type_id}, #{p.qual_name}, #{p.qual_level}, #{p.creator}, #{p.open_status})
+        insert into cbs.t_contractor_qual
+            (qual_id, type_id, qual_name, qual_level, qual_type, validity, remind, is_using, creator, open_status)
+        values (#{p.qual_id}, #{p.type_id}, #{p.qual_name}, #{p.qual_level}, #{p.qual_type},
+                coalesce(#{p.validity}, 0), #{p.remind}, coalesce(#{p.is_using}, true),
+                #{p.creator}, #{p.open_status})
     </insert>
+
+    <update id="update">
+        update cbs.t_contractor_qual
+        set qual_name = #{p.qual_name},
+            qual_level = #{p.qual_level},
+            validity = coalesce(#{p.validity}, 0),
+            remind = #{p.remind},
+            is_using = coalesce(#{p.is_using}, true)
+        where qual_id = #{p.qual_id} and open_status = true
+    </update>
+
+    <update id="toggleUsing">
+        update cbs.t_contractor_qual set is_using = #{using} where qual_id = #{id} and open_status = true
+    </update>
 
     <update id="delete">
         update cbs.t_contractor_qual set open_status = false where qual_id = #{id}

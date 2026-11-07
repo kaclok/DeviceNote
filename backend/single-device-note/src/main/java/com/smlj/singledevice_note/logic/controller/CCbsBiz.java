@@ -809,7 +809,11 @@ public class CCbsBiz {
         if (!StringUtils.hasText(typeId)) {
             return Result.fail(ResultCode.RC10101, "typeId 不能为空");
         }
-        return Result.success(cqualDao.listByType(typeId));
+        Integer qualType = qualTypeOf(b.get("qualType"));
+        if (qualType == null) {
+            return Result.fail(ResultCode.RC10101, "qualType 只能是 1（资质管理）或 2（审核所需文件）");
+        }
+        return Result.success(cqualDao.listByType(typeId, qualType));
     }
 
     @RequirePermission("cbs:baseinfo")
@@ -819,13 +823,41 @@ public class CCbsBiz {
         if (!StringUtils.hasText(q.getType_id())) {
             return Result.fail(ResultCode.RC10101, "所属承包商类型不能为空");
         }
+        if (q.getQual_type() == null || (q.getQual_type() != 1 && q.getQual_type() != 2)) {
+            return Result.fail(ResultCode.RC10101, "qualType 只能是 1（资质管理）或 2（审核所需文件）");
+        }
         if (!StringUtils.hasText(q.getQual_name())) {
-            return Result.fail(ResultCode.RC10101, "资质名称不能为空");
+            return Result.fail(ResultCode.RC10101, q.getQual_type() == 2 ? "文件名称不能为空" : "资质名称不能为空");
+        }
+        if (q.getValidity() == null) q.setValidity(0);
+        if (q.getValidity() < 0) {
+            return Result.fail(ResultCode.RC10101, "有效期(月)不能为负数");
+        }
+        if (q.getIs_using() == null) q.setIs_using(true);
+        if (StringUtils.hasText(q.getQual_id())) {
+            cqualDao.update(q);
+            return Result.success();
         }
         q.setQual_id(newId());
         q.setCreator(me.getAccount());
         q.setOpen_status(true);
         cqualDao.insert(q);
+        return Result.success();
+    }
+
+    @RequirePermission("cbs:baseinfo")
+    @Transactional
+    @PostMapping("/cqual/toggle")
+    public Result<?> cqualToggle(@RequestBody Map<String, Object> b) {
+        String id = str(b, "qualId");
+        if (!StringUtils.hasText(id)) {
+            return Result.fail(ResultCode.RC10101, "qualId 不能为空");
+        }
+        Object using = b.get("isUsing");
+        if (!(using instanceof Boolean)) {
+            return Result.fail(ResultCode.RC10101, "isUsing 必须是布尔值");
+        }
+        cqualDao.toggleUsing(id, (Boolean) using);
         return Result.success();
     }
 
@@ -839,6 +871,18 @@ public class CCbsBiz {
         }
         cqualDao.delete(id);
         return Result.success();
+    }
+
+    /** qualType 白名单：1=资质管理 2=审核所需文件，其余一律 null（fail-closed） */
+    private Integer qualTypeOf(Object v) {
+        if (v == null) return null;
+        int n;
+        try {
+            n = Integer.parseInt(String.valueOf(v).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return (n == 1 || n == 2) ? n : null;
     }
 
     // ---------------- 通用基础数据（开工准备条件 / 资料清单） ----------------
