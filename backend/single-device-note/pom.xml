@@ -31,6 +31,15 @@
     <properties>
         <java.version>18</java.version>
 
+        <!--
+            profile 兜底值，勿删。
+            application.yml 里 spring.profiles.active 写作 @activated@，靠 maven-resources-plugin 在 process-resources 阶段替换。
+            一旦不带 -P 构建，该占位符不会被替换，target/classes/application.yml 会残留裸 @activated@，
+            启动即报 snakeyaml ScannerException（found character '@' that cannot start any token）。
+            这里的默认值与 IDEA 中显式启用的 profile 保持一致；-Pdev / -Ptest 显式传入时仍然优先生效。
+        -->
+        <activated>deploy</activated>
+
         <root.version>0.0.1</root.version>
         <maven.build.timestamp.format>yyyy_MM_dd_HH_mm</maven.build.timestamp.format>
 
