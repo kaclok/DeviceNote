@@ -68,6 +68,10 @@ CREATE TABLE IF NOT EXISTS cbs.t_contractor (
     deposit             numeric,                               -- 保证金(元)，由保证金变更记录同步增减
     login_account       varchar,                               -- 预留：一期不开承包商登录
     login_pwd           varchar,                               -- 预留：密文
+    phone               varchar,                               -- 注册信息：手机号码
+    id_card             varchar,                               -- 注册信息：身份证号
+    post_name           varchar,                               -- 注册信息：岗位（一期无承包商岗位字典，文本留存）
+    role_name           varchar,                               -- 注册信息：角色（一期无承包商角色字典，文本留存）
     coop_status         int2         NOT NULL DEFAULT 1,       -- 合作状态：1=合作中 2=曾合作 3=黑名单
     approve_status      int2         NOT NULL DEFAULT 0,       -- 0待审 1通过 2驳回
     reject_reason       varchar,
@@ -81,6 +85,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS t_contractor_uscc ON cbs.t_contractor (uscc) W
 -- 兼容早期已建的库：补合作状态（幂等）
 ALTER TABLE cbs.t_contractor ADD COLUMN IF NOT EXISTS coop_status int2 NOT NULL DEFAULT 1;
 COMMENT ON COLUMN cbs.t_contractor.coop_status IS '合作状态：1=合作中 2=曾合作 3=黑名单';
+
+-- 兼容早期已建的库：补注册信息字段（幂等）
+ALTER TABLE cbs.t_contractor ADD COLUMN IF NOT EXISTS phone varchar;
+ALTER TABLE cbs.t_contractor ADD COLUMN IF NOT EXISTS id_card varchar;
+ALTER TABLE cbs.t_contractor ADD COLUMN IF NOT EXISTS post_name varchar;
+ALTER TABLE cbs.t_contractor ADD COLUMN IF NOT EXISTS role_name varchar;
+COMMENT ON COLUMN cbs.t_contractor.phone IS '注册信息：手机号码';
+COMMENT ON COLUMN cbs.t_contractor.id_card IS '注册信息：身份证号';
+COMMENT ON COLUMN cbs.t_contractor.post_name IS '注册信息：岗位';
+COMMENT ON COLUMN cbs.t_contractor.role_name IS '注册信息：角色';
 
 -- 保证金变更记录（参考站 contractorChangeLog：保证金变更 / 变更记录 两个入口）
 CREATE TABLE IF NOT EXISTS cbs.t_contractor_change_log (

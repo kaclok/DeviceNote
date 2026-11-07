@@ -48,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 
+import com.smlj.singledevice_note.logic.util.CbsApproveStatus;
 import static com.smlj.singledevice_note.logic.util.CbsPage.offset;
 import static com.smlj.singledevice_note.logic.util.CbsPage.pageNo;
 import static com.smlj.singledevice_note.logic.util.CbsPage.pageOf;
@@ -165,7 +166,7 @@ public class CCbsBiz {
         }
         if (!StringUtils.hasText(c.getContractor_id())) {
             c.setContractor_id(newId());
-            c.setApprove_status(0);
+            c.setApprove_status(CbsApproveStatus.PENDING.getCode());
             if (c.getCoop_status() == null) {
                 c.setCoop_status(1);
             }
@@ -190,7 +191,7 @@ public class CCbsBiz {
         return Result.success();
     }
 
-    /** 审核流转：status 1 通过 / 2 驳回（驳回必填原因）。 */
+    /** 审批状态流转：0 待审批 / 1 审批通过 / 2 未通过（未通过必填原因，其余状态清空原因）。 */
     @RequirePermission("cbs:audit")
     @Transactional
     @PostMapping("/contractor/audit")
@@ -198,16 +199,17 @@ public class CCbsBiz {
         String id = str(b, "contractorId");
         Integer status = intVal(b, "status");
         String reason = str(b, "reason");
-        if (!StringUtils.hasText(id) || status == null || (status != 1 && status != 2)) {
+        CbsApproveStatus target = CbsApproveStatus.of(status);
+        if (!StringUtils.hasText(id) || target == null) {
             return Result.fail(ResultCode.RC10101, "contractorId/status 不合法");
         }
-        if (status == 2 && !StringUtils.hasText(reason)) {
-            return Result.fail(ResultCode.RC10101, "驳回必须填写原因");
+        if (target.needReason() && !StringUtils.hasText(reason)) {
+            return Result.fail(ResultCode.RC10101, "未通过必须填写原因");
         }
         if (contractorDao.query(id) == null) {
             return Result.fail(ResultCode.RC10103, "承包商不存在");
         }
-        contractorDao.audit(id, status, status == 2 ? reason : null);
+        contractorDao.audit(id, target.getCode(), target.needReason() ? reason : null);
         return Result.success();
     }
 

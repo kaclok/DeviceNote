@@ -4,7 +4,10 @@
 
     <sql id="cols">
         contractor_id, name, uscc, ctype, legal_person, legal_phone, safety_person, safety_phone,
-        register_address, register_capital, deposit, login_account, coop_status, approve_status,
+        register_address, register_capital, deposit, login_account,
+        case when login_pwd is null or login_pwd = '' then null else '******' end as login_pwd,
+        phone, id_card, post_name, role_name,
+        coop_status, approve_status,
         reject_reason, creator, open_status
     </sql>
 
@@ -75,10 +78,12 @@
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
         insert into cbs.t_contractor (contractor_id, name, uscc, ctype, legal_person, legal_phone,
             safety_person, safety_phone, register_address, register_capital, deposit, login_account,
+            phone, id_card, post_name, role_name,
             coop_status, approve_status, creator, open_status)
         values (#{c.contractor_id}, #{c.name}, #{c.uscc}, #{c.ctype}, #{c.legal_person}, #{c.legal_phone},
             #{c.safety_person}, #{c.safety_phone}, #{c.register_address}, #{c.register_capital}, #{c.deposit},
-            #{c.login_account}, #{c.coop_status}, #{c.approve_status}, #{c.creator}, #{c.open_status})
+            #{c.login_account}, #{c.phone}, #{c.id_card}, #{c.post_name}, #{c.role_name},
+            #{c.coop_status}, #{c.approve_status}, #{c.creator}, #{c.open_status})
     </insert>
 
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
@@ -95,6 +100,10 @@
             register_capital = #{c.register_capital},
             deposit = #{c.deposit},
             login_account = #{c.login_account},
+            <if test="c.phone != null">phone = #{c.phone},</if>
+            <if test="c.id_card != null">id_card = #{c.id_card},</if>
+            <if test="c.post_name != null">post_name = #{c.post_name},</if>
+            <if test="c.role_name != null">role_name = #{c.role_name},</if>
             coop_status = #{c.coop_status},
         </set>
         where contractor_id = #{c.contractor_id}

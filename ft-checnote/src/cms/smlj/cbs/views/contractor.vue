@@ -124,10 +124,50 @@ const today = () => {
 /* ============ 查看（只读详情，仿参考站 contractorCompanyModal 两段式） ============ */
 const viewVisible = ref(false)
 const viewRow = ref({})
+/* 审批状态切换（0 待审批 / 1 审批通过 / 2 未通过）：未通过必须填原因，取消则回滚选中态 */
+const viewApprove = ref(0)
+const approveSaving = ref(false)
 
 function openView(row) {
-    viewRow.value = row
+    viewRow.value = {...row}
+    viewApprove.value = Number(row.approve_status ?? 0)
     viewVisible.value = true
+}
+
+async function onApproveChange(val) {
+    const prev = Number(viewRow.value.approve_status ?? 0)
+    if (val === prev) return
+    let reason = ''
+    try {
+        if (val === 2) {
+            const r = await ElMessageBox.prompt('切换为「未通过」需填写原因，原因会展示给承包商。', '审批状态', {
+                confirmButtonText: '确定', cancelButtonText: '取消',
+                inputPlaceholder: '请输入未通过原因',
+                inputValidator: v => (v && v.trim() ? true : '未通过原因不能为空'),
+            })
+            reason = r.value.trim()
+        } else {
+            await ElMessageBox.confirm(`确认将审批状态切换为「${statusMeta(val).desc}」？`, '审批状态', {
+                confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
+            })
+        }
+    } catch (e) {
+        viewApprove.value = prev
+        return
+    }
+    approveSaving.value = true
+    sys.biz('cbs/contractor/audit', {contractorId: viewRow.value.contractor_id, status: val, reason},
+        AC.signal, () => {}, (r, data) => {
+            approveSaving.value = false
+            if (r) {
+                ElMessage.success('审批状态已更新')
+                viewRow.value = {...viewRow.value, approve_status: val, reject_reason: reason || null}
+                loadRows()
+            } else {
+                viewApprove.value = prev
+                notifyError(data, '审批状态更新失败')
+            }
+        })
 }
 
 /* ============ 新增/编辑 ============ */
@@ -154,12 +194,15 @@ function openDialog(edit, row) {
             legal_person: row.legal_person || '', legal_phone: row.legal_phone || '',
             safety_person: row.safety_person || '', safety_phone: row.safety_phone || '',
             register_address: row.register_address || '', register_capital: row.register_capital || '',
-            deposit: row.deposit ?? undefined, login_account: row.login_account || '', _edit: true,
+            deposit: row.deposit ?? undefined, login_account: row.login_account || '',
+            phone: row.phone || '', id_card: row.id_card || '',
+            post_name: row.post_name || '', role_name: row.role_name || '', _edit: true,
         }
         : {
             contractor_id: '', name: '', uscc: '', ctype: '', coop_status: 1, legal_person: '', legal_phone: '',
             safety_person: '', safety_phone: '', register_address: '', register_capital: '',
-            deposit: undefined, login_account: '', _edit: false,
+            deposit: undefined, login_account: '', phone: '', id_card: '', post_name: '', role_name: '',
+            _edit: false,
         }
     dialogVisible.value = true
 }
@@ -490,12 +533,12 @@ onUnmounted(() => {
 
             <el-table :data="rows" v-loading="loading" border stripe>
                 <el-table-column type="index" label="序号" width="60" align="center"/>
-                <el-table-column prop="name" label="承包商名称" min-width="190"/>
+                <el-table-column prop="name" label="承包商名称" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="uscc" label="统一社会信用代码" min-width="180" show-overflow-tooltip/>
-                <el-table-column prop="ctype" label="承包商类型" width="130"/>
-                <el-table-column prop="legal_person" label="法定代表人" width="110"/>
-                <el-table-column prop="safety_person" label="安全负责人" width="110"/>
-                <el-table-column prop="safety_phone" label="安全负责人电话" width="140"/>
+                <el-table-column prop="ctype" label="承包商类型" min-width="130" show-overflow-tooltip/>
+                <el-table-column prop="legal_person" label="法定代表人" min-width="110" show-overflow-tooltip/>
+                <el-table-column prop="safety_person" label="安全负责人" min-width="110" show-overflow-tooltip/>
+                <el-table-column prop="safety_phone" label="安全负责人电话" min-width="140" show-overflow-tooltip/>
                 <el-table-column v-if="mode === 'unit'" label="审批状态" width="100" align="center">
                     <template #default="{row}">
                         <el-tag :type="statusMeta(row.approve_status).type" effect="light">
@@ -560,29 +603,109 @@ onUnmounted(() => {
                            :page-sizes="pager.pageSizes"/>
         </div>
 
-        <!-- 查看详情（只读，仿参考站「基本信息 / 注册信息」两段式） -->
-        <el-dialog v-model="viewVisible" :title="`查看 — ${viewRow.name || ''}`" width="780px" destroy-on-close>
-            <div class="sec-title">基本信息</div>
-            <el-descriptions :column="2" border size="small">
-                <el-descriptions-item label="承包商类型">{{ viewRow.ctype || '—' }}</el-descriptions-item>
-                <el-descriptions-item label="承包商名称">{{ viewRow.name || '—' }}</el-descriptions-item>
-                <el-descriptions-item label="统一社会信用代码">{{ viewRow.uscc || '—' }}</el-descriptions-item>
-                <el-descriptions-item label="法定代表人">{{ viewRow.legal_person || '—' }}</el-descriptions-item>
-                <el-descriptions-item label="安全负责人">{{ viewRow.safety_person || '—' }}</el-descriptions-item>
-                <el-descriptions-item label="安全负责人电话">{{ viewRow.safety_phone || '—' }}</el-descriptions-item>
-                <el-descriptions-item label="状态">
-                    <el-tag :type="coopMeta(viewRow.coop_status).type" effect="light">
-                        {{ coopMeta(viewRow.coop_status).desc }}
-                    </el-tag>
-                </el-descriptions-item>
-                <el-descriptions-item label="注册地址">{{ viewRow.register_address || '—' }}</el-descriptions-item>
-                <el-descriptions-item label="注册资本">{{ viewRow.register_capital || '—' }}</el-descriptions-item>
-            </el-descriptions>
-            <div class="sec-title">注册信息</div>
-            <el-descriptions :column="2" border size="small">
-                <el-descriptions-item label="登录账号">{{ viewRow.login_account || '—' }}</el-descriptions-item>
-                <el-descriptions-item label="保证金(元)">{{ viewRow.deposit ?? '—' }}</el-descriptions-item>
-            </el-descriptions>
+        <!-- 查看详情（只读，对齐参考站 contractorCompanyForm：1000px 双列 + 基本信息/注册信息 + 审批状态切换） -->
+        <el-dialog v-model="viewVisible" :title="`查看 — ${viewRow.name || ''}`" width="1000px" top="6vh"
+                   destroy-on-close class="view-dialog">
+            <div class="approve-bar">
+                <span class="lb">审批状态</span>
+                <el-radio-group v-model="viewApprove" :disabled="approveSaving" @change="onApproveChange">
+                    <el-radio-button v-for="s in gd.approveStatus" :key="s.id" :value="s.id">
+                        {{ s.desc }}
+                    </el-radio-button>
+                </el-radio-group>
+                <span v-if="viewRow.reject_reason" class="reason">未通过原因：{{ viewRow.reject_reason }}</span>
+            </div>
+            <el-form class="view-form" label-width="130px" label-suffix="：" disabled>
+                <el-divider content-position="left">基本信息</el-divider>
+                <el-row :gutter="16">
+                    <el-col :span="12">
+                        <el-form-item label="承包商类型">
+                            <el-input :model-value="viewRow.ctype || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="承包商名称">
+                            <el-input :model-value="viewRow.name || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="统一社会信用代码">
+                            <el-input :model-value="viewRow.uscc || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="法定代表人">
+                            <el-input :model-value="viewRow.legal_person || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="安全负责人">
+                            <el-input :model-value="viewRow.safety_person || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="安全负责人电话">
+                            <el-input :model-value="viewRow.safety_phone || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="状态">
+                            <el-radio-group :model-value="Number(viewRow.coop_status ?? 1)" disabled>
+                                <el-radio v-for="c in gd.coopStatus" :key="c.id" :value="c.id">{{ c.desc }}
+                                </el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="注册地址">
+                            <el-input :model-value="viewRow.register_address || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="注册资本">
+                            <el-input :model-value="viewRow.register_capital || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-divider content-position="left">注册信息</el-divider>
+                <el-row :gutter="16">
+                    <el-col :span="12">
+                        <el-form-item label="登录账号">
+                            <el-input :model-value="viewRow.login_account || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="登录密码">
+                            <el-input type="password" :model-value="viewRow.login_pwd || '—'" show-password/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="手机号码">
+                            <el-input :model-value="viewRow.phone || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="身份证号">
+                            <el-input :model-value="viewRow.id_card || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="岗位">
+                            <el-input :model-value="viewRow.post_name || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="角色">
+                            <el-input :model-value="viewRow.role_name || '—'"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="保证金(元)">
+                            <el-input :model-value="viewRow.deposit ?? '—'"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+            </el-form>
             <template #footer>
                 <el-button @click="viewVisible = false">关闭</el-button>
             </template>
@@ -651,6 +774,26 @@ onUnmounted(() => {
                     <el-col :span="12">
                         <el-form-item label="登录账号">
                             <el-input v-model="form.login_account" placeholder="预留，一期不启用"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="手机号码">
+                            <el-input v-model="form.phone" placeholder="请输入手机号码"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="身份证号">
+                            <el-input v-model="form.id_card" placeholder="请输入身份证号"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="岗位">
+                            <el-input v-model="form.post_name" placeholder="请输入岗位"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="角色">
+                            <el-input v-model="form.role_name" placeholder="请输入角色"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
@@ -868,13 +1011,44 @@ onUnmounted(() => {
         }
     }
 
-    .sec-title {
-        font-size: 15px;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 4px 0 10px;
-        padding-left: 8px;
-        border-left: 3px solid var(--el-color-primary);
+    /* 列表：单元格一律单行，超长用 tooltip 展示（对齐参考站 j-table-force-nowrap） */
+    :deep(.el-table .cell) {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .approve-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: -4px 0 6px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+
+        .lb {
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .reason {
+            color: var(--el-color-danger);
+            font-size: 12px;
+        }
+    }
+
+    .view-form {
+        :deep(.el-divider__text) {
+            font-weight: 700;
+            color: #1e293b;
+            background: #ffffff;
+        }
+
+        :deep(.el-form-item) {
+            margin-bottom: 14px;
+        }
     }
 
     .log-head {

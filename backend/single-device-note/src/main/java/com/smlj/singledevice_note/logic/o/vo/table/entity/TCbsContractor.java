@@ -33,6 +33,16 @@ public class TCbsContractor implements Serializable {
     private BigDecimal deposit;
     /** 预留：一期不开承包商登录 */
     private String login_account;
+    /** 注册信息：手机号码 */
+    private String phone;
+    /** 注册信息：身份证号 */
+    private String id_card;
+    /** 注册信息：岗位（一期无承包商岗位字典，文本留存） */
+    private String post_name;
+    /** 注册信息：角色（一期无承包商角色字典，文本留存） */
+    private String role_name;
+    /** 登录密码：库内为密文，查询时由 SQL 统一掩码，仅用于详情展示 */
+    private String login_pwd;
     /** 合作状态：1=合作中 2=曾合作 3=黑名单 */
     private Integer coop_status;
     private Integer approve_status;
