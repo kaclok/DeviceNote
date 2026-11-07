@@ -33,4 +33,6 @@ public class TCbsContractorQual implements Serializable {
     private Boolean is_using;
     private String creator;
     private Boolean open_status;
+    /** 更新时间（查询时由 SQL 格式化为 yyyy-MM-dd HH:mm） */
+    private String update_time;
 }

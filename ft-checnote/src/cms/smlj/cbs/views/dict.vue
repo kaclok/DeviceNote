@@ -5,7 +5,7 @@ import gd from "../data/gd.json"
 import {pagerOf} from "../system/Pager.js"
 import {invalidateDict} from "../system/DictX.js"
 import {ElMessage, ElMessageBox} from "element-plus";
-import {Search} from "@element-plus/icons-vue";
+import {Plus, Search} from "@element-plus/icons-vue";
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 
 const sys = Singleton.getInstance(SysX)
@@ -19,10 +19,10 @@ const pageTitle = computed(() => (gd.dictTypes.find(t => t.id === activeType.val
 /* 三类字典统一支持 在用/回收站：页内右侧水平两个切页（回收站 = 软删行 open_status=false） */
 const recycled = ref(false)
 
-/* 项目类型：行内维护该类型下的「开工准备条件 / 资料清单」（仿资质管理弹窗，不是独立页面） */
+/* 项目类型：行内维护该类型下的「开工准备文件 / 资料清单」（仿参考站 prepareFileModal / meansListModal） */
 const isProjectType = computed(() => activeType.value === 'project_type')
 
-/* 承包商类型：行内维护 资质管理 / 审核所需文件 */
+/* 承包商类型：行内维护 资质管理 / 审核所需文件（仿参考站 typeFlairManageModal） */
 const isContractorType = computed(() => activeType.value === 'contractor_type')
 
 /* 操作列宽度按入口数量动态给，避免链接被挤换行；回收站只有 恢复/彻底删除 两个入口 */
@@ -167,29 +167,38 @@ function purgeRow(row) {
     }).catch(() => {})
 }
 
-/* ============ 资质管理 / 审核所需文件（仅承包商类型；同一弹窗，qualType 区分） ============
- * 仿目标站 contractorType：两个入口共用一个弹窗、一张表，1=资质管理 2=审核所需文件 */
+/* ============ 资质管理 / 审核所需文件（仅承包商类型；同一张表，qualType 区分） ============
+ * 布局仿参考站 typeFlairManageModal：主弹窗 = 「新增」+ 列表（只有关闭按钮），新增/编辑走二级弹窗 */
 const QUAL_QUAL = 1
 const QUAL_FILE = 2
+const QUAL_MAX = 200
 const qualVisible = ref(false)
 const qualLoading = ref(false)
 const qualType = ref(QUAL_QUAL)
 const qualTypeId = ref('')
 const qualTypeName = ref('')
 const qualRows = ref([])
-const QUAL_MAX = 200
-const emptyQualForm = () => ({qual_id: '', qual_name: '', qual_level: '', validity: 0, remind: null, is_using: true})
-const qualForm = ref(emptyQualForm())
 const qualIsFile = computed(() => qualType.value === QUAL_FILE)
+const qualTitle = computed(() => (qualIsFile.value ? '审核所需文件' : '资质管理'))
 const qualNameLabel = computed(() => (qualIsFile.value ? '文件名称' : '资质名称'))
-const qualTitle = computed(() => `${qualIsFile.value ? '审核所需文件' : '资质管理'} — ${qualTypeName.value}`)
-const qualEditing = computed(() => !!qualForm.value.qual_id)
+
+const qualFormVisible = ref(false)
+const qualSaving = ref(false)
+const qualFormRef = ref()
+const emptyQualForm = () => ({qual_id: '', qual_name: '', validity: null, remind: null, is_using: true})
+const qualForm = ref(emptyQualForm())
+const qualFormTitle = computed(() => `${qualForm.value.qual_id ? '编辑' : '新增'}${qualNameLabel.value}`)
+const qualRules = computed(() => ({
+    qual_name: [{required: true, message: `请输入${qualNameLabel.value}`, trigger: 'blur'}],
+    validity: [{required: true, message: '请输入有效期(月)', trigger: 'blur'}],
+    remind: [{required: true, message: '请输入临期提醒(天)', trigger: 'blur'}],
+}))
 
 function openQual(row, type) {
     qualType.value = type
     qualTypeId.value = row.item_id
     qualTypeName.value = row.item_name
-    qualForm.value = emptyQualForm()
+    qualRows.value = []
     qualVisible.value = true
     loadQual()
 }
@@ -203,48 +212,48 @@ function loadQual() {
     })
 }
 
+function addQual() {
+    qualForm.value = emptyQualForm()
+    qualFormVisible.value = true
+}
+
 function editQual(row) {
     qualForm.value = {
         qual_id: row.qual_id,
         qual_name: row.qual_name || '',
-        qual_level: row.qual_level || '',
         validity: row.validity ?? 0,
         remind: row.remind,
         is_using: row.is_using !== false,
     }
-}
-
-function resetQualForm() {
-    qualForm.value = emptyQualForm()
+    qualFormVisible.value = true
 }
 
 function saveQual() {
-    const f = qualForm.value
-    const name = (f.qual_name || '').trim()
-    if (!name) {
-        ElMessage.warning(qualIsFile.value ? '请输入文件名称' : '请输入资质名称')
-        return
-    }
-    if (!f.qual_id && qualRows.value.length >= QUAL_MAX) {
-        ElMessage.warning(`单类型最多 ${QUAL_MAX} 条`)
-        return
-    }
-    const payload = {
-        type_id: qualTypeId.value,
-        qual_type: qualType.value,
-        qual_name: name,
-        qual_level: qualIsFile.value ? '' : (f.qual_level || '').trim(),
-        validity: qualIsFile.value ? (f.validity ?? 0) : 0,
-        remind: qualIsFile.value ? f.remind : null,
-        is_using: f.is_using !== false,
-    }
-    if (f.qual_id) payload.qual_id = f.qual_id
-    sys.biz('cbs/cqual/save', payload, AC.signal, () => {}, (r, data) => {
-        if (r) {
-            ElMessage.success(f.qual_id ? '已保存' : '已添加')
-            qualForm.value = emptyQualForm()
-            loadQual()
-        } else notifyError(data, '保存失败')
+    qualFormRef.value.validate(valid => {
+        if (!valid) return
+        const f = qualForm.value
+        if (!f.qual_id && qualRows.value.length >= QUAL_MAX) {
+            ElMessage.warning(`单类型最多 ${QUAL_MAX} 条`)
+            return
+        }
+        qualSaving.value = true
+        const payload = {
+            type_id: qualTypeId.value,
+            qual_type: qualType.value,
+            qual_name: (f.qual_name || '').trim(),
+            validity: f.validity ?? 0,
+            remind: f.remind,
+            is_using: f.is_using !== false,
+        }
+        if (f.qual_id) payload.qual_id = f.qual_id
+        sys.biz('cbs/cqual/save', payload, AC.signal, () => {}, (r, data) => {
+            qualSaving.value = false
+            if (r) {
+                ElMessage.success(f.qual_id ? '已保存' : '已添加')
+                qualFormVisible.value = false
+                loadQual()
+            } else notifyError(data, '保存失败')
+        })
     })
 }
 
@@ -262,17 +271,17 @@ function removeQual(row) {
         sys.biz('cbs/cqual/delete', {qualId: row.qual_id}, AC.signal, () => {}, (r, data) => {
             if (r) {
                 ElMessage.success('已删除')
-                if (qualForm.value.qual_id === row.qual_id) qualForm.value = emptyQualForm()
                 loadQual()
             } else notifyError(data, '删除失败')
         })
     }).catch(() => {})
 }
 
-/* ============ 开工准备条件 / 资料清单（按项目类型维护） ============ */
+/* ============ 开工准备文件 / 资料清单（按项目类型维护） ============
+ * 布局仿参考站 prepareFileModal / meansListModal：主弹窗 = 「新增」+ 列表，新增/编辑走二级弹窗 */
 const META = {
-    prep: {title: '开工准备条件', table: 't_prep_condition'},
-    doc: {title: '资料清单', table: 't_doc_list'},
+    prep: {title: '开工准备文件', table: 't_prep_condition', bordered: true},
+    doc: {title: '资料清单', table: 't_doc_list', bordered: false},
 }
 const META_MAX = 200
 const metaVisible = ref(false)
@@ -281,14 +290,21 @@ const metaKind = ref('prep')
 const metaTypeId = ref('')
 const metaTypeName = ref('')
 const metaRows = ref([])
-const metaForm = ref({name: '', remark: ''})
 const metaCfg = computed(() => META[metaKind.value] || META.prep)
+
+const metaFormVisible = ref(false)
+const metaSaving = ref(false)
+const metaFormRef = ref()
+const emptyMetaForm = () => ({id: '', name: '', remark: ''})
+const metaForm = ref(emptyMetaForm())
+const metaFormTitle = computed(() => (metaForm.value.id ? '编辑' : '新增'))
+const metaRules = {name: [{required: true, message: '请输入名称', trigger: 'blur'}]}
 
 function openMeta(kind, row) {
     metaKind.value = kind
     metaTypeId.value = row.item_id
     metaTypeName.value = row.item_name
-    metaForm.value = {name: '', remark: ''}
+    metaRows.value = []
     metaVisible.value = true
     loadMeta()
 }
@@ -304,25 +320,38 @@ function loadMeta() {
     })
 }
 
+function addMeta() {
+    metaForm.value = emptyMetaForm()
+    metaFormVisible.value = true
+}
+
+function editMeta(row) {
+    metaForm.value = {id: row.id, name: row.name || '', remark: row.remark || ''}
+    metaFormVisible.value = true
+}
+
 function saveMeta() {
-    const name = metaForm.value.name.trim()
-    if (!name) {
-        ElMessage.warning('请输入名称')
-        return
-    }
-    if (metaRows.value.length >= META_MAX) {
-        ElMessage.warning(`单一项目类型最多 ${META_MAX} 条`)
-        return
-    }
-    sys.biz('cbs/meta/save', {
-        table: metaCfg.value.table, typeId: metaTypeId.value,
-        name: name, remark: metaForm.value.remark.trim(),
-    }, AC.signal, () => {}, (r, data) => {
-        if (r) {
-            ElMessage.success('已添加')
-            metaForm.value = {name: '', remark: ''}
-            loadMeta()
-        } else notifyError(data, '添加失败')
+    metaFormRef.value.validate(valid => {
+        if (!valid) return
+        const f = metaForm.value
+        if (!f.id && metaRows.value.length >= META_MAX) {
+            ElMessage.warning(`单一项目类型最多 ${META_MAX} 条`)
+            return
+        }
+        metaSaving.value = true
+        const payload = {
+            table: metaCfg.value.table, typeId: metaTypeId.value,
+            name: f.name.trim(), remark: (f.remark || '').trim(),
+        }
+        if (f.id) payload.id = f.id
+        sys.biz('cbs/meta/save', payload, AC.signal, () => {}, (r, data) => {
+            metaSaving.value = false
+            if (r) {
+                ElMessage.success(f.id ? '已保存' : '已添加')
+                metaFormVisible.value = false
+                loadMeta()
+            } else notifyError(data, f.id ? '保存失败' : '添加失败')
+        })
     })
 }
 
@@ -389,7 +418,7 @@ onUnmounted(() => {
                                      @click="openQual(row, 2)">审核所需文件</el-link>
                             <template v-if="isProjectType">
                                 <el-link type="success" style="margin-left:10px"
-                                         @click="openMeta('prep', row)">开工准备条件</el-link>
+                                         @click="openMeta('prep', row)">开工准备文件</el-link>
                                 <el-link type="success" style="margin-left:10px"
                                          @click="openMeta('doc', row)">资料清单</el-link>
                             </template>
@@ -423,93 +452,123 @@ onUnmounted(() => {
             </template>
         </el-dialog>
 
-        <!-- 资质管理 / 审核所需文件弹窗（同一套数据，qualType 区分；由承包商类型行内入口打开） -->
-        <el-dialog v-model="qualVisible" :title="qualTitle" width="760px" top="6vh" destroy-on-close>
-            <div v-loading="qualLoading">
-                <el-form :inline="true" class="qual-form">
-                    <el-form-item :label="qualNameLabel" required>
-                        <el-input v-model="qualForm.qual_name" :placeholder="`请输入${qualNameLabel}`"
-                                  style="width:190px"/>
-                    </el-form-item>
-                    <el-form-item v-if="!qualIsFile" label="等级/类别">
-                        <el-input v-model="qualForm.qual_level" placeholder="如：一级 / 甲级" style="width:140px"/>
-                    </el-form-item>
-                    <el-form-item v-if="qualIsFile" label="有效期(月)">
-                        <el-input-number v-model="qualForm.validity" :min="0" :controls="false"
-                                         placeholder="0=长期有效" style="width:120px"/>
-                    </el-form-item>
-                    <el-form-item v-if="qualIsFile" label="临期提醒(天)">
-                        <el-input-number v-model="qualForm.remind" :min="0" :controls="false"
-                                         placeholder="如 30" style="width:110px"/>
+        <!-- 资质管理 / 审核所需文件（仅承包商类型行内入口；主弹窗只放「新增」+ 列表，仿参考站） -->
+        <el-dialog v-model="qualVisible" :title="qualTitle" width="80%" top="6vh" destroy-on-close>
+            <div class="table-operator">
+                <el-button type="primary" :icon="Plus" @click="addQual">新增</el-button>
+                <span class="op-ctx">{{ qualTypeName }}</span>
+            </div>
+            <el-table :data="qualRows" v-loading="qualLoading" max-height="480">
+                <el-table-column type="index" label="序号" width="80" align="center"/>
+                <el-table-column prop="qual_name" :label="qualNameLabel" min-width="200" align="center"/>
+                <el-table-column label="有效期(月)" width="130" align="center">
+                    <template #default="{row}">{{ row.validity ? row.validity : '长期有效' }}</template>
+                </el-table-column>
+                <el-table-column label="临期提醒(天)" width="140" align="center">
+                    <template #default="{row}">{{ row.remind ?? '—' }}</template>
+                </el-table-column>
+                <el-table-column prop="update_time" label="更新时间" width="180" align="center">
+                    <template #default="{row}">{{ row.update_time || '—' }}</template>
+                </el-table-column>
+                <el-table-column label="状态" width="100" align="center">
+                    <template #default="{row}">
+                        <el-tag :type="row.is_using ? 'success' : 'info'" effect="light" size="small">
+                            {{ row.is_using ? '启用' : '停用' }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="180" align="center">
+                    <template #default="{row}">
+                        <el-link type="primary" @click="editQual(row)">编辑</el-link>
+                        <el-divider direction="vertical"/>
+                        <el-link :type="row.is_using ? 'warning' : 'success'" @click="toggleQual(row)">
+                            {{ row.is_using ? '停用' : '启用' }}
+                        </el-link>
+                        <el-divider direction="vertical"/>
+                        <el-link type="danger" @click="removeQual(row)">删除</el-link>
+                    </template>
+                </el-table-column>
+                <template #empty>
+                    <el-empty :description="`暂无${qualTitle}`"/>
+                </template>
+            </el-table>
+            <template #footer>
+                <el-button @click="qualVisible = false">关闭</el-button>
+            </template>
+
+            <!-- 二级弹窗：新增/编辑资质（仿参考站 addTypeFlairModal） -->
+            <el-dialog v-model="qualFormVisible" :title="qualFormTitle" width="600px"
+                       append-to-body destroy-on-close class="sub-dialog">
+                <el-form ref="qualFormRef" :model="qualForm" :rules="qualRules" label-width="120px">
+                    <el-form-item :label="qualNameLabel" prop="qual_name">
+                        <el-input v-model="qualForm.qual_name" :placeholder="`请输入${qualNameLabel}`"/>
                     </el-form-item>
                     <el-form-item label="状态">
-                        <el-switch v-model="qualForm.is_using" active-text="启用"/>
+                        <el-radio-group v-model="qualForm.is_using">
+                            <el-radio :value="false">停用</el-radio>
+                            <el-radio :value="true">启用</el-radio>
+                        </el-radio-group>
                     </el-form-item>
-                    <el-form-item>
-                        <el-button type="primary" @click="saveQual">{{ qualEditing ? '保存修改' : '添加' }}</el-button>
-                        <el-button v-if="qualEditing" @click="resetQualForm">取消</el-button>
+                    <el-form-item label="有效期(月)" prop="validity">
+                        <el-input-number v-model="qualForm.validity" :min="0" :controls="false"
+                                         placeholder='输入"0"表示长期有效'/>
+                    </el-form-item>
+                    <el-form-item label="临期提醒(天)" prop="remind">
+                        <el-input-number v-model="qualForm.remind" :min="0" :controls="false"
+                                         placeholder="请输入临期提醒(天)"/>
                     </el-form-item>
                 </el-form>
-                <el-table :data="qualRows" border stripe size="small" max-height="360">
-                    <el-table-column type="index" label="序号" width="60" align="center"/>
-                    <el-table-column prop="qual_name" :label="qualNameLabel" min-width="190"/>
-                    <el-table-column v-if="!qualIsFile" prop="qual_level" label="等级/类别" width="130" align="center">
-                        <template #default="{row}">{{ row.qual_level || '—' }}</template>
-                    </el-table-column>
-                    <el-table-column v-if="qualIsFile" label="有效期(月)" width="110" align="center">
-                        <template #default="{row}">{{ row.validity ? `${row.validity} 个月` : '长期有效' }}</template>
-                    </el-table-column>
-                    <el-table-column v-if="qualIsFile" label="临期提醒(天)" width="120" align="center">
-                        <template #default="{row}">{{ row.remind ?? '—' }}</template>
-                    </el-table-column>
-                    <el-table-column label="状态" width="90" align="center">
-                        <template #default="{row}">
-                            <el-tag :type="row.is_using ? 'success' : 'info'" effect="light" size="small">
-                                {{ row.is_using ? '启用' : '停用' }}
-                            </el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="操作" width="150" align="center">
-                        <template #default="{row}">
-                            <el-link type="primary" @click="editQual(row)">编辑</el-link>
-                            <el-link :type="row.is_using ? 'warning' : 'success'" style="margin-left:10px"
-                                     @click="toggleQual(row)">{{ row.is_using ? '停用' : '启用' }}</el-link>
-                            <el-link type="danger" style="margin-left:10px" @click="removeQual(row)">删除</el-link>
-                        </template>
-                    </el-table-column>
-                </el-table>
-                <el-empty v-if="!qualLoading && qualRows.length === 0"
-                          :description="`暂无${qualIsFile ? '审核所需文件' : '资质'}，请在上方添加`"/>
-            </div>
+                <template #footer>
+                    <el-button @click="qualFormVisible = false">关闭</el-button>
+                    <el-button type="primary" :loading="qualSaving" @click="saveQual">确定</el-button>
+                </template>
+            </el-dialog>
         </el-dialog>
-        <!-- 开工准备条件 / 资料清单弹窗（按项目类型维护，行内入口打开） -->
-        <el-dialog v-model="metaVisible" :title="`${metaCfg.title} — ${metaTypeName}`" width="640px" top="6vh" destroy-on-close>
-            <div v-loading="metaLoading">
-                <el-form :inline="true" class="meta-form">
-                    <el-form-item label="名称" required>
-                        <el-input v-model="metaForm.name" placeholder="请输入名称" style="width:240px"/>
+
+        <!-- 开工准备文件 / 资料清单（项目类型行内入口；主弹窗只放「新增」+ 列表，仿参考站） -->
+        <el-dialog v-model="metaVisible" :title="metaCfg.title" width="800px" top="6vh" destroy-on-close>
+            <div class="table-operator">
+                <el-button type="primary" :icon="Plus" @click="addMeta">新增</el-button>
+                <span class="op-ctx">{{ metaTypeName }}</span>
+            </div>
+            <el-table :data="metaRows" v-loading="metaLoading" :border="metaCfg.bordered" max-height="480">
+                <el-table-column type="index" label="序号" width="80" align="center"/>
+                <el-table-column prop="name" label="名称" min-width="200" align="center"/>
+                <el-table-column prop="remark" label="描述" min-width="300" align="center">
+                    <template #default="{row}">{{ row.remark || '—' }}</template>
+                </el-table-column>
+                <el-table-column label="操作" width="140" align="center">
+                    <template #default="{row}">
+                        <el-link type="primary" @click="editMeta(row)">编辑</el-link>
+                        <el-divider direction="vertical"/>
+                        <el-link type="danger" @click="removeMeta(row)">删除</el-link>
+                    </template>
+                </el-table-column>
+                <template #empty>
+                    <el-empty :description="`暂无${metaCfg.title}`"/>
+                </template>
+            </el-table>
+            <template #footer>
+                <el-button @click="metaVisible = false">关闭</el-button>
+            </template>
+
+            <!-- 二级弹窗：新增/编辑（仿参考站 j-modal form 600px：名称 + 描述） -->
+            <el-dialog v-model="metaFormVisible" :title="metaFormTitle" width="600px"
+                       append-to-body destroy-on-close class="sub-dialog">
+                <el-form ref="metaFormRef" :model="metaForm" :rules="metaRules" label-width="120px">
+                    <el-form-item label="名称" prop="name">
+                        <el-input v-model="metaForm.name" placeholder="请输入名称"/>
                     </el-form-item>
-                    <el-form-item label="说明">
-                        <el-input v-model="metaForm.remark" placeholder="补充说明（可选）" style="width:180px"/>
-                    </el-form-item>
-                    <el-form-item>
-                        <el-button type="primary" @click="saveMeta">添加</el-button>
+                    <el-form-item label="描述">
+                        <el-input v-model="metaForm.remark" type="textarea" :rows="3"
+                                  placeholder="请输入描述"/>
                     </el-form-item>
                 </el-form>
-                <el-table :data="metaRows" border stripe size="small" max-height="360">
-                    <el-table-column type="index" label="序号" width="60" align="center"/>
-                    <el-table-column prop="name" label="名称" min-width="200"/>
-                    <el-table-column prop="remark" label="说明" min-width="220" show-overflow-tooltip>
-                        <template #default="{row}">{{ row.remark || '—' }}</template>
-                    </el-table-column>
-                    <el-table-column label="操作" width="90" align="center">
-                        <template #default="{row}">
-                            <el-link type="danger" @click="removeMeta(row)">删除</el-link>
-                        </template>
-                    </el-table-column>
-                </el-table>
-                <el-empty v-if="!metaLoading && metaRows.length === 0" :description="`暂无${metaCfg.title}，请在上方添加`"/>
-            </div>
+                <template #footer>
+                    <el-button @click="metaFormVisible = false">关闭</el-button>
+                    <el-button type="primary" :loading="metaSaving" @click="saveMeta">确定</el-button>
+                </template>
+            </el-dialog>
         </el-dialog>
     </div>
 </template>
@@ -557,12 +616,23 @@ onUnmounted(() => {
         justify-content: flex-end;
     }
 
-    .qual-form {
+    /* 弹窗内工具条：左「新增」，右当前上下文（仿参考站 table-operator） */
+    .table-operator {
+        display: flex;
+        align-items: center;
+        gap: 12px;
         margin-bottom: 12px;
+
+        .op-ctx {
+            margin-left: auto;
+            color: #8a94a6;
+            font-size: 13px;
+        }
     }
 
-    .meta-form {
-        margin-bottom: 12px;
+    /* 二级弹窗表单控件占满整行（与参考站 span:24 一致） */
+    .sub-dialog :deep(.el-input-number) {
+        width: 100%;
     }
 }
 </style>

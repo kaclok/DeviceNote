@@ -452,11 +452,15 @@ CREATE TABLE IF NOT EXISTS cbs.t_contractor_qual (
     is_using    bool         NOT NULL DEFAULT true,    -- 启用状态：true=启用 false=停用
     creator     varchar,
     create_time timestamp    NOT NULL DEFAULT now(),
+    update_time timestamp    NOT NULL DEFAULT now(),   -- 更新时间（资质/审核文件列表展示）
     open_status bool         NOT NULL DEFAULT true,
     CONSTRAINT t_contractor_qual_pkey PRIMARY KEY (qual_id)
 );
 DROP INDEX IF EXISTS cbs.t_contractor_qual_type;
 CREATE INDEX IF NOT EXISTS t_contractor_qual_type ON cbs.t_contractor_qual (type_id, qual_type, open_status);
+
+-- 兼容早期已建的库：补 update_time（幂等）
+ALTER TABLE cbs.t_contractor_qual ADD COLUMN IF NOT EXISTS update_time timestamp NOT NULL DEFAULT now();
 
 -- 开工准备条件（按项目类型维护：名称 + 说明；type_id 关联 t_dict.item_id）
 CREATE TABLE IF NOT EXISTS cbs.t_prep_condition (

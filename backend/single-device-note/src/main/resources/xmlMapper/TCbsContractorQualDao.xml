@@ -3,7 +3,8 @@
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorQualDao">
 
     <sql id="cols">
-        qual_id, type_id, qual_name, qual_level, qual_type, validity, remind, is_using, creator, open_status
+        qual_id, type_id, qual_name, qual_level, qual_type, validity, remind, is_using, creator, open_status,
+        to_char(update_time, 'YYYY-MM-DD HH24:MI') as update_time
     </sql>
 
     <select id="listByType" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorQual">
@@ -24,10 +25,10 @@
     <update id="update">
         update cbs.t_contractor_qual
         set qual_name = #{p.qual_name},
-            qual_level = #{p.qual_level},
             validity = coalesce(#{p.validity}, 0),
             remind = #{p.remind},
-            is_using = coalesce(#{p.is_using}, true)
+            is_using = coalesce(#{p.is_using}, true),
+            update_time = now()
         where qual_id = #{p.qual_id} and open_status = true
     </update>
 
