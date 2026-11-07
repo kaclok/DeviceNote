@@ -160,7 +160,7 @@ public class CCGHT {
             return Result.fail(ResultCode.RC10301);
         }
         if (!user.isOpen_status()) {
-            return Result.fail(ResultCode.RC10301, String.format("账号 %s 已停用，请联系管理员", account));
+            return Result.fail(ResultCode.RC10301.getCode(), String.format("账号 %s 已停用，请联系管理员", account));
         }
         // 库里是 BCrypt 密文（每行独立随机盐）：只能校验，不能比字符串。请求参数仍是明文。
         if (!PwdUtil.matches(pwd, user.getPwd())) {
@@ -283,14 +283,14 @@ public class CCGHT {
             @RequestParam(name = "data_scope", required = false, defaultValue = "2") String data_scope,
             @Acc TCGHTUser curUser) {
         if (!StringUtils.hasText(account)) {
-            return Result.fail(ResultCode.RC10101, "账号(account)不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "账号(account)不能为空");
         }
         if (!StringUtils.hasText(role_code)) {
-            return Result.fail(ResultCode.RC10101, "角色(role_code)不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "角色(role_code)不能为空");
         }
         // 归属部门必填：空值直接拒绝，非空则必须能在组织架构中找到（口径与下拉/组织树一致）
         if (!StringUtils.hasText(dept_code)) {
-            return Result.fail(ResultCode.RC10101, "归属部门(dept_code)不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "归属部门(dept_code)不能为空");
         }
         if (!deptExists(dept_code)) {
             return Result.fail(ResultCode.RC10101.getCode(), String.format("部门 %s 不存在或已停用，请重新选择", dept_code));
@@ -366,7 +366,7 @@ public class CCGHT {
         final TCGHTUser saved;
         if (old == null) {
             // 全新账号：新建
-            if (!StringUtils.hasText(username)) return Result.fail(ResultCode.RC10101, "姓名(username)不能为空");
+            if (!StringUtils.hasText(username)) return Result.fail(ResultCode.RC10101.getCode(), "姓名(username)不能为空");
             final String rawPwd = StringUtils.hasText(password) ? password : DEFAULT_INIT_PWD;
             TCGHTUser u = new TCGHTUser();
             u.setAccount(account);
@@ -426,7 +426,7 @@ public class CCGHT {
                                      @RequestParam(name = "pwd", required = false) String pwd,
                                      @Acc TCGHTUser curUser) {
         if (!StringUtils.hasText(account)) {
-            return Result.fail(ResultCode.RC10101, "账号(account)不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "账号(account)不能为空");
         }
         // 用 query 替代 exist：一次查询同时拿到"存不存在"和"归属部门在不在范围内"
         TCGHTUser target = userDao.query(account);
@@ -498,7 +498,7 @@ public class CCGHT {
     public Result<?> accountToggle(@RequestParam(name = "account") String account,
                                    @Acc TCGHTUser curUser) {
         if (!StringUtils.hasText(account)) {
-            return Result.fail(ResultCode.RC10101, "账号(account)不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "账号(account)不能为空");
         }
         TCGHTUser u = userDao.query(account);
         List<String> scopeDepts = resolveScopeDepts(curUser);

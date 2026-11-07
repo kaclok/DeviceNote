@@ -16,7 +16,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public Result<?> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex) {
-        return Result.fail(ResultCode.RC10104, ex.getMessage());
+        return Result.fail(ResultCode.RC10104.getCode(), ex.getMessage());
     }
 
     /*@ExceptionHandler(RepeatSubmitException.class)

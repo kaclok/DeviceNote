@@ -44,7 +44,7 @@ public class CCbsLogin {
     @PostMapping(value = "/login")
     public Result<?> login(String account, String password, HttpServletResponse response) {
         if (!StringUtils.hasText(account) || !StringUtils.hasText(password)) {
-            return Result.fail(ResultCode.RC10101, "account/password 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "account/password 不能为空");
         }
         TCbsUser user = userDao.query(account);
         // 账号不存在 与 停用 同一口径，不暴露存在性

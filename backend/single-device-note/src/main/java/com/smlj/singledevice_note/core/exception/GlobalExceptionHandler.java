@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public Result<?> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex) {
-        return Result.fail(ResultCode.RC10104, ex.getMessage());
+        return Result.fail(ResultCode.RC10104.getCode(), ex.getMessage());
     }
 
     /**

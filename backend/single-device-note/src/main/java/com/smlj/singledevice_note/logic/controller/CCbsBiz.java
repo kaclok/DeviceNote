@@ -234,11 +234,11 @@ public class CCbsBiz {
     public Result<?> contractorDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "contractorId");
         if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101.getCode(), "承包商不存在或已被删除",null);
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商不存在或已被删除");
         }
         int projCount = projectDao.countByContractor(id);
         if (projCount > 0) {
-            return Result.fail(ResultCode.RC10101.getCode(), "该承包商名下还有 " + projCount + " 个项目，请先处理项目后再删除", null);
+            return Result.fail(ResultCode.RC10101.getCode(), "该承包商名下还有 " + projCount + " 个项目，请先处理项目后再删除");
         }
         contractorDao.remove(id);
         return Result.success();
@@ -251,7 +251,7 @@ public class CCbsBiz {
     public Result<?> contractorRestore(@RequestBody Map<String, Object> b) {
         String id = str(b, "contractorId");
         if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101.getCode(), "承包商不存在或已被删除", null);
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商不存在或已被删除");
         }
         contractorDao.restore(id);
         return Result.success();
@@ -264,11 +264,11 @@ public class CCbsBiz {
     public Result<?> contractorPurge(@RequestBody Map<String, Object> b) {
         String id = str(b, "contractorId");
         if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101.getCode(), "承包商不存在或已被彻底删除", null);
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商不存在或已被彻底删除");
         }
         int projCount = projectDao.countByContractor(id);
         if (projCount > 0) {
-            return Result.fail(ResultCode.RC10101.getCode(), "该承包商名下还有 " + projCount + " 个项目，不能彻底删除", null);
+            return Result.fail(ResultCode.RC10101.getCode(), "该承包商名下还有 " + projCount + " 个项目，不能彻底删除");
         }
         contractorDao.purge(id);
         return Result.success();
@@ -280,7 +280,7 @@ public class CCbsBiz {
     public Result<?> changeLogList(@RequestBody Map<String, Object> q) {
         TCbsContractor c = requireContractor(str(q, "contractorId"));
         if (c == null) {
-            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在", null);
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
         }
         int no = pageNo(q), size = pageSize(q);
         long total = changeDao.countAll(c.getContractor_id());
@@ -680,7 +680,7 @@ public class CCbsBiz {
     public Result<?> spotcheckSave(@RequestBody TCbsSpotcheck s, @Acc TCbsUser me) {
         String err = checkSpotcheck(s);
         if (err != null) {
-            return Result.fail(ResultCode.RC10101, err);
+            return Result.fail(ResultCode.RC10101.getCode(), err);
         }
         if (!StringUtils.hasText(s.getCheck_id())) {
             s.setCheck_id(newId());
@@ -898,7 +898,7 @@ public class CCbsBiz {
     public Result<?> dictOptions(@RequestBody(required = false) Map<String, Object> b) {
         String type = str(b, "dictType");
         if (!StringUtils.hasText(type) || !DICT_TYPES.contains(type)) {
-            return Result.fail(ResultCode.RC10101, "dict_type 不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "dict_type 不合法");
         }
         List<Map<String, Object>> items = dictDao.queryOptions(type).stream()
                 .map(d -> Map.<String, Object>of("id", d.getItem_id(), "name", d.getItem_name()))

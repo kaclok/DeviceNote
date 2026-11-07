@@ -67,14 +67,14 @@ public class CCbsUser {
     @PostMapping("/dept/save")
     public Result<?> deptSave(@RequestBody TCbsDept d) {
         if (!StringUtils.hasText(d.getDept_code()) || !StringUtils.hasText(d.getDept_name())) {
-            return Result.fail(ResultCode.RC10101, "dept_code/dept_name 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "dept_code/dept_name 不能为空");
         }
         // 父部门必须真实存在（根节点 parent 留空）
         if (StringUtils.hasText(d.getParent_dept_code()) && deptDao.queryById(d.getParent_dept_code()) == null) {
-            return Result.fail(ResultCode.RC10103, "父部门不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "父部门不存在");
         }
         if (d.getDept_code().equals(d.getParent_dept_code())) {
-            return Result.fail(ResultCode.RC10101, "父部门不能是自身");
+            return Result.fail(ResultCode.RC10101.getCode(), "父部门不能是自身");
         }
         if (d.getIs_company() == null) {
             d.setIs_company(false);
@@ -93,14 +93,14 @@ public class CCbsUser {
     @PostMapping("/dept/delete")
     public Result<?> deptDelete(@RequestParam(name = "deptCode") String deptCode) {
         if (!StringUtils.hasText(deptCode)) {
-            return Result.fail(ResultCode.RC10101, "deptCode 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "deptCode 不能为空");
         }
         // 守卫：有直系子部门 / 有在编人员 的一律拒删（软删后读取链路自动屏蔽，但语义上不允许断链）
         if (!deptDao.querySubDepts(deptCode).isEmpty()) {
-            return Result.fail(ResultCode.RC10101, "存在子部门，不能删除");
+            return Result.fail(ResultCode.RC10101.getCode(), "存在子部门，不能删除");
         }
         if (userDao.countByDept(deptCode) > 0) {
-            return Result.fail(ResultCode.RC10101, "部门下存在在编人员，不能删除");
+            return Result.fail(ResultCode.RC10101.getCode(), "部门下存在在编人员，不能删除");
         }
         deptDao.remove(deptCode);
         return Result.success();
@@ -119,10 +119,10 @@ public class CCbsUser {
     @PostMapping("/role/save")
     public Result<?> roleSave(@RequestBody TCbsRole r) {
         if (!StringUtils.hasText(r.getRole_code()) || !StringUtils.hasText(r.getRole_name())) {
-            return Result.fail(ResultCode.RC10101, "role_code/role_name 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "role_code/role_name 不能为空");
         }
         if (!com.smlj.singledevice_note.core.o.to.DataScope.of(r.getData_scope()).isValid()) {
-            return Result.fail(ResultCode.RC10101, "data_scope 必须是 1~4");
+            return Result.fail(ResultCode.RC10101.getCode(), "data_scope 必须是 1~4");
         }
         boolean exists = roleDao.query(r.getRole_code()) != null;
         if (exists) {
@@ -141,10 +141,10 @@ public class CCbsUser {
     @PostMapping("/role/delete")
     public Result<?> roleDelete(@RequestParam(name = "roleCode") String roleCode) {
         if (!StringUtils.hasText(roleCode)) {
-            return Result.fail(ResultCode.RC10101, "roleCode 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "roleCode 不能为空");
         }
         if (roleDao.countByRole(roleCode) > 0) {
-            return Result.fail(ResultCode.RC10101, "存在使用该角色的账号，不能停用");
+            return Result.fail(ResultCode.RC10101.getCode(), "存在使用该角色的账号，不能停用");
         }
         roleDao.toggleStatus(roleCode, false);
         curCbsUserService.evictAll();
@@ -175,19 +175,19 @@ public class CCbsUser {
     @PostMapping("/user/save")
     public Result<?> userSave(@RequestBody TCbsUser u) {
         if (!StringUtils.hasText(u.getAccount()) || !StringUtils.hasText(u.getUsername())) {
-            return Result.fail(ResultCode.RC10101, "account/username 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "account/username 不能为空");
         }
         if (!StringUtils.hasText(u.getRole_code()) || roleDao.query(u.getRole_code()) == null) {
-            return Result.fail(ResultCode.RC10101, "角色不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "角色不存在");
         }
         if (!StringUtils.hasText(u.getDept_code()) || deptDao.queryById(u.getDept_code()) == null) {
-            return Result.fail(ResultCode.RC10101, "归属部门不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "归属部门不存在");
         }
         if (u.getUser_type() == null) {
             u.setUser_type(1);
         }
         if (u.getUser_type() == 2 && !StringUtils.hasText(u.getContractor_id())) {
-            return Result.fail(ResultCode.RC10101, "承包商人员必须关联承包商单位");
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商人员必须关联承包商单位");
         }
         boolean exists = userDao.exist(u.getAccount()) > 0;
         if (exists) {
@@ -208,7 +208,7 @@ public class CCbsUser {
     @PostMapping("/user/resetPwd")
     public Result<?> userResetPwd(@RequestParam(name = "account") String account) {
         if (!StringUtils.hasText(account) || userDao.exist(account) == 0) {
-            return Result.fail(ResultCode.RC10101, "账号不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "账号不存在");
         }
         userDao.resetPwd(account, PwdUtil.encrypt("123456"));
         curCbsUserService.evict(account);
@@ -221,7 +221,7 @@ public class CCbsUser {
     public Result<?> userToggle(@RequestParam(name = "account") String account,
                                 @RequestParam(name = "isUsing") boolean isUsing) {
         if (!StringUtils.hasText(account) || userDao.exist(account) == 0) {
-            return Result.fail(ResultCode.RC10101, "账号不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "账号不存在");
         }
         userDao.toggleStatus(account, isUsing);
         curCbsUserService.evict(account);
