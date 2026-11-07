@@ -16,8 +16,15 @@ const props = defineProps({type: String})
 const activeType = ref(TYPES.includes(props?.type) ? props.type : TYPES[0])
 const pageTitle = computed(() => (gd.dictTypes.find(t => t.id === activeType.value) || {}).desc || '')
 
-/* 三类字典统一支持 在用/回收站：页内右侧水平两个切页（回收站 = 软删行 open_status=false） */
+/* 三类字典统一支持 在用/回收站：横向卡片切页，对齐承包商管理的 state-tabs（回收站 = 软删行 open_status=false） */
 const recycled = ref(false)
+/* el-tabs 的 v-model 要字符串 name；recycled 仍是唯一状态源，两者用 computed 互转 */
+const tabKey = computed({
+    get: () => (recycled.value ? 'recycle' : 'using'),
+    set: v => {
+        recycled.value = v === 'recycle'
+    },
+})
 
 /* 项目类型：行内维护该类型下的「开工准备文件 / 资料清单」（仿参考站 prepareFileModal / meansListModal） */
 const isProjectType = computed(() => activeType.value === 'project_type')
@@ -384,17 +391,18 @@ onUnmounted(() => {
         </div>
 
         <div class="card">
+            <!-- 横向卡片切页（对齐参考站 / 承包商管理的 a-tabs type=card） -->
+            <el-tabs v-model="tabKey" type="card" class="state-tabs">
+                <el-tab-pane label="在用" name="using"/>
+                <el-tab-pane label="回收站" name="recycle"/>
+            </el-tabs>
+
             <div class="toolbar">
                 <el-input v-model="keyword" placeholder="搜索名称" clearable
                           style="width:220px" :prefix-icon="Search"/>
                 <!-- 回收站页不给新增：新行必然 open_status=true，落在「在用」里，点了会以为没生效 -->
                 <el-button v-if="!recycled" type="primary" plain class="add-btn"
                            @click="openDialog(false)">新增</el-button>
-                <!-- 右侧水平 在用/回收站 切页（仿目标站 contractorType，三类字典通用） -->
-                <el-radio-group v-model="recycled" class="recycle-tabs">
-                    <el-radio-button :value="false">在用</el-radio-button>
-                    <el-radio-button :value="true">回收站</el-radio-button>
-                </el-radio-group>
             </div>
 
             <el-table :data="rows" v-loading="loading" border stripe>
@@ -610,12 +618,16 @@ onUnmounted(() => {
         margin-bottom: 14px;
 
         .add-btn {
-            margin-right: auto;
-        }
-
-        /* 右侧水平切页 */
-        .recycle-tabs {
             margin-left: auto;
+        }
+    }
+
+    /* 横向卡片切页：表头贴住工具栏，样式与承包商管理保持一致 */
+    .state-tabs {
+        margin-bottom: 12px;
+
+        :deep(.el-tabs__header) {
+            margin-bottom: 0;
         }
     }
 
