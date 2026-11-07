@@ -116,14 +116,7 @@ function notifyError(fail, ...fallbacks) {
         ? fail.response.status
         : ((typeof fail?.status === "number") ? fail.status : null);
 
-    let msg = body?.message || body?.msg || "";
-    // 后端历史遗留：Result.fail(ResultCode.RCxxxxx, "具体文案") 在 Java 里会把第二个参数解析成 data
-    // （重载是 fail(ResultCode, T data)），message 只剩码表默认文案（如「请求参数为空或不合法」），
-    // 真正想显示的文案落在 data 里。仅在「message 为空或恰好等于码表默认文案」且 data 是非空字符串时接管，
-    // 不影响 message 本身正确的场景，也不动后端 Result。
-    const dataText = (typeof body?.data === "string") ? body.data.trim() : "";
-    if (dataText && (!msg || msg === CODE_TEXT[code])) msg = dataText;
-    if (!msg) msg = fallbacks.find(t => t) || "";
+    let msg = body?.message || body?.msg || fallbacks.find(t => t) || "";
     if (!msg && code != null) msg = "操作失败（错误码 " + code + "）";
     // HTTP 200 是正常响应，落到这里只是因为业务码不认识，别拿它当错误文案
     if (!msg && httpStatus != null && httpStatus !== 200) msg = "请求失败(" + httpStatus + ")";

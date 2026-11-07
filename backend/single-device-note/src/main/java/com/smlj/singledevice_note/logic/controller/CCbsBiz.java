@@ -170,14 +170,14 @@ public class CCbsBiz {
     @PostMapping("/contractor/save")
     public Result<?> contractorSave(@RequestBody TCbsContractor c, @Acc TCbsUser me) {
         if (!StringUtils.hasText(c.getName())) {
-            return Result.fail(ResultCode.RC10101, "承包商名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商名称不能为空");
         }
         if (c.getCoop_status() != null && (c.getCoop_status() < 1 || c.getCoop_status() > 3)) {
-            return Result.fail(ResultCode.RC10101, "合作状态不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "合作状态不合法");
         }
         if (StringUtils.hasText(c.getUscc())
                 && contractorDao.countUsccDup(c.getUscc(), c.getContractor_id()) > 0) {
-            return Result.fail(ResultCode.RC10101, "统一社会信用代码已存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "统一社会信用代码已存在");
         }
         if (!StringUtils.hasText(c.getContractor_id())) {
             c.setContractor_id(newId());
@@ -191,7 +191,7 @@ public class CCbsBiz {
         } else {
             TCbsContractor old = contractorDao.query(c.getContractor_id());
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "承包商不存在");
+                return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
             }
             // 主键/审核状态/归属不由编辑表单改动，保留旧值
             c.setApprove_status(old.getApprove_status());
@@ -216,13 +216,13 @@ public class CCbsBiz {
         String reason = str(b, "reason");
         CbsApproveStatus target = CbsApproveStatus.of(status);
         if (!StringUtils.hasText(id) || target == null) {
-            return Result.fail(ResultCode.RC10101, "contractorId/status 不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "contractorId/status 不合法");
         }
         if (target.needReason() && !StringUtils.hasText(reason)) {
-            return Result.fail(ResultCode.RC10101, "未通过必须填写原因");
+            return Result.fail(ResultCode.RC10101.getCode(), "未通过必须填写原因");
         }
         if (contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10103, "承包商不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
         }
         contractorDao.audit(id, target.getCode(), target.needReason() ? reason : null);
         return Result.success();
@@ -234,11 +234,11 @@ public class CCbsBiz {
     public Result<?> contractorDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "contractorId");
         if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "承包商不存在或已被删除");
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商不存在或已被删除",null);
         }
         int projCount = projectDao.countByContractor(id);
         if (projCount > 0) {
-            return Result.fail(ResultCode.RC10101, "该承包商名下还有 " + projCount + " 个项目，请先处理项目后再删除");
+            return Result.fail(ResultCode.RC10101.getCode(), "该承包商名下还有 " + projCount + " 个项目，请先处理项目后再删除", null);
         }
         contractorDao.remove(id);
         return Result.success();
@@ -251,7 +251,7 @@ public class CCbsBiz {
     public Result<?> contractorRestore(@RequestBody Map<String, Object> b) {
         String id = str(b, "contractorId");
         if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "承包商不存在或已被删除");
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商不存在或已被删除", null);
         }
         contractorDao.restore(id);
         return Result.success();
@@ -264,11 +264,11 @@ public class CCbsBiz {
     public Result<?> contractorPurge(@RequestBody Map<String, Object> b) {
         String id = str(b, "contractorId");
         if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "承包商不存在或已被彻底删除");
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商不存在或已被彻底删除", null);
         }
         int projCount = projectDao.countByContractor(id);
         if (projCount > 0) {
-            return Result.fail(ResultCode.RC10101, "该承包商名下还有 " + projCount + " 个项目，不能彻底删除");
+            return Result.fail(ResultCode.RC10101.getCode(), "该承包商名下还有 " + projCount + " 个项目，不能彻底删除", null);
         }
         contractorDao.purge(id);
         return Result.success();
@@ -280,7 +280,7 @@ public class CCbsBiz {
     public Result<?> changeLogList(@RequestBody Map<String, Object> q) {
         TCbsContractor c = requireContractor(str(q, "contractorId"));
         if (c == null) {
-            return Result.fail(ResultCode.RC10103, "承包商不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在", null);
         }
         int no = pageNo(q), size = pageSize(q);
         long total = changeDao.countAll(c.getContractor_id());
@@ -296,18 +296,18 @@ public class CCbsBiz {
     public Result<?> changeLogSave(@RequestBody TCbsContractorChange p, @Acc TCbsUser me) {
         TCbsContractor c = requireContractor(p.getContractor_id());
         if (c == null) {
-            return Result.fail(ResultCode.RC10103, "承包商不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
         }
         if (p.getType() == null || (p.getType() != 1 && p.getType() != 2)) {
-            return Result.fail(ResultCode.RC10101, "变更类型不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "变更类型不合法");
         }
         if (p.getMoney() == null || p.getMoney().signum() <= 0) {
-            return Result.fail(ResultCode.RC10101, "变更金额必须大于 0");
+            return Result.fail(ResultCode.RC10101.getCode(), "变更金额必须大于 0");
         }
         BigDecimal delta = p.getType() == 1 ? p.getMoney().negate() : p.getMoney();
         BigDecimal balance = c.getDeposit() == null ? BigDecimal.ZERO : c.getDeposit();
         if (balance.add(delta).signum() < 0) {
-            return Result.fail(ResultCode.RC10101, "扣款后保证金余额不能为负");
+            return Result.fail(ResultCode.RC10101.getCode(), "扣款后保证金余额不能为负");
         }
         p.setId(newId());
         p.setCreator(me.getAccount());
@@ -325,7 +325,7 @@ public class CCbsBiz {
     public Result<?> punishList(@RequestBody Map<String, Object> q) {
         TCbsContractor c = requireContractor(str(q, "contractorId"));
         if (c == null) {
-            return Result.fail(ResultCode.RC10103, "承包商不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
         }
         int no = pageNo(q), size = pageSize(q);
         long total = punishDao.countAll(c.getContractor_id());
@@ -340,7 +340,7 @@ public class CCbsBiz {
     public Result<?> punishOptions(@RequestBody Map<String, Object> b) {
         String contractorId = str(b, "contractorId");
         if (!StringUtils.hasText(contractorId)) {
-            return Result.fail(ResultCode.RC10101, "contractorId 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "contractorId 不能为空");
         }
         return Result.success(Map.of(
                 "projects", projectDao.queryOptionsByContractor(contractorId).stream()
@@ -357,22 +357,22 @@ public class CCbsBiz {
     @PostMapping("/contractor/punish/save")
     public Result<?> punishSave(@RequestBody TCbsContractorPunish p, @Acc TCbsUser me) {
         if (requireContractor(p.getContractor_id()) == null) {
-            return Result.fail(ResultCode.RC10103, "承包商不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
         }
         if (!StringUtils.hasText(p.getProject_id()) || projectDao.query(p.getProject_id()) == null) {
-            return Result.fail(ResultCode.RC10101, "关联项目不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "关联项目不合法");
         }
         if (!StringUtils.hasText(p.getType_id())) {
-            return Result.fail(ResultCode.RC10101, "处罚类型不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "处罚类型不能为空");
         }
         if (!StringUtils.hasText(p.getPunish_user())) {
-            return Result.fail(ResultCode.RC10101, "违规人不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "违规人不能为空");
         }
         if (p.getMoney() == null || p.getMoney().signum() <= 0) {
-            return Result.fail(ResultCode.RC10101, "处罚金额必须大于 0");
+            return Result.fail(ResultCode.RC10101.getCode(), "处罚金额必须大于 0");
         }
         if (p.getPunish_time() == null) {
-            return Result.fail(ResultCode.RC10101, "处罚时间不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "处罚时间不能为空");
         }
         p.setId(newId());
         p.setCreator(me.getAccount());
@@ -408,13 +408,13 @@ public class CCbsBiz {
     @PostMapping("/project/save")
     public Result<?> projectSave(@RequestBody TCbsProject p, @Acc TCbsUser me) {
         if (!StringUtils.hasText(p.getProj_name())) {
-            return Result.fail(ResultCode.RC10101, "项目名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "项目名称不能为空");
         }
         if (!StringUtils.hasText(p.getContractor_id()) || contractorDao.query(p.getContractor_id()) == null) {
-            return Result.fail(ResultCode.RC10101, "承包商单位不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商单位不存在");
         }
         if (p.getBegin_date() != null && p.getEnd_date() != null && p.getEnd_date().isBefore(p.getBegin_date())) {
-            return Result.fail(ResultCode.RC10101, "结束日期不能早于开始日期");
+            return Result.fail(ResultCode.RC10101.getCode(), "结束日期不能早于开始日期");
         }
         if (p.getProj_status() == null) {
             p.setProj_status(0);
@@ -427,7 +427,7 @@ public class CCbsBiz {
         } else {
             TCbsProject old = projectDao.query(p.getProject_id());
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "项目不存在");
+                return Result.fail(ResultCode.RC10103.getCode(), "项目不存在");
             }
             p.setCreator(old.getCreator());
             p.setOpen_status(old.getOpen_status());
@@ -442,7 +442,7 @@ public class CCbsBiz {
     public Result<?> projectDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "projectId");
         if (!StringUtils.hasText(id) || projectDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "项目不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "项目不存在");
         }
         projectDao.remove(id);
         return Result.success();
@@ -464,7 +464,7 @@ public class CCbsBiz {
     @PostMapping("/project/enter/save")
     public Result<?> enterSave(@RequestBody TCbsProjectEnter e, @Acc TCbsUser me) {
         if (!StringUtils.hasText(e.getProject_id()) || projectDao.query(e.getProject_id()) == null) {
-            return Result.fail(ResultCode.RC10101, "关联项目不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "关联项目不存在");
         }
         if (!StringUtils.hasText(e.getEnter_id())) {
             e.setEnter_id(newId());
@@ -474,7 +474,7 @@ public class CCbsBiz {
         } else {
             TCbsProjectEnter old = enterDao.query(e.getEnter_id());
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "入场记录不存在");
+                return Result.fail(ResultCode.RC10103.getCode(), "入场记录不存在");
             }
             e.setCreator(old.getCreator());
             e.setOpen_status(old.getOpen_status());
@@ -489,7 +489,7 @@ public class CCbsBiz {
     public Result<?> enterDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "enterId");
         if (!StringUtils.hasText(id) || enterDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "入场记录不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "入场记录不存在");
         }
         enterDao.remove(id);
         return Result.success();
@@ -509,10 +509,10 @@ public class CCbsBiz {
     @PostMapping("/project/prep/save")
     public Result<?> prepSave(@RequestBody TCbsProjectPrep p, @Acc TCbsUser me) {
         if (!StringUtils.hasText(p.getProject_id()) || projectDao.query(p.getProject_id()) == null) {
-            return Result.fail(ResultCode.RC10101, "关联项目不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "关联项目不存在");
         }
         if (!StringUtils.hasText(p.getContent())) {
-            return Result.fail(ResultCode.RC10101, "准备事项不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "准备事项不能为空");
         }
         if (p.getStatus() == null) {
             p.setStatus(0);
@@ -525,7 +525,7 @@ public class CCbsBiz {
         } else {
             TCbsProjectPrep old = prepDao.query(p.getPrep_id());
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "开工准备记录不存在");
+                return Result.fail(ResultCode.RC10103.getCode(), "开工准备记录不存在");
             }
             p.setCreator(old.getCreator());
             p.setOpen_status(old.getOpen_status());
@@ -540,7 +540,7 @@ public class CCbsBiz {
     public Result<?> prepDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "prepId");
         if (!StringUtils.hasText(id) || prepDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "开工准备记录不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "开工准备记录不存在");
         }
         prepDao.remove(id);
         return Result.success();
@@ -560,7 +560,7 @@ public class CCbsBiz {
     @PostMapping("/project/accept/save")
     public Result<?> acceptSave(@RequestBody TCbsProjectAccept a, @Acc TCbsUser me) {
         if (!StringUtils.hasText(a.getProject_id()) || projectDao.query(a.getProject_id()) == null) {
-            return Result.fail(ResultCode.RC10101, "关联项目不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "关联项目不存在");
         }
         if (a.getResult() == null) {
             a.setResult(1);
@@ -573,7 +573,7 @@ public class CCbsBiz {
         } else {
             TCbsProjectAccept old = acceptDao.query(a.getAccept_id());
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "验收记录不存在");
+                return Result.fail(ResultCode.RC10103.getCode(), "验收记录不存在");
             }
             a.setCreator(old.getCreator());
             a.setOpen_status(old.getOpen_status());
@@ -588,7 +588,7 @@ public class CCbsBiz {
     public Result<?> acceptDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "acceptId");
         if (!StringUtils.hasText(id) || acceptDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "验收记录不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "验收记录不存在");
         }
         acceptDao.remove(id);
         return Result.success();
@@ -610,10 +610,10 @@ public class CCbsBiz {
     @PostMapping("/post/save")
     public Result<?> postSave(@RequestBody TCbsPost p, @Acc TCbsUser me) {
         if (!StringUtils.hasText(p.getPost_code()) || !StringUtils.hasText(p.getPost_name())) {
-            return Result.fail(ResultCode.RC10101, "岗位编码/名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "岗位编码/名称不能为空");
         }
         if (postDao.countCode(p.getPost_code(), p.getPost_id()) > 0) {
-            return Result.fail(ResultCode.RC10101, "岗位编码已存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "岗位编码已存在");
         }
         if (p.getPost_status() == null) {
             p.setPost_status(1);
@@ -626,7 +626,7 @@ public class CCbsBiz {
         } else {
             TCbsPost old = postDao.query(p.getPost_id());
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "岗位不存在");
+                return Result.fail(ResultCode.RC10103.getCode(), "岗位不存在");
             }
             p.setCreator(old.getCreator());
             p.setOpen_status(old.getOpen_status());
@@ -641,7 +641,7 @@ public class CCbsBiz {
     public Result<?> postDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "postId");
         if (!StringUtils.hasText(id) || postDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "岗位不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "岗位不存在");
         }
         postDao.remove(id);
         return Result.success();
@@ -697,7 +697,7 @@ public class CCbsBiz {
         } else {
             TCbsSpotcheck old = spotcheckDao.query(s.getCheck_id());
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "报备记录不存在");
+                return Result.fail(ResultCode.RC10103.getCode(), "报备记录不存在");
             }
             if (s.getStatus() == null) {
                 s.setStatus(old.getStatus());
@@ -715,10 +715,10 @@ public class CCbsBiz {
         String id = str(b, "checkId");
         TCbsSpotcheck old = StringUtils.hasText(id) ? spotcheckDao.query(id) : null;
         if (old == null) {
-            return Result.fail(ResultCode.RC10101, "报备记录不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "报备记录不存在");
         }
         if (old.getStatus() != null && (old.getStatus() == 2 || old.getStatus() == 3)) {
-            return Result.fail(ResultCode.RC10101, "已完成或已作废的报备不可作废");
+            return Result.fail(ResultCode.RC10101.getCode(), "已完成或已作废的报备不可作废");
         }
         spotcheckDao.invalidate(id);
         return Result.success();
@@ -731,7 +731,7 @@ public class CCbsBiz {
     public Result<?> spotcheckDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "checkId");
         if (!StringUtils.hasText(id) || spotcheckDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "报备记录不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "报备记录不存在");
         }
         spotcheckDao.delete(id);
         return Result.success();
@@ -748,10 +748,10 @@ public class CCbsBiz {
         final int importMax = 500;
         Object raw = b == null ? null : b.get("rows");
         if (!(raw instanceof List<?> list) || list.isEmpty()) {
-            return Result.fail(ResultCode.RC10101, "导入内容为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "导入内容为空");
         }
         if (list.size() > importMax) {
-            return Result.fail(ResultCode.RC10101, "单次最多导入 " + importMax + " 行");
+            return Result.fail(ResultCode.RC10101.getCode(), "单次最多导入 " + importMax + " 行");
         }
         int inserted = 0;
         List<Map<String, Object>> failed = new java.util.ArrayList<>();
@@ -875,7 +875,7 @@ public class CCbsBiz {
     public Result<?> dictList(@RequestBody(required = false) Map<String, Object> q) {
         String type = str(q, "dictType");
         if (StringUtils.hasText(type) && !DICT_TYPES.contains(type)) {
-            return Result.fail(ResultCode.RC10101, "dict_type 不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "dict_type 不合法");
         }
         boolean onlyUsing = Boolean.parseBoolean(String.valueOf(q == null ? null : q.get("onlyUsing")));
         Boolean recycled = q == null ? null : (Boolean) q.get("recycled");
@@ -911,13 +911,13 @@ public class CCbsBiz {
     @PostMapping("/dict/save")
     public Result<?> dictSave(@RequestBody TCbsDict d, @Acc TCbsUser me) {
         if (!DICT_TYPES.contains(d.getDict_type())) {
-            return Result.fail(ResultCode.RC10101, "dict_type 不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "dict_type 不合法");
         }
         if (!StringUtils.hasText(d.getItem_name())) {
-            return Result.fail(ResultCode.RC10101, "字典项名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "字典项名称不能为空");
         }
         if (dictDao.countName(d.getDict_type(), d.getItem_name(), d.getItem_id()) > 0) {
-            return Result.fail(ResultCode.RC10101, "该类型下字典项名称已存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "该类型下字典项名称已存在");
         }
         if (d.getSort_no() == null) {
             d.setSort_no(0);
@@ -933,7 +933,7 @@ public class CCbsBiz {
         } else {
             TCbsDict old = dictDao.query(d.getItem_id());
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "字典项不存在");
+                return Result.fail(ResultCode.RC10103.getCode(), "字典项不存在");
             }
             d.setCreator(old.getCreator());
             d.setOpen_status(old.getOpen_status());
@@ -948,7 +948,7 @@ public class CCbsBiz {
     public Result<?> dictDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "itemId");
         if (!StringUtils.hasText(id) || dictDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "字典项不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "字典项不存在");
         }
         dictDao.remove(id);
         return Result.success();
@@ -961,7 +961,7 @@ public class CCbsBiz {
     public Result<?> dictRestore(@RequestBody Map<String, Object> b) {
         String id = str(b, "itemId");
         if (!StringUtils.hasText(id) || dictDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "字典项不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "字典项不存在");
         }
         dictDao.restore(id);
         return Result.success();
@@ -974,7 +974,7 @@ public class CCbsBiz {
     public Result<?> dictPurge(@RequestBody Map<String, Object> b) {
         String id = str(b, "itemId");
         if (!StringUtils.hasText(id) || dictDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "字典项不存在");
+            return Result.fail(ResultCode.RC10101.getCode(), "字典项不存在");
         }
         dictDao.purge(id);
         return Result.success();
@@ -987,11 +987,11 @@ public class CCbsBiz {
     public Result<?> cqualList(@RequestBody Map<String, Object> b) {
         String typeId = str(b, "typeId");
         if (!StringUtils.hasText(typeId)) {
-            return Result.fail(ResultCode.RC10101, "typeId 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "typeId 不能为空");
         }
         Integer qualType = qualTypeOf(b.get("qualType"));
         if (qualType == null) {
-            return Result.fail(ResultCode.RC10101, "qualType 只能是 1（资质管理）或 2（审核所需文件）");
+            return Result.fail(ResultCode.RC10101.getCode(), "qualType 只能是 1（资质管理）或 2（审核所需文件）");
         }
         return Result.success(cqualDao.listByType(typeId, qualType));
     }
@@ -1001,17 +1001,17 @@ public class CCbsBiz {
     @PostMapping("/cqual/save")
     public Result<?> cqualSave(@RequestBody TCbsContractorQual q, @Acc TCbsUser me) {
         if (!StringUtils.hasText(q.getType_id())) {
-            return Result.fail(ResultCode.RC10101, "所属承包商类型不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "所属承包商类型不能为空");
         }
         if (q.getQual_type() == null || (q.getQual_type() != 1 && q.getQual_type() != 2)) {
-            return Result.fail(ResultCode.RC10101, "qualType 只能是 1（资质管理）或 2（审核所需文件）");
+            return Result.fail(ResultCode.RC10101.getCode(), "qualType 只能是 1（资质管理）或 2（审核所需文件）");
         }
         if (!StringUtils.hasText(q.getQual_name())) {
-            return Result.fail(ResultCode.RC10101, q.getQual_type() == 2 ? "文件名称不能为空" : "资质名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), q.getQual_type() == 2 ? "文件名称不能为空" : "资质名称不能为空");
         }
         if (q.getValidity() == null) q.setValidity(0);
         if (q.getValidity() < 0) {
-            return Result.fail(ResultCode.RC10101, "有效期(月)不能为负数");
+            return Result.fail(ResultCode.RC10101.getCode(), "有效期(月)不能为负数");
         }
         if (q.getIs_using() == null) q.setIs_using(true);
         if (StringUtils.hasText(q.getQual_id())) {
@@ -1031,11 +1031,11 @@ public class CCbsBiz {
     public Result<?> cqualToggle(@RequestBody Map<String, Object> b) {
         String id = str(b, "qualId");
         if (!StringUtils.hasText(id)) {
-            return Result.fail(ResultCode.RC10101, "qualId 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "qualId 不能为空");
         }
         Object using = b.get("isUsing");
         if (!(using instanceof Boolean)) {
-            return Result.fail(ResultCode.RC10101, "isUsing 必须是布尔值");
+            return Result.fail(ResultCode.RC10101.getCode(), "isUsing 必须是布尔值");
         }
         cqualDao.toggleUsing(id, (Boolean) using);
         return Result.success();
@@ -1047,7 +1047,7 @@ public class CCbsBiz {
     public Result<?> cqualDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "qualId");
         if (!StringUtils.hasText(id)) {
-            return Result.fail(ResultCode.RC10101, "qualId 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "qualId 不能为空");
         }
         cqualDao.delete(id);
         return Result.success();
@@ -1086,15 +1086,15 @@ public class CCbsBiz {
     public Result<?> metaList(@RequestBody Map<String, Object> q) {
         String table = str(q, "table");
         if (!META_TABLES.contains(table)) {
-            return Result.fail(ResultCode.RC10101, "table 不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "table 不合法");
         }
         String typeId = str(q, "typeId");
         if (!StringUtils.hasText(typeId)) {
-            return Result.fail(ResultCode.RC10101, "typeId 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "typeId 不能为空");
         }
         Integer fileType = docFileTypeOf(table, q.get("fileType"));
         if (fileType == null && TABLE_DOC_LIST.equals(table)) {
-            return Result.fail(ResultCode.RC10101, "资料清单分类不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "资料清单分类不合法");
         }
         int no = pageNo(q), size = pageSize(q);
         String kw = str(q, "kw");
@@ -1108,29 +1108,29 @@ public class CCbsBiz {
    public Result<?> metaSave(@RequestBody Map<String, Object> b, @Acc TCbsUser me) {
         String table = str(b, "table");
         if (!META_TABLES.contains(table)) {
-            return Result.fail(ResultCode.RC10101, "table 不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "table 不合法");
         }
         String typeId = str(b, "typeId");
         if (!StringUtils.hasText(typeId)) {
-            return Result.fail(ResultCode.RC10101, "所属项目类型不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "所属项目类型不能为空");
         }
         String id = str(b, "id");
         String name = str(b, "name");
         if (!StringUtils.hasText(name)) {
-            return Result.fail(ResultCode.RC10101, "名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "名称不能为空");
         }
         String remark = str(b, "remark");
         Integer fileType = null;
         if (!StringUtils.hasText(id)) {
             fileType = docFileTypeOf(table, b.get("fileType"));
             if (fileType == null && TABLE_DOC_LIST.equals(table)) {
-                return Result.fail(ResultCode.RC10101, "资料清单分类不合法");
+                return Result.fail(ResultCode.RC10101.getCode(), "资料清单分类不合法");
             }
         }
         if (StringUtils.hasText(id)) {
             TCbsMeta old = metaDao.query(table, id);
             if (old == null) {
-                return Result.fail(ResultCode.RC10103, "记录不存在");
+                return Result.fail(ResultCode.RC10103.getCode(), "记录不存在");
             }
             TCbsMeta m = new TCbsMeta();
             m.setId(id);
@@ -1158,10 +1158,10 @@ public class CCbsBiz {
         String table = str(b, "table");
         String id = str(b, "id");
         if (!META_TABLES.contains(table)) {
-            return Result.fail(ResultCode.RC10101, "table 不合法");
+            return Result.fail(ResultCode.RC10101.getCode(), "table 不合法");
         }
         if (!StringUtils.hasText(id)) {
-            return Result.fail(ResultCode.RC10101, "id 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "id 不能为空");
         }
         metaDao.remove(table, id);
         return Result.success();
@@ -1184,7 +1184,7 @@ public class CCbsBiz {
     public Result<?> promiseGet(@RequestBody Map<String, Object> b) {
         LocalDate date = parseDate(str(b, "date"));
         if (date == null) {
-            return Result.fail(ResultCode.RC10101, "date 不能为空（yyyy-MM-dd）");
+            return Result.fail(ResultCode.RC10101.getCode(), "date 不能为空（yyyy-MM-dd）");
         }
         TCbsPromise p = promiseDao.queryByDate(date);
         return Result.success(p != null ? p : new TCbsPromise());
@@ -1196,7 +1196,7 @@ public class CCbsBiz {
     @PostMapping("/promise/save")
     public Result<?> promiseSave(@RequestBody TCbsPromise p, @Acc TCbsUser me) {
         if (p.getPromise_date() == null) {
-            return Result.fail(ResultCode.RC10101, "promise_date 不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "promise_date 不能为空");
         }
         boolean exists = promiseDao.queryByDate(p.getPromise_date()) != null;
         if (exists) {
@@ -1247,7 +1247,7 @@ public class CCbsBiz {
     @PostMapping("/cert/save")
     public Result<?> certSave(@RequestBody TCbsCert c, @Acc TCbsUser me) {
         if (!StringUtils.hasText(c.getCert_name())) {
-            return Result.fail(ResultCode.RC10101, "证照名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "证照名称不能为空");
         }
         if (c.getWarn_days() == null) {
             c.setWarn_days(30);
@@ -1256,7 +1256,7 @@ public class CCbsBiz {
             c.setCert_type(1);
         }
         if (c.getCert_type() == 2 && !StringUtils.hasText(c.getHolder_name())) {
-            return Result.fail(ResultCode.RC10101, "人员证书必须填写持证人");
+            return Result.fail(ResultCode.RC10101.getCode(), "人员证书必须填写持证人");
         }
         if (!StringUtils.hasText(c.getCert_id())) {
             c.setCert_id(newId());
@@ -1264,7 +1264,7 @@ public class CCbsBiz {
             c.setOpen_status(true);
             certDao.insert(c);
         } else if (certDao.query(c.getCert_id()) == null) {
-            return Result.fail(ResultCode.RC10103, "证照不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "证照不存在");
         } else {
             certDao.update(c);
         }
@@ -1294,7 +1294,7 @@ public class CCbsBiz {
     @PostMapping("/ts/save")
     public Result<?> tsSave(@RequestBody TCbsThreeSame t, @Acc TCbsUser me) {
         if (!StringUtils.hasText(t.getProject_name())) {
-            return Result.fail(ResultCode.RC10101, "项目名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "项目名称不能为空");
         }
         if (!StringUtils.hasText(t.getTs_id())) {
             t.setTs_id(newId());
@@ -1302,7 +1302,7 @@ public class CCbsBiz {
             t.setOpen_status(true);
             threeSameDao.insert(t);
         } else if (threeSameDao.query(t.getTs_id()) == null) {
-            return Result.fail(ResultCode.RC10103, "三同时项目不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "三同时项目不存在");
         } else {
             threeSameDao.update(t);
         }
@@ -1332,7 +1332,7 @@ public class CCbsBiz {
     @PostMapping("/chem/save")
     public Result<?> chemSave(@RequestBody TCbsLicenseChem c, @Acc TCbsUser me) {
         if (!StringUtils.hasText(c.getChem_name())) {
-            return Result.fail(ResultCode.RC10101, "化学品名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "化学品名称不能为空");
         }
         if (c.getIs_key() == null) {
             c.setIs_key(false);
@@ -1349,7 +1349,7 @@ public class CCbsBiz {
             c.setOpen_status(true);
             chemDao.insert(c);
         } else if (chemDao.query(c.getChem_id()) == null) {
-            return Result.fail(ResultCode.RC10103, "化学品不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "化学品不存在");
         } else {
             chemDao.update(c);
         }
@@ -1386,7 +1386,7 @@ public class CCbsBiz {
     @PostMapping("/proc/save")
     public Result<?> procSave(@RequestBody TCbsSuperviseProcess p, @Acc TCbsUser me) {
         if (!StringUtils.hasText(p.getProc_name())) {
-            return Result.fail(ResultCode.RC10101, "工艺名称不能为空");
+            return Result.fail(ResultCode.RC10101.getCode(), "工艺名称不能为空");
         }
         if (p.getAuto_in_use() == null) {
             p.setAuto_in_use(false);
@@ -1406,7 +1406,7 @@ public class CCbsBiz {
             p.setOpen_status(true);
             procDao.insert(p);
         } else if (procDao.query(p.getProc_id()) == null) {
-            return Result.fail(ResultCode.RC10103, "工艺不存在");
+            return Result.fail(ResultCode.RC10103.getCode(), "工艺不存在");
         } else {
             procDao.update(p);
         }
@@ -1444,7 +1444,7 @@ public class CCbsBiz {
     private Result<?> deleteBatch(Map<String, Object> b, java.util.function.Consumer<List<String>> remover) {
         Object raw = b == null ? null : b.get("ids");
         if (!(raw instanceof List<?> list)) {
-            return Result.fail(ResultCode.RC10101, "请选择要删除的记录");
+            return Result.fail(ResultCode.RC10101.getCode(), "请选择要删除的记录");
         }
         List<String> ids = list.stream()
                 .filter(java.util.Objects::nonNull)
@@ -1454,7 +1454,7 @@ public class CCbsBiz {
                 .limit(BATCH_MAX)
                 .toList();
         if (ids.isEmpty()) {
-            return Result.fail(ResultCode.RC10101, "请选择要删除的记录");
+            return Result.fail(ResultCode.RC10101.getCode(), "请选择要删除的记录");
         }
         remover.accept(ids);
         return Result.success();
@@ -1465,7 +1465,7 @@ public class CCbsBiz {
                                  java.util.function.Function<String, ?> querier,
                                  java.util.function.Consumer<String> remover) {
         if (!StringUtils.hasText(id) || querier.apply(id) == null) {
-            return Result.fail(ResultCode.RC10101, notFoundMsg);
+            return Result.fail(ResultCode.RC10101.getCode(), notFoundMsg);
         }
         remover.accept(id);
         return Result.success();
