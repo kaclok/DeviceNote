@@ -602,7 +602,8 @@ CREATE TABLE IF NOT EXISTS cbs.t_contractor_person (
     id            varchar      NOT NULL,
     contractor_id varchar      NOT NULL,                -- -> t_contractor
     person_id     varchar      NOT NULL,                -- -> t_person
-    audit_status  smallint     NOT NULL DEFAULT 1,      -- 审核状态：1=已通过 2=已驳回
+    audit_status  smallint     NOT NULL DEFAULT 0,      -- 审核状态：0=未审核 1=已审核
+    on_site       smallint     NOT NULL DEFAULT 1,      -- 是否在场：1=在场 2=已离场
     audit_time    timestamp,                            -- 审核时间
     auditor       varchar,                              -- 审核人
     remark        varchar,
@@ -620,7 +621,8 @@ CREATE INDEX IF NOT EXISTS t_contractor_person_ct
 COMMENT ON COLUMN cbs.t_contractor_qual_check.qual_type IS '分类：1=资质证件 2=审核所需文件';
 COMMENT ON COLUMN cbs.t_contractor_qual_check.check_status IS '审核结果：0=未审核 1=符合 2=不符合';
 COMMENT ON COLUMN cbs.t_person.gender IS '性别：1=男 2=女';
-COMMENT ON COLUMN cbs.t_contractor_person.audit_status IS '审核状态：1=已通过 2=已驳回';
+COMMENT ON COLUMN cbs.t_contractor_person.audit_status IS '审核状态：0=未审核 1=已审核';
+COMMENT ON COLUMN cbs.t_contractor_person.on_site IS '是否在场：1=在场 2=已离场';
 
 -- =====================================================================
 -- 六期（2026-11-07）：t_contractor.ctype 由「类型名称文本」改为 t_dict.item_id
@@ -636,3 +638,14 @@ UPDATE cbs.t_contractor tc
    AND d.item_name = tc.ctype
    AND NOT EXISTS (SELECT 1 FROM cbs.t_dict t WHERE t.item_id = tc.ctype);
 COMMENT ON COLUMN cbs.t_contractor.ctype IS '承包商类型 -> t_dict.item_id（dict_type=contractor_type）';
+
+-- =====================================================================
+-- 七期（2026-11-07）：承包商人员「审核状态 0/1」+「是否在场」，对齐参考站人员管理弹窗
+-- 说明：审核状态由「1=已通过 2=已驳回」改为「0=未审核 1=已审核」——
+--       新增/加入即在库，勾选后批量审核置 1，与参考站 examineState 同口径。
+--       是否在场是「人 × 承包商」的属性，故落在关联表而非 t_person。
+-- =====================================================================
+ALTER TABLE cbs.t_contractor_person ADD COLUMN IF NOT EXISTS on_site smallint NOT NULL DEFAULT 1;
+ALTER TABLE cbs.t_contractor_person ALTER COLUMN audit_status SET DEFAULT 0;
+COMMENT ON COLUMN cbs.t_contractor_person.audit_status IS '审核状态：0=未审核 1=已审核';
+COMMENT ON COLUMN cbs.t_contractor_person.on_site IS '是否在场：1=在场 2=已离场';

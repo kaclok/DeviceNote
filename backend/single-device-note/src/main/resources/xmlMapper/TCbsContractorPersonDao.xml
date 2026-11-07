@@ -15,14 +15,14 @@
         insert into cbs.t_contractor_person
             (id, contractor_id, person_id, audit_status, audit_time, auditor, remark, creator, open_status)
         values
-            (#{p.id}, #{p.contractor_id}, #{p.person_id}, coalesce(#{p.audit_status}, 1),
+            (#{p.id}, #{p.contractor_id}, #{p.person_id}, coalesce(#{p.audit_status}, 0),
              now(), #{p.auditor}, #{p.remark}, #{p.creator}, true)
     </insert>
 
     <update id="restore">
         update cbs.t_contractor_person
         set open_status = true,
-            audit_status = 1,
+            audit_status = 0,
             auditor = #{auditor},
             audit_time = now()
         where id = #{id}
@@ -32,5 +32,17 @@
         update cbs.t_contractor_person
         set open_status = false
         where id = #{id} and open_status = true
+    </update>
+
+    <update id="audit">
+        update cbs.t_contractor_person
+        set audit_status = 1, auditor = #{auditor}, audit_time = now()
+        where contractor_id = #{contractorId} and person_id = #{personId} and open_status = true
+    </update>
+
+    <update id="setOnSite">
+        update cbs.t_contractor_person
+        set on_site = #{onSite}
+        where contractor_id = #{contractorId} and person_id = #{personId} and open_status = true
     </update>
 </mapper>

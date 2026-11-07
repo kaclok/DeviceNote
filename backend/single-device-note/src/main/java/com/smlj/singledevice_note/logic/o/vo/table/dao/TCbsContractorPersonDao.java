@@ -18,4 +18,12 @@ public interface TCbsContractorPersonDao {
 
     /** 移出该承包商人员库（软删） */
     int remove(@Param("id") String id);
+
+    /** 批量审核：把已关联的行置为已审核（0=未审核 1=已审核） */
+    int audit(@Param("contractorId") String contractorId, @Param("personId") String personId,
+              @Param("auditor") String auditor);
+
+    /** 是否在场：1=在场 2=已离场 */
+    int setOnSite(@Param("contractorId") String contractorId, @Param("personId") String personId,
+                  @Param("onSite") Integer onSite);
 }

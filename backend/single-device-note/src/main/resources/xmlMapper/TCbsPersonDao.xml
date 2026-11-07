@@ -7,16 +7,28 @@
         p.entry_date, p.remark, p.creator
     </sql>
 
-    <!-- 某承包商人员：关联表为主，带出 rel_id（移除用）与审核痕迹 -->
+    <!-- 某承包商人员：关联表为主，带出 rel_id（移除用）、审核状态、是否在场 -->
+    <sql id="ctCond">
+        <where>
+            r.contractor_id = #{contractorId}
+            and r.open_status = true
+            and p.open_status = true
+            <if test="name != null and name != ''">
+                and p.name like concat('%', #{name}, '%')
+            </if>
+            <if test="postName != null and postName != ''">
+                and p.post_name = #{postName}
+            </if>
+        </where>
+    </sql>
+
     <select id="queryByContractor" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPerson">
         select <include refid="pcols"/>,
-               r.id as rel_id, r.audit_status, r.auditor,
+               r.id as rel_id, r.audit_status, r.on_site, r.auditor,
                to_char(r.audit_time, 'YYYY-MM-DD HH24:MI') as audit_time
         from cbs.t_contractor_person r
         join cbs.t_person p on p.person_id = r.person_id
-        where r.contractor_id = #{contractorId}
-          and r.open_status = true
-          and p.open_status = true
+        <include refid="ctCond"/>
         order by r.create_time desc
         limit #{limit} offset #{offset}
     </select>
@@ -25,49 +37,28 @@
         select count(*)
         from cbs.t_contractor_person r
         join cbs.t_person p on p.person_id = r.person_id
-        where r.contractor_id = #{contractorId}
-          and r.open_status = true
-          and p.open_status = true
+        <include refid="ctCond"/>
     </select>
 
-    <!-- 人员库：排除已加入该承包商的人，避免重复挑同一人 -->
-    <sql id="libCond">
-        <where>
-            p.open_status = true
-            <if test="kw != null and kw != ''">
-                and (p.name like concat('%', #{kw}, '%')
-                     or p.id_card like concat('%', #{kw}, '%')
-                     or p.phone like concat('%', #{kw}, '%'))
-            </if>
-            <if test="excludeContractorId != null and excludeContractorId != ''">
-                and not exists (
-                    select 1 from cbs.t_contractor_person r
-                    where r.person_id = p.person_id
-                      and r.contractor_id = #{excludeContractorId}
-                      and r.open_status = true
-                )
-            </if>
-        </where>
-    </sql>
-
-    <select id="queryLibrary" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPerson">
-        select <include refid="pcols"/>
-        from cbs.t_person p
-        <include refid="libCond"/>
-        order by p.create_time desc
-        limit #{limit} offset #{offset}
-    </select>
-
-    <select id="countLibrary" resultType="long">
-        select count(*)
-        from cbs.t_person p
-        <include refid="libCond"/>
+    <select id="queryPosts" resultType="string">
+        select distinct post_name
+        from cbs.t_person
+        where open_status = true and post_name is not null and post_name &lt;&gt; ''
+        order by post_name
     </select>
 
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPerson">
         select <include refid="pcols"/>
         from cbs.t_person p
         where p.person_id = #{id} and p.open_status = true
+    </select>
+
+    <select id="queryByIdCard" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPerson">
+        select <include refid="pcols"/>
+        from cbs.t_person p
+        where p.id_card = #{idCard} and p.open_status = true
+        order by p.create_time
+        limit 1
     </select>
 
     <select id="countIdCard" resultType="int">

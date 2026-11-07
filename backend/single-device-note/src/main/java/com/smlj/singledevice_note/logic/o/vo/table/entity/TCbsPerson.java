@@ -41,8 +41,10 @@ public class TCbsPerson implements Serializable {
     /* ---- 以下为关联字段（t_contractor_person，仅"某承包商人员"查询用） ---- */
     /** 关联行主键，移除时用 */
     private String rel_id;
-    /** 审核状态：1=已通过 2=已驳回 */
+    /** 审核状态：0=未审核 1=已审核 */
     private Integer audit_status;
+    /** 是否在场：1=在场 2=已离场（关联表字段） */
+    private Integer on_site;
     /** 加入（审核）时间，SQL 格式化为 yyyy-MM-dd HH:mm */
     private String audit_time;
     private String auditor;

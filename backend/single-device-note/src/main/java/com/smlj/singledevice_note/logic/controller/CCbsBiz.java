@@ -1563,9 +1563,9 @@ public class CCbsBiz {
         return Result.success(Map.of("saved", saved));
     }
 
-    // ---------------- 承包商审核：人员库 / 承包商人员（批量审核） ----------------
+    // ---------------- 承包商审核：人员管理（人员列表 / 批量审核 / 是否在场） ----------------
 
-    /** 某承包商的人员（已批量审核加入的），join 关联表带出 rel_id 与审核痕迹 */
+    /** 某承包商的人员：join 关联表带出 rel_id / 审核状态 / 是否在场，支持按姓名、岗位过滤 */
     @RequirePermission("cbs:contractor")
     @PostMapping("/contractor/person/list")
     public Result<?> contractorPersonList(@RequestBody Map<String, Object> q) {
@@ -1574,19 +1574,16 @@ public class CCbsBiz {
             return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
         }
         int no = pageNo(q), size = pageSize(q);
-        return Result.success(pageOf(personDao.queryByContractor(cid, offset(no, size), size),
-                personDao.countByContractor(cid), no, size));
+        String name = str(q, "name"), postName = str(q, "postName");
+        return Result.success(pageOf(personDao.queryByContractor(cid, name, postName, offset(no, size), size),
+                personDao.countByContractor(cid, name, postName), no, size));
     }
 
-    /** 人员库（「从人员库添加」多选用）：排除已加入该承包商的人，避免重复挑同一人 */
+    /** 岗位下拉：人员库里已录入过的岗位去重（暂无岗位字典，取现有值） */
     @RequirePermission("cbs:contractor")
-    @PostMapping("/person/library")
-    public Result<?> personLibrary(@RequestBody(required = false) Map<String, Object> q) {
-        int no = pageNo(q), size = pageSize(q);
-        String kw = str(q, "kw");
-        String cid = str(q, "contractorId");
-        return Result.success(pageOf(personDao.queryLibrary(kw, cid, offset(no, size), size),
-                personDao.countLibrary(kw, cid), no, size));
+    @PostMapping("/person/posts")
+    public Result<?> personPosts() {
+        return Result.success(personDao.queryPosts());
     }
 
     /**
@@ -1602,6 +1599,13 @@ public class CCbsBiz {
         }
         if (p.getGender() != null && (p.getGender() < 1 || p.getGender() > 2)) {
             return Result.fail(ResultCode.RC10101.getCode(), "性别只能是 1=男 2=女");
+        }
+        // 身份证已在人员库：复用同一人（一个人可服务多家承包商），不再重复建档
+        if (!StringUtils.hasText(p.getPerson_id()) && StringUtils.hasText(p.getId_card())) {
+            TCbsPerson exist = personDao.queryByIdCard(p.getId_card());
+            if (exist != null) {
+                p.setPerson_id(exist.getPerson_id());
+            }
         }
         if (StringUtils.hasText(p.getId_card())
                 && personDao.countIdCard(p.getId_card(), p.getPerson_id()) > 0) {
@@ -1626,8 +1630,8 @@ public class CCbsBiz {
     }
 
     /**
-     * 批量审核：多选人员库中的人，一次性加入该承包商人员库。
-     * 幂等 —— 已在库里的计入 skipped，软删过的恢复，其余插入。
+     * 批量审核：勾选的人员一次性置为「已审核」（未关联的顺带建立关联）。
+     * 幂等 —— 重复提交只再置一次状态，不会产生重复关联。
      */
     @RequirePermission("cbs:contractor")
     @Transactional
@@ -1651,22 +1655,21 @@ public class CCbsBiz {
         if (ids.isEmpty()) {
             return Result.fail(ResultCode.RC10101.getCode(), "请选择要审核的人员");
         }
-        int joined = 0, skipped = 0;
+        int audited = 0, skipped = 0;
         for (String pid : ids) {
             if (personDao.query(pid) == null) {
                 skipped++;          // 人员已被移出人员库，跳过而不是整单失败
                 continue;
             }
-            TCbsContractorPerson ex = cpDao.queryAny(cid, pid);
-            if (ex != null && Boolean.TRUE.equals(ex.getOpen_status())) {
+            linkPerson(cid, pid, me.getAccount());   // 未关联则先关联（幂等）
+            if (cpDao.audit(cid, pid, me.getAccount()) > 0) {
+                audited++;
+            } else {
                 skipped++;
-                continue;
             }
-            linkPerson(cid, pid, me.getAccount());
-            joined++;
         }
         Map<String, Object> r = new java.util.LinkedHashMap<>();
-        r.put("joined", joined);
+        r.put("audited", audited);
         r.put("skipped", skipped);
         return Result.success(r);
     }
@@ -1686,6 +1689,23 @@ public class CCbsBiz {
         return Result.success();
     }
 
+    /** 是否在场：行内开关直接落库（1=在场 2=已离场） */
+    @RequirePermission("cbs:contractor")
+    @Transactional
+    @PostMapping("/contractor/person/onSite")
+    public Result<?> contractorPersonOnSite(@RequestBody Map<String, Object> b) {
+        String cid = str(b, "contractorId"), pid = str(b, "personId");
+        Integer onSite = intVal(b, "onSite");
+        if (!StringUtils.hasText(cid) || !StringUtils.hasText(pid)
+                || (onSite == null || (onSite != 1 && onSite != 2))) {
+            return Result.fail(ResultCode.RC10101.getCode(), "参数不合法");
+        }
+        if (cpDao.setOnSite(cid, pid, onSite) == 0) {
+            return Result.fail(ResultCode.RC10101.getCode(), "该人员不在承包商人员库中");
+        }
+        return Result.success();
+    }
+
     /** 幂等建立"承包商-人员"关联：在库跳过、软删恢复、没建过插入（单个加入与批量审核共用一份实现） */
     private void linkPerson(String contractorId, String personId, String auditor) {
         TCbsContractorPerson ex = cpDao.queryAny(contractorId, personId);
@@ -1699,7 +1719,7 @@ public class CCbsBiz {
         rel.setId(newId());
         rel.setContractor_id(contractorId);
         rel.setPerson_id(personId);
-        rel.setAudit_status(1);
+        rel.setAudit_status(0);      // 新加入即「未审核」，勾选后批量审核才置 1
         rel.setAuditor(auditor);
         rel.setCreator(auditor);
         cpDao.insert(rel);
