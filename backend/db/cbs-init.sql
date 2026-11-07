@@ -65,9 +65,10 @@ CREATE TABLE IF NOT EXISTS cbs.t_contractor (
     safety_phone        varchar,
     register_address    varchar,
     register_capital    varchar,                               -- 注册资本（原系统文本口径）
-    deposit             numeric,                               -- 保证金(元)
+    deposit             numeric,                               -- 保证金(元)，由保证金变更记录同步增减
     login_account       varchar,                               -- 预留：一期不开承包商登录
     login_pwd           varchar,                               -- 预留：密文
+    coop_status         int2         NOT NULL DEFAULT 1,       -- 合作状态：1=合作中 2=曾合作 3=黑名单
     approve_status      int2         NOT NULL DEFAULT 0,       -- 0待审 1通过 2驳回
     reject_reason       varchar,
     creator             varchar,
@@ -76,6 +77,42 @@ CREATE TABLE IF NOT EXISTS cbs.t_contractor (
     CONSTRAINT t_contractor_pkey PRIMARY KEY (contractor_id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS t_contractor_uscc ON cbs.t_contractor (uscc) WHERE uscc IS NOT NULL AND open_status;
+
+-- 兼容早期已建的库：补合作状态（幂等）
+ALTER TABLE cbs.t_contractor ADD COLUMN IF NOT EXISTS coop_status int2 NOT NULL DEFAULT 1;
+COMMENT ON COLUMN cbs.t_contractor.coop_status IS '合作状态：1=合作中 2=曾合作 3=黑名单';
+
+-- 保证金变更记录（参考站 contractorChangeLog：保证金变更 / 变更记录 两个入口）
+CREATE TABLE IF NOT EXISTS cbs.t_contractor_change_log (
+    id            varchar      NOT NULL,
+    contractor_id varchar      NOT NULL,                 -- -> t_contractor
+    type          int2         NOT NULL,                 -- 1=扣款 2=增加
+    money         numeric      NOT NULL,                 -- 变更金额(元)，恒为正数，方向由 type 决定
+    describe      varchar,                               -- 描述
+    change_time   date,                                  -- 变更时间（页面可指定）
+    creator       varchar,                               -- 操作人
+    create_time   timestamp    NOT NULL DEFAULT now(),
+    open_status   bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_contractor_change_log_pkey PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS t_contractor_change_log_ct ON cbs.t_contractor_change_log (contractor_id, open_status);
+
+-- 承包商处罚记录（参考站 contractorPunishLog：处罚 / 处罚记录 两个入口）
+CREATE TABLE IF NOT EXISTS cbs.t_contractor_punish_log (
+    id            varchar      NOT NULL,
+    contractor_id varchar      NOT NULL,                 -- -> t_contractor
+    project_id    varchar,                               -- 关联项目 -> t_project（限该承包商名下）
+    type_id       varchar      NOT NULL,                 -- 处罚类型 -> t_dict.item_id (dict_type=penalty_type)
+    punish_user   varchar,                               -- 违规人（文本口径，暂无承包商人员表）
+    money         numeric      NOT NULL,                 -- 处罚金额(元)
+    describe      varchar,                               -- 描述
+    punish_time   date,                                  -- 处罚时间
+    creator       varchar,
+    create_time   timestamp    NOT NULL DEFAULT now(),
+    open_status   bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_contractor_punish_log_pkey PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS t_contractor_punish_log_ct ON cbs.t_contractor_punish_log (contractor_id, open_status);
 
 CREATE TABLE IF NOT EXISTS cbs.t_project (
     project_id          varchar      NOT NULL,

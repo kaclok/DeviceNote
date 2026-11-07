@@ -4,32 +4,33 @@
 
     <sql id="cols">
         contractor_id, name, uscc, ctype, legal_person, legal_phone, safety_person, safety_phone,
-        register_address, register_capital, deposit, login_account, approve_status, reject_reason,
-        creator, open_status
+        register_address, register_capital, deposit, login_account, coop_status, approve_status,
+        reject_reason, creator, open_status
     </sql>
 
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
         select <include refid="cols"/> from cbs.t_contractor where contractor_id = #{id}
     </select>
 
-    <!-- 列表只出启用行（软删行不回显） -->
+    <!-- 分类口径：recycled=true 回收站(已软删)；coop 过滤合作状态(审核页)；status 过滤审批状态(单位管理页) -->
     <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
         select <include refid="cols"/> from cbs.t_contractor
         <where>
-            <!-- 分类口径：status=-1 回收站(已软删) / -2 黑名单(暂无数据源) / 空=仅启用行 -->
             <choose>
-                <when test="status != null and status == -1">open_status = false</when>
-                <when test="status != null and status == -2">1 = 0</when>
+                <when test="recycled">open_status = false</when>
                 <otherwise>open_status = true</otherwise>
             </choose>
+            <if test="coop != null">
+                and coop_status = #{coop}
+            </if>
+            <if test="status != null">
+                and approve_status = #{status}
+            </if>
             <if test="kw != null and kw != ''">
                 and (name like concat('%', #{kw}, '%') or uscc like concat('%', #{kw}, '%'))
             </if>
             <if test="ctype != null and ctype != ''">
                 and ctype = #{ctype}
-            </if>
-            <if test="status != null and status >= 0">
-                and approve_status = #{status}
             </if>
         </where>
         order by create_time desc
@@ -39,20 +40,21 @@
         select count(*)
         from cbs.t_contractor
         <where>
-            <!-- 分类口径：status=-1 回收站(已软删) / -2 黑名单(暂无数据源) / 空=仅启用行 -->
             <choose>
-                <when test="status != null and status == -1">open_status = false</when>
-                <when test="status != null and status == -2">1 = 0</when>
+                <when test="recycled">open_status = false</when>
                 <otherwise>open_status = true</otherwise>
             </choose>
+            <if test="coop != null">
+                and coop_status = #{coop}
+            </if>
+            <if test="status != null">
+                and approve_status = #{status}
+            </if>
             <if test="kw != null and kw != ''">
                 and (name like concat('%', #{kw}, '%') or uscc like concat('%', #{kw}, '%'))
             </if>
             <if test="ctype != null and ctype != ''">
                 and ctype = #{ctype}
-            </if>
-            <if test="status != null and status >= 0">
-                and approve_status = #{status}
             </if>
         </where></select>
 
@@ -73,10 +75,10 @@
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
         insert into cbs.t_contractor (contractor_id, name, uscc, ctype, legal_person, legal_phone,
             safety_person, safety_phone, register_address, register_capital, deposit, login_account,
-            approve_status, creator, open_status)
+            coop_status, approve_status, creator, open_status)
         values (#{c.contractor_id}, #{c.name}, #{c.uscc}, #{c.ctype}, #{c.legal_person}, #{c.legal_phone},
             #{c.safety_person}, #{c.safety_phone}, #{c.register_address}, #{c.register_capital}, #{c.deposit},
-            #{c.login_account}, #{c.approve_status}, #{c.creator}, #{c.open_status})
+            #{c.login_account}, #{c.coop_status}, #{c.approve_status}, #{c.creator}, #{c.open_status})
     </insert>
 
     <update id="update" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
@@ -93,6 +95,7 @@
             register_capital = #{c.register_capital},
             deposit = #{c.deposit},
             login_account = #{c.login_account},
+            coop_status = #{c.coop_status},
         </set>
         where contractor_id = #{c.contractor_id}
     </update>
@@ -106,5 +109,19 @@
 
     <update id="remove">
         update cbs.t_contractor set open_status = false where contractor_id = #{id}
+    </update>
+
+    <update id="restore">
+        update cbs.t_contractor set open_status = true where contractor_id = #{id}
+    </update>
+
+    <delete id="purge">
+        delete from cbs.t_contractor where contractor_id = #{id}
+    </delete>
+
+    <update id="changeDeposit">
+        update cbs.t_contractor
+        set deposit = coalesce(deposit, 0) + #{delta}
+        where contractor_id = #{id}
     </update>
 </mapper>

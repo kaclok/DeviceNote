@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorChangeDao">
+
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorChange">
+        select id, contractor_id, type, money, describe, change_time, creator
+        from cbs.t_contractor_change_log
+        where open_status = true
+        and contractor_id = #{contractorId}
+        order by change_time desc, create_time desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_contractor_change_log
+        where open_status = true
+        and contractor_id = #{contractorId}
+    </select>
+
+    <insert id="insert">
+        insert into cbs.t_contractor_change_log
+            (id, contractor_id, type, money, describe, change_time, creator)
+        values
+            (#{p.id}, #{p.contractor_id}, #{p.type}, #{p.money}, #{p.describe}, #{p.change_time}, #{p.creator})
+    </insert>
+</mapper>

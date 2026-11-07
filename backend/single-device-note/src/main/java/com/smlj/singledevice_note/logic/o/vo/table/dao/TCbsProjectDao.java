@@ -21,6 +21,9 @@ public interface TCbsProjectDao {
 
     /** 下拉专用 */
     List<TCbsProject> queryOptions();
+
+    /** 下拉专用：某承包商名下启用项目（处罚记录「关联项目」用） */
+    List<TCbsProject> queryOptionsByContractor(@Param("contractorId") String contractorId);
     /** 承包商删除前的守卫：在挂项目数 */
     int countByContractor(@Param("contractorId") String contractorId);
 

@@ -58,6 +58,12 @@
         where open_status = true order by create_time desc
     </select>
 
+    <select id="queryOptionsByContractor" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProject">
+        select project_id, proj_name from cbs.t_project
+        where open_status = true and contractor_id = #{contractorId}
+        order by create_time desc
+    </select>
+
     <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsProject">
         insert into cbs.t_project (project_id, contractor_id, proj_name, proj_content, begin_date,
             end_date, proj_status, dept_code, creator, open_status)

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorPunishDao">
+
+    <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorPunish">
+        select p.id, p.contractor_id, p.project_id, p.type_id, p.punish_user, p.money, p.describe,
+               p.punish_time, p.creator,
+               coalesce(d.item_name, p.type_id) as type_name,
+               pr.proj_name
+        from cbs.t_contractor_punish_log p
+        left join cbs.t_dict d on d.item_id = p.type_id and d.dict_type = 'penalty_type'
+        left join cbs.t_project pr on pr.project_id = p.project_id
+        where p.open_status = true
+        and p.contractor_id = #{contractorId}
+        order by p.punish_time desc, p.create_time desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        select count(*)
+        from cbs.t_contractor_punish_log
+        where open_status = true
+        and contractor_id = #{contractorId}
+    </select>
+
+    <insert id="insert">
+        insert into cbs.t_contractor_punish_log
+            (id, contractor_id, project_id, type_id, punish_user, money, describe, punish_time, creator)
+        values
+            (#{p.id}, #{p.contractor_id}, #{p.project_id}, #{p.type_id}, #{p.punish_user},
+             #{p.money}, #{p.describe}, #{p.punish_time}, #{p.creator})
+    </insert>
+</mapper>

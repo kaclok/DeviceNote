@@ -7,6 +7,10 @@ import com.smlj.singledevice_note.core.o.to.ResultCode;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsCertDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorQualDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorChangeDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorPunishDao;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorChange;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorPunish;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsDictDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsMetaDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsEnterpriseDao;
@@ -52,6 +56,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -88,6 +93,8 @@ public class CCbsBiz {
     private final TCbsDictDao dictDao;
     private final TCbsContractorQualDao cqualDao;
     private final TCbsMetaDao metaDao;
+    private final TCbsContractorChangeDao changeDao;
+    private final TCbsContractorPunishDao punishDao;
 
     /** 通用基础数据表白名单（开工准备条件 / 资料清单），fail-closed */
     private static final java.util.Set<String> META_TABLES =
@@ -128,9 +135,11 @@ public class CCbsBiz {
     public Result<?> contractorList(@RequestBody(required = false) Map<String, Object> q) {
         int no = pageNo(q), size = pageSize(q);
         String kw = str(q, "kw"), ctype = str(q, "ctype");
-        Integer status = intVal(q, "status");
-        long total = contractorDao.countAll(kw, status, ctype);
-        return Result.success(pageOf(contractorDao.queryPage(kw, status, ctype, offset(no, size), size), total, no, size));
+        Integer status = intVal(q, "status");   // 审批状态：0 待审 / 1 通过 / 2 驳回（单位管理页四个切页）
+        Integer coop = intVal(q, "coop");       // 合作状态：1 合作中 / 2 曾合作 / 3 黑名单（审核页三个切页）
+        boolean recycled = q != null && Boolean.TRUE.equals(q.get("recycled"));
+        long total = contractorDao.countAll(kw, status, coop, recycled, ctype);
+        return Result.success(pageOf(contractorDao.queryPage(kw, status, coop, recycled, ctype, offset(no, size), size), total, no, size));
     }
 
     /** 下拉专用（不分页，只出启用且审批通过的单位） */
@@ -147,6 +156,9 @@ public class CCbsBiz {
         if (!StringUtils.hasText(c.getName())) {
             return Result.fail(ResultCode.RC10101, "承包商名称不能为空");
         }
+        if (c.getCoop_status() != null && (c.getCoop_status() < 1 || c.getCoop_status() > 3)) {
+            return Result.fail(ResultCode.RC10101, "合作状态不合法");
+        }
         if (StringUtils.hasText(c.getUscc())
                 && contractorDao.countUsccDup(c.getUscc(), c.getContractor_id()) > 0) {
             return Result.fail(ResultCode.RC10101, "统一社会信用代码已存在");
@@ -154,6 +166,9 @@ public class CCbsBiz {
         if (!StringUtils.hasText(c.getContractor_id())) {
             c.setContractor_id(newId());
             c.setApprove_status(0);
+            if (c.getCoop_status() == null) {
+                c.setCoop_status(1);
+            }
             c.setCreator(me.getAccount());
             c.setOpen_status(true);
             contractorDao.insert(c);
@@ -167,6 +182,9 @@ public class CCbsBiz {
             c.setReject_reason(old.getReject_reason());
             c.setCreator(old.getCreator());
             c.setOpen_status(old.getOpen_status());
+            if (c.getCoop_status() == null) {
+                c.setCoop_status(old.getCoop_status());
+            }
             contractorDao.update(c);
         }
         return Result.success();
@@ -206,6 +224,145 @@ public class CCbsBiz {
         }
         contractorDao.remove(id);
         return Result.success();
+    }
+
+    /** 回收站恢复（软删逆操作） */
+    @RequirePermission("cbs:contractor")
+    @Transactional
+    @PostMapping("/contractor/restore")
+    public Result<?> contractorRestore(@RequestBody Map<String, Object> b) {
+        String id = str(b, "contractorId");
+        if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "承包商不存在");
+        }
+        contractorDao.restore(id);
+        return Result.success();
+    }
+
+    /** 彻底删除（物理删，参考站 deleteTruth；名下有项目仍拒绝） */
+    @RequirePermission("cbs:contractor")
+    @Transactional
+    @PostMapping("/contractor/purge")
+    public Result<?> contractorPurge(@RequestBody Map<String, Object> b) {
+        String id = str(b, "contractorId");
+        if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
+            return Result.fail(ResultCode.RC10101, "承包商不存在");
+        }
+        if (projectDao.countByContractor(id) > 0) {
+            return Result.fail(ResultCode.RC10101, "该承包商名下存在项目，不能删除");
+        }
+        contractorDao.purge(id);
+        return Result.success();
+    }
+
+    /** 保证金变更记录分页（弹窗列表），附带承包商名称与当前余额 */
+    @RequirePermission("cbs:contractor")
+    @PostMapping("/contractor/changeLog/list")
+    public Result<?> changeLogList(@RequestBody Map<String, Object> q) {
+        TCbsContractor c = requireContractor(str(q, "contractorId"));
+        if (c == null) {
+            return Result.fail(ResultCode.RC10103, "承包商不存在");
+        }
+        int no = pageNo(q), size = pageSize(q);
+        long total = changeDao.countAll(c.getContractor_id());
+        Map<String, Object> page = pageOf(changeDao.queryPage(c.getContractor_id(), offset(no, size), size), total, no, size);
+        page.put("contractor", c);
+        return Result.success(page);
+    }
+
+    /** 保证金变更：type 1=扣款 2=增加；事务内同步增减 t_contractor.deposit */
+    @RequirePermission("cbs:contractor")
+    @Transactional
+    @PostMapping("/contractor/changeLog/save")
+    public Result<?> changeLogSave(@RequestBody TCbsContractorChange p, @Acc TCbsUser me) {
+        TCbsContractor c = requireContractor(p.getContractor_id());
+        if (c == null) {
+            return Result.fail(ResultCode.RC10103, "承包商不存在");
+        }
+        if (p.getType() == null || (p.getType() != 1 && p.getType() != 2)) {
+            return Result.fail(ResultCode.RC10101, "变更类型不合法");
+        }
+        if (p.getMoney() == null || p.getMoney().signum() <= 0) {
+            return Result.fail(ResultCode.RC10101, "变更金额必须大于 0");
+        }
+        BigDecimal delta = p.getType() == 1 ? p.getMoney().negate() : p.getMoney();
+        BigDecimal balance = c.getDeposit() == null ? BigDecimal.ZERO : c.getDeposit();
+        if (balance.add(delta).signum() < 0) {
+            return Result.fail(ResultCode.RC10101, "扣款后保证金余额不能为负");
+        }
+        p.setId(newId());
+        p.setCreator(me.getAccount());
+        if (p.getChange_time() == null) {
+            p.setChange_time(LocalDate.now());
+        }
+        changeDao.insert(p);
+        contractorDao.changeDeposit(p.getContractor_id(), delta);
+        return Result.success();
+    }
+
+    /** 处罚记录分页（弹窗列表），附带承包商名称与当前余额 */
+    @RequirePermission("cbs:contractor")
+    @PostMapping("/contractor/punish/list")
+    public Result<?> punishList(@RequestBody Map<String, Object> q) {
+        TCbsContractor c = requireContractor(str(q, "contractorId"));
+        if (c == null) {
+            return Result.fail(ResultCode.RC10103, "承包商不存在");
+        }
+        int no = pageNo(q), size = pageSize(q);
+        long total = punishDao.countAll(c.getContractor_id());
+        Map<String, Object> page = pageOf(punishDao.queryPage(c.getContractor_id(), offset(no, size), size), total, no, size);
+        page.put("contractor", c);
+        return Result.success(page);
+    }
+
+    /** 处罚表单下拉：该承包商名下启用项目 + 处罚类型字典（启用项） */
+    @RequirePermission("cbs:contractor")
+    @PostMapping("/contractor/punish/options")
+    public Result<?> punishOptions(@RequestBody Map<String, Object> b) {
+        String contractorId = str(b, "contractorId");
+        if (!StringUtils.hasText(contractorId)) {
+            return Result.fail(ResultCode.RC10101, "contractorId 不能为空");
+        }
+        return Result.success(Map.of(
+                "projects", projectDao.queryOptionsByContractor(contractorId).stream()
+                        .map(p -> Map.<String, Object>of("id", p.getProject_id(), "name", p.getProj_name()))
+                        .toList(),
+                "punishTypes", dictDao.queryOptions("penalty_type").stream()
+                        .map(d -> Map.<String, Object>of("id", d.getItem_id(), "name", d.getItem_name()))
+                        .toList()));
+    }
+
+    /** 新增处罚记录（附件/签字照片涉及文件服务，一期不做） */
+    @RequirePermission("cbs:contractor")
+    @Transactional
+    @PostMapping("/contractor/punish/save")
+    public Result<?> punishSave(@RequestBody TCbsContractorPunish p, @Acc TCbsUser me) {
+        if (requireContractor(p.getContractor_id()) == null) {
+            return Result.fail(ResultCode.RC10103, "承包商不存在");
+        }
+        if (!StringUtils.hasText(p.getProject_id()) || projectDao.query(p.getProject_id()) == null) {
+            return Result.fail(ResultCode.RC10101, "关联项目不合法");
+        }
+        if (!StringUtils.hasText(p.getType_id())) {
+            return Result.fail(ResultCode.RC10101, "处罚类型不能为空");
+        }
+        if (!StringUtils.hasText(p.getPunish_user())) {
+            return Result.fail(ResultCode.RC10101, "违规人不能为空");
+        }
+        if (p.getMoney() == null || p.getMoney().signum() <= 0) {
+            return Result.fail(ResultCode.RC10101, "处罚金额必须大于 0");
+        }
+        if (p.getPunish_time() == null) {
+            return Result.fail(ResultCode.RC10101, "处罚时间不能为空");
+        }
+        p.setId(newId());
+        p.setCreator(me.getAccount());
+        punishDao.insert(p);
+        return Result.success();
+    }
+
+    private TCbsContractor requireContractor(String id) {
+        return StringUtils.hasText(id) ? contractorDao.query(id) : null;
     }
 
     // ---------------- 承包商项目 ----------------
