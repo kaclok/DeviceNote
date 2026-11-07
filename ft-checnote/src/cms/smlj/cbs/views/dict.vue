@@ -16,15 +16,22 @@ const props = defineProps({type: String})
 const activeType = ref(TYPES.includes(props?.type) ? props.type : TYPES[0])
 const pageTitle = computed(() => (gd.dictTypes.find(t => t.id === activeType.value) || {}).desc || '')
 
-/* 承包商类型：仿目标站 contractorType，页内右侧水平放置 在用/回收站 两个切页（回收站=软删行） */
-const recycle = computed(() => activeType.value === 'contractor_type')
+/* 三类字典统一支持 在用/回收站：页内右侧水平两个切页（回收站 = 软删行 open_status=false） */
 const recycled = ref(false)
 
 /* 项目类型：行内维护该类型下的「开工准备条件 / 资料清单」（仿资质管理弹窗，不是独立页面） */
 const isProjectType = computed(() => activeType.value === 'project_type')
 
-/* 操作列宽度按入口数量动态给，避免 4 个链接被挤换行 */
-const opWidth = computed(() => (recycle.value ? 330 : (isProjectType.value ? 300 : 120)))
+/* 承包商类型：行内维护 资质管理 / 审核所需文件 */
+const isContractorType = computed(() => activeType.value === 'contractor_type')
+
+/* 操作列宽度按入口数量动态给，避免链接被挤换行；回收站只有 恢复/彻底删除 两个入口 */
+const opWidth = computed(() => {
+    if (recycled.value) return 170
+    if (isContractorType.value) return 330
+    if (isProjectType.value) return 300
+    return 120
+})
 
 // 每页独立分页配置：dict.<类型>
 const pager = computed(() => pagerOf('dict.' + activeType.value))
@@ -46,7 +53,7 @@ function loadRows() {
     const paras = {dictType: activeType.value, pageNo: pageNo.value, pageSize: pageSize.value}
     const kw = keyword.value.trim()
     if (kw) paras.kw = kw
-    if (recycle.value) paras.recycled = recycled.value
+    paras.recycled = recycled.value
     sys.biz('cbs/dict/list', paras, AC.signal, () => {}, (r, data) => {
         loading.value = false
         if (r) {
@@ -119,34 +126,19 @@ function saveForm() {
 }
 
 /* ============ 删除 / 恢复 / 彻底删除 ============ */
+/* 在用页删除 = 移入回收站（软删）；「彻底删除」只在回收站页出现 */
 function removeRow(row) {
-    if (recycle.value && !recycled.value) {
-        // 承包商类型：删除 = 进回收站（软删），可在回收站恢复
-        ElMessageBox.confirm(`确定将「${row.item_name}」移入回收站吗？`, '提示', {type: 'warning'}).then(() => {
-            loading.value = true
-            sys.biz('cbs/dict/delete', {itemId: row.item_id}, AC.signal, () => {}, (r, data) => {
-                loading.value = false
-                if (r) {
-                    ElMessage.success('已移入回收站')
-                    invalidateDict(activeType.value)
-                    loadRows()
-                } else notifyError(data, '操作失败')
-            })
-        }).catch(() => {})
-    } else {
-        // 非回收站类型：直接彻底删除
-        ElMessageBox.confirm(`确定删除「${row.item_name}」吗？删除后不可恢复。`, '提示', {type: 'warning'}).then(() => {
-            loading.value = true
-            sys.biz('cbs/dict/purge', {itemId: row.item_id}, AC.signal, () => {}, (r, data) => {
-                loading.value = false
-                if (r) {
-                    ElMessage.success('已删除')
-                    invalidateDict(activeType.value)
-                    loadRows()
-                } else notifyError(data, '删除失败')
-            })
-        }).catch(() => {})
-    }
+    ElMessageBox.confirm(`确定将「${row.item_name}」移入回收站吗？`, '提示', {type: 'warning'}).then(() => {
+        loading.value = true
+        sys.biz('cbs/dict/delete', {itemId: row.item_id}, AC.signal, () => {}, (r, data) => {
+            loading.value = false
+            if (r) {
+                ElMessage.success('已移入回收站')
+                invalidateDict(activeType.value)
+                loadRows()
+            } else notifyError(data, '操作失败')
+        })
+    }).catch(() => {})
 }
 
 function restoreRow(row) {
@@ -362,9 +354,11 @@ onUnmounted(() => {
             <div class="toolbar">
                 <el-input v-model="keyword" placeholder="搜索名称" clearable
                           style="width:220px" :prefix-icon="Search"/>
-                <el-button type="primary" plain class="add-btn" @click="openDialog(false)">新增</el-button>
-                <!-- 承包商类型：右侧水平 在用/回收站 切页（仿目标站 contractorType） -->
-                <el-radio-group v-if="recycle" v-model="recycled" class="recycle-tabs">
+                <!-- 回收站页不给新增：新行必然 open_status=true，落在「在用」里，点了会以为没生效 -->
+                <el-button v-if="!recycled" type="primary" plain class="add-btn"
+                           @click="openDialog(false)">新增</el-button>
+                <!-- 右侧水平 在用/回收站 切页（仿目标站 contractorType，三类字典通用） -->
+                <el-radio-group v-model="recycled" class="recycle-tabs">
                     <el-radio-button :value="false">在用</el-radio-button>
                     <el-radio-button :value="true">回收站</el-radio-button>
                 </el-radio-group>
@@ -374,7 +368,7 @@ onUnmounted(() => {
                 <el-table-column type="index" label="序号" width="70" align="center"
                                  :index="i => (pageNo - 1) * pageSize + i + 1"/>
                 <el-table-column prop="item_name" label="名称" min-width="240"/>
-                <el-table-column label="状态" width="100" align="center">
+                <el-table-column v-if="!recycled" label="状态" width="100" align="center">
                     <template #default="{row}">
                         <el-tag :type="row.is_using ? 'success' : 'info'" effect="light" size="small">
                             {{ row.is_using ? '启用' : '停用' }}
@@ -383,15 +377,15 @@ onUnmounted(() => {
                 </el-table-column>
                 <el-table-column label="操作" :width="opWidth" align="center" fixed="right">
                     <template #default="{row}">
-                        <template v-if="recycle && recycled">
+                        <template v-if="recycled">
                             <el-link type="primary" @click="restoreRow(row)">恢复</el-link>
                             <el-link type="danger" style="margin-left:10px" @click="purgeRow(row)">彻底删除</el-link>
                         </template>
                         <template v-else>
                             <el-link type="primary" @click="openDialog(true, row)">编辑</el-link>
-                            <el-link v-if="recycle" type="success" style="margin-left:10px"
+                            <el-link v-if="isContractorType" type="success" style="margin-left:10px"
                                      @click="openQual(row, 1)">资质管理</el-link>
-                            <el-link v-if="recycle" type="success" style="margin-left:10px"
+                            <el-link v-if="isContractorType" type="success" style="margin-left:10px"
                                      @click="openQual(row, 2)">审核所需文件</el-link>
                             <template v-if="isProjectType">
                                 <el-link type="success" style="margin-left:10px"
@@ -405,7 +399,7 @@ onUnmounted(() => {
                 </el-table-column>
             </el-table>
             <el-empty v-if="!loading && rows.length === 0"
-                      :description="recycle && recycled ? '回收站为空' : `暂无${pageTitle}`"/>
+                      :description="recycled ? '回收站为空' : `暂无${pageTitle}`"/>
 
             <el-pagination class="pager" background layout="total, sizes, prev, pager, next, jumper"
                            :total="total" v-model:current-page="pageNo" v-model:page-size="pageSize"
