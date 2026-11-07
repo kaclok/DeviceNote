@@ -51,7 +51,7 @@ public class Result<T> extends Message<T> {
     }
 
     public static <T> Result<T> fail(ResultCode resultCode) {
-        return new Result<>(resultCode.getCode(), null, resultCode.getMessage());
+        return fail(resultCode, null);
     }
 
     public static <T> Result<T> fail() {
@@ -67,16 +67,8 @@ public class Result<T> extends Message<T> {
         return fail(code, message, null);
     }
 
-    /**
-     * 指定结果码 + 自定义提示文案。
-     * <p>
-     * 注意：第二参是 <b>message</b>，不是 data。历史上有 {@code fail(ResultCode, T data)} 重载，
-     * 使 {@code fail(RC10101, "承包商不存在")} 静默解析成「data=字符串、message=枚举默认文案」，
-     * 前端只显示「请求参数为空或不合法」，真实原因被吞。该重载已删除，需要带 data 请用
-     * {@link #failWithData(ResultCode, Object)}。
-     */
-    public static <T> Result<T> fail(ResultCode resultCode, String message) {
-        return fail(resultCode.getCode(), message, null);
+    public static <T> Result<T> fail(ResultCode resultCode, T data) {
+        return fail(resultCode.getCode(), resultCode.getMessage(), data);
     }
 
     // 自定义失败信息, fail返回值其实会自动推导，因为T没有传递下去
@@ -86,11 +78,6 @@ public class Result<T> extends Message<T> {
 
     public static <T> Result<T> fail(int code, String message, T data) {
         return new Result<>(code, data, message);
-    }
-
-    /** 失败并携带数据（原 fail(ResultCode, T) 的语义，改名避免与「结果码+文案」混淆） */
-    public static <T> Result<T> failWithData(ResultCode resultCode, T data) {
-        return fail(resultCode.getCode(), resultCode.getMessage(), data);
     }
 
     // 成功/失败都处理
