@@ -6,10 +6,10 @@
         id, type_id, name, remark, creator, open_status
     </sql>
 
-    <!-- table 由控制器白名单限定（t_prep_condition / t_doc_list），fail-closed -->
+    <!-- table 由控制器白名单限定（t_prep_condition / t_doc_list），fail-closed；schema 前缀由本文件固定为 cbs.（连接 search_path 不含 cbs） -->
     <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsMeta">
         select <include refid="cols"/>
-        from ${table}
+        from cbs.${table}
         where open_status = true
         and type_id = #{typeId}
         <if test="kw != null and kw != ''">
@@ -21,7 +21,7 @@
 
     <select id="countAll" resultType="long">
         select count(*)
-        from ${table}
+        from cbs.${table}
         where open_status = true
         and type_id = #{typeId}
         <if test="kw != null and kw != ''">
@@ -31,17 +31,17 @@
 
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsMeta">
         select <include refid="cols"/>
-        from ${table}
+        from cbs.${table}
         where id = #{id}
     </select>
 
     <insert id="insert">
-        insert into ${table} (id, type_id, name, remark, creator, open_status)
+        insert into cbs.${table} (id, type_id, name, remark, creator, open_status)
         values (#{p.id}, #{p.type_id}, #{p.name}, #{p.remark}, #{p.creator}, #{p.open_status})
     </insert>
 
     <update id="update">
-        update ${table}
+        update cbs.${table}
         <set>
             name = #{p.name},
             remark = #{p.remark},
@@ -50,10 +50,10 @@
     </update>
 
     <update id="remove">
-        update ${table} set open_status = false where id = #{id}
+        update cbs.${table} set open_status = false where id = #{id}
     </update>
 
     <delete id="purge">
-        delete from ${table} where id = #{id}
+        delete from cbs.${table} where id = #{id}
     </delete>
 </mapper>
