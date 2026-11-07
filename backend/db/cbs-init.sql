@@ -479,6 +479,7 @@ CREATE INDEX IF NOT EXISTS t_prep_condition_type ON cbs.t_prep_condition (type_i
 CREATE TABLE IF NOT EXISTS cbs.t_doc_list (
     id          varchar      NOT NULL,
     type_id     varchar,                               -- -> t_dict.item_id (dict_type=project_type)
+    file_type   smallint     NOT NULL DEFAULT 1,       -- 分类：1=项目条件 2=开工前安全条件
     name        varchar      NOT NULL,
     remark      varchar,
     creator     varchar,
@@ -487,3 +488,7 @@ CREATE TABLE IF NOT EXISTS cbs.t_doc_list (
     CONSTRAINT t_doc_list_pkey PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS t_doc_list_type ON cbs.t_doc_list (type_id);
+
+-- 兼容早期已建的库：补 file_type（幂等）
+ALTER TABLE cbs.t_doc_list ADD COLUMN IF NOT EXISTS file_type smallint NOT NULL DEFAULT 1;
+COMMENT ON COLUMN cbs.t_doc_list.file_type IS '资料清单分类：1=项目条件 2=开工前安全条件';

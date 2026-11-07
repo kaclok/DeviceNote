@@ -10,10 +10,12 @@ import java.util.List;
 public interface TCbsMetaDao {
 
     List<TCbsMeta> queryPage(@Param("table") String table, @Param("typeId") String typeId,
+                             @Param("fileType") Integer fileType,
                              @Param("kw") String kw,
                              @Param("offset") int offset, @Param("limit") int limit);
 
     long countAll(@Param("table") String table, @Param("typeId") String typeId,
+                  @Param("fileType") Integer fileType,
                   @Param("kw") String kw);
 
     TCbsMeta query(@Param("table") String table, @Param("id") String id);

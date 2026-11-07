@@ -281,12 +281,14 @@ function removeQual(row) {
  * 布局仿参考站 prepareFileModal / meansListModal：主弹窗 = 「新增」+ 列表，新增/编辑走二级弹窗 */
 const META = {
     prep: {title: '开工准备文件', table: 't_prep_condition', bordered: true},
-    doc: {title: '资料清单', table: 't_doc_list', bordered: false},
+    doc: {title: '资料清单', table: 't_doc_list', bordered: false,
+        tabs: [{v: 1, label: '项目条件'}, {v: 2, label: '开工前安全条件'}]},
 }
 const META_MAX = 200
 const metaVisible = ref(false)
 const metaLoading = ref(false)
 const metaKind = ref('prep')
+const metaFileType = ref(1)
 const metaTypeId = ref('')
 const metaTypeName = ref('')
 const metaRows = ref([])
@@ -302,6 +304,7 @@ const metaRules = {name: [{required: true, message: '请输入名称', trigger: 
 
 function openMeta(kind, row) {
     metaKind.value = kind
+    metaFileType.value = 1
     metaTypeId.value = row.item_id
     metaTypeName.value = row.item_name
     metaRows.value = []
@@ -311,9 +314,9 @@ function openMeta(kind, row) {
 
 function loadMeta() {
     metaLoading.value = true
-    sys.biz('cbs/meta/list', {
-        table: metaCfg.value.table, typeId: metaTypeId.value, pageNo: 1, pageSize: META_MAX,
-    }, AC.signal, () => {}, (r, data) => {
+    const p = {table: metaCfg.value.table, typeId: metaTypeId.value, pageNo: 1, pageSize: META_MAX}
+    if (metaCfg.value.tabs) p.fileType = metaFileType.value
+    sys.biz('cbs/meta/list', p, AC.signal, () => {}, (r, data) => {
         metaLoading.value = false
         if (r) metaRows.value = data.data?.rows || []
         else notifyError(data, '加载失败')
@@ -344,6 +347,7 @@ function saveMeta() {
             name: f.name.trim(), remark: (f.remark || '').trim(),
         }
         if (f.id) payload.id = f.id
+        else if (metaCfg.value.tabs) payload.fileType = metaFileType.value
         sys.biz('cbs/meta/save', payload, AC.signal, () => {}, (r, data) => {
             metaSaving.value = false
             if (r) {
@@ -527,6 +531,10 @@ onUnmounted(() => {
 
         <!-- 开工准备文件 / 资料清单（项目类型行内入口；主弹窗只放「新增」+ 列表，仿参考站） -->
         <el-dialog v-model="metaVisible" :title="metaCfg.title" width="800px" top="6vh" destroy-on-close>
+            <el-tabs v-if="metaCfg.tabs" v-model="metaFileType" type="card" class="meta-tabs"
+                     @tab-change="loadMeta">
+                <el-tab-pane v-for="t in metaCfg.tabs" :key="t.v" :label="t.label" :name="t.v"/>
+            </el-tabs>
             <div class="table-operator">
                 <el-button type="primary" :icon="Plus" @click="addMeta">新增</el-button>
                 <span class="op-ctx">{{ metaTypeName }}</span>

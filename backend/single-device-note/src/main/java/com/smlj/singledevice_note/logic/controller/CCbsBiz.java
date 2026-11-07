@@ -93,6 +93,10 @@ public class CCbsBiz {
     private static final java.util.Set<String> META_TABLES =
             java.util.Set.of("t_prep_condition", "t_doc_list");
 
+    /** 资料清单分类（t_doc_list.file_type）：1=项目条件 2=开工前安全条件，fail-closed */
+    private static final String TABLE_DOC_LIST = "t_doc_list";
+    private static final java.util.Set<Integer> DOC_FILE_TYPES = java.util.Set.of(1, 2);
+
     /** 批量操作单次上限（与分页上限 200 对齐） */
     private static final int BATCH_MAX = 200;
 
@@ -885,7 +889,21 @@ public class CCbsBiz {
         return (n == 1 || n == 2) ? n : null;
     }
 
-    // ---------------- 通用基础数据（开工准备条件 / 资料清单） ----------------
+    /** 资料清单分类：仅 t_doc_list 生效，白名单外一律 null（调用方据此 fail-closed） */
+    private Integer docFileTypeOf(String table, Object v) {
+        if (!TABLE_DOC_LIST.equals(table)) {
+            return null;
+        }
+        Integer n;
+        try {
+            n = Integer.parseInt(String.valueOf(v).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return DOC_FILE_TYPES.contains(n) ? n : null;
+    }
+
+    // ---------------- 通用基础数据（开工准备文件 / 资料清单） ----------------
 
     @RequirePermission("cbs:baseinfo")
     @PostMapping("/meta/list")
@@ -898,10 +916,14 @@ public class CCbsBiz {
         if (!StringUtils.hasText(typeId)) {
             return Result.fail(ResultCode.RC10101, "typeId 不能为空");
         }
+        Integer fileType = docFileTypeOf(table, q.get("fileType"));
+        if (fileType == null && TABLE_DOC_LIST.equals(table)) {
+            return Result.fail(ResultCode.RC10101, "资料清单分类不合法");
+        }
         int no = pageNo(q), size = pageSize(q);
         String kw = str(q, "kw");
-        long total = metaDao.countAll(table, typeId, kw);
-        return Result.success(pageOf(metaDao.queryPage(table, typeId, kw, offset(no, size), size), total, no, size));
+        long total = metaDao.countAll(table, typeId, fileType, kw);
+        return Result.success(pageOf(metaDao.queryPage(table, typeId, fileType, kw, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:baseinfo")
@@ -922,6 +944,13 @@ public class CCbsBiz {
             return Result.fail(ResultCode.RC10101, "名称不能为空");
         }
         String remark = str(b, "remark");
+        Integer fileType = null;
+        if (!StringUtils.hasText(id)) {
+            fileType = docFileTypeOf(table, b.get("fileType"));
+            if (fileType == null && TABLE_DOC_LIST.equals(table)) {
+                return Result.fail(ResultCode.RC10101, "资料清单分类不合法");
+            }
+        }
         if (StringUtils.hasText(id)) {
             TCbsMeta old = metaDao.query(table, id);
             if (old == null) {
@@ -940,6 +969,7 @@ public class CCbsBiz {
             m.setRemark(remark);
             m.setCreator(me.getAccount());
             m.setOpen_status(true);
+            m.setFile_type(fileType);
             metaDao.insert(table, m);
         }
         return Result.success();
