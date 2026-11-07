@@ -124,9 +124,24 @@ public class CCbsBiz {
         return v == null ? null : String.valueOf(v);
     }
 
+    /** 取整型参数：兼容 JSON 数字与字符串数字（前端单选组可能回传字符串），非法一律 null 由调用方 fail-closed */
     private static Integer intVal(Map<String, Object> m, String key) {
         Object v = m == null ? null : m.get(key);
-        return v instanceof Number n ? n.intValue() : null;
+        if (v instanceof Number n) {
+            return n.intValue();
+        }
+        if (v == null) {
+            return null;
+        }
+        String t = String.valueOf(v).trim();
+        if (t.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(t);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     // ---------------- 承包商单位 ----------------

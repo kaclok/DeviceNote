@@ -63,14 +63,16 @@ const total = ref(0)
 let kwTimer = null
 
 let AC = new AbortController()
+/* 审批流转独立通道：不能与列表共用 AC，否则查询/切页会取消审批请求，导致保存按钮状态卡死 */
+let OPAC = new AbortController()
 
 /** 当前切页 → 后端过滤参数（status 审批状态 / coop 合作状态 / recycled 回收站） */
 const tabParams = computed(() => (cfg.value.tabs.find(t => t.key === tabKey.value) || {}).params || {})
 
-/** 操作列宽随切页变化（对齐参考站：通过 340 / 待审批 90 / 未通过 150 / 回收站 210） */
+/** 操作列宽随切页变化（按内容实测预留：6 个链接 400 / 审核 90 / 查看+删除 150 / 回收站 210） */
 const opWidth = computed(() => {
     if (mode.value === 'audit') return 120
-    return {pass: 340, wait: 90, reject: 150, recycle: 210}[tabKey.value] || 150
+    return {pass: 400, wait: 90, reject: 150, recycle: 210}[tabKey.value] || 150
 })
 
 function loadRows() {
@@ -157,7 +159,10 @@ async function onApproveChange(val) {
     }
     approveSaving.value = true
     sys.biz('cbs/contractor/audit', {contractorId: viewRow.value.contractor_id, status: val, reason},
-        AC.signal, () => {}, (r, data) => {
+        OPAC.signal, () => {
+            approveSaving.value = false
+            viewApprove.value = prev
+        }, (r, data) => {
             approveSaving.value = false
             if (r) {
                 ElMessage.success('审批状态已更新')
@@ -252,16 +257,21 @@ function submitAudit() {
         auditSaving.value = true
         const f = {...auditForm.value}
         if (f.status === 1) f.reason = ''
-        sys.biz('cbs/contractor/audit', f, AC.signal, () => {}, (r, data) => {
-            auditSaving.value = false
-            if (r) {
-                ElMessage.success(f.status === 1 ? '已通过' : '已驳回')
-                auditVisible.value = false
-                loadRows()
-            } else {
-                notifyError(data, '审核失败')
-            }
-        })
+        // 后端口径 contractorId/status/reason，表单内部键名 contractor_id 不直接透传
+        sys.biz('cbs/contractor/audit',
+            {contractorId: f.contractor_id, status: f.status, reason: f.reason || ''},
+            OPAC.signal, () => {
+                auditSaving.value = false
+            }, (r, data) => {
+                auditSaving.value = false
+                if (r) {
+                    ElMessage.success(f.status === 1 ? '已通过' : '已驳回')
+                    auditVisible.value = false
+                    loadRows()
+                } else {
+                    notifyError(data, '审核失败')
+                }
+            })
     })
 }
 
@@ -502,6 +512,7 @@ watch([punishLogPage, punishLogSize], () => {
 onMounted(loadRows)
 onUnmounted(() => {
     AC.abort()
+    OPAC.abort()
     clearTimeout(kwTimer)
 })
 </script>
@@ -553,7 +564,7 @@ onUnmounted(() => {
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" :width="opWidth" align="center" fixed="right">
+                <el-table-column label="操作" :width="opWidth" align="center" fixed="right" class-name="op-cell">
                     <template #default="{row}">
                         <!-- 审批通过：查看｜保证金变更｜变更记录｜处罚｜处罚记录｜删除 -->
                         <template v-if="mode === 'unit' && tabKey === 'pass'">
@@ -563,9 +574,9 @@ onUnmounted(() => {
                             <el-divider direction="vertical"/>
                             <el-link type="primary" @click="openBondLog(row)">变更记录</el-link>
                             <el-divider direction="vertical"/>
-                            <el-link type="warning" @click="openPunish(row)">处罚</el-link>
+                            <el-link type="primary" @click="openPunish(row)">处罚</el-link>
                             <el-divider direction="vertical"/>
-                            <el-link type="warning" @click="openPunishLog(row)">处罚记录</el-link>
+                            <el-link type="primary" @click="openPunishLog(row)">处罚记录</el-link>
                             <el-divider direction="vertical"/>
                             <el-link type="danger" @click="removeRow(row)">删除</el-link>
                         </template>
@@ -1016,6 +1027,21 @@ onUnmounted(() => {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    /* 操作列例外：链接必须完整显示，宁可横向滚动也不允许出省略号 */
+    :deep(.el-table .op-cell .cell) {
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    :deep(.el-table .op-cell .el-divider--vertical) {
+        margin: 0 6px;
+    }
+
+    :deep(.el-table .op-cell .el-link) {
+        vertical-align: middle;
+        font-weight: 400;
     }
 
     .approve-bar {
