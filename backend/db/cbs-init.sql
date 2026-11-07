@@ -543,3 +543,81 @@ CREATE INDEX IF NOT EXISTS t_doc_list_type ON cbs.t_doc_list (type_id);
 -- 兼容早期已建的库：补 file_type（幂等）
 ALTER TABLE cbs.t_doc_list ADD COLUMN IF NOT EXISTS file_type smallint NOT NULL DEFAULT 1;
 COMMENT ON COLUMN cbs.t_doc_list.file_type IS '资料清单分类：1=项目条件 2=开工前安全条件';
+
+-- =====================================================================
+-- 五期（2026-11-07）：承包商审核页 —— 资质逐项审核 / 人员库与承包商人员关联
+-- 说明：全部 CREATE TABLE IF NOT EXISTS + 幂等索引，可在已有库上重复执行；
+--       状态列按《数据库设计规范》一律 smallint + 列注释，禁 varchar。
+-- =====================================================================
+
+-- 承包商 × 资质项 的逐项审核结果。
+-- 清单本身不冗余：仍以 t_contractor_qual（按承包商 ctype 对应的 dictionary item）为准，
+-- 本表只存"这家承包商在这一项上审得怎么样"，清单增删不影响已审数据。
+CREATE TABLE IF NOT EXISTS cbs.t_contractor_qual_check (
+    id            varchar      NOT NULL,
+    contractor_id varchar      NOT NULL,                -- -> t_contractor
+    qual_id       varchar      NOT NULL,                -- -> t_contractor_qual
+    qual_type     smallint     NOT NULL DEFAULT 1,      -- 分类：1=资质证件 2=审核所需文件（取自 qual 表，便于按页查）
+    check_status  smallint     NOT NULL DEFAULT 0,      -- 审核结果：0=未审核 1=符合 2=不符合
+    valid_date    date,                                 -- 有效期至（空=长期有效）
+    remark        varchar,                              -- 审核备注
+    checker       varchar,                              -- 审核人
+    check_time    timestamp,                            -- 审核时间
+    creator       varchar,
+    create_time   timestamp    NOT NULL DEFAULT now(),
+    open_status   bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_contractor_qual_check_pkey PRIMARY KEY (id)
+);
+DROP INDEX IF EXISTS cbs.t_contractor_qual_check_uk;
+CREATE UNIQUE INDEX IF NOT EXISTS t_contractor_qual_check_uk
+    ON cbs.t_contractor_qual_check (contractor_id, qual_id) WHERE open_status;
+CREATE INDEX IF NOT EXISTS t_contractor_qual_check_ct
+    ON cbs.t_contractor_qual_check (contractor_id, qual_type, open_status);
+
+-- 人员库：全局人员台账，与登录账号 cbs.t_user 解耦（t_user 一人一账号，人员库里的人未必有账号）。
+-- 承包商人员、合作单位人员共用这一份台账，通过 t_contractor_person 关联到承包商。
+CREATE TABLE IF NOT EXISTS cbs.t_person (
+    person_id   varchar      NOT NULL,
+    name        varchar      NOT NULL,
+    id_card     varchar,                                -- 身份证号（启用行唯一，防重复建档）
+    phone       varchar,
+    gender      smallint,                               -- 性别：1=男 2=女
+    post_name   varchar,                                -- 岗位 / 工种
+    cert_name   varchar,                                -- 证书名称
+    cert_no     varchar,                                -- 证书编号
+    entry_date  date,                                   -- 进场日期
+    remark      varchar,
+    creator     varchar,
+    create_time timestamp    NOT NULL DEFAULT now(),
+    open_status bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_person_pkey PRIMARY KEY (person_id)
+);
+DROP INDEX IF EXISTS cbs.t_person_id_card;
+CREATE UNIQUE INDEX IF NOT EXISTS t_person_id_card
+    ON cbs.t_person (id_card) WHERE id_card IS NOT NULL AND open_status;
+
+-- 承包商 × 人员 关联：一个人可服务多个承包商，故用关联表而非在 t_person 上挂 contractor_id。
+-- audit_status/auditor/audit_time 留审核痕迹；批量审核 = 批量写入/恢复本表。
+CREATE TABLE IF NOT EXISTS cbs.t_contractor_person (
+    id            varchar      NOT NULL,
+    contractor_id varchar      NOT NULL,                -- -> t_contractor
+    person_id     varchar      NOT NULL,                -- -> t_person
+    audit_status  smallint     NOT NULL DEFAULT 1,      -- 审核状态：1=已通过 2=已驳回
+    audit_time    timestamp,                            -- 审核时间
+    auditor       varchar,                              -- 审核人
+    remark        varchar,
+    creator       varchar,
+    create_time   timestamp    NOT NULL DEFAULT now(),
+    open_status   bool         NOT NULL DEFAULT true,
+    CONSTRAINT t_contractor_person_pkey PRIMARY KEY (id)
+);
+DROP INDEX IF EXISTS cbs.t_contractor_person_uk;
+CREATE UNIQUE INDEX IF NOT EXISTS t_contractor_person_uk
+    ON cbs.t_contractor_person (contractor_id, person_id) WHERE open_status;
+CREATE INDEX IF NOT EXISTS t_contractor_person_ct
+    ON cbs.t_contractor_person (contractor_id, open_status);
+
+COMMENT ON COLUMN cbs.t_contractor_qual_check.qual_type IS '分类：1=资质证件 2=审核所需文件';
+COMMENT ON COLUMN cbs.t_contractor_qual_check.check_status IS '审核结果：0=未审核 1=符合 2=不符合';
+COMMENT ON COLUMN cbs.t_person.gender IS '性别：1=男 2=女';
+COMMENT ON COLUMN cbs.t_contractor_person.audit_status IS '审核状态：1=已通过 2=已驳回';

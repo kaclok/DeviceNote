@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsQualCheckDao">
+
+    <!-- 清单为左表：该类型下启用的资质项全部列出，未审过的项也出现（check_status 归 0、id 为空） -->
+    <select id="listByContractor" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsQualCheck">
+        select q.qual_id, q.qual_name, q.qual_level, q.qual_type, q.validity, q.remind,
+               c.id, c.contractor_id, coalesce(c.check_status, 0) as check_status,
+               c.valid_date, c.remark, c.checker
+        from cbs.t_contractor_qual q
+        left join cbs.t_contractor_qual_check c
+               on c.qual_id = q.qual_id
+              and c.contractor_id = #{contractorId}
+              and c.open_status = true
+        where q.type_id = #{typeId}
+          and q.qual_type = #{qualType}
+          and q.open_status = true
+          and q.is_using = true
+        order by q.create_time
+    </select>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsQualCheck">
+        select id, contractor_id, qual_id, qual_type, check_status, valid_date, remark, checker, creator
+        from cbs.t_contractor_qual_check
+        where contractor_id = #{contractorId} and qual_id = #{qualId} and open_status = true
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsQualCheck">
+        insert into cbs.t_contractor_qual_check
+            (id, contractor_id, qual_id, qual_type, check_status, valid_date, remark, checker,
+             check_time, creator, open_status)
+        values
+            (#{p.id}, #{p.contractor_id}, #{p.qual_id}, #{p.qual_type},
+             coalesce(#{p.check_status}, 0), #{p.valid_date}, #{p.remark}, #{p.checker},
+             now(), #{p.creator}, true)
+    </insert>
+
+    <update id="update">
+        update cbs.t_contractor_qual_check
+        set qual_type = coalesce(#{p.qual_type}, qual_type),
+            check_status = coalesce(#{p.check_status}, 0),
+            valid_date = #{p.valid_date},
+            remark = #{p.remark},
+            checker = #{p.checker},
+            check_time = now()
+        where id = #{p.id} and open_status = true
+    </update>
+</mapper>

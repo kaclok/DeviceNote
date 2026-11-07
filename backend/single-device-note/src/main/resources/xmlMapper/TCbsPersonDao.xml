@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsPersonDao">
+
+    <sql id="pcols">
+        p.person_id, p.name, p.id_card, p.phone, p.gender, p.post_name, p.cert_name, p.cert_no,
+        p.entry_date, p.remark, p.creator
+    </sql>
+
+    <!-- 某承包商人员：关联表为主，带出 rel_id（移除用）与审核痕迹 -->
+    <select id="queryByContractor" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPerson">
+        select <include refid="pcols"/>,
+               r.id as rel_id, r.audit_status, r.auditor,
+               to_char(r.audit_time, 'YYYY-MM-DD HH24:MI') as audit_time
+        from cbs.t_contractor_person r
+        join cbs.t_person p on p.person_id = r.person_id
+        where r.contractor_id = #{contractorId}
+          and r.open_status = true
+          and p.open_status = true
+        order by r.create_time desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countByContractor" resultType="long">
+        select count(*)
+        from cbs.t_contractor_person r
+        join cbs.t_person p on p.person_id = r.person_id
+        where r.contractor_id = #{contractorId}
+          and r.open_status = true
+          and p.open_status = true
+    </select>
+
+    <!-- 人员库：排除已加入该承包商的人，避免重复挑同一人 -->
+    <sql id="libCond">
+        <where>
+            p.open_status = true
+            <if test="kw != null and kw != ''">
+                and (p.name like concat('%', #{kw}, '%')
+                     or p.id_card like concat('%', #{kw}, '%')
+                     or p.phone like concat('%', #{kw}, '%'))
+            </if>
+            <if test="excludeContractorId != null and excludeContractorId != ''">
+                and not exists (
+                    select 1 from cbs.t_contractor_person r
+                    where r.person_id = p.person_id
+                      and r.contractor_id = #{excludeContractorId}
+                      and r.open_status = true
+                )
+            </if>
+        </where>
+    </sql>
+
+    <select id="queryLibrary" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPerson">
+        select <include refid="pcols"/>
+        from cbs.t_person p
+        <include refid="libCond"/>
+        order by p.create_time desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countLibrary" resultType="long">
+        select count(*)
+        from cbs.t_person p
+        <include refid="libCond"/>
+    </select>
+
+    <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPerson">
+        select <include refid="pcols"/>
+        from cbs.t_person p
+        where p.person_id = #{id} and p.open_status = true
+    </select>
+
+    <select id="countIdCard" resultType="int">
+        select count(*) from cbs.t_person
+        where open_status = true and id_card = #{idCard}
+        <if test="excludeId != null and excludeId != ''">
+            and person_id &lt;&gt; #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insert" parameterType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPerson">
+        insert into cbs.t_person
+            (person_id, name, id_card, phone, gender, post_name, cert_name, cert_no, entry_date,
+             remark, creator, open_status)
+        values
+            (#{p.person_id}, #{p.name}, #{p.id_card}, #{p.phone}, #{p.gender}, #{p.post_name},
+             #{p.cert_name}, #{p.cert_no}, #{p.entry_date}, #{p.remark}, #{p.creator}, true)
+    </insert>
+
+    <update id="update">
+        update cbs.t_person
+        set name = #{p.name},
+            id_card = #{p.id_card},
+            phone = #{p.phone},
+            gender = #{p.gender},
+            post_name = #{p.post_name},
+            cert_name = #{p.cert_name},
+            cert_no = #{p.cert_no},
+            entry_date = #{p.entry_date},
+            remark = #{p.remark}
+        where person_id = #{p.person_id} and open_status = true
+    </update>
+
+    <update id="remove">
+        update cbs.t_person set open_status = false where person_id = #{id}
+    </update>
+</mapper>

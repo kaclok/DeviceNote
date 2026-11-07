@@ -549,6 +549,23 @@
                 100
             ]
         },
+        "contractor.person": {
+            "pageSize": 14,
+            "pageSizes": [
+                14,
+                30,
+                50,
+                100
+            ]
+        },
+        "contractor.library": {
+            "pageSize": 10,
+            "pageSizes": [
+                10,
+                20,
+                50
+            ]
+        },
         "project.proj": {
             "pageSize": 14,
             "pageSizes": [

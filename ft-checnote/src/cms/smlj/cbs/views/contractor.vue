@@ -4,7 +4,7 @@ import {Singleton} from "@/framework/services/Singleton.js";
 import gd from "../data/gd.json"
 import {pagerOf} from "../system/Pager.js"
 import {ElMessage, ElMessageBox} from "element-plus";
-import {Search} from "@element-plus/icons-vue";
+import {Plus, Search} from "@element-plus/icons-vue";
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
 import {useDictNames} from "../system/DictX.js"
 
@@ -71,7 +71,7 @@ const tabParams = computed(() => (cfg.value.tabs.find(t => t.key === tabKey.valu
 
 /** 操作列宽随切页变化（按内容实测预留：6 个链接 400 / 审核 90 / 查看+删除 150 / 回收站 220） */
 const opWidth = computed(() => {
-    if (mode.value === 'audit') return 120
+    if (mode.value === 'audit') return 340
     return {pass: 400, wait: 90, reject: 150, recycle: 220}[tabKey.value] || 150
 })
 
@@ -272,6 +272,252 @@ function submitAudit() {
                     notifyError(data, '审核失败')
                 }
             })
+    })
+}
+
+/* ============ 承包商审核：资质证件 / 审核所需文件 ============
+ * 清单来自「基础设置 › 承包商类型」里该类型维护的资质管理(qualType=1) / 审核所需文件(qualType=2)，
+ * 本页只逐项记录这家承包商的审核结果（未审核 / 符合 / 不符合）与有效期，不改清单本身。 */
+const QUAL_TITLE = {1: '资质证件', 2: '审核所需文件'}
+const CHECK_OPTIONS = [
+    {id: 0, desc: '未审核'},
+    {id: 1, desc: '符合'},
+    {id: 2, desc: '不符合'},
+]
+const qualVisible = ref(false)
+const qualType = ref(1)
+const qualCtx = ref({})
+const qualRows = ref([])
+const qualLoading = ref(false)
+const qualSaving = ref(false)
+const qualTitle = computed(() => `${QUAL_TITLE[qualType.value]} — ${qualCtx.value.name || ''}`)
+
+function openQual(row, type) {
+    qualCtx.value = {contractor_id: row.contractor_id, name: row.name}
+    qualType.value = type
+    qualRows.value = []
+    qualVisible.value = true
+    loadQual()
+}
+
+function loadQual() {
+    const cid = qualCtx.value.contractor_id
+    if (!cid) return
+    qualLoading.value = true
+    sys.biz('cbs/contractor/qualCheck/list', {contractorId: cid, qualType: qualType.value}, OPAC.signal,
+        () => {
+            qualLoading.value = false
+        }, (r, data) => {
+            qualLoading.value = false
+            if (r) qualRows.value = data.data || []
+            else notifyError(data, '审核清单加载失败')
+        })
+}
+
+/** 整单提交（后端逐行校验 qual_id 属于该承包商类型，白名单外整单拒绝） */
+function saveQual() {
+    const cid = qualCtx.value.contractor_id
+    if (!cid || !qualRows.value.length) return
+    const rows = qualRows.value.map(x => ({
+        qual_id: x.qual_id,
+        check_status: Number(x.check_status ?? 0),
+        valid_date: x.valid_date || null,
+        remark: x.remark || null,
+    }))
+    qualSaving.value = true
+    sys.biz('cbs/contractor/qualCheck/save',
+        {contractorId: cid, qualType: qualType.value, rows}, OPAC.signal,
+        () => {
+            qualSaving.value = false
+        }, (r, data) => {
+            qualSaving.value = false
+            if (r) {
+                ElMessage.success('审核结果已保存')
+                qualVisible.value = false
+            } else {
+                notifyError(data, '审核结果保存失败')
+            }
+        })
+}
+
+/* ============ 承包商审核：人员管理 ============
+ * 人员库(t_person) 是全局台账，承包商人员走关联表(t_contractor_person)；
+ * 「批量审核」= 勾选人员库里的人一次性写入关联（幂等：已在库跳过、软删过的恢复）。 */
+const personPager = pagerOf('contractor.person')
+const personVisible = ref(false)
+const personCtx = ref({})
+const personRows = ref([])
+const personLoading = ref(false)
+const personPageNo = ref(1)
+const personSize = ref(personPager.pageSize)
+const personTotal = ref(0)
+
+const libraryPager = pagerOf('contractor.library')
+const libraryVisible = ref(false)
+const libraryRows = ref([])
+const libraryLoading = ref(false)
+const libraryKw = ref('')
+const libraryPageNo = ref(1)
+const librarySize = ref(libraryPager.pageSize)
+const libraryTotal = ref(0)
+const librarySel = ref([])
+const librarySaving = ref(false)
+let libKwTimer = null
+
+const personFormVisible = ref(false)
+const personFormRef = ref()
+const personSaving = ref(false)
+const emptyPersonForm = () => ({
+    person_id: '', name: '', id_card: '', phone: '', gender: 1,
+    post_name: '', cert_name: '', cert_no: '', entry_date: '', remark: '',
+})
+const personForm = ref(emptyPersonForm())
+const personRules = {name: [{required: true, message: '请输入姓名', trigger: 'blur'}]}
+
+function openPerson(row) {
+    personCtx.value = {contractor_id: row.contractor_id, name: row.name}
+    personRows.value = []
+    personPageNo.value = 1
+    personVisible.value = true
+    loadPersons()
+}
+
+function loadPersons() {
+    const cid = personCtx.value.contractor_id
+    if (!cid) return
+    personLoading.value = true
+    sys.biz('cbs/contractor/person/list',
+        {contractorId: cid, pageNo: personPageNo.value, pageSize: personSize.value}, OPAC.signal,
+        () => {
+            personLoading.value = false
+        }, (r, data) => {
+            personLoading.value = false
+            if (r) {
+                personRows.value = data.data?.rows || []
+                personTotal.value = data.data?.total || 0
+            } else {
+                notifyError(data, '承包商人员加载失败')
+            }
+        })
+}
+
+watch([personPageNo, personSize], () => {
+    if (personVisible.value) loadPersons()
+})
+
+function openLibrary() {
+    libraryKw.value = ''
+    libraryPageNo.value = 1
+    librarySel.value = []
+    libraryRows.value = []
+    libraryVisible.value = true
+    loadLibrary()
+}
+
+function loadLibrary() {
+    libraryLoading.value = true
+    sys.biz('cbs/person/library',
+        {
+            contractorId: personCtx.value.contractor_id,
+            kw: libraryKw.value.trim(),
+            pageNo: libraryPageNo.value,
+            pageSize: librarySize.value,
+        }, OPAC.signal, () => {
+            libraryLoading.value = false
+        }, (r, data) => {
+            libraryLoading.value = false
+            if (r) {
+                libraryRows.value = data.data?.rows || []
+                libraryTotal.value = data.data?.total || 0
+            } else {
+                notifyError(data, '人员库加载失败')
+            }
+        })
+}
+
+watch([libraryPageNo, librarySize], () => {
+    if (libraryVisible.value) loadLibrary()
+})
+watch(libraryKw, () => {
+    clearTimeout(libKwTimer)
+    libKwTimer = setTimeout(() => {
+        libraryPageNo.value = 1
+        loadLibrary()
+    }, 300)
+})
+
+function onLibrarySel(rows) {
+    librarySel.value = rows.map(r => r.person_id)
+}
+
+/** 批量审核：多选人员 → 一次性加入该承包商人员库 */
+function auditBatch() {
+    const ids = librarySel.value.filter(Boolean)
+    if (!ids.length) {
+        ElMessage.warning('请先勾选人员')
+        return
+    }
+    librarySaving.value = true
+    sys.biz('cbs/contractor/person/auditBatch',
+        {contractorId: personCtx.value.contractor_id, personIds: ids}, OPAC.signal,
+        () => {
+            librarySaving.value = false
+        }, (r, data) => {
+            librarySaving.value = false
+            if (r) {
+                const joined = data.data?.joined ?? ids.length
+                const skipped = data.data?.skipped ?? 0
+                ElMessage.success(skipped ? `已加入 ${joined} 人，${skipped} 人已在库中跳过` : `已加入 ${joined} 人`)
+                libraryVisible.value = false
+                personPageNo.value = 1
+                loadPersons()
+            } else {
+                notifyError(data, '批量审核失败')
+            }
+        })
+}
+
+function openPersonForm() {
+    personForm.value = emptyPersonForm()
+    personFormVisible.value = true
+}
+
+function savePerson() {
+    personFormRef.value.validate(valid => {
+        if (!valid) return
+        personSaving.value = true
+        const f = {...personForm.value, contractor_id: personCtx.value.contractor_id}
+        if (!f.entry_date) f.entry_date = null
+        sys.biz('cbs/person/save', f, OPAC.signal, () => {
+            personSaving.value = false
+        }, (r, data) => {
+            personSaving.value = false
+            if (r) {
+                ElMessage.success('人员已加入')
+                personFormVisible.value = false
+                personPageNo.value = 1
+                loadPersons()
+            } else {
+                notifyError(data, '人员保存失败')
+            }
+        })
+    })
+}
+
+function removePerson(row) {
+    ElMessageBox.confirm(`确定将「${row.name}」移出该承包商人员库吗？`, '提示', {type: 'warning'}).then(() => {
+        sys.biz('cbs/contractor/person/remove',
+            {contractorId: personCtx.value.contractor_id, personId: row.person_id}, OPAC.signal,
+            () => {
+            }, (r, data) => {
+                if (r) {
+                    ElMessage.success('已移出')
+                    loadPersons()
+                } else {
+                    notifyError(data, '移出失败')
+                }
+            })
+    }).catch(() => {
     })
 }
 
@@ -560,7 +806,7 @@ onUnmounted(() => {
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column v-else label="合作状态" width="100" align="center">
+                <el-table-column v-if="mode === 'unit'" label="合作状态" width="100" align="center">
                     <template #default="{row}">
                         <el-tag :type="coopMeta(row.coop_status).type" effect="light">
                             {{ coopMeta(row.coop_status).desc }}
@@ -601,11 +847,15 @@ onUnmounted(() => {
                             <el-divider direction="vertical"/>
                             <el-link type="danger" @click="purgeRow(row)">彻底删除</el-link>
                         </template>
-                        <!-- 审核页：查看｜编辑 -->
+                        <!-- 审核页：编辑｜资质证件｜审核所需文件｜人员管理（对齐参考站 contractorApproval） -->
                         <template v-else-if="mode === 'audit'">
-                            <el-link type="primary" @click="openView(row)">查看</el-link>
-                            <el-divider direction="vertical"/>
                             <el-link type="primary" @click="openDialog(true, row)">编辑</el-link>
+                            <el-divider direction="vertical"/>
+                            <el-link type="primary" @click="openQual(row, 1)">资质证件</el-link>
+                            <el-divider direction="vertical"/>
+                            <el-link type="primary" @click="openQual(row, 2)">审核所需文件</el-link>
+                            <el-divider direction="vertical"/>
+                            <el-link type="primary" @click="openPerson(row)">人员管理</el-link>
                         </template>
                     </template>
                 </el-table-column>
@@ -722,6 +972,179 @@ onUnmounted(() => {
             </el-form>
             <template #footer>
                 <el-button @click="viewVisible = false">关闭</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 资质证件 / 审核所需文件：清单来自该承包商类型下的配置，这里只逐项审结果 -->
+        <el-dialog v-model="qualVisible" :title="qualTitle" width="900px" top="6vh" destroy-on-close>
+            <div class="qual-tip">
+                清单取自「基础设置 › 承包商类型 › {{ qualType === 1 ? '资质管理' : '审核所需文件' }}」，
+                要增删清单项请到该页维护。
+            </div>
+            <el-table :data="qualRows" v-loading="qualLoading" border max-height="460">
+                <el-table-column type="index" label="序号" width="70" align="center"/>
+                <el-table-column prop="qual_name" :label="qualType === 1 ? '资质名称' : '文件名称'" min-width="200"/>
+                <el-table-column prop="qual_level" label="等级/类别" width="120">
+                    <template #default="{row}">{{ row.qual_level || '—' }}</template>
+                </el-table-column>
+                <el-table-column label="审核结果" width="130" align="center">
+                    <template #default="{row}">
+                        <el-select v-model="row.check_status" size="small">
+                            <el-option v-for="o in CHECK_OPTIONS" :key="o.id" :value="o.id" :label="o.desc"/>
+                        </el-select>
+                    </template>
+                </el-table-column>
+                <el-table-column label="有效期至" width="160" align="center">
+                    <template #default="{row}">
+                        <el-date-picker v-model="row.valid_date" type="date" size="small"
+                                        value-format="YYYY-MM-DD" placeholder="长期有效"
+                                        style="width:100%"/>
+                    </template>
+                </el-table-column>
+                <el-table-column label="备注" min-width="170">
+                    <template #default="{row}">
+                        <el-input v-model="row.remark" size="small" placeholder="选填"/>
+                    </template>
+                </el-table-column>
+                <template #empty>
+                    <el-empty description="该承包商类型还没有配置清单，请先到「基础设置 › 承包商类型」维护"/>
+                </template>
+            </el-table>
+            <template #footer>
+                <el-button @click="qualVisible = false">关闭</el-button>
+                <el-button type="primary" :loading="qualSaving" :disabled="!qualRows.length"
+                           @click="saveQual">保存审核结果</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 人员管理：该承包商人员库 + 从人员库多选批量审核 -->
+        <el-dialog v-model="personVisible" :title="`人员管理 — ${personCtx.name || ''}`" width="960px"
+                   top="6vh" destroy-on-close>
+            <div class="table-operator">
+                <el-button type="primary" :icon="Plus" @click="openPersonForm">新增人员</el-button>
+                <el-button type="success" plain @click="openLibrary">从人员库添加</el-button>
+                <span class="op-ctx">共 {{ personTotal }} 人</span>
+            </div>
+            <el-table :data="personRows" v-loading="personLoading" border stripe>
+                <el-table-column type="index" label="序号" width="70" align="center"
+                                 :index="i => (personPageNo - 1) * personSize + i + 1"/>
+                <el-table-column prop="name" label="姓名" width="110"/>
+                <el-table-column prop="id_card" label="身份证号" min-width="170" show-overflow-tooltip/>
+                <el-table-column prop="phone" label="手机号码" width="130"/>
+                <el-table-column label="性别" width="70" align="center">
+                    <template #default="{row}">{{ row.gender === 2 ? '女' : (row.gender === 1 ? '男' : '—') }}</template>
+                </el-table-column>
+                <el-table-column prop="post_name" label="岗位/工种" width="120" show-overflow-tooltip/>
+                <el-table-column prop="cert_name" label="证书名称" width="140" show-overflow-tooltip/>
+                <el-table-column prop="audit_time" label="加入时间" width="150" align="center">
+                    <template #default="{row}">{{ row.audit_time || '—' }}</template>
+                </el-table-column>
+                <el-table-column label="操作" width="80" align="center" fixed="right">
+                    <template #default="{row}">
+                        <el-link type="danger" @click="removePerson(row)">移出</el-link>
+                    </template>
+                </el-table-column>
+                <template #empty>
+                    <el-empty description="该承包商还没有人员，点「从人员库添加」多选后批量审核"/>
+                </template>
+            </el-table>
+            <el-pagination class="pager" small background layout="total, sizes, prev, pager, next"
+                           :total="personTotal" v-model:current-page="personPageNo"
+                           v-model:page-size="personSize" :page-sizes="personPager.pageSizes"/>
+            <template #footer>
+                <el-button @click="personVisible = false">关闭</el-button>
+            </template>
+
+            <!-- 二级弹窗：人员库多选 → 批量审核 -->
+            <el-dialog v-model="libraryVisible" title="从人员库添加（多选后批量审核）" width="820px"
+                       append-to-body destroy-on-close class="sub-dialog">
+                <div class="lib-toolbar">
+                    <el-input v-model="libraryKw" placeholder="姓名 / 身份证 / 手机号" clearable
+                              style="width:250px" :prefix-icon="Search"/>
+                    <span class="op-ctx">已选 {{ librarySel.length }} 人</span>
+                </div>
+                <el-table :data="libraryRows" v-loading="libraryLoading" border max-height="380"
+                          row-key="person_id" @selection-change="onLibrarySel">
+                    <el-table-column type="selection" width="50" align="center"/>
+                    <el-table-column prop="name" label="姓名" width="110"/>
+                    <el-table-column prop="id_card" label="身份证号" min-width="170" show-overflow-tooltip/>
+                    <el-table-column prop="phone" label="手机号码" width="130"/>
+                    <el-table-column prop="post_name" label="岗位/工种" width="120"/>
+                    <el-table-column prop="cert_name" label="证书名称" min-width="150" show-overflow-tooltip/>
+                    <template #empty>
+                        <el-empty description="人员库为空，或该承包商已把人员全部加入"/>
+                    </template>
+                </el-table>
+                <el-pagination class="pager" small background layout="total, prev, pager, next"
+                               :total="libraryTotal" v-model:current-page="libraryPageNo"
+                               v-model:page-size="librarySize"/>
+                <template #footer>
+                    <el-button @click="libraryVisible = false">关闭</el-button>
+                    <el-button type="primary" :loading="librarySaving" :disabled="!librarySel.length"
+                               @click="auditBatch">批量审核</el-button>
+                </template>
+            </el-dialog>
+        </el-dialog>
+
+        <!-- 新增人员（入人员库并直接加入本承包商） -->
+        <el-dialog v-model="personFormVisible" title="新增人员" width="660px"
+                   append-to-body destroy-on-close class="sub-dialog">
+            <el-form ref="personFormRef" :model="personForm" :rules="personRules" label-width="110px">
+                <el-row :gutter="16">
+                    <el-col :span="12">
+                        <el-form-item label="姓名" prop="name">
+                            <el-input v-model="personForm.name" placeholder="请输入姓名"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="身份证号">
+                            <el-input v-model="personForm.id_card"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="手机号码">
+                            <el-input v-model="personForm.phone"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="性别">
+                            <el-radio-group v-model="personForm.gender">
+                                <el-radio :value="1">男</el-radio>
+                                <el-radio :value="2">女</el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="岗位/工种">
+                            <el-input v-model="personForm.post_name"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="进场日期">
+                            <el-date-picker v-model="personForm.entry_date" type="date" value-format="YYYY-MM-DD"
+                                            style="width:100%"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="证书名称">
+                            <el-input v-model="personForm.cert_name"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="证书编号">
+                            <el-input v-model="personForm.cert_no"/>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="24">
+                        <el-form-item label="备注">
+                            <el-input v-model="personForm.remark" type="textarea" :rows="2"/>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+            </el-form>
+            <template #footer>
+                <el-button @click="personFormVisible = false">取消</el-button>
+                <el-button type="primary" :loading="personSaving" @click="savePerson">保存并加入</el-button>
             </template>
         </el-dialog>
 
@@ -1096,6 +1519,44 @@ onUnmounted(() => {
     .t-add {
         color: var(--el-color-success);
         font-weight: 600;
+    }
+
+    /* 弹窗内工具条：左按钮、右上下文（与字典页口径一致） */
+    .table-operator {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+
+        .op-ctx {
+            margin-left: auto;
+            color: #8a94a6;
+            font-size: 13px;
+        }
+    }
+
+    .lib-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+
+        .op-ctx {
+            margin-left: auto;
+            color: #8a94a6;
+            font-size: 13px;
+        }
+    }
+
+    /* 审核清单来源说明 */
+    .qual-tip {
+        margin-bottom: 10px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #64748b;
+        font-size: 13px;
     }
 
     .pager {

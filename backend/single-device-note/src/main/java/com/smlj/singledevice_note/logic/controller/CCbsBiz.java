@@ -9,8 +9,14 @@ import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorQualDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorChangeDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorPunishDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorPersonDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsPersonDao;
+import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsQualCheckDao;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorChange;
 import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorPunish;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractorPerson;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsPerson;
+import com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsQualCheck;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsDictDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsMetaDao;
 import com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsEnterpriseDao;
@@ -96,6 +102,9 @@ public class CCbsBiz {
     private final TCbsMetaDao metaDao;
     private final TCbsContractorChangeDao changeDao;
     private final TCbsContractorPunishDao punishDao;
+    private final TCbsQualCheckDao qualCheckDao;
+    private final TCbsPersonDao personDao;
+    private final TCbsContractorPersonDao cpDao;
 
     /** 通用基础数据表白名单（开工准备条件 / 资料清单），fail-closed */
     private static final java.util.Set<String> META_TABLES =
@@ -126,7 +135,11 @@ public class CCbsBiz {
 
     /** 取整型参数：兼容 JSON 数字与字符串数字（前端单选组可能回传字符串），非法一律 null 由调用方 fail-closed */
     private static Integer intVal(Map<String, Object> m, String key) {
-        Object v = m == null ? null : m.get(key);
+        return toInt(m == null ? null : m.get(key));
+    }
+
+    /** 任意值 → Integer：口径同 intVal，供 List&lt;Map&lt;?,?&gt;&gt; 里的行使用 */
+    private static Integer toInt(Object v) {
         if (v instanceof Number n) {
             return n.intValue();
         }
@@ -1438,6 +1451,253 @@ public class CCbsBiz {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    // ---------------- 承包商审核：资质证件 / 审核所需文件 逐项审核 ----------------
+
+    /**
+     * 承包商 ctype 存的是类型名称文本，而资质清单挂在 t_dict.item_id 上，故按名称换 id。
+     * 换不到（历史脏数据 / 该类型被删）返回 null，调用方按"清单为空"处理。
+     */
+    private String ctypeIdOf(TCbsContractor c) {
+        if (c == null || !StringUtils.hasText(c.getCtype())) {
+            return null;
+        }
+        TCbsDict d = dictDao.queryByName("contractor_type", c.getCtype());
+        return d == null ? null : d.getItem_id();
+    }
+
+    /**
+     * 审核清单：该承包商类型下配置的资质项（qualType=1）或审核所需文件（qualType=2），
+     * left join 本承包商的逐项审核结果 —— 没审过的项也在列表里，check_status 归 0。
+     */
+    @RequirePermission("cbs:contractor")
+    @PostMapping("/contractor/qualCheck/list")
+    public Result<?> qualCheckList(@RequestBody Map<String, Object> q) {
+        String cid = str(q, "contractorId");
+        TCbsContractor c = requireContractor(cid);
+        if (c == null) {
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
+        }
+        Integer qualType = qualTypeOf(q.get("qualType"));
+        if (qualType == null) {
+            return Result.fail(ResultCode.RC10101.getCode(), "qualType 只能是 1（资质证件）或 2（审核所需文件）");
+        }
+        String typeId = ctypeIdOf(c);
+        if (typeId == null) {
+            return Result.success(List.of());
+        }
+        return Result.success(qualCheckDao.listByContractor(cid, typeId, qualType));
+    }
+
+    /**
+     * 逐项审核结果整单提交（弹窗点「保存」一次性提交全部行）。
+     * 只接受属于该承包商类型清单下的 qual_id —— 白名单外整单拒绝，防越权写别人类型的项。
+     */
+    @RequirePermission("cbs:contractor")
+    @Transactional
+    @PostMapping("/contractor/qualCheck/save")
+    public Result<?> qualCheckSave(@RequestBody Map<String, Object> b, @Acc TCbsUser me) {
+        String cid = str(b, "contractorId");
+        TCbsContractor c = requireContractor(cid);
+        if (c == null) {
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
+        }
+        Integer qualType = qualTypeOf(b.get("qualType"));
+        if (qualType == null) {
+            return Result.fail(ResultCode.RC10101.getCode(), "qualType 只能是 1（资质证件）或 2（审核所需文件）");
+        }
+        String typeId = ctypeIdOf(c);
+        if (typeId == null) {
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商类型未匹配到字典项，请先检查该承包商的类型");
+        }
+        Object raw = b.get("rows");
+        if (!(raw instanceof List<?> rows) || rows.isEmpty()) {
+            return Result.fail(ResultCode.RC10101.getCode(), "请先填写审核结果");
+        }
+        if (rows.size() > BATCH_MAX) {
+            return Result.fail(ResultCode.RC10101.getCode(), "单次最多 " + BATCH_MAX + " 条");
+        }
+        java.util.Set<String> allowed = cqualDao.listByType(typeId, qualType).stream()
+                .map(TCbsContractorQual::getQual_id)
+                .collect(java.util.stream.Collectors.toSet());
+        int saved = 0;
+        for (Object o : rows) {
+            if (!(o instanceof Map<?, ?> m)) {
+                continue;
+            }
+            String qualId = m.get("qual_id") == null ? null : String.valueOf(m.get("qual_id"));
+            if (!StringUtils.hasText(qualId) || !allowed.contains(qualId)) {
+                return Result.fail(ResultCode.RC10101.getCode(), "资质项不属于该承包商类型：" + qualId);
+            }
+            Integer st = toInt(m.get("check_status"));
+            if (st == null || st < 0 || st > 2) {
+                return Result.fail(ResultCode.RC10101.getCode(), "审核结果只能是 0=未审核 1=符合 2=不符合");
+            }
+            LocalDate vd = parseDate(m.get("valid_date") == null ? null : String.valueOf(m.get("valid_date")));
+            String remark = m.get("remark") == null ? null : String.valueOf(m.get("remark"));
+            TCbsQualCheck old = qualCheckDao.query(cid, qualId);
+            TCbsQualCheck p = new TCbsQualCheck();
+            p.setContractor_id(cid);
+            p.setQual_id(qualId);
+            p.setQual_type(qualType);
+            p.setCheck_status(st);
+            p.setValid_date(vd);
+            p.setRemark(remark);
+            p.setChecker(me.getAccount());
+            if (old == null) {
+                p.setId(newId());
+                p.setCreator(me.getAccount());
+                qualCheckDao.insert(p);
+            } else {
+                p.setId(old.getId());
+                qualCheckDao.update(p);
+            }
+            saved++;
+        }
+        return Result.success(Map.of("saved", saved));
+    }
+
+    // ---------------- 承包商审核：人员库 / 承包商人员（批量审核） ----------------
+
+    /** 某承包商的人员（已批量审核加入的），join 关联表带出 rel_id 与审核痕迹 */
+    @RequirePermission("cbs:contractor")
+    @PostMapping("/contractor/person/list")
+    public Result<?> contractorPersonList(@RequestBody Map<String, Object> q) {
+        String cid = str(q, "contractorId");
+        if (requireContractor(cid) == null) {
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
+        }
+        int no = pageNo(q), size = pageSize(q);
+        return Result.success(pageOf(personDao.queryByContractor(cid, offset(no, size), size),
+                personDao.countByContractor(cid), no, size));
+    }
+
+    /** 人员库（「从人员库添加」多选用）：排除已加入该承包商的人，避免重复挑同一人 */
+    @RequirePermission("cbs:contractor")
+    @PostMapping("/person/library")
+    public Result<?> personLibrary(@RequestBody(required = false) Map<String, Object> q) {
+        int no = pageNo(q), size = pageSize(q);
+        String kw = str(q, "kw");
+        String cid = str(q, "contractorId");
+        return Result.success(pageOf(personDao.queryLibrary(kw, cid, offset(no, size), size),
+                personDao.countLibrary(kw, cid), no, size));
+    }
+
+    /**
+     * 人员库建档 / 编辑。带 contractor_id 时（弹窗「新增人员」并直接加入本承包商）事务内一并建立关联；
+     * 批量加入仍走 /contractor/person/auditBatch。
+     */
+    @RequirePermission("cbs:contractor")
+    @Transactional
+    @PostMapping("/person/save")
+    public Result<?> personSave(@RequestBody TCbsPerson p, @Acc TCbsUser me) {
+        if (!StringUtils.hasText(p.getName())) {
+            return Result.fail(ResultCode.RC10101.getCode(), "姓名不能为空");
+        }
+        if (p.getGender() != null && (p.getGender() < 1 || p.getGender() > 2)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "性别只能是 1=男 2=女");
+        }
+        if (StringUtils.hasText(p.getId_card())
+                && personDao.countIdCard(p.getId_card(), p.getPerson_id()) > 0) {
+            return Result.fail(ResultCode.RC10101.getCode(), "身份证号已存在");
+        }
+        if (!StringUtils.hasText(p.getPerson_id())) {
+            p.setPerson_id(newId());
+            p.setCreator(me.getAccount());
+            personDao.insert(p);
+        } else if (personDao.query(p.getPerson_id()) == null) {
+            return Result.fail(ResultCode.RC10103.getCode(), "人员不存在");
+        } else {
+            personDao.update(p);
+        }
+        if (StringUtils.hasText(p.getContractor_id())) {
+            if (requireContractor(p.getContractor_id()) == null) {
+                return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
+            }
+            linkPerson(p.getContractor_id(), p.getPerson_id(), me.getAccount());
+        }
+        return Result.success(Map.of("person_id", p.getPerson_id()));
+    }
+
+    /**
+     * 批量审核：多选人员库中的人，一次性加入该承包商人员库。
+     * 幂等 —— 已在库里的计入 skipped，软删过的恢复，其余插入。
+     */
+    @RequirePermission("cbs:contractor")
+    @Transactional
+    @PostMapping("/contractor/person/auditBatch")
+    public Result<?> contractorPersonAuditBatch(@RequestBody Map<String, Object> b, @Acc TCbsUser me) {
+        String cid = str(b, "contractorId");
+        if (requireContractor(cid) == null) {
+            return Result.fail(ResultCode.RC10103.getCode(), "承包商不存在");
+        }
+        Object raw = b.get("personIds");
+        if (!(raw instanceof List<?> list)) {
+            return Result.fail(ResultCode.RC10101.getCode(), "请选择要审核的人员");
+        }
+        List<String> ids = list.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(String::valueOf)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .limit(BATCH_MAX)
+                .toList();
+        if (ids.isEmpty()) {
+            return Result.fail(ResultCode.RC10101.getCode(), "请选择要审核的人员");
+        }
+        int joined = 0, skipped = 0;
+        for (String pid : ids) {
+            if (personDao.query(pid) == null) {
+                skipped++;          // 人员已被移出人员库，跳过而不是整单失败
+                continue;
+            }
+            TCbsContractorPerson ex = cpDao.queryAny(cid, pid);
+            if (ex != null && Boolean.TRUE.equals(ex.getOpen_status())) {
+                skipped++;
+                continue;
+            }
+            linkPerson(cid, pid, me.getAccount());
+            joined++;
+        }
+        Map<String, Object> r = new java.util.LinkedHashMap<>();
+        r.put("joined", joined);
+        r.put("skipped", skipped);
+        return Result.success(r);
+    }
+
+    /** 从该承包商人员库移除（软删关联，人员本身仍留在人员库） */
+    @RequirePermission("cbs:contractor")
+    @Transactional
+    @PostMapping("/contractor/person/remove")
+    public Result<?> contractorPersonRemove(@RequestBody Map<String, Object> b) {
+        String cid = str(b, "contractorId"), pid = str(b, "personId");
+        TCbsContractorPerson ex = (StringUtils.hasText(cid) && StringUtils.hasText(pid))
+                ? cpDao.queryAny(cid, pid) : null;
+        if (ex == null || !Boolean.TRUE.equals(ex.getOpen_status())) {
+            return Result.fail(ResultCode.RC10101.getCode(), "该人员不在承包商人员库中");
+        }
+        cpDao.remove(ex.getId());
+        return Result.success();
+    }
+
+    /** 幂等建立"承包商-人员"关联：在库跳过、软删恢复、没建过插入（单个加入与批量审核共用一份实现） */
+    private void linkPerson(String contractorId, String personId, String auditor) {
+        TCbsContractorPerson ex = cpDao.queryAny(contractorId, personId);
+        if (ex != null) {
+            if (!Boolean.TRUE.equals(ex.getOpen_status())) {
+                cpDao.restore(ex.getId(), auditor);
+            }
+            return;
+        }
+        TCbsContractorPerson rel = new TCbsContractorPerson();
+        rel.setId(newId());
+        rel.setContractor_id(contractorId);
+        rel.setPerson_id(personId);
+        rel.setAudit_status(1);
+        rel.setAuditor(auditor);
+        rel.setCreator(auditor);
+        cpDao.insert(rel);
     }
 
     /** 批量软删：ids 去空去重，单次上限 BATCH_MAX（与分页上限一致），一条不剩即拒。 */
