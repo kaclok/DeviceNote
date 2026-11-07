@@ -20,6 +20,12 @@ const pageTitle = computed(() => (gd.dictTypes.find(t => t.id === activeType.val
 const recycle = computed(() => activeType.value === 'contractor_type')
 const recycled = ref(false)
 
+/* 项目类型：行内维护该类型下的「开工准备条件 / 资料清单」（仿资质管理弹窗，不是独立页面） */
+const isProjectType = computed(() => activeType.value === 'project_type')
+
+/* 操作列宽度按入口数量动态给，避免 4 个链接被挤换行 */
+const opWidth = computed(() => (recycle.value ? 220 : (isProjectType.value ? 300 : 120)))
+
 // 每页独立分页配置：dict.<类型>
 const pager = computed(() => pagerOf('dict.' + activeType.value))
 
@@ -227,6 +233,74 @@ function removeQual(row) {
     })
 }
 
+/* ============ 开工准备条件 / 资料清单（按项目类型维护） ============ */
+const META = {
+    prep: {title: '开工准备条件', table: 't_prep_condition'},
+    doc: {title: '资料清单', table: 't_doc_list'},
+}
+const META_MAX = 200
+const metaVisible = ref(false)
+const metaLoading = ref(false)
+const metaKind = ref('prep')
+const metaTypeId = ref('')
+const metaTypeName = ref('')
+const metaRows = ref([])
+const metaForm = ref({name: '', remark: ''})
+const metaCfg = computed(() => META[metaKind.value] || META.prep)
+
+function openMeta(kind, row) {
+    metaKind.value = kind
+    metaTypeId.value = row.item_id
+    metaTypeName.value = row.item_name
+    metaForm.value = {name: '', remark: ''}
+    metaVisible.value = true
+    loadMeta()
+}
+
+function loadMeta() {
+    metaLoading.value = true
+    sys.biz('cbs/meta/list', {
+        table: metaCfg.value.table, typeId: metaTypeId.value, pageNo: 1, pageSize: META_MAX,
+    }, AC.signal, () => {}, (r, data) => {
+        metaLoading.value = false
+        if (r) metaRows.value = data.data?.rows || []
+        else notifyError(data, '加载失败')
+    })
+}
+
+function saveMeta() {
+    const name = metaForm.value.name.trim()
+    if (!name) {
+        ElMessage.warning('请输入名称')
+        return
+    }
+    if (metaRows.value.length >= META_MAX) {
+        ElMessage.warning(`单一项目类型最多 ${META_MAX} 条`)
+        return
+    }
+    sys.biz('cbs/meta/save', {
+        table: metaCfg.value.table, typeId: metaTypeId.value,
+        name: name, remark: metaForm.value.remark.trim(),
+    }, AC.signal, () => {}, (r, data) => {
+        if (r) {
+            ElMessage.success('已添加')
+            metaForm.value = {name: '', remark: ''}
+            loadMeta()
+        } else notifyError(data, '添加失败')
+    })
+}
+
+function removeMeta(row) {
+    ElMessageBox.confirm(`确定删除「${row.name}」吗？`, '提示', {type: 'warning'}).then(() => {
+        sys.biz('cbs/meta/delete', {table: metaCfg.value.table, id: row.id}, AC.signal, () => {}, (r, data) => {
+            if (r) {
+                ElMessage.success('已删除')
+                loadMeta()
+            } else notifyError(data, '删除失败')
+        })
+    }).catch(() => {})
+}
+
 onMounted(loadRows)
 onUnmounted(() => {
     AC.abort()
@@ -263,7 +337,7 @@ onUnmounted(() => {
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" width="220" align="center" fixed="right">
+                <el-table-column label="操作" :width="opWidth" align="center" fixed="right">
                     <template #default="{row}">
                         <template v-if="recycle && recycled">
                             <el-link type="primary" @click="restoreRow(row)">恢复</el-link>
@@ -273,6 +347,12 @@ onUnmounted(() => {
                             <el-link type="primary" @click="openDialog(true, row)">编辑</el-link>
                             <el-link v-if="recycle" type="success" style="margin-left:10px"
                                      @click="openQual(row)">资质管理</el-link>
+                            <template v-if="isProjectType">
+                                <el-link type="success" style="margin-left:10px"
+                                         @click="openMeta('prep', row)">开工准备条件</el-link>
+                                <el-link type="success" style="margin-left:10px"
+                                         @click="openMeta('doc', row)">资料清单</el-link>
+                            </template>
                             <el-link type="danger" style="margin-left:10px" @click="removeRow(row)">删除</el-link>
                         </template>
                     </template>
@@ -330,6 +410,35 @@ onUnmounted(() => {
                 <el-empty v-if="!qualLoading && qualRows.length === 0" description="暂无资质，请在上方添加"/>
             </div>
         </el-dialog>
+        <!-- 开工准备条件 / 资料清单弹窗（按项目类型维护，行内入口打开） -->
+        <el-dialog v-model="metaVisible" :title="`${metaCfg.title} — ${metaTypeName}`" width="640px" top="6vh" destroy-on-close>
+            <div v-loading="metaLoading">
+                <el-form :inline="true" class="meta-form">
+                    <el-form-item label="名称" required>
+                        <el-input v-model="metaForm.name" placeholder="请输入名称" style="width:240px"/>
+                    </el-form-item>
+                    <el-form-item label="说明">
+                        <el-input v-model="metaForm.remark" placeholder="补充说明（可选）" style="width:180px"/>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" @click="saveMeta">添加</el-button>
+                    </el-form-item>
+                </el-form>
+                <el-table :data="metaRows" border stripe size="small" max-height="360">
+                    <el-table-column type="index" label="序号" width="60" align="center"/>
+                    <el-table-column prop="name" label="名称" min-width="200"/>
+                    <el-table-column prop="remark" label="说明" min-width="220" show-overflow-tooltip>
+                        <template #default="{row}">{{ row.remark || '—' }}</template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="90" align="center">
+                        <template #default="{row}">
+                            <el-link type="danger" @click="removeMeta(row)">删除</el-link>
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <el-empty v-if="!metaLoading && metaRows.length === 0" :description="`暂无${metaCfg.title}，请在上方添加`"/>
+            </div>
+        </el-dialog>
     </div>
 </template>
 
@@ -377,6 +486,10 @@ onUnmounted(() => {
     }
 
     .qual-form {
+        margin-bottom: 12px;
+    }
+
+    .meta-form {
         margin-bottom: 12px;
     }
 }

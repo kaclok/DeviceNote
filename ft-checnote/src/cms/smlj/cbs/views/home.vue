@@ -72,8 +72,6 @@ const MENU_TREE = [
                         {path: '/home/dict/contractor_type', title: '承包商类型', perm: 'cbs:baseinfo'},
                         {path: '/home/dict/penalty_type', title: '承包商处罚类型', perm: 'cbs:baseinfo'},
                         {path: '/home/dict/project_type', title: '项目类型', perm: 'cbs:baseinfo'},
-                        {path: '/home/meta/prep', title: '开工准备条件', perm: 'cbs:baseinfo'},
-                        {path: '/home/meta/doc', title: '资料清单', perm: 'cbs:baseinfo'},
                     ]
                 },
         ]

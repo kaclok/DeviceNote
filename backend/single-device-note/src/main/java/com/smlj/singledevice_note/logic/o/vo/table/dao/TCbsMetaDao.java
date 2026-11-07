@@ -9,10 +9,12 @@ import java.util.List;
 @Mapper
 public interface TCbsMetaDao {
 
-    List<TCbsMeta> queryPage(@Param("table") String table, @Param("kw") String kw,
+    List<TCbsMeta> queryPage(@Param("table") String table, @Param("typeId") String typeId,
+                             @Param("kw") String kw,
                              @Param("offset") int offset, @Param("limit") int limit);
 
-    long countAll(@Param("table") String table, @Param("kw") String kw);
+    long countAll(@Param("table") String table, @Param("typeId") String typeId,
+                  @Param("kw") String kw);
 
     TCbsMeta query(@Param("table") String table, @Param("id") String id);
 

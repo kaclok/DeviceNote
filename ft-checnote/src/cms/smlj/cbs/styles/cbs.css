@@ -54,3 +54,34 @@ body .el-month-table td .cell {
 body .el-dropdown-menu__item {
     font-size: var(--cbs-dd-font-size);
 }
+
+/* ---------- 二次确认弹框（ElMessageBox，teleport 到 body） ----------
+ * EP 默认是 text-align:center + ::after 占位 + .el-message-box{margin-top:15vh}，
+ * 长表格页里会明显偏上，窄窗口下 420px 固定宽度还会顶出可视区。
+ * 这里改成 flex 视口居中并统一圆角/字号，保证所有页面的确认框表现一致。 */
+body .el-overlay-message-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+body .el-overlay-message-box::after {
+    display: none;
+}
+
+body .el-overlay-message-box .el-message-box {
+    margin: 0;
+    max-width: 100%;
+    border-radius: 10px;
+}
+
+body .el-message-box__title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+body .el-message-box__message {
+    font-size: 14px;
+    line-height: 1.6;
+}

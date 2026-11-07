@@ -850,10 +850,14 @@ public class CCbsBiz {
         if (!META_TABLES.contains(table)) {
             return Result.fail(ResultCode.RC10101, "table 不合法");
         }
+        String typeId = str(q, "typeId");
+        if (!StringUtils.hasText(typeId)) {
+            return Result.fail(ResultCode.RC10101, "typeId 不能为空");
+        }
         int no = pageNo(q), size = pageSize(q);
         String kw = str(q, "kw");
-        long total = metaDao.countAll(table, kw);
-        return Result.success(pageOf(metaDao.queryPage(table, kw, offset(no, size), size), total, no, size));
+        long total = metaDao.countAll(table, typeId, kw);
+        return Result.success(pageOf(metaDao.queryPage(table, typeId, kw, offset(no, size), size), total, no, size));
     }
 
     @RequirePermission("cbs:baseinfo")
@@ -863,6 +867,10 @@ public class CCbsBiz {
         String table = str(b, "table");
         if (!META_TABLES.contains(table)) {
             return Result.fail(ResultCode.RC10101, "table 不合法");
+        }
+        String typeId = str(b, "typeId");
+        if (!StringUtils.hasText(typeId)) {
+            return Result.fail(ResultCode.RC10101, "所属项目类型不能为空");
         }
         String id = str(b, "id");
         String name = str(b, "name");
@@ -883,6 +891,7 @@ public class CCbsBiz {
         } else {
             TCbsMeta m = new TCbsMeta();
             m.setId(newId());
+            m.setType_id(typeId);
             m.setName(name);
             m.setRemark(remark);
             m.setCreator(me.getAccount());

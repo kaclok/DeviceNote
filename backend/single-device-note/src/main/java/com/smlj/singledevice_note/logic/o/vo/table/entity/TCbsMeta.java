@@ -16,6 +16,8 @@ import java.io.Serializable;
 public class TCbsMeta implements Serializable {
 
     private String id;
+    /** 所属项目类型（t_dict.item_id, dict_type=project_type） */
+    private String type_id;
     private String name;
     private String remark;
     private String creator;

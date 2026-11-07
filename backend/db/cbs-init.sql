@@ -453,9 +453,10 @@ CREATE TABLE IF NOT EXISTS cbs.t_contractor_qual (
 );
 CREATE INDEX IF NOT EXISTS t_contractor_qual_type ON cbs.t_contractor_qual (type_id);
 
--- 开工准备条件（复刻目标站，简单清单：名称 + 说明）
+-- 开工准备条件（按项目类型维护：名称 + 说明；type_id 关联 t_dict.item_id）
 CREATE TABLE IF NOT EXISTS cbs.t_prep_condition (
     id          varchar      NOT NULL,
+    type_id     varchar,                               -- -> t_dict.item_id (dict_type=project_type)
     name        varchar      NOT NULL,
     remark      varchar,
     creator     varchar,
@@ -463,10 +464,12 @@ CREATE TABLE IF NOT EXISTS cbs.t_prep_condition (
     open_status bool         NOT NULL DEFAULT true,
     CONSTRAINT t_prep_condition_pkey PRIMARY KEY (id)
 );
+CREATE INDEX IF NOT EXISTS t_prep_condition_type ON cbs.t_prep_condition (type_id);
 
--- 资料清单（复刻目标站，简单清单：名称 + 说明）
+-- 资料清单（按项目类型维护：名称 + 说明；type_id 关联 t_dict.item_id）
 CREATE TABLE IF NOT EXISTS cbs.t_doc_list (
     id          varchar      NOT NULL,
+    type_id     varchar,                               -- -> t_dict.item_id (dict_type=project_type)
     name        varchar      NOT NULL,
     remark      varchar,
     creator     varchar,
@@ -474,3 +477,4 @@ CREATE TABLE IF NOT EXISTS cbs.t_doc_list (
     open_status bool         NOT NULL DEFAULT true,
     CONSTRAINT t_doc_list_pkey PRIMARY KEY (id)
 );
+CREATE INDEX IF NOT EXISTS t_doc_list_type ON cbs.t_doc_list (type_id);
