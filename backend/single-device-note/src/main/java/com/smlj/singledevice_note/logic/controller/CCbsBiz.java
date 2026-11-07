@@ -234,10 +234,11 @@ public class CCbsBiz {
     public Result<?> contractorDelete(@RequestBody Map<String, Object> b) {
         String id = str(b, "contractorId");
         if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "承包商不存在");
+            return Result.fail(ResultCode.RC10101, "承包商不存在或已被删除");
         }
-        if (projectDao.countByContractor(id) > 0) {
-            return Result.fail(ResultCode.RC10101, "该承包商名下存在项目，不能删除");
+        int projCount = projectDao.countByContractor(id);
+        if (projCount > 0) {
+            return Result.fail(ResultCode.RC10101, "该承包商名下还有 " + projCount + " 个项目，请先处理项目后再删除");
         }
         contractorDao.remove(id);
         return Result.success();
@@ -250,7 +251,7 @@ public class CCbsBiz {
     public Result<?> contractorRestore(@RequestBody Map<String, Object> b) {
         String id = str(b, "contractorId");
         if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "承包商不存在");
+            return Result.fail(ResultCode.RC10101, "承包商不存在或已被删除");
         }
         contractorDao.restore(id);
         return Result.success();
@@ -263,10 +264,11 @@ public class CCbsBiz {
     public Result<?> contractorPurge(@RequestBody Map<String, Object> b) {
         String id = str(b, "contractorId");
         if (!StringUtils.hasText(id) || contractorDao.query(id) == null) {
-            return Result.fail(ResultCode.RC10101, "承包商不存在");
+            return Result.fail(ResultCode.RC10101, "承包商不存在或已被彻底删除");
         }
-        if (projectDao.countByContractor(id) > 0) {
-            return Result.fail(ResultCode.RC10101, "该承包商名下存在项目，不能删除");
+        int projCount = projectDao.countByContractor(id);
+        if (projCount > 0) {
+            return Result.fail(ResultCode.RC10101, "该承包商名下还有 " + projCount + " 个项目，不能彻底删除");
         }
         contractorDao.purge(id);
         return Result.success();

@@ -69,10 +69,10 @@ let OPAC = new AbortController()
 /** 当前切页 → 后端过滤参数（status 审批状态 / coop 合作状态 / recycled 回收站） */
 const tabParams = computed(() => (cfg.value.tabs.find(t => t.key === tabKey.value) || {}).params || {})
 
-/** 操作列宽随切页变化（按内容实测预留：6 个链接 400 / 审核 90 / 查看+删除 150 / 回收站 210） */
+/** 操作列宽随切页变化（按内容实测预留：6 个链接 400 / 审核 90 / 查看+删除 150 / 回收站 220） */
 const opWidth = computed(() => {
     if (mode.value === 'audit') return 120
-    return {pass: 400, wait: 90, reject: 150, recycle: 210}[tabKey.value] || 150
+    return {pass: 400, wait: 90, reject: 150, recycle: 220}[tabKey.value] || 150
 })
 
 function loadRows() {
@@ -279,43 +279,46 @@ function submitAudit() {
 function removeRow(row) {
     ElMessageBox.confirm(`确定删除承包商「${row.name}」吗？`, '提示', {type: 'warning'}).then(() => {
         loading.value = true
-        sys.biz('cbs/contractor/delete', {contractorId: row.contractor_id}, AC.signal, () => {}, (r, data) => {
-            loading.value = false
-            if (r) {
-                ElMessage.success('已删除，可在回收站恢复')
-                loadRows()
-            } else {
-                notifyError(data, '删除失败')
-            }
-        })
+        sys.biz('cbs/contractor/delete', {contractorId: row.contractor_id}, OPAC.signal,
+            () => { loading.value = false }, (r, data) => {
+                loading.value = false
+                if (r) {
+                    ElMessage.success('已删除，可在回收站恢复')
+                    loadRows()
+                } else {
+                    notifyError(data, '删除失败')
+                }
+            })
     }).catch(() => {})
 }
 
 function restoreRow(row) {
     loading.value = true
-    sys.biz('cbs/contractor/restore', {contractorId: row.contractor_id}, AC.signal, () => {}, (r, data) => {
-        loading.value = false
-        if (r) {
-            ElMessage.success('已恢复')
-            loadRows()
-        } else {
-            notifyError(data, '恢复失败')
-        }
-    })
+    sys.biz('cbs/contractor/restore', {contractorId: row.contractor_id}, OPAC.signal,
+        () => { loading.value = false }, (r, data) => {
+            loading.value = false
+            if (r) {
+                ElMessage.success('已恢复')
+                loadRows()
+            } else {
+                notifyError(data, '恢复失败')
+            }
+        })
 }
 
 function purgeRow(row) {
     ElMessageBox.confirm(`彻底删除后不可恢复，确定删除「${row.name}」吗？`, '警告', {type: 'warning'}).then(() => {
         loading.value = true
-        sys.biz('cbs/contractor/purge', {contractorId: row.contractor_id}, AC.signal, () => {}, (r, data) => {
-            loading.value = false
-            if (r) {
-                ElMessage.success('已彻底删除')
-                loadRows()
-            } else {
-                notifyError(data, '删除失败')
-            }
-        })
+        sys.biz('cbs/contractor/purge', {contractorId: row.contractor_id}, OPAC.signal,
+            () => { loading.value = false }, (r, data) => {
+                loading.value = false
+                if (r) {
+                    ElMessage.success('已彻底删除')
+                    loadRows()
+                } else {
+                    notifyError(data, '删除失败')
+                }
+            })
     }).catch(() => {})
 }
 
@@ -591,7 +594,7 @@ onUnmounted(() => {
                             <el-link type="danger" @click="removeRow(row)">删除</el-link>
                         </template>
                         <!-- 回收站：查看｜恢复｜彻底删除 -->
-                        <template v-else-if="mode === 'unit'">
+                        <template v-else-if="mode === 'unit' && tabKey === 'recycle'">
                             <el-link type="primary" @click="openView(row)">查看</el-link>
                             <el-divider direction="vertical"/>
                             <el-link type="success" @click="restoreRow(row)">恢复</el-link>
@@ -599,7 +602,7 @@ onUnmounted(() => {
                             <el-link type="danger" @click="purgeRow(row)">彻底删除</el-link>
                         </template>
                         <!-- 审核页：查看｜编辑 -->
-                        <template v-else>
+                        <template v-else-if="mode === 'audit'">
                             <el-link type="primary" @click="openView(row)">查看</el-link>
                             <el-divider direction="vertical"/>
                             <el-link type="primary" @click="openDialog(true, row)">编辑</el-link>
