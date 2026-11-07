@@ -6,7 +6,7 @@ import {pagerOf} from "../system/Pager.js"
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Plus, Search} from "@element-plus/icons-vue";
 import {notifyError} from "@/framework/services/net/NwCodeMap.js"
-import {useDictNames} from "../system/DictX.js"
+import {useDict} from "../system/DictX.js"
 
 const sys = Singleton.getInstance(SysX)
 
@@ -115,8 +115,9 @@ function coopMeta(s) {
     return (gd.coopStatus || []).find(x => x.id === Number(s)) || {desc: s ?? '—', type: 'info'}
 }
 
-/* 承包商类型：字典项可在「基础设置 › 承包商类型」自行增减 ⇒ 选项一律现查后端，gd.json 不存选项 */
-const ctypeOptions = useDictNames('contractor_type')
+/* 承包商类型：字典项可在「基础设置 › 承包商类型」自行增减 ⇒ 选项一律现查后端，gd.json 不存选项；
+ * 表单/筛选存 item_id，列表与查看显示后端回填的 ctype_name */
+const ctypeOptions = useDict('contractor_type')
 
 const today = () => {
     const d = new Date()
@@ -782,7 +783,7 @@ onUnmounted(() => {
                 <el-input v-model="keyword" placeholder="承包商名称" clearable
                           style="width:200px" :prefix-icon="Search"/>
                 <el-select v-model="ctypeFilter" placeholder="承包商类型" clearable style="width:170px">
-                    <el-option v-for="t in ctypeOptions" :key="t" :value="t" :label="t"/>
+                    <el-option v-for="t in ctypeOptions" :key="t.id" :value="t.id" :label="t.name"/>
                 </el-select>
                 <el-button type="primary" @click="loadRows">查询</el-button>
                 <el-button @click="keyword = ''; ctypeFilter = ''; pageNo = 1">重置</el-button>
@@ -795,7 +796,7 @@ onUnmounted(() => {
                 <el-table-column type="index" label="序号" width="60" align="center"/>
                 <el-table-column prop="name" label="承包商名称" min-width="200" show-overflow-tooltip/>
                 <el-table-column prop="uscc" label="统一社会信用代码" min-width="180" show-overflow-tooltip/>
-                <el-table-column prop="ctype" label="承包商类型" min-width="130" show-overflow-tooltip/>
+                <el-table-column prop="ctype_name" label="承包商类型" min-width="130" show-overflow-tooltip/>
                 <el-table-column prop="legal_person" label="法定代表人" min-width="110" show-overflow-tooltip/>
                 <el-table-column prop="safety_person" label="安全负责人" min-width="110" show-overflow-tooltip/>
                 <el-table-column prop="safety_phone" label="安全负责人电话" min-width="140" show-overflow-tooltip/>
@@ -884,7 +885,7 @@ onUnmounted(() => {
                 <el-row :gutter="16">
                     <el-col :span="12">
                         <el-form-item label="承包商类型">
-                            <el-input :model-value="viewRow.ctype || '—'"/>
+                            <el-input :model-value="viewRow.ctype_name || '—'"/>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
@@ -1166,7 +1167,7 @@ onUnmounted(() => {
                     <el-col :span="12">
                         <el-form-item label="承包商类型" prop="ctype">
                             <el-select v-model="form.ctype" placeholder="请选择类型" clearable style="width:100%">
-                                <el-option v-for="t in ctypeOptions" :key="t" :value="t" :label="t"/>
+                                <el-option v-for="t in ctypeOptions" :key="t.id" :value="t.id" :label="t.name"/>
                             </el-select>
                         </el-form-item>
                     </el-col>

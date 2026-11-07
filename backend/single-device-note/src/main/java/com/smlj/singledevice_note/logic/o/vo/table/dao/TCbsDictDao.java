@@ -11,13 +11,6 @@ public interface TCbsDictDao {
 
     TCbsDict query(@Param("id") String id);
 
-    /**
-     * 按名称反查字典项（启用行）。
-     * 承包商 t_contractor.ctype 存的是类型名称文本，而要取该类型下的资质清单得用 item_id，
-     * 故按 (dict_type, item_name) 换 id；不存在返回 null，由调用方 fail-closed。
-     */
-    TCbsDict queryByName(@Param("dictType") String dictType, @Param("name") String name);
-
     /** dictType 空=全部类型；onlyUsing=true 只取启用项（下拉场景）；recycled=true 取回收站(open_status=false) */
     List<TCbsDict> queryPage(@Param("dictType") String dictType, @Param("onlyUsing") boolean onlyUsing,
                              @Param("recycled") Boolean recycled,

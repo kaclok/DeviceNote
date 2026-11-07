@@ -20,8 +20,10 @@ public class TCbsContractor implements Serializable {
     private String name;
     /** 统一社会信用代码（启用行内唯一） */
     private String uscc;
-    /** 承包商类型（gd.json 字典） */
+    /** 承包商类型 -> cbs.t_dict.item_id（dict_type=contractor_type） */
     private String ctype;
+    /** 承包商类型名称：查询时由 SQL 按 ctype 关联 t_dict 回填，只读，不参与增改 */
+    private String ctype_name;
     private String legal_person;
     private String legal_phone;
     private String safety_person;

@@ -12,15 +12,6 @@
         where item_id = #{id}
     </select>
 
-    <!-- 按名称反查：承包商 ctype 存名称文本，取该类型下的资质清单要用 item_id -->
-    <select id="queryByName" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsDict">
-        select <include refid="cols"/>
-        from cbs.t_dict
-        where dict_type = #{dictType} and item_name = #{name} and open_status = true
-        order by is_using desc
-        limit 1
-    </select>
-
         <sql id="cond">
         <where>
             <if test="recycled != null and recycled">open_status = false</if>

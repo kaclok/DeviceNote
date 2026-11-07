@@ -188,6 +188,9 @@ public class CCbsBiz {
         if (c.getCoop_status() != null && (c.getCoop_status() < 1 || c.getCoop_status() > 3)) {
             return Result.fail(ResultCode.RC10101.getCode(), "合作状态不合法");
         }
+        if (StringUtils.hasText(c.getCtype()) && !isContractorType(c.getCtype())) {
+            return Result.fail(ResultCode.RC10101.getCode(), "承包商类型不存在，请先在「基础设置 › 承包商类型」维护");
+        }
         if (StringUtils.hasText(c.getUscc())
                 && contractorDao.countUsccDup(c.getUscc(), c.getContractor_id()) > 0) {
             return Result.fail(ResultCode.RC10101.getCode(), "统一社会信用代码已存在");
@@ -1453,18 +1456,20 @@ public class CCbsBiz {
         }
     }
 
+    /** ctype 必须是 contractor_type 字典项（不限 open_status：类型被软删后老数据仍可编辑保存） */
+    private boolean isContractorType(String itemId) {
+        TCbsDict d = dictDao.query(itemId);
+        return d != null && "contractor_type".equals(d.getDict_type());
+    }
+
     // ---------------- 承包商审核：资质证件 / 审核所需文件 逐项审核 ----------------
 
     /**
-     * 承包商 ctype 存的是类型名称文本，而资质清单挂在 t_dict.item_id 上，故按名称换 id。
-     * 换不到（历史脏数据 / 该类型被删）返回 null，调用方按"清单为空"处理。
+     * 承包商类型即字典项 item_id（dict_type=contractor_type），直接取用。
+     * 为空（未选类型 / 历史数据）返回 null，调用方按"清单为空"处理。
      */
     private String ctypeIdOf(TCbsContractor c) {
-        if (c == null || !StringUtils.hasText(c.getCtype())) {
-            return null;
-        }
-        TCbsDict d = dictDao.queryByName("contractor_type", c.getCtype());
-        return d == null ? null : d.getItem_id();
+        return c == null || !StringUtils.hasText(c.getCtype()) ? null : c.getCtype();
     }
 
     /**

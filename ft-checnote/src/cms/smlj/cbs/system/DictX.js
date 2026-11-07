@@ -1,4 +1,4 @@
-import {computed, ref} from "vue"
+import {ref} from "vue"
 import {SysX} from "./SysX.js"
 import {Singleton} from "@/framework/services/Singleton.js"
 
@@ -9,6 +9,8 @@ import {Singleton} from "@/framework/services/Singleton.js"
  * 因此选项必须现查后端（cbs/dict/options），不允许写进 gd.json，也不许前端硬编码。
  *
  * 缓存：同一 dictType 只请求一次（模块级）；字典维护页增删改后调 invalidateDict 使其失效。
+ *
+ * 返回值一律 [{id, name}]：业务表只存 id（如 t_contractor.ctype），名称仅用于页面显示。
  */
 const sys = Singleton.getInstance(SysX)
 const cache = new Map()      // dictType -> ref([{id, name}])
@@ -34,12 +36,6 @@ export function useDict(type) {
         load(type)
     }
     return items
-}
-
-/** 某类字典的名称数组（业务字段存名称文本时用，与 useDict 共用同一份缓存） */
-export function useDictNames(type) {
-    const items = useDict(type)
-    return computed(() => items.value.map(i => i.name))
 }
 
 /** 字典维护页增删改成功后调用：清缓存，下次 useDict 重新拉 */

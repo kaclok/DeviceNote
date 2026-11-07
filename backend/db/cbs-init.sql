@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS cbs.t_contractor (
     contractor_id       varchar      NOT NULL,                 -- 业务主键（cghtz unique_id 同款生成）
     name                varchar      NOT NULL,
     uscc                varchar,                               -- 统一社会信用代码
-    ctype               varchar,                               -- 承包商类型（gd.json 字典）
+    ctype               varchar,                               -- 承包商类型 -> t_dict.item_id (dict_type=contractor_type)
     legal_person        varchar,
     legal_phone         varchar,
     safety_person       varchar,
@@ -621,3 +621,18 @@ COMMENT ON COLUMN cbs.t_contractor_qual_check.qual_type IS '分类：1=资质证
 COMMENT ON COLUMN cbs.t_contractor_qual_check.check_status IS '审核结果：0=未审核 1=符合 2=不符合';
 COMMENT ON COLUMN cbs.t_person.gender IS '性别：1=男 2=女';
 COMMENT ON COLUMN cbs.t_contractor_person.audit_status IS '审核状态：1=已通过 2=已驳回';
+
+-- =====================================================================
+-- 六期（2026-11-07）：t_contractor.ctype 由「类型名称文本」改为 t_dict.item_id
+-- 说明：名称可被改名，存文本会让历史行与字典脱钩、清单只能按名称反查；
+--       改存 item_id 后与 t_contractor_qual.type_id 同一口径，资质清单直接按 id 取。
+--       本 UPDATE 幂等：迁移后 ctype 已是 item_id，NOT EXISTS 条件不再命中。
+-- =====================================================================
+UPDATE cbs.t_contractor tc
+   SET ctype = d.item_id
+  FROM cbs.t_dict d
+ WHERE tc.ctype IS NOT NULL
+   AND d.dict_type = 'contractor_type'
+   AND d.item_name = tc.ctype
+   AND NOT EXISTS (SELECT 1 FROM cbs.t_dict t WHERE t.item_id = tc.ctype);
+COMMENT ON COLUMN cbs.t_contractor.ctype IS '承包商类型 -> t_dict.item_id（dict_type=contractor_type）';

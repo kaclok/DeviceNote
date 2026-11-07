@@ -2,22 +2,25 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.smlj.singledevice_note.logic.o.vo.table.dao.TCbsContractorDao">
 
+    <!-- ctype 存 item_id；ctype_name 仅用于列表/查看显示（不滤 open_status，软删的旧类型也能显示名称） -->
     <sql id="cols">
-        contractor_id, name, uscc, ctype, legal_person, legal_phone, safety_person, safety_phone,
-        register_address, register_capital, deposit, login_account,
-        case when login_pwd is null or login_pwd = '' then null else '******' end as login_pwd,
-        phone, id_card, post_name, role_name,
-        coop_status, approve_status,
-        reject_reason, creator, open_status
+        t.contractor_id, t.name, t.uscc, t.ctype, t.legal_person, t.legal_phone,
+        t.safety_person, t.safety_phone, t.register_address, t.register_capital, t.deposit,
+        t.login_account,
+        case when t.login_pwd is null or t.login_pwd = '' then null else '******' end as login_pwd,
+        t.phone, t.id_card, t.post_name, t.role_name,
+        t.coop_status, t.approve_status,
+        t.reject_reason, t.creator, t.open_status,
+        (select d.item_name from cbs.t_dict d where d.item_id = t.ctype) as ctype_name
     </sql>
 
     <select id="query" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
-        select <include refid="cols"/> from cbs.t_contractor where contractor_id = #{id}
+        select <include refid="cols"/> from cbs.t_contractor t where t.contractor_id = #{id}
     </select>
 
     <!-- 分类口径：recycled=true 回收站(已软删)；coop 过滤合作状态(审核页)；status 过滤审批状态(单位管理页) -->
     <select id="queryPage" resultType="com.smlj.singledevice_note.logic.o.vo.table.entity.TCbsContractor">
-        select <include refid="cols"/> from cbs.t_contractor
+        select <include refid="cols"/> from cbs.t_contractor t
         <where>
             <choose>
                 <when test="recycled">open_status = false</when>
