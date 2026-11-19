@@ -17,6 +17,7 @@ const mpaInput = {
     cbs: resolve(__dirname, './pages/smlj/cbs/index.html'),
     carop: resolve(__dirname, './pages/smlj/carop/index.html'),
     plantmap: resolve(__dirname, './pages/smlj/plantmap/index.html'),
+    safetyVisitor: resolve(__dirname, './pages/smlj/safetyVisitor/index.html'),
     filetest: resolve(__dirname, './pages/smlj/filetest/index.html'),
     fileview: resolve(__dirname, './pages/smlj/fileview/index.html'),
     filechunk: resolve(__dirname, './pages/smlj/filechunk/index.html'),
